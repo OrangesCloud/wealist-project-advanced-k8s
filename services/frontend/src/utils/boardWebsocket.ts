@@ -18,7 +18,9 @@ const getWebSocketUrl = (projectId: string, token: string): string => {
 
   if (isIngressMode) {
     // K8s ingress: /svc/board prefix 사용
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // local 개발환경 (non-localhost 도메인 + TLS 미설정) 감지
+    const isLocalDomain = window.location.hostname.includes('local.');
+    const protocol = isLocalDomain ? 'ws:' : (window.location.protocol === 'https:' ? 'wss:' : 'ws:');
     return `${protocol}//${window.location.host}/svc/board/api/boards/ws/project/${projectId}?token=${encodeURIComponent(token)}`;
   }
 
