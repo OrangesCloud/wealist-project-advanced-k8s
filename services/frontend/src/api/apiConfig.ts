@@ -83,6 +83,7 @@ export const BOARD_SERVICE_API_URL = getApiBaseUrl('/api/boards/api');
 export const CHAT_SERVICE_API_URL = getApiBaseUrl('/api/chats');
 export const NOTI_SERVICE_API_URL = getApiBaseUrl('/api/notifications');
 export const STORAGE_SERVICE_API_URL = getApiBaseUrl('/api/storage'); // storage-service (Google Drive like)
+export const VIDEO_SERVICE_API_URL = getApiBaseUrl('/api/video'); // video-service
 
 // ============================================================================
 // Axios 인스턴스 생성
@@ -138,6 +139,15 @@ export const notiServiceClient = axios.create({
  */
 export const storageServiceClient = axios.create({
   baseURL: STORAGE_SERVICE_API_URL,
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+});
+
+/**
+ * Video Service API (Go)를 위한 Axios 인스턴스 - 화상통화
+ */
+export const videoServiceClient = axios.create({
+  baseURL: VIDEO_SERVICE_API_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
@@ -293,6 +303,7 @@ setupRequestInterceptor(boardServiceClient);
 setupRequestInterceptor(chatServiceClient);
 setupRequestInterceptor(notiServiceClient);
 setupRequestInterceptor(storageServiceClient);
+setupRequestInterceptor(videoServiceClient);
 
 setupUnifiedResponseInterceptor(authServiceClient);
 setupUnifiedResponseInterceptor(userRepoClient);
@@ -300,6 +311,7 @@ setupUnifiedResponseInterceptor(boardServiceClient);
 setupUnifiedResponseInterceptor(chatServiceClient);
 setupUnifiedResponseInterceptor(notiServiceClient);
 setupUnifiedResponseInterceptor(storageServiceClient);
+setupUnifiedResponseInterceptor(videoServiceClient);
 
 export const getAuthHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,
