@@ -81,7 +81,11 @@ kind-load-images:
 	@echo "--- Building service images ---"
 	./docker/scripts/dev/2.build_services_and_load.sh
 	@echo ""
-	@echo "✅ All images loaded! Next: make kind-apply"
+	@echo "✅ All images loaded!"
+	@echo ""
+	@echo "Next step (choose one):"
+	@echo "  make kind-apply       - Deploy (localhost)"
+	@echo "  make local-kind-apply - Deploy (local.wealist.co.kr)"
 
 # Step 3: Deploy all to k8s
 kind-apply:

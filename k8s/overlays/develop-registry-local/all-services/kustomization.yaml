@@ -67,3 +67,16 @@ labels:
       app.kubernetes.io/registry: local
       app.kubernetes.io/domain: local.wealist.co.kr
     includeSelectors: false
+
+# Patch auth-service config for local.wealist.co.kr domain
+patches:
+  - target:
+      kind: ConfigMap
+      name: auth-service-config
+    patch: |-
+      - op: replace
+        path: /data/OAUTH2_REDIRECT_URL_ENV
+        value: "http://local.wealist.co.kr/oauth/callback"
+      - op: replace
+        path: /data/OAUTH2_CLIENT_REDIRECT_URI
+        value: "http://local.wealist.co.kr/login/oauth2/code/google"
