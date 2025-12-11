@@ -1,6 +1,7 @@
 go 1.24.0
 
 use (
+	./packages/wealist-advanced-go-pkg
 	./services/board-service
 	./services/chat-service
 	./services/noti-service
