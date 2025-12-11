@@ -115,7 +115,7 @@ func getDefaultConfig() Config {
 		Server: ServerConfig{
 			Port:            "8003",
 			Mode:            "debug",
-			BasePath:        "/api/storage",
+			BasePath:        "/api",
 			ReadTimeout:     10 * time.Second,
 			WriteTimeout:    10 * time.Second,
 			ShutdownTimeout: 30 * time.Second,
