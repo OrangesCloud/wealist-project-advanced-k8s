@@ -70,8 +70,10 @@ case $COMMAND in
         # ./docker/scripts/generate-swagger.sh all 2>/dev/null || echo -e "${YELLOW}⚠️  Swagger 생성 스킵 (swag 미설치 - Docker에서 생성됨)${NC}"
 
         echo -e "${BLUE}🔨 이미지 빌드 및 컨테이너 시작 중 (병렬 처리)...${NC}"
-        # --build: 빌드 완료된 서비스부터 바로 시작 (병렬 처리)
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES up --build -d
+        # --parallel: 서비스 빌드를 병렬로 수행
+        # --build: 빌드 완료된 서비스부터 바로 시작
+        docker compose $ENV_FILE_OPTION $COMPOSE_FILES build --parallel
+        docker compose $ENV_FILE_OPTION $COMPOSE_FILES up -d
         echo -e "${GREEN}✅ 개발 환경이 시작되었습니다.${NC}"
         echo -e "${BLUE}📊 서비스 접속 정보:${NC}"
         echo "   - Frontend:    http://localhost:3000"
@@ -131,15 +133,15 @@ case $COMMAND in
         ;;
 
     build)
-        echo -e "${BLUE}🔨 이미지를 다시 빌드합니다...${NC}"
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES build --no-cache
+        echo -e "${BLUE}🔨 이미지를 다시 빌드합니다 (병렬)...${NC}"
+        docker compose $ENV_FILE_OPTION $COMPOSE_FILES build --parallel --no-cache
         echo -e "${GREEN}✅ 빌드가 완료되었습니다.${NC}"
         ;;
 
     rebuild)
         echo -e "${BLUE}🔨 이미지를 다시 빌드하고 시작합니다 (병렬 처리)...${NC}"
-        # --build: 빌드 완료된 서비스부터 바로 시작 (병렬 처리)
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES up --build -d
+        docker compose $ENV_FILE_OPTION $COMPOSE_FILES build --parallel
+        docker compose $ENV_FILE_OPTION $COMPOSE_FILES up -d
         echo -e "${GREEN}✅ 빌드 및 시작이 완료되었습니다.${NC}"
         ;;
 

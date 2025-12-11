@@ -89,7 +89,12 @@ kubectl wait --namespace ingress-nginx \
   --selector=app.kubernetes.io/component=controller \
   --timeout=120s || echo "WARNING: Ingress controller not ready yet"
 
-# 8. 네임스페이스 생성
+# 8. Nginx Ingress Controller 설정 (snippet 허용)
+echo "⚙️ Ingress Controller 설정 중..."
+kubectl patch configmap ingress-nginx-controller -n ingress-nginx \
+  --type merge -p '{"data":{"allow-snippet-annotations":"true"}}' 2>/dev/null || true
+
+# 9. 네임스페이스 생성
 kubectl create namespace wealist-dev 2>/dev/null || true
 
 echo ""
@@ -97,6 +102,3 @@ echo "✅ 클러스터 준비 완료!"
 echo ""
 echo "📦 로컬 레지스트리: localhost:${REG_PORT}"
 echo ""
-echo "다음 단계:"
-echo "  make infra-setup          # 인프라 이미지 로드 + 배포"
-echo "  make k8s-deploy-services  # 서비스 빌드 + 배포"
