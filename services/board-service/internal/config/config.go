@@ -17,6 +17,7 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database"`
 	Logger   LoggerConfig   `yaml:"logger"`
 	JWT      JWTConfig      `yaml:"jwt"`
+	AuthAPI  AuthAPIConfig  `yaml:"auth_api"` // ← Auth API 추가 (토큰 검증용)
 	UserAPI  UserAPIConfig  `yaml:"user_api"`
 	CORS     CORSConfig     `yaml:"cors"`
 	Redis    RedisConfig    `mapstructure:"redis" yaml:"redis"` // ← Redis 추가
@@ -56,6 +57,12 @@ type LoggerConfig struct {
 type JWTConfig struct {
 	Secret     string        `yaml:"secret"`
 	ExpireTime time.Duration `yaml:"expire_time"`
+}
+
+// AuthAPIConfig holds Auth Service configuration for token validation
+type AuthAPIConfig struct {
+	BaseURL string        `yaml:"base_url"`
+	Timeout time.Duration `yaml:"timeout"`
 }
 
 // UserAPIConfig holds User API configuration
@@ -120,6 +127,7 @@ func getDefaultConfig() Config {
 		Server: ServerConfig{
 			Port:            "8000",
 			Mode:            "debug",
+			BasePath:        "",
 			ReadTimeout:     10 * time.Second,
 			WriteTimeout:    10 * time.Second,
 			ShutdownTimeout: 30 * time.Second,
@@ -142,8 +150,12 @@ func getDefaultConfig() Config {
 			Secret:     "",
 			ExpireTime: 24 * time.Hour,
 		},
-		UserAPI: UserAPIConfig{
+		AuthAPI: AuthAPIConfig{
 			BaseURL: "http://localhost:8080",
+			Timeout: 5 * time.Second,
+		},
+		UserAPI: UserAPIConfig{
+			BaseURL: "http://localhost:8081",
 			Timeout: 5 * time.Second,
 		},
 		CORS: CORSConfig{
@@ -233,6 +245,19 @@ func (c *Config) overrideFromEnv() {
 	// Current format can override if SECRET_KEY not set
 	if secret := os.Getenv("JWT_SECRET"); secret != "" && os.Getenv("SECRET_KEY") == "" {
 		c.JWT.Secret = secret
+	}
+
+	// Auth API - AUTH_SERVICE_URL (토큰 검증용)
+	if baseURL := os.Getenv("AUTH_SERVICE_URL"); baseURL != "" {
+		c.AuthAPI.BaseURL = baseURL
+	}
+	if timeout := os.Getenv("AUTH_API_TIMEOUT"); timeout != "" {
+		if d, err := time.ParseDuration(timeout); err == nil {
+			c.AuthAPI.Timeout = d
+		}
+	}
+	if c.AuthAPI.Timeout == 0 {
+		c.AuthAPI.Timeout = 5 * time.Second
 	}
 
 	// User API - USER_SERVICE_URL alias (original format takes precedence)

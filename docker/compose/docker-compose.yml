@@ -265,7 +265,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - USER_SERVICE_URL=http://user-service:8081/api/users
+      - USER_SERVICE_URL=http://user-service:8081
       - AUTH_SERVICE_URL=http://auth-service:8080
       - SECRET_KEY=${JWT_SECRET}
       - CORS_ORIGINS=${CORS_ORIGINS}
@@ -480,7 +480,7 @@ services:
       - SECRET_KEY=${JWT_SECRET}
 
       # User Service (base path for workspace validation)
-      - USER_SERVICE_URL=http://user-service:8081/api
+      - USER_SERVICE_URL=http://user-service:8081
 
       # CORS Configuration
       - CORS_ORIGINS=${CORS_ORIGINS}

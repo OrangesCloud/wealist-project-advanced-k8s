@@ -156,16 +156,18 @@ func main() {
 		zap.String("config_source", "Loaded from config.yaml and environment variables"),
 	)
 
-	// Initialize User API client
+	// Initialize User API client (with Auth service URL for token validation)
 	userClient := client.NewUserClient(
 		cfg.UserAPI.BaseURL,
+		cfg.AuthAPI.BaseURL, // Auth service URL for WebSocket token validation
 		cfg.UserAPI.Timeout,
 		log.Logger,
 		m,
 	)
 
 	log.Info("User API client initialized successfully",
-		zap.String("base_url", cfg.UserAPI.BaseURL),
+		zap.String("user_base_url", cfg.UserAPI.BaseURL),
+		zap.String("auth_base_url", cfg.AuthAPI.BaseURL),
 		zap.Duration("timeout", cfg.UserAPI.Timeout),
 	)
 

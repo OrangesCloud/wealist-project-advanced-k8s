@@ -98,7 +98,7 @@ func TestUserClient_ValidateWorkspaceMember(t *testing.T) {
 			defer server.Close()
 
 			logger := zap.NewNop()
-			client := NewUserClient(server.URL, 5*time.Second, logger, nil)
+			client := NewUserClient(server.URL, server.URL, 5*time.Second, logger, nil)
 
 			// When
 			valid, err := client.ValidateWorkspaceMember(context.Background(), workspaceID, userID, token)
@@ -181,7 +181,7 @@ func TestUserClient_GetUserProfile(t *testing.T) {
 			defer server.Close()
 
 			logger := zap.NewNop()
-			client := NewUserClient(server.URL, 5*time.Second, logger, nil)
+			client := NewUserClient(server.URL, server.URL, 5*time.Second, logger, nil)
 
 			// When
 			profile, err := client.GetUserProfile(context.Background(), userID, token)
@@ -284,7 +284,7 @@ func TestUserClient_GetWorkspaceProfile(t *testing.T) {
 			defer server.Close()
 
 			logger := zap.NewNop()
-			client := NewUserClient(server.URL, 5*time.Second, logger, nil)
+			client := NewUserClient(server.URL, server.URL, 5*time.Second, logger, nil)
 
 			// When
 			profile, err := client.GetWorkspaceProfile(context.Background(), workspaceID, userID, token)
@@ -390,7 +390,7 @@ func TestUserClient_GetWorkspace(t *testing.T) {
 			defer server.Close()
 
 			logger := zap.NewNop()
-			client := NewUserClient(server.URL, 5*time.Second, logger, nil)
+			client := NewUserClient(server.URL, server.URL, 5*time.Second, logger, nil)
 
 			// When
 			workspace, err := client.GetWorkspace(context.Background(), workspaceID, token)
@@ -437,7 +437,7 @@ func TestUserClient_Timeout(t *testing.T) {
 	defer server.Close()
 
 	logger := zap.NewNop()
-	client := NewUserClient(server.URL, 100*time.Millisecond, logger, nil)
+	client := NewUserClient(server.URL, server.URL, 100*time.Millisecond, logger, nil)
 
 	// When
 	ctx := context.Background()
@@ -473,7 +473,7 @@ func TestUserClient_ContextCancellation(t *testing.T) {
 	defer server.Close()
 
 	logger := zap.NewNop()
-	client := NewUserClient(server.URL, 5*time.Second, logger, nil)
+	client := NewUserClient(server.URL, server.URL, 5*time.Second, logger, nil)
 
 	// When: Cancel context before request completes
 	ctx, cancel := context.WithCancel(context.Background())
@@ -503,7 +503,7 @@ func TestUserClient_InvalidJSON(t *testing.T) {
 	defer server.Close()
 
 	logger := zap.NewNop()
-	client := NewUserClient(server.URL, 5*time.Second, logger, nil)
+	client := NewUserClient(server.URL, server.URL, 5*time.Second, logger, nil)
 
 	// When
 	profile, err := client.GetUserProfile(context.Background(), userID, token)
@@ -541,7 +541,7 @@ func TestUserClient_AuthorizationHeader(t *testing.T) {
 	defer server.Close()
 
 	logger := zap.NewNop()
-	client := NewUserClient(server.URL, 5*time.Second, logger, nil)
+	client := NewUserClient(server.URL, server.URL, 5*time.Second, logger, nil)
 
 	// When
 	_, err := client.ValidateWorkspaceMember(context.Background(), workspaceID, userID, token)
@@ -582,7 +582,7 @@ func TestProperty_ExternalAPICallMetricsRecorded(t *testing.T) {
 	// Create real metrics instance (will be registered to default registry)
 	// Note: In production, metrics are shared across the application
 	logger := zap.NewNop()
-	client := NewUserClient(server.URL, 5*time.Second, logger, testClientMetrics)
+	client := NewUserClient(server.URL, server.URL, 5*time.Second, logger, testClientMetrics)
 
 	// When: Make API call
 	_, err := client.GetUserProfile(context.Background(), userID, token)
@@ -650,7 +650,7 @@ func TestProperty_ExternalAPIErrorCounting(t *testing.T) {
 			defer server.Close()
 
 			logger := zap.NewNop()
-			client := NewUserClient(server.URL, 5*time.Second, logger, testClientMetrics)
+			client := NewUserClient(server.URL, server.URL, 5*time.Second, logger, testClientMetrics)
 
 			// When: Make API call
 			_, _ = client.GetUserProfile(context.Background(), userID, token)
@@ -684,7 +684,7 @@ func TestProperty_ExternalAPIMetricsWithNilMetrics(t *testing.T) {
 
 	logger := zap.NewNop()
 	// Create client with nil metrics
-	client := NewUserClient(server.URL, 5*time.Second, logger, nil)
+	client := NewUserClient(server.URL, server.URL, 5*time.Second, logger, nil)
 
 	// When: Make API call
 	profile, err := client.GetUserProfile(context.Background(), userID, token)

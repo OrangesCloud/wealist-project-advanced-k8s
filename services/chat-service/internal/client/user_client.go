@@ -48,39 +48,25 @@ func NewUserClient(baseURL string, timeout time.Duration, logger *zap.Logger) Us
 }
 
 // buildURL constructs the full URL for User Service API calls
-// It intelligently handles base URLs that may or may not include context path
+// baseURL should be the service host only (e.g., http://user-service:8081)
+// endpoint should be the API path (e.g., /workspaces/123/validate-member/456)
 //
-// Examples:
-//   - baseURL: http://user-service:8080/api/users, endpoint: /workspaces/123
-//     -> http://user-service:8080/api/users/api/workspaces/123
-//   - baseURL: http://user-service:8080, endpoint: /workspaces/123
-//     -> http://user-service:8080/api/workspaces/123
+// Example:
+//   - baseURL: http://user-service:8081, endpoint: /workspaces/123/validate-member/456
+//     -> http://user-service:8081/api/workspaces/123/validate-member/456
 func (c *userClient) buildURL(endpoint string) string {
 	// Ensure endpoint starts with /
 	if !strings.HasPrefix(endpoint, "/") {
 		endpoint = "/" + endpoint
 	}
 
-	// Check if baseURL already contains context path (e.g., /api/users)
-	hasContextPath := strings.Contains(c.baseURL, "/api/users") || strings.Contains(c.baseURL, "/api/boards")
-
-	var finalURL string
-	if hasContextPath {
-		// Base URL already has context path, add /api before endpoint
-		// This handles service-to-service communication in Docker where
-		// user-service has context-path: /api/users
-		finalURL = c.baseURL + "/api" + endpoint
-	} else {
-		// Base URL doesn't have context path (local development)
-		// Just add /api before endpoint
-		finalURL = c.baseURL + "/api" + endpoint
-	}
+	// user-service uses /api as base path, so we prepend /api to the endpoint
+	finalURL := c.baseURL + "/api" + endpoint
 
 	c.logger.Debug("Built URL for User Service",
 		zap.String("base_url", c.baseURL),
 		zap.String("endpoint", endpoint),
 		zap.String("final_url", finalURL),
-		zap.Bool("has_context_path", hasContextPath),
 	)
 
 	return finalURL
