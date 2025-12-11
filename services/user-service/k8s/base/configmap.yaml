@@ -15,3 +15,10 @@ data:
   REDIS_PORT: "6379"
   # Service URLs
   AUTH_SERVICE_URL: "http://auth-service:8080"
+  # S3/MinIO Configuration
+  S3_BUCKET: "wealist-files"
+  S3_REGION: "ap-northeast-2"
+  S3_ENDPOINT: "http://minio:9000"
+  # K8s 환경에서는 ingress를 통해 MinIO 접근
+  # (환경별로 overlay에서 override 가능)
+  S3_PUBLIC_ENDPOINT: "http://wealist.local/minio"

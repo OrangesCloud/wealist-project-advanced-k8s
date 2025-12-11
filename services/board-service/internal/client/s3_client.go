@@ -28,11 +28,12 @@ type S3ClientInterface interface {
 
 // S3Client wraps AWS S3 client and implements S3ClientInterface
 type S3Client struct {
-	client        *s3.Client
-	presignClient *s3.PresignClient
-	bucket        string
-	region        string
-	endpoint      string // MinIO 사용 시 로컬 엔드포인트를 저장
+	client         *s3.Client
+	presignClient  *s3.Client // presigned URL 생성용 별도 클라이언트
+	bucket         string
+	region         string
+	endpoint       string // 내부 통신용 엔드포인트
+	publicEndpoint string // 브라우저 접근용 공개 엔드포인트 (presigned URL용)
 }
 
 // NewS3Client creates a new S3 client
@@ -43,6 +44,8 @@ func NewS3Client(cfg *appConfig.S3Config) (*S3Client, error) {
 	if cfg.Region == "" {
 		return nil, fmt.Errorf("S3 region is required")
 	}
+
+	ctx := context.Background()
 
 	// Create AWS config
 	var awsCfg aws.Config
@@ -55,16 +58,15 @@ func NewS3Client(cfg *appConfig.S3Config) (*S3Client, error) {
 			return nil, fmt.Errorf("access key and secret key are required for MinIO endpoint")
 		}
 
-		// 🚨 [핵심 수정] Deprecated 함수로 복구: config.WithEndpointResolverWithOptions
-		// 빌드 오류를 회피하기 위해, Docker 빌드 환경이 확실히 알고 있는 함수로 되돌립니다.
-		awsCfg, err = config.LoadDefaultConfig(context.TODO(),
+		// MinIO configuration with internal endpoint
+		awsCfg, err = config.LoadDefaultConfig(ctx,
 			config.WithRegion(cfg.Region),
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 				cfg.AccessKey,
 				cfg.SecretKey,
 				"",
 			)),
-			config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc( // 💡 Deprecated 함수 사용
+			config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
 				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 					return aws.Endpoint{
 						URL:               cfg.Endpoint,
@@ -74,33 +76,63 @@ func NewS3Client(cfg *appConfig.S3Config) (*S3Client, error) {
 				},
 			)),
 		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load AWS config: %w", err)
+		}
 	} else {
-		// Use AWS SDK default credential chain (IAM role on EC2, ~/.aws/credentials locally)
-		awsCfg, err = config.LoadDefaultConfig(context.TODO(),
+		// AWS S3 configuration (uses IAM role or default credentials)
+		awsCfg, err = config.LoadDefaultConfig(ctx,
 			config.WithRegion(cfg.Region),
 		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load AWS config: %w", err)
+		}
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to load AWS config: %w", err)
-	}
-
-	// Create S3 client
-	s3Client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+	// Create S3 client for internal operations
+	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
 		if cfg.Endpoint != "" {
 			o.UsePathStyle = true // Required for MinIO
 		}
 	})
 
-	// Create presign client
-	presignClient := s3.NewPresignClient(s3Client)
+	// Create separate presign client with public endpoint for browser-accessible URLs
+	var presignClient *s3.Client
+	if cfg.PublicEndpoint != "" && cfg.Endpoint != "" {
+		publicAwsCfg, err := config.LoadDefaultConfig(ctx,
+			config.WithRegion(cfg.Region),
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+				cfg.AccessKey,
+				cfg.SecretKey,
+				"",
+			)),
+			config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
+				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+					return aws.Endpoint{
+						URL:               cfg.PublicEndpoint,
+						HostnameImmutable: true,
+						SigningRegion:     cfg.Region,
+					}, nil
+				},
+			)),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load public AWS config: %w", err)
+		}
+		presignClient = s3.NewFromConfig(publicAwsCfg, func(o *s3.Options) {
+			o.UsePathStyle = true
+		})
+	} else {
+		presignClient = client
+	}
 
 	return &S3Client{
-		client:        s3Client,
-		presignClient: presignClient,
-		bucket:        cfg.Bucket,
-		region:        cfg.Region,
-		endpoint:      cfg.Endpoint, // Endpoint 값 저장
+		client:         client,
+		presignClient:  presignClient,
+		bucket:         cfg.Bucket,
+		region:         cfg.Region,
+		endpoint:       cfg.Endpoint,
+		publicEndpoint: cfg.PublicEndpoint,
 	}, nil
 }
 
@@ -148,6 +180,9 @@ func (c *S3Client) GeneratePresignedURL(ctx context.Context, entityType, workspa
 		return "", "", fmt.Errorf("failed to generate file key: %w", err)
 	}
 
+	// Use presignClient which is configured with public endpoint
+	presignClient := s3.NewPresignClient(c.presignClient)
+
 	// Create presigned PUT request
 	putObjectInput := &s3.PutObjectInput{
 		Bucket:      aws.String(c.bucket),
@@ -156,29 +191,14 @@ func (c *S3Client) GeneratePresignedURL(ctx context.Context, entityType, workspa
 	}
 
 	// Generate presigned URL with 5 minute expiration
-	presignedReq, err := c.presignClient.PresignPutObject(ctx, putObjectInput, func(opts *s3.PresignOptions) {
+	presignedReq, err := presignClient.PresignPutObject(ctx, putObjectInput, func(opts *s3.PresignOptions) {
 		opts.Expires = 5 * time.Minute
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
 
-	finalURL := presignedReq.URL
-
-	// 💡 [MinIO/Docker 호스트 치환 로직] c.endpoint가 설정된 경우(로컬 개발 환경)에만 치환을 시도합니다.
-	if c.endpoint != "" {
-		// 1. MinIO의 내부 서비스 이름 정의
-		const internalMinIOHost = "minio:9000"
-
-		// 2. 외부에서 접근 가능한 호스트 (localhost:9000)를 c.endpoint에서 추출
-		externalHost := strings.TrimPrefix(strings.TrimPrefix(c.endpoint, "http://"), "https://")
-
-		// strings.Replace를 사용하여 내부 호스트를 외부 호스트로 치환합니다.
-		finalURL = strings.Replace(finalURL, internalMinIOHost, externalHost, 1)
-	}
-
-	// 변경된 finalURL과 fileKey를 반환합니다.
-	return finalURL, fileKey, nil
+	return presignedReq.URL, fileKey, nil
 }
 
 // UploadFile uploads a file to S3
@@ -213,11 +233,15 @@ func (c *S3Client) DeleteFile(ctx context.Context, key string) error {
 // GetFileURL returns the public URL for a file
 // S3 Key를 기반으로 다운로드 가능한 URL을 생성합니다.
 func (c *S3Client) GetFileURL(key string) string {
-	// MinIO 환경인 경우 (endpoint가 설정된 경우)
+	// MinIO 환경인 경우 (publicEndpoint가 설정된 경우 우선 사용)
+	if c.publicEndpoint != "" {
+		// 예: https://local.wealist.co.kr/minio/bucket/key
+		return fmt.Sprintf("%s/%s/%s", strings.TrimSuffix(c.publicEndpoint, "/"), c.bucket, key)
+	}
+
+	// MinIO 환경 (publicEndpoint 없이 endpoint만 있는 경우)
 	if c.endpoint != "" {
 		// 예: http://localhost:9000/bucket/key
-
-		// c.endpoint는 "http://localhost:9000" 형태
 		return fmt.Sprintf("%s/%s/%s", strings.TrimSuffix(c.endpoint, "/"), c.bucket, key)
 	}
 

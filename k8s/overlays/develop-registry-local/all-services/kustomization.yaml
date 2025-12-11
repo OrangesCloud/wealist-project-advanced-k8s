@@ -117,3 +117,21 @@ patches:
       - op: replace
         path: /data/S3_PUBLIC_ENDPOINT
         value: "https://local.wealist.co.kr/minio"
+
+  # User service: S3_PUBLIC_ENDPOINT for local.wealist.co.kr domain
+  - target:
+      kind: ConfigMap
+      name: user-service-config
+    patch: |-
+      - op: replace
+        path: /data/S3_PUBLIC_ENDPOINT
+        value: "https://local.wealist.co.kr/minio"
+
+  # Board service: S3_PUBLIC_ENDPOINT for local.wealist.co.kr domain
+  - target:
+      kind: ConfigMap
+      name: board-service-config
+    patch: |-
+      - op: replace
+        path: /data/S3_PUBLIC_ENDPOINT
+        value: "https://local.wealist.co.kr/minio"

@@ -36,10 +36,15 @@ patches:
       - op: replace
         path: /data/LOG_LEVEL
         value: "info"
-      # Production URLs (EKS internal DNS)
+      # Production S3 Configuration
+      # S3_ENDPOINT는 비워둠 - AWS SDK 기본 동작 사용 (IAM role)
       - op: replace
         path: /data/S3_ENDPOINT
-        value: "https://s3.ap-northeast-2.amazonaws.com"
+        value: ""
       - op: replace
         path: /data/S3_BUCKET
         value: "wealist-prod-files"
+      # S3_PUBLIC_ENDPOINT도 비워두거나 CloudFront URL 사용
+      # - op: add
+      #   path: /data/S3_PUBLIC_ENDPOINT
+      #   value: "https://d1234567890.cloudfront.net"
