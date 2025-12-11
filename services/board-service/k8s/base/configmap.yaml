@@ -11,7 +11,7 @@ data:
   # Database
   DB_HOST: "postgres"
   DB_PORT: "5432"
-  DB_NAME: "board_db"
+  DB_NAME: "wealist_board_db"
   # Redis
   REDIS_HOST: "redis"
   REDIS_PORT: "6379"
