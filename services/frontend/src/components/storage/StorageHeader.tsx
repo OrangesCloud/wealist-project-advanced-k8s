@@ -13,7 +13,7 @@ import {
   X,
   SlidersHorizontal,
 } from 'lucide-react';
-import type { BreadcrumbItem, ViewMode, SortBy, SortDirection } from '../../types/storage';
+import type { BreadcrumbItem, ViewMode, SortBy, SortDirection, ProjectPermission } from '../../types/storage';
 
 interface StorageHeaderProps {
   breadcrumbs: BreadcrumbItem[];
@@ -31,6 +31,8 @@ interface StorageHeaderProps {
   onRestore?: () => void;
   onEmptyTrash?: () => void;
   isTrash: boolean;
+  // 권한 관련 props
+  projectPermission?: ProjectPermission | null;
 }
 
 export const StorageHeader: React.FC<StorageHeaderProps> = ({
@@ -49,7 +51,10 @@ export const StorageHeader: React.FC<StorageHeaderProps> = ({
   onRestore,
   onEmptyTrash,
   isTrash,
+  projectPermission,
 }) => {
+  // 권한에 따른 편집 가능 여부
+  const canEdit = !projectPermission || projectPermission === 'OWNER' || projectPermission === 'EDITOR';
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
@@ -69,20 +74,20 @@ export const StorageHeader: React.FC<StorageHeaderProps> = ({
   ];
 
   return (
-    <div className="bg-[#f8fafd]">
-      {/* 상단 검색 영역 - Google Drive 스타일 */}
-      <div className="px-4 py-2 flex items-center gap-4">
-        {/* 검색 바 - Google Drive 스타일 */}
-        <form onSubmit={handleSearchSubmit} className="flex-1 max-w-3xl">
+    <div className="bg-white border-b border-gray-200">
+      {/* 상단 검색 영역 */}
+      <div className="px-4 py-3 flex items-center gap-4">
+        {/* 검색 바 */}
+        <form onSubmit={handleSearchSubmit} className="flex-1 max-w-xl">
           <div
-            className={`relative flex items-center transition-all duration-200 ${
+            className={`relative flex items-center transition-all duration-200 border rounded-lg ${
               isSearchFocused
-                ? 'bg-white shadow-lg rounded-lg'
-                : 'bg-[#e9eef6] hover:bg-[#dde3ea] rounded-full'
+                ? 'border-blue-500 shadow-sm'
+                : 'border-gray-300 hover:border-gray-400'
             }`}
           >
-            <div className="pl-4">
-              <Search className="w-5 h-5 text-[#5f6368]" />
+            <div className="pl-3">
+              <Search className="w-5 h-5 text-gray-400" />
             </div>
             <input
               type="text"
@@ -90,26 +95,24 @@ export const StorageHeader: React.FC<StorageHeaderProps> = ({
               onChange={(e) => onSearchChange(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
-              placeholder="드라이브에서 검색"
-              className={`flex-1 bg-transparent px-4 py-3 text-[#1f1f1f] placeholder-[#5f6368] focus:outline-none text-base ${
-                isSearchFocused ? '' : ''
-              }`}
+              placeholder="파일 검색..."
+              className="flex-1 bg-transparent px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none text-sm"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => onSearchChange('')}
-                className="p-2 mr-1 text-[#5f6368] hover:bg-gray-200 rounded-full"
+                className="p-1.5 mr-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             )}
             <button
               type="button"
-              className="p-2 mr-2 text-[#5f6368] hover:bg-gray-200 rounded-full"
+              className="p-1.5 mr-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
               title="검색 옵션"
             >
-              <SlidersHorizontal className="w-5 h-5" />
+              <SlidersHorizontal className="w-4 h-4" />
             </button>
           </div>
         </form>
@@ -118,10 +121,10 @@ export const StorageHeader: React.FC<StorageHeaderProps> = ({
         <div className="flex items-center gap-1">
           <button
             onClick={() => onViewModeChange('list')}
-            className={`p-2 rounded-full transition-colors ${
+            className={`p-2 rounded-lg transition-colors ${
               viewMode === 'list'
-                ? 'bg-[#c2e7ff] text-[#001d35]'
-                : 'text-[#5f6368] hover:bg-gray-200'
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-500 hover:bg-gray-100'
             }`}
             title="목록"
           >
@@ -129,17 +132,17 @@ export const StorageHeader: React.FC<StorageHeaderProps> = ({
           </button>
           <button
             onClick={() => onViewModeChange('grid')}
-            className={`p-2 rounded-full transition-colors ${
+            className={`p-2 rounded-lg transition-colors ${
               viewMode === 'grid'
-                ? 'bg-[#c2e7ff] text-[#001d35]'
-                : 'text-[#5f6368] hover:bg-gray-200'
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-500 hover:bg-gray-100'
             }`}
             title="그리드"
           >
             <LayoutGrid className="w-5 h-5" />
           </button>
           <button
-            className="p-2 rounded-full text-[#5f6368] hover:bg-gray-200"
+            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
             title="세부정보 보기"
           >
             <Info className="w-5 h-5" />
@@ -148,24 +151,24 @@ export const StorageHeader: React.FC<StorageHeaderProps> = ({
       </div>
 
       {/* 하단 브레드크럼 & 액션 영역 */}
-      <div className="px-6 py-2 flex items-center justify-between border-b border-gray-200">
-        {/* 브레드크럼 - Google Drive 스타일 */}
+      <div className="px-6 py-2 flex items-center justify-between bg-gray-50">
+        {/* 브레드크럼 */}
         <nav className="flex items-center gap-0.5">
           {breadcrumbs.map((item, index) => (
             <React.Fragment key={item.id ?? 'root'}>
-              {index > 0 && <ChevronRight className="w-5 h-5 text-[#5f6368] mx-1" />}
+              {index > 0 && <ChevronRight className="w-4 h-4 text-gray-400 mx-1" />}
               <button
                 onClick={() => onBreadcrumbClick(item)}
                 className={`px-2 py-1.5 rounded-lg transition-colors text-sm ${
                   index === breadcrumbs.length - 1
-                    ? 'font-medium text-[#1f1f1f]'
-                    : 'text-[#5f6368] hover:bg-gray-200'
+                    ? 'font-semibold text-gray-900'
+                    : 'text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                 }`}
               >
                 {item.name}
               </button>
               {index === breadcrumbs.length - 1 && (
-                <ChevronDown className="w-4 h-4 text-[#5f6368] ml-0.5" />
+                <ChevronDown className="w-4 h-4 text-gray-400 ml-0.5" />
               )}
             </React.Fragment>
           ))}
@@ -175,28 +178,30 @@ export const StorageHeader: React.FC<StorageHeaderProps> = ({
         <div className="flex items-center gap-2">
           {/* 선택된 항목이 있을 때 */}
           {selectedCount > 0 && (
-            <div className="flex items-center gap-2 mr-4 px-3 py-1.5 bg-[#e8f0fe] rounded-full">
-              <span className="text-sm text-[#1967d2] font-medium">
+            <div className="flex items-center gap-2 mr-4 px-3 py-1.5 bg-blue-50 rounded-lg">
+              <span className="text-sm text-blue-700 font-medium">
                 {selectedCount}개 선택됨
               </span>
 
               {isTrash && onRestore && (
                 <button
                   onClick={onRestore}
-                  className="flex items-center gap-1.5 px-3 py-1 text-sm text-[#1967d2] hover:bg-[#d2e3fc] rounded-full transition"
+                  className="flex items-center gap-1.5 px-3 py-1 text-sm text-blue-700 hover:bg-blue-100 rounded-lg transition"
                 >
                   <RotateCcw className="w-4 h-4" />
                   복원
                 </button>
               )}
 
-              <button
-                onClick={onDelete}
-                className="flex items-center gap-1.5 px-3 py-1 text-sm text-[#c5221f] hover:bg-[#fce8e6] rounded-full transition"
-              >
-                <Trash2 className="w-4 h-4" />
-                {isTrash ? '영구 삭제' : '삭제'}
-              </button>
+              {canEdit && (
+                <button
+                  onClick={onDelete}
+                  className="flex items-center gap-1.5 px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {isTrash ? '영구 삭제' : '삭제'}
+                </button>
+              )}
             </div>
           )}
 
@@ -204,21 +209,21 @@ export const StorageHeader: React.FC<StorageHeaderProps> = ({
           {isTrash && onEmptyTrash && selectedCount === 0 && (
             <button
               onClick={onEmptyTrash}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[#c5221f] hover:bg-[#fce8e6] rounded-lg transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
             >
               <Trash2 className="w-4 h-4" />
               휴지통 비우기
             </button>
           )}
 
-          {/* 정렬 - Google Drive 스타일 */}
+          {/* 정렬 */}
           {!isTrash && (
             <div className="relative">
               <button
                 onClick={() => setShowSortMenu(!showSortMenu)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[#5f6368] hover:bg-gray-200 rounded-lg transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
               >
-                이름
+                정렬
                 <ChevronDown className="w-4 h-4" />
               </button>
 
@@ -228,7 +233,7 @@ export const StorageHeader: React.FC<StorageHeaderProps> = ({
                     className="fixed inset-0 z-10"
                     onClick={() => setShowSortMenu(false)}
                   />
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-20">
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
                     {sortOptions.map((option) => (
                       <button
                         key={option.value}
@@ -237,12 +242,12 @@ export const StorageHeader: React.FC<StorageHeaderProps> = ({
                           setShowSortMenu(false);
                         }}
                         className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center justify-between ${
-                          sortBy === option.value ? 'text-[#1967d2] bg-[#e8f0fe]' : 'text-[#3c4043]'
+                          sortBy === option.value ? 'text-blue-700 bg-blue-50' : 'text-gray-700'
                         }`}
                       >
                         {option.label}
                         {sortBy === option.value && (
-                          <span className="text-xs text-[#5f6368]">
+                          <span className="text-xs text-gray-500">
                             {sortDirection === 'asc' ? '↑' : '↓'}
                           </span>
                         )}

@@ -14,8 +14,10 @@ import {
   Cloud,
   ChevronLeft,
   ChevronRight,
+  FolderKanban,
+  ChevronDown,
 } from 'lucide-react';
-import { StorageUsage, formatFileSize } from '../../types/storage';
+import { StorageUsage, formatFileSize, StorageProject, ProjectPermission } from '../../types/storage';
 
 type NavigationSection = 'my-drive' | 'shared' | 'recent' | 'starred' | 'trash';
 
@@ -27,6 +29,10 @@ interface StorageSidebarProps {
   storageUsage: StorageUsage | null;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  // 프로젝트 관련 props
+  currentProject: StorageProject | null;
+  currentProjectPermission: ProjectPermission | null;
+  onOpenProjectModal: () => void;
 }
 
 interface NavItem {
@@ -43,6 +49,9 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
   storageUsage,
   isCollapsed,
   onToggleCollapse,
+  currentProject,
+  currentProjectPermission,
+  onOpenProjectModal,
 }) => {
   const [showNewMenu, setShowNewMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -74,7 +83,7 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
 
   return (
     <div
-      className={`h-full flex flex-col bg-[#f8fafd] border-r border-gray-200 transition-all duration-300 flex-shrink-0 relative ${
+      className={`h-full flex flex-col bg-gray-50 border-r border-gray-200 transition-all duration-300 flex-shrink-0 relative ${
         isCollapsed ? 'w-[72px]' : 'w-[240px]'
       }`}
     >
@@ -91,17 +100,17 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
         )}
       </button>
 
-      {/* 새로 만들기 버튼 - Google Drive 스타일 */}
+      {/* 새로 만들기 버튼 */}
       <div className="p-4 pt-5" ref={menuRef}>
         <button
           onClick={() => setShowNewMenu(!showNewMenu)}
-          className={`inline-flex items-center gap-3 bg-white rounded-2xl shadow-md hover:shadow-lg hover:bg-[#edf2fc] transition-all duration-200 border border-gray-200 ${
-            isCollapsed ? 'p-3 justify-center' : 'pl-4 pr-6 py-4'
+          className={`inline-flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 ${
+            isCollapsed ? 'p-3 justify-center' : 'px-4 py-3'
           }`}
           title="새로 만들기"
         >
-          <Plus className="w-6 h-6 text-gray-800" />
-          {!isCollapsed && <span className="text-sm font-medium text-gray-800">새로 만들기</span>}
+          <Plus className="w-5 h-5" />
+          {!isCollapsed && <span className="text-sm font-medium">새로 만들기</span>}
         </button>
 
         {/* 드롭다운 메뉴 */}
@@ -158,23 +167,63 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
         )}
       </div>
 
-      {/* 네비게이션 메뉴 - Google Drive 스타일 */}
+      {/* 프로젝트 선택 - 새로 추가 */}
+      <div className={`px-3 py-2 ${isCollapsed ? 'hidden' : ''}`}>
+        <button
+          onClick={onOpenProjectModal}
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+        >
+          <FolderKanban className={`w-5 h-5 ${currentProject ? 'text-blue-500' : 'text-gray-500'}`} />
+          <div className="flex-1 text-left min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {currentProject ? currentProject.name : '전체 스토리지'}
+            </p>
+            {currentProjectPermission && (
+              <p className="text-xs text-gray-500">
+                {currentProjectPermission === 'OWNER'
+                  ? '소유자'
+                  : currentProjectPermission === 'EDITOR'
+                  ? '편집자'
+                  : '뷰어'}
+              </p>
+            )}
+          </div>
+          <ChevronDown className="w-4 h-4 text-gray-400" />
+        </button>
+      </div>
+
+      {/* 접힌 상태에서 프로젝트 아이콘 */}
+      {isCollapsed && (
+        <div className="px-3 py-2">
+          <button
+            onClick={onOpenProjectModal}
+            className={`w-full flex justify-center p-3 rounded-xl transition-all ${
+              currentProject ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'
+            }`}
+            title={currentProject ? currentProject.name : '프로젝트 선택'}
+          >
+            <FolderKanban className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
+      {/* 네비게이션 메뉴 */}
       <nav className="flex-1 px-3 py-2 overflow-y-auto">
-        <ul className="space-y-0.5">
+        <ul className="space-y-1">
           {navItems.map((item) => (
             <li key={item.id}>
               <button
                 onClick={() => onSectionChange(item.id)}
                 className={`w-full flex items-center gap-3 transition-all text-sm ${
-                  isCollapsed ? 'justify-center p-3 rounded-xl' : 'pl-3 pr-4 py-2 rounded-full'
+                  isCollapsed ? 'justify-center p-3 rounded-lg' : 'px-3 py-2 rounded-lg'
                 } ${
                   activeSection === item.id
-                    ? 'bg-[#c2e7ff] text-[#001d35] font-medium'
-                    : 'text-[#444746] hover:bg-[#e4e4e4]'
+                    ? 'bg-blue-100 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
                 }`}
                 title={isCollapsed ? item.label : undefined}
               >
-                <span className={activeSection === item.id ? 'text-[#001d35]' : 'text-[#444746]'}>
+                <span className={activeSection === item.id ? 'text-blue-700' : 'text-gray-500'}>
                   {item.icon}
                 </span>
                 {!isCollapsed && <span>{item.label}</span>}
@@ -184,27 +233,27 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
         </ul>
       </nav>
 
-      {/* 스토리지 사용량 - Google Drive 스타일 */}
+      {/* 스토리지 사용량 */}
       <div className={`p-4 border-t border-gray-200 ${isCollapsed ? 'hidden' : ''}`}>
-        <button className="w-full flex items-center gap-3 pl-3 pr-4 py-2 rounded-full text-sm text-[#444746] hover:bg-[#e4e4e4] transition-colors mb-3">
-          <Cloud className="w-5 h-5" />
+        <div className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 mb-2">
+          <Cloud className="w-5 h-5 text-gray-500" />
           <span>저장용량</span>
-        </button>
+        </div>
 
-        <div className="pl-3 pr-4">
-          <div className="w-full h-1 bg-gray-300 rounded-full overflow-hidden mb-2">
+        <div className="px-3">
+          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
             <div
               className={`h-full rounded-full transition-all ${
                 usedPercent > 90
                   ? 'bg-red-500'
                   : usedPercent > 70
                   ? 'bg-yellow-500'
-                  : 'bg-[#1a73e8]'
+                  : 'bg-blue-600'
               }`}
               style={{ width: `${Math.max(usedPercent, 1)}%` }}
             />
           </div>
-          <p className="text-xs text-[#5f6368]">
+          <p className="text-xs text-gray-500">
             15GB 중 {storageUsage ? formatFileSize(storageUsage.totalSize) : '0 B'} 사용
           </p>
         </div>
@@ -214,7 +263,7 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
       {isCollapsed && (
         <div className="p-4 border-t border-gray-200 flex justify-center">
           <div className="relative" title={`15GB 중 ${storageUsage ? formatFileSize(storageUsage.totalSize) : '0 B'} 사용`}>
-            <Cloud className="w-5 h-5 text-[#444746]" />
+            <Cloud className="w-5 h-5 text-gray-500" />
             {usedPercent > 70 && (
               <div
                 className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${

@@ -15,9 +15,14 @@ export type FileStatus = 'UPLOADING' | 'ACTIVE' | 'DELETED';
 export type ShareType = 'FILE' | 'FOLDER';
 
 /**
- * 권한 레벨
+ * 권한 레벨 (공유용)
  */
 export type PermissionLevel = 'VIEWER' | 'COMMENTER' | 'EDITOR';
+
+/**
+ * 프로젝트 권한 레벨
+ */
+export type ProjectPermission = 'OWNER' | 'EDITOR' | 'VIEWER';
 
 /**
  * 뷰 모드
@@ -35,6 +40,80 @@ export type SortBy = 'name' | 'modifiedAt' | 'size' | 'type';
 export type SortDirection = 'asc' | 'desc';
 
 // =======================================================
+// Project Types
+// =======================================================
+
+/**
+ * 프로젝트 응답 DTO
+ */
+export interface StorageProject {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 프로젝트 멤버 응답 DTO
+ */
+export interface ProjectMember {
+  id: string;
+  projectId: string;
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  permission: ProjectPermission;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 프로젝트 생성 요청
+ */
+export interface CreateProjectRequest {
+  workspaceId: string;
+  name: string;
+  description?: string;
+}
+
+/**
+ * 프로젝트 수정 요청
+ */
+export interface UpdateProjectRequest {
+  name?: string;
+  description?: string;
+}
+
+/**
+ * 프로젝트 멤버 추가 요청
+ */
+export interface AddProjectMemberRequest {
+  userId: string;
+  permission: ProjectPermission;
+}
+
+/**
+ * 프로젝트 멤버 수정 요청
+ */
+export interface UpdateProjectMemberRequest {
+  permission: ProjectPermission;
+}
+
+/**
+ * 프로젝트 통계
+ */
+export interface ProjectStats {
+  projectId: string;
+  fileCount: number;
+  folderCount: number;
+  totalSize: number;
+  memberCount: number;
+}
+
+// =======================================================
 // Folder Types
 // =======================================================
 
@@ -44,6 +123,7 @@ export type SortDirection = 'asc' | 'desc';
 export interface StorageFolder {
   id: string;
   workspaceId: string;
+  projectId?: string;
   parentId?: string;
   name: string;
   path: string;
@@ -64,6 +144,7 @@ export interface StorageFolder {
  */
 export interface CreateFolderRequest {
   workspaceId: string;
+  projectId?: string;
   parentId?: string;
   name: string;
   color?: string;
@@ -88,6 +169,7 @@ export interface UpdateFolderRequest {
 export interface StorageFile {
   id: string;
   workspaceId: string;
+  projectId?: string;
   folderId?: string;
   name: string;
   originalName: string;
@@ -121,6 +203,7 @@ export interface FileListResponse {
  */
 export interface GenerateUploadURLRequest {
   workspaceId: string;
+  projectId?: string;
   folderId?: string;
   fileName: string;
   contentType: string;
@@ -292,6 +375,8 @@ export interface StorageViewState {
   sortBy: SortBy;
   sortDirection: SortDirection;
   showHidden: boolean;
+  currentProjectId: string | null;
+  currentProjectPermission: ProjectPermission | null;
   currentFolderId: string | null;
   selectedItems: SelectedItem[];
   searchQuery: string;

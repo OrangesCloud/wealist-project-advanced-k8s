@@ -7,8 +7,16 @@ import type {
   StorageFile,
   StorageShare,
   StorageUsage,
+  StorageProject,
+  ProjectMember,
+  ProjectPermission,
+  ProjectStats,
   CreateFolderRequest,
   UpdateFolderRequest,
+  CreateProjectRequest,
+  UpdateProjectRequest,
+  AddProjectMemberRequest,
+  UpdateProjectMemberRequest,
   FileListResponse,
   GenerateUploadURLRequest,
   GenerateUploadURLResponse,
@@ -29,6 +37,142 @@ interface SuccessResponse<T> {
   data: T;
   message?: string;
 }
+
+// ============================================================================
+// Project API
+// ============================================================================
+
+/**
+ * 프로젝트 생성
+ * [API] POST /storage/projects
+ */
+export const createProject = async (data: CreateProjectRequest): Promise<StorageProject> => {
+  const response: AxiosResponse<SuccessResponse<StorageProject>> = await storageServiceClient.post(
+    '/storage/projects',
+    data,
+  );
+  return response.data.data;
+};
+
+/**
+ * 프로젝트 조회
+ * [API] GET /storage/projects/{projectId}
+ */
+export const getProject = async (projectId: string): Promise<StorageProject> => {
+  const response: AxiosResponse<SuccessResponse<StorageProject>> = await storageServiceClient.get(
+    `/storage/projects/${projectId}`,
+  );
+  return response.data.data;
+};
+
+/**
+ * 워크스페이스의 프로젝트 목록 조회
+ * [API] GET /storage/workspaces/{workspaceId}/projects
+ */
+export const getWorkspaceProjects = async (workspaceId: string): Promise<StorageProject[]> => {
+  const response: AxiosResponse<SuccessResponse<StorageProject[]>> = await storageServiceClient.get(
+    `/storage/workspaces/${workspaceId}/projects`,
+  );
+  return response.data.data || [];
+};
+
+/**
+ * 프로젝트 수정
+ * [API] PUT /storage/projects/{projectId}
+ */
+export const updateProject = async (
+  projectId: string,
+  data: UpdateProjectRequest,
+): Promise<StorageProject> => {
+  const response: AxiosResponse<SuccessResponse<StorageProject>> = await storageServiceClient.put(
+    `/storage/projects/${projectId}`,
+    data,
+  );
+  return response.data.data;
+};
+
+/**
+ * 프로젝트 삭제
+ * [API] DELETE /storage/projects/{projectId}
+ */
+export const deleteProject = async (projectId: string): Promise<void> => {
+  await storageServiceClient.delete(`/storage/projects/${projectId}`);
+};
+
+/**
+ * 프로젝트 멤버 추가
+ * [API] POST /storage/projects/{projectId}/members
+ */
+export const addProjectMember = async (
+  projectId: string,
+  data: AddProjectMemberRequest,
+): Promise<ProjectMember> => {
+  const response: AxiosResponse<SuccessResponse<ProjectMember>> = await storageServiceClient.post(
+    `/storage/projects/${projectId}/members`,
+    data,
+  );
+  return response.data.data;
+};
+
+/**
+ * 프로젝트 멤버 목록 조회
+ * [API] GET /storage/projects/{projectId}/members
+ */
+export const getProjectMembers = async (projectId: string): Promise<ProjectMember[]> => {
+  const response: AxiosResponse<SuccessResponse<ProjectMember[]>> = await storageServiceClient.get(
+    `/storage/projects/${projectId}/members`,
+  );
+  return response.data.data || [];
+};
+
+/**
+ * 프로젝트 멤버 권한 수정
+ * [API] PUT /storage/projects/{projectId}/members/{memberId}
+ */
+export const updateProjectMember = async (
+  projectId: string,
+  memberId: string,
+  data: UpdateProjectMemberRequest,
+): Promise<ProjectMember> => {
+  const response: AxiosResponse<SuccessResponse<ProjectMember>> = await storageServiceClient.put(
+    `/storage/projects/${projectId}/members/${memberId}`,
+    data,
+  );
+  return response.data.data;
+};
+
+/**
+ * 프로젝트 멤버 제거
+ * [API] DELETE /storage/projects/{projectId}/members/{memberId}
+ */
+export const removeProjectMember = async (projectId: string, memberId: string): Promise<void> => {
+  await storageServiceClient.delete(`/storage/projects/${projectId}/members/${memberId}`);
+};
+
+/**
+ * 현재 사용자의 프로젝트 권한 조회
+ * [API] GET /storage/projects/{projectId}/my-permission
+ */
+export const getMyProjectPermission = async (projectId: string): Promise<ProjectPermission | null> => {
+  try {
+    const response: AxiosResponse<SuccessResponse<{ permission: ProjectPermission }>> =
+      await storageServiceClient.get(`/storage/projects/${projectId}/my-permission`);
+    return response.data.data?.permission || null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * 프로젝트 통계 조회
+ * [API] GET /storage/projects/{projectId}/stats
+ */
+export const getProjectStats = async (projectId: string): Promise<ProjectStats> => {
+  const response: AxiosResponse<SuccessResponse<ProjectStats>> = await storageServiceClient.get(
+    `/storage/projects/${projectId}/stats`,
+  );
+  return response.data.data;
+};
 
 // ============================================================================
 // Folder API

@@ -29,6 +29,7 @@ import {
   ViewMode,
   SelectedItem,
   SharedItem,
+  ProjectPermission,
   getFileCategory,
   formatFileSize,
 } from '../../types/storage';
@@ -50,6 +51,8 @@ interface StorageViewProps {
   isTrash: boolean;
   isEmpty: boolean;
   activeSection: string;
+  // 권한 관련 props
+  projectPermission?: ProjectPermission | null;
 }
 
 // Google Drive 스타일 파일 아이콘
@@ -137,7 +140,10 @@ export const StorageView: React.FC<StorageViewProps> = ({
   isTrash,
   isEmpty,
   activeSection,
+  projectPermission,
 }) => {
+  // 권한에 따른 편집 가능 여부
+  const canEdit = !projectPermission || projectPermission === 'OWNER' || projectPermission === 'EDITOR';
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -552,17 +558,21 @@ export const StorageView: React.FC<StorageViewProps> = ({
                 <Share2 className="w-5 h-5 text-[#5f6368]" />
                 공유
               </button>
-              <div className="h-px bg-[#e0e0e0] my-1" />
-              <button
-                onClick={() => {
-                  onRename(contextMenu.item);
-                  setContextMenu(null);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
-              >
-                <Edit2 className="w-5 h-5 text-[#5f6368]" />
-                이름 바꾸기
-              </button>
+              {canEdit && (
+                <>
+                  <div className="h-px bg-[#e0e0e0] my-1" />
+                  <button
+                    onClick={() => {
+                      onRename(contextMenu.item);
+                      setContextMenu(null);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
+                  >
+                    <Edit2 className="w-5 h-5 text-[#5f6368]" />
+                    이름 바꾸기
+                  </button>
+                </>
+              )}
             </>
           )}
 
@@ -580,18 +590,22 @@ export const StorageView: React.FC<StorageViewProps> = ({
             </button>
           )}
 
-          <div className="h-px bg-[#e0e0e0] my-1" />
-          <button
-            onClick={() => {
-              onSelectItem([contextMenu.item]);
-              onDelete();
-              setContextMenu(null);
-            }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
-          >
-            <Trash2 className="w-5 h-5 text-[#5f6368]" />
-            {isTrash ? '영구 삭제' : '삭제'}
-          </button>
+          {canEdit && (
+            <>
+              <div className="h-px bg-[#e0e0e0] my-1" />
+              <button
+                onClick={() => {
+                  onSelectItem([contextMenu.item]);
+                  onDelete();
+                  setContextMenu(null);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
+              >
+                <Trash2 className="w-5 h-5 text-[#5f6368]" />
+                {isTrash ? '영구 삭제' : '삭제'}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
