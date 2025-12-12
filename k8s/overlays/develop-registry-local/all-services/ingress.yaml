@@ -14,11 +14,13 @@ metadata:
     # WebSocket services: board(ws), chat(ws), livekit(webrtc)
     nginx.ingress.kubernetes.io/websocket-services: "board-service,chat-service,livekit"
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
-    # Connection upgrade for WebSocket
-    nginx.ingress.kubernetes.io/connection-proxy-header: "keep-alive, Upgrade"
     nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"
     # SSL/TLS settings
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # WebSocket upgrade headers (핵심!)
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
 spec:
   ingressClassName: nginx
   tls:

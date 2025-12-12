@@ -14,7 +14,10 @@ metadata:
     # WebSocket services: board(ws), chat(ws), livekit(webrtc)
     nginx.ingress.kubernetes.io/websocket-services: "board-service,chat-service,livekit"
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
-    nginx.ingress.kubernetes.io/connection-proxy-header: "keep-alive, Upgrade"
+    # WebSocket upgrade headers (핵심!)
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
 spec:
   ingressClassName: nginx
   rules:
