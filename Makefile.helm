@@ -21,12 +21,12 @@ help:
 
 setup:
 	@echo "=== Creating Cluster: $(KIND_CLUSTER) ==="
-	CLUSTER_NAME=$(KIND_CLUSTER) ./docker/scripts/dev/0.setup-cluster-helm.sh
+	CLUSTER_NAME=$(KIND_CLUSTER) bash $(CURDIR)/docker/scripts/dev/0.setup-cluster-helm.sh
 
 load-images:
 	@echo "=== Loading Images ==="
-	./docker/scripts/dev/1.load_infra_images.sh
-	./docker/scripts/dev/2.build_services_and_load.sh
+	bash $(CURDIR)/docker/scripts/dev/1.load_infra_images.sh
+	bash $(CURDIR)/docker/scripts/dev/2.build_services_and_load.sh
 
 deploy-infra:
 	@echo "=== Deploying Infrastructure ==="
