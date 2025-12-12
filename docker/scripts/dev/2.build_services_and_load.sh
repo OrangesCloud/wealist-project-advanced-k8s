@@ -45,11 +45,11 @@ trap "rm -rf $TEMP_DIR" EXIT
 declare -a SERVICES=(
     "auth-service|services/auth-service|Dockerfile"
     "board-service|services/board-service|docker/Dockerfile"
-    "chat-service|services/chat-service|docker/Dockerfile"
+    "chat-service|services/chat-service|docker/Dockerfile|."
     "frontend|services/frontend|Dockerfile"
     "noti-service|services/noti-service|docker/Dockerfile"
     "storage-service|services/storage-service|docker/Dockerfile"
-    "user-service|services/user-service|docker/Dockerfile"
+    "user-service|services/user-service|docker/Dockerfile|."
     "video-service|services/video-service|docker/Dockerfile"
 )
 
@@ -79,10 +79,15 @@ echo ""
 # 단일 서비스 빌드 함수
 build_service() {
     local service_info="$1"
-    local name="${service_info%%|*}"
-    local rest="${service_info#*|}"
-    local path="${rest%%|*}"
-    local dockerfile="${rest#*|}"
+    
+    # Parse fields: name|path|dockerfile|context
+    IFS='|' read -r name path dockerfile context <<< "$service_info"
+    
+    # Default context is the service path if not provided
+    if [ -z "$context" ]; then
+        context="$path"
+    fi
+
     local image_name="${LOCAL_REG}/${name}:${TAG}"
     local log_file="${TEMP_DIR}/${name}.log"
 
@@ -93,10 +98,11 @@ build_service() {
         echo "=== Building $name ==="
         echo "Path: $path"
         echo "Dockerfile: $dockerfile"
+        echo "Context: $context"
         echo "Image: $image_name"
         echo ""
 
-        if docker build -t "$image_name" -f "$path/$dockerfile" "$path" 2>&1; then
+        if docker build -t "$image_name" -f "$path/$dockerfile" "$context" 2>&1; then
             echo ""
             echo "Pushing to local registry..."
             if docker push "$image_name" 2>&1; then
@@ -119,6 +125,7 @@ build_service() {
         echo -e "${RED}[FAILED] $name${NC}"
     fi
 }
+
 
 # 병렬 빌드 실행
 echo -e "${BLUE}🔨 병렬 빌드 시작...${NC}"
