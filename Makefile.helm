@@ -10,14 +10,16 @@ HELM_RELEASE_ARGS ?= --set image.repository=$(LOCAL_REGISTRY)
 SERVICES := auth-service board-service chat-service frontend noti-service storage-service user-service video-service
 
 help:
-	@echo "Helm Migration Test (Cluster: $(KIND_CLUSTER))"
+	@echo "Helm 마이그레이션 테스트 가이드 (클러스터: $(KIND_CLUSTER))"
 	@echo ""
-	@echo "  make -f Makefile.helm setup          - Create Kind cluster '$(KIND_CLUSTER)'"
-	@echo "  make -f Makefile.helm load-images    - Build and push images to local registry"
-	@echo "  make -f Makefile.helm deploy-infra   - Deploy PostgreSQL & Redis"
-	@echo "  make -f Makefile.helm deploy-configs - Deploy ConfigMaps & Secrets (Legacy)"
-	@echo "  make -f Makefile.helm deploy-helm    - Deploy ALL services using Helm"
-	@echo "  make -f Makefile.helm clean          - Delete cluster"
+	@echo "  make -f Makefile.helm setup          - Kind 클러스터 생성 ('$(KIND_CLUSTER)')"
+	@echo "  make -f Makefile.helm load-images    - 이미지 빌드 및 로컬 레지스트리 전송"
+	@echo "  make -f Makefile.helm deploy-infra   - 인프라(Postgres, Redis) 배포"
+	@echo "  make -f Makefile.helm deploy-configs - 설정 파일(ConfigMap/Secret) 배포 (필수)"
+	@echo "  make -f Makefile.helm deploy-helm    - Helm으로 모든 서비스 배포"
+	@echo "  make -f Makefile.helm undeploy-helm  - 모든 Helm 릴리즈 삭제"
+	@echo "  make -f Makefile.helm redeploy-helm  - 초기화 후 재배포 (Drift 해결)"
+	@echo "  make -f Makefile.helm clean          - 클러스터 삭제"
 	@echo ""
 
 setup:
@@ -54,13 +56,32 @@ deploy-helm:
 		helm upgrade --install $$app ./charts/microservice-chart \
 			-f services/$$app/helm/values.yaml \
 			--set image.repository=$(LOCAL_REGISTRY)/$$app \
-			--namespace $(K8S_NAMESPACE); \
+			--namespace $(K8S_NAMESPACE) \
+			--wait --timeout 2m; \
 	done
 	@echo ""
 	@echo "✅ Deployment complete! Check status with: kubectl get pods -n $(K8S_NAMESPACE)"
 
-status:
-	@kubectl get pods -n $(K8S_NAMESPACE)
+undeploy-helm:
+	@echo "=== Uninstalling Helm Releases ==="
+	@for app in $(SERVICES); do \
+		echo ">>> Uninstalling $$app..."; \
+		helm uninstall $$app -n $(K8S_NAMESPACE) || true; \
+	done
+
+redeploy-helm: undeploy-helm deploy-helm
+
+debug-template:
+	@echo "=== Debugging Templates (Dry Run) ==="
+	@mkdir -p debug_manifests
+	@for app in $(SERVICES); do \
+		echo ">>> Templating $$app..."; \
+		helm template $$app ./charts/microservice-chart \
+			-f services/$$app/helm/values.yaml \
+			--set image.repository=$(LOCAL_REGISTRY)/$$app \
+			--namespace $(K8S_NAMESPACE) > debug_manifests/$$app.yaml; \
+	done
+	@echo "Manifests generated in ./debug_manifests/"
 
 clean:
 	kind delete cluster --name $(KIND_CLUSTER)

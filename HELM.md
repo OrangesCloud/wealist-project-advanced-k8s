@@ -42,20 +42,35 @@ make -f Makefile.helm deploy-helm
 ```
 
 ## 3. 검증 및 접속
-배포 상태를 확인합니다.
+배포 상태를 확인합니다. `deploy-helm` 단계에서 `--wait` 옵션을 사용하여 모든 Pod가 Ready 상태가 될 때까지 대기합니다.
 ```bash
 make -f Makefile.helm status
 ```
 
 ### 접속 주소
-- **Frontend**: http://local.wealist.co.kr (로컬 DNS 설정 필요: `127.0.0.1 local.wealist.co.kr`)
-- 또는 포트 포워딩:
+- **Frontend**: http://local.wealist.co.kr
+  - **호스트 파일 수정 필수**: 윈도우 `C:\Windows\System32\drivers\etc\hosts` 파일에 `127.0.0.1 local.wealist.co.kr` 추가
+- **API 테스트**:
   ```bash
-  kubectl port-forward svc/frontend 8080:80 -n wealist-dev
-  # 접속: http://localhost:8080
+  curl -I http://local.wealist.co.kr/api/auth/health
   ```
 
-## 4. 정리 (Clean up)
+## 4. 트러블슈팅 (문제 해결)
+
+### 파드가 보이지 않을 때 (Helm은 Deployed인데 Pod 없음)
+Helm 배포 상태와 실제 클러스터 상태가 불일치하는 경우입니다. 아래 명령어로 클린 재배포를 수행하세요.
+```bash
+make -f Makefile.helm redeploy-helm
+```
+
+### 템플릿 렌더링 확인 (Debug)
+실제 배포되는 manifest YAML 내용을 확인하고 싶다면:
+```bash
+make -f Makefile.helm debug-template
+```
+`debug_manifests/` 폴더에 각 서비스별 YAML이 생성됩니다.
+
+## 5. 정리 (Clean up)
 테스트가 끝나면 클러스터를 삭제합니다.
 ```bash
 make -f Makefile.helm clean
