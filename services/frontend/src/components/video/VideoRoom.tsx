@@ -64,10 +64,38 @@ interface ChatMessage {
 
 interface TranscriptLine {
   id: string;
-  speaker: string;
+  speakerId: string;
+  speakerName: string;
   text: string;
   timestamp: Date;
   isFinal: boolean;
+}
+
+// DataPacket message types for real-time sync
+interface DataMessage {
+  type: 'chat' | 'subtitle';
+  // Chat fields
+  message?: string;
+  // Subtitle fields
+  text?: string;
+  speakerId?: string;
+  speakerName?: string;
+  isFinal?: boolean;
+}
+
+// Participant metadata stored in LiveKit
+interface ParticipantMetadata {
+  id?: string;
+  nickName?: string;
+  profileImageUrl?: string | null;
+}
+
+// Remote subtitle state
+interface RemoteSubtitle {
+  speakerId: string;
+  speakerName: string;
+  text: string;
+  timestamp: number;
 }
 
 // Web Speech API type declarations (Keeping this for subtitles)
@@ -147,11 +175,13 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
   token,
   wsUrl,
   onLeave,
-  userProfile: _userProfile,
+  userProfile,
 }) => {
   const [room, setRoom] = useState<Room | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [activeSpeakers, setActiveSpeakers] = useState<string[]>([]);
+  const [remoteSubtitles, setRemoteSubtitles] = useState<Map<string, RemoteSubtitle>>(new Map());
 
   // Local state
   const [isMuted, setIsMuted] = useState(false);
@@ -178,8 +208,13 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
   // Subtitle/Transcript state
   const [isSubtitleEnabled, setIsSubtitleEnabled] = useState(false);
   const [currentSubtitle, setCurrentSubtitle] = useState('');
-  const [_transcript, setTranscript] = useState<TranscriptLine[]>([]);
+  const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  // Helper to get user display name
+  const getMyDisplayName = useCallback(() => {
+    return userProfile?.nickName || room?.localParticipant?.name || '나';
+  }, [userProfile, room]);
 
   // Join notification state
   const [joinNotification, setJoinNotification] = useState<string | null>(null);
@@ -213,6 +248,17 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
         await room.connect(wsUrl, token);
         setConnectionState('connected');
         updateParticipants();
+
+        // Set participant metadata (profile info)
+        if (userProfile) {
+          const metadata: ParticipantMetadata = {
+            id: userProfile.id,
+            nickName: userProfile.nickName,
+            profileImageUrl: userProfile.profileImageUrl,
+          };
+          await room.localParticipant.setMetadata(JSON.stringify(metadata));
+          console.log('[VideoRoom] Set participant metadata:', metadata);
+        }
 
         // Publish initial state (Audio default on if available, Video off)
         // Note: Browser policy might require user interaction, but we'll try
@@ -277,24 +323,64 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
     const onDataReceived = (payload: Uint8Array, participant?: RemoteParticipant, _kind?: DataPacket_Kind) => {
       const str = new TextDecoder().decode(payload);
       try {
-        const data = JSON.parse(str);
+        const data = JSON.parse(str) as DataMessage;
+
         if (data.type === 'chat') {
           const newMessage: ChatMessage = {
             id: Date.now().toString() + Math.random(),
             sender: participant?.identity || 'Anonymous',
             senderName: participant?.name || participant?.identity || 'Anonymous',
-            message: data.message,
+            message: data.message || '',
             timestamp: new Date(),
             isLocal: false,
           };
           setChatMessages(prev => [...prev, newMessage]);
+        } else if (data.type === 'subtitle' && data.text) {
+          // Handle subtitle from other participants
+          const speakerId = data.speakerId || participant?.identity || 'unknown';
+          const speakerName = data.speakerName || participant?.name || participant?.identity || 'Unknown';
+
+          // Update remote subtitles map
+          setRemoteSubtitles(prev => {
+            const newMap = new Map(prev);
+            newMap.set(speakerId, {
+              speakerId,
+              speakerName,
+              text: data.text!,
+              timestamp: Date.now(),
+            });
+            return newMap;
+          });
+
+          // If final, add to transcript
+          if (data.isFinal) {
+            const newLine: TranscriptLine = {
+              id: Date.now().toString() + speakerId,
+              speakerId,
+              speakerName,
+              text: data.text,
+              timestamp: new Date(),
+              isFinal: true,
+            };
+            setTranscript(prev => [...prev, newLine]);
+
+            // Clear this speaker's subtitle after a short delay
+            setTimeout(() => {
+              setRemoteSubtitles(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(speakerId);
+                return newMap;
+              });
+            }, 500);
+          }
         }
       } catch (e) {
         console.error("Failed to parse data message", e);
       }
     };
 
-    const onActiveSpeakersChanged = (_speakers: Participant[]) => {
+    const onActiveSpeakersChanged = (speakers: Participant[]) => {
+      setActiveSpeakers(speakers.map(s => s.identity));
       updateParticipants(); // Re-render to show speaking indicator if needed
     }
 
@@ -425,6 +511,32 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Broadcast subtitle to other participants
+  const broadcastSubtitle = useCallback(async (text: string, isFinal: boolean) => {
+    if (!room || !text) return;
+
+    const myName = getMyDisplayName();
+    const myId = userProfile?.id || room.localParticipant.identity;
+
+    const subtitleData: DataMessage = {
+      type: 'subtitle',
+      text,
+      speakerId: myId,
+      speakerName: myName,
+      isFinal,
+    };
+
+    try {
+      const encoder = new TextEncoder();
+      await room.localParticipant.publishData(
+        encoder.encode(JSON.stringify(subtitleData)),
+        { reliable: isFinal } // Use reliable for final subtitles
+      );
+    } catch (e) {
+      console.error('Failed to broadcast subtitle:', e);
+    }
+  }, [room, userProfile, getMyDisplayName]);
+
   // Speech Recognition (Subtitle) functions - Keeping logic but needs audio stream source updates ideally
   // For now, we'll keep the browser Native Speech API as it uses the physical mic independently of WebRTC
   const startSpeechRecognition = useCallback(() => {
@@ -452,18 +564,27 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
         }
       }
 
-      setCurrentSubtitle(interimTranscript || finalTranscript);
+      const displayText = interimTranscript || finalTranscript;
+      const myName = getMyDisplayName();
+      setCurrentSubtitle(displayText ? `${myName}: ${displayText}` : '');
+
+      // Broadcast to other participants
+      if (displayText) {
+        broadcastSubtitle(displayText, !!finalTranscript);
+      }
 
       if (finalTranscript) {
+        const myId = userProfile?.id || room?.localParticipant?.identity || 'me';
         const newLine: TranscriptLine = {
           id: Date.now().toString(),
-          speaker: '나',
+          speakerId: myId,
+          speakerName: myName,
           text: finalTranscript,
           timestamp: new Date(),
           isFinal: true,
         };
         setTranscript((prev) => [...prev, newLine]);
-        setTimeout(() => setCurrentSubtitle(''), 100);
+        setTimeout(() => setCurrentSubtitle(''), 500);
       }
     };
 
@@ -479,7 +600,7 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, [isSubtitleEnabled]);
+  }, [isSubtitleEnabled, getMyDisplayName, broadcastSubtitle, userProfile, room]);
 
   const stopSpeechRecognition = useCallback(() => {
     if (recognitionRef.current) {
@@ -589,6 +710,21 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
       return localPub?.track;
     }
     return null;
+  };
+
+  // Helper to get participant metadata
+  const getParticipantMetadata = (p: Participant): ParticipantMetadata | null => {
+    if (!p.metadata) return null;
+    try {
+      return JSON.parse(p.metadata) as ParticipantMetadata;
+    } catch {
+      return null;
+    }
+  };
+
+  // Helper to check if participant is speaking
+  const isSpeaking = (p: Participant): boolean => {
+    return activeSpeakers.includes(p.identity);
   };
 
   if (displayMode === 'mini') {
@@ -762,16 +898,37 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
             {participants.map((p) => {
               const isLocal = p.identity === room?.localParticipant?.identity;
               const videoTrack = getParticipantVideoTrack(p);
+              const metadata = getParticipantMetadata(p);
+              const profileImageUrl = isLocal ? userProfile?.profileImageUrl : metadata?.profileImageUrl;
+              const displayName = isLocal
+                ? (userProfile?.nickName || p.name || p.identity)
+                : (metadata?.nickName || p.name || p.identity);
               // Check if audio is muted
               const isAudioMuted = p.getTrackPublication(Track.Source.Microphone)?.isMuted ?? true;
+              const speaking = isSpeaking(p);
 
               return (
-                <div key={p.identity} className="relative aspect-video bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700">
+                <div
+                  key={p.identity}
+                  className={`relative aspect-video bg-gray-800 rounded-xl overflow-hidden shadow-lg transition-all duration-300 ${
+                    speaking
+                      ? 'ring-4 ring-green-500 ring-opacity-75 shadow-green-500/30'
+                      : 'border border-gray-700'
+                  }`}
+                >
                   <VideoTrackRenderer track={videoTrack} isLocal={isLocal} isMirrored={isLocal && isMirrored} />
+
+                  {/* Speaking indicator */}
+                  {speaking && (
+                    <div className="absolute top-3 right-3 px-2 py-1 bg-green-500 rounded-full flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                      <span className="text-white text-xs font-medium">말하는 중</span>
+                    </div>
+                  )}
 
                   {/* Status Overlay */}
                   <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm">
-                    <span className="text-white text-sm font-medium">{p.name || p.identity} {isLocal && '(나)'}</span>
+                    <span className="text-white text-sm font-medium">{displayName} {isLocal && '(나)'}</span>
                     {isAudioMuted ? (
                       <MicOff className="w-3 h-3 text-red-400" />
                     ) : (
@@ -782,9 +939,21 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
                   {/* Avatar when no video */}
                   {(!videoTrack) && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center text-2xl font-bold text-white border-4 border-gray-600">
-                        {p.name?.[0]?.toUpperCase() || p.identity?.[0]?.toUpperCase()}
-                      </div>
+                      {profileImageUrl ? (
+                        <img
+                          src={profileImageUrl}
+                          alt={displayName}
+                          className={`w-20 h-20 rounded-full object-cover border-4 ${
+                            speaking ? 'border-green-500' : 'border-gray-600'
+                          }`}
+                        />
+                      ) : (
+                        <div className={`w-20 h-20 rounded-full bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center text-2xl font-bold text-white border-4 ${
+                          speaking ? 'border-green-500' : 'border-gray-600'
+                        }`}>
+                          {displayName?.[0]?.toUpperCase() || '?'}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -805,29 +974,65 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
                   </h3>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {participants.map((p) => (
-                    <div key={p.identity} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-700/50">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium">
-                          {p.name?.[0] || p.identity?.[0]}
+                  {participants.map((p) => {
+                    const isLocal = p.identity === room?.localParticipant?.identity;
+                    const metadata = getParticipantMetadata(p);
+                    const profileImageUrl = isLocal ? userProfile?.profileImageUrl : metadata?.profileImageUrl;
+                    const displayName = isLocal
+                      ? (userProfile?.nickName || p.name || p.identity)
+                      : (metadata?.nickName || p.name || p.identity);
+                    const speaking = isSpeaking(p);
+                    const isAudioMuted = p.getTrackPublication(Track.Source.Microphone)?.isMuted ?? true;
+
+                    return (
+                      <div
+                        key={p.identity}
+                        className={`flex items-center justify-between p-2 rounded-lg transition-all ${
+                          speaking ? 'bg-green-500/20 ring-1 ring-green-500' : 'hover:bg-gray-700/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {profileImageUrl ? (
+                            <img
+                              src={profileImageUrl}
+                              alt={displayName}
+                              className={`w-8 h-8 rounded-full object-cover border-2 ${
+                                speaking ? 'border-green-500' : 'border-transparent'
+                              }`}
+                            />
+                          ) : (
+                            <div className={`w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium border-2 ${
+                              speaking ? 'border-green-500' : 'border-transparent'
+                            }`}>
+                              {displayName?.[0]?.toUpperCase() || '?'}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm text-white font-medium">
+                              {displayName}
+                              {isLocal && <span className="text-gray-400 ml-1">(나)</span>}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {speaking ? (
+                                <span className="text-green-400">말하는 중</span>
+                              ) : isAudioMuted ? '음소거됨' : '대기 중'}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm text-white font-medium">
-                            {p.name || p.identity}
-                            {p.identity === room?.localParticipant?.identity && <span className="text-gray-400 ml-1">(나)</span>}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            {p.getTrackPublication(Track.Source.Microphone)?.isMuted ? '음소거됨' : '대화 중'}
-                          </p>
-                        </div>
+                        {isAudioMuted ? (
+                          <MicOff className="w-4 h-4 text-gray-500" />
+                        ) : speaking ? (
+                          <div className="flex items-center gap-1">
+                            <div className="w-1 h-3 bg-green-500 rounded animate-pulse" />
+                            <div className="w-1 h-4 bg-green-500 rounded animate-pulse delay-75" />
+                            <div className="w-1 h-2 bg-green-500 rounded animate-pulse delay-150" />
+                          </div>
+                        ) : (
+                          <Mic className="w-4 h-4 text-green-500" />
+                        )}
                       </div>
-                      {p.getTrackPublication(Track.Source.Microphone)?.isMuted ? (
-                        <MicOff className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <Mic className="w-4 h-4 text-green-500" />
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -887,12 +1092,25 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
         )}
       </div>
 
-      {/* Subtitles Overlay */}
-      {isSubtitleEnabled && currentSubtitle && (
-        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in-up">
-          <div className="bg-black/70 backdrop-blur-md px-6 py-3 rounded-2xl text-white text-lg font-medium shadow-xl text-center max-w-2xl">
-            {currentSubtitle}
-          </div>
+      {/* Subtitles Overlay - Shows both local and remote subtitles */}
+      {isSubtitleEnabled && (currentSubtitle || remoteSubtitles.size > 0) && (
+        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 max-w-3xl w-full px-4">
+          {/* Local subtitle */}
+          {currentSubtitle && (
+            <div className="animate-fade-in-up">
+              <div className="bg-blue-600/80 backdrop-blur-md px-6 py-3 rounded-2xl text-white text-lg font-medium shadow-xl text-center">
+                {currentSubtitle}
+              </div>
+            </div>
+          )}
+          {/* Remote subtitles */}
+          {Array.from(remoteSubtitles.values()).map((subtitle) => (
+            <div key={subtitle.speakerId} className="animate-fade-in-up">
+              <div className="bg-gray-800/80 backdrop-blur-md px-6 py-3 rounded-2xl text-white text-lg font-medium shadow-xl text-center">
+                <span className="text-yellow-400">{subtitle.speakerName}:</span> {subtitle.text}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
