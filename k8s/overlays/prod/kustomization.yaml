@@ -28,7 +28,7 @@ labels:
 patches:
   - target:
       kind: ConfigMap
-      name: wealist-shared-config
+      name: wealist-config
     patch: |-
       - op: replace
         path: /data/ENV

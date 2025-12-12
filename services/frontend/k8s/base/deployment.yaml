@@ -22,7 +22,7 @@ spec:
           envFrom:
             # Shared config (for API URLs - used in config.js)
             - configMapRef:
-                name: wealist-shared-config
+                name: wealist-config
             # Service-specific config
             - configMapRef:
                 name: frontend-config

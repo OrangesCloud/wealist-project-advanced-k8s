@@ -21,11 +21,11 @@ spec:
             - containerPort: 8000
           envFrom:
             - configMapRef:
-                name: wealist-shared-config
+                name: wealist-config
             - configMapRef:
                 name: board-service-config
             - secretRef:
-                name: wealist-shared-secrets
+                name: wealist-secrets
           env:
             - name: DATABASE_URL
               value: "postgresql://board_service:board_service_password@postgres:5432/wealist_board_db?sslmode=disable"

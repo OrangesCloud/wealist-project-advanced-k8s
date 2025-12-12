@@ -25,9 +25,9 @@ spec:
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: wealist-shared-config
+                name: wealist-config
             - secretRef:
-                name: wealist-shared-secrets
+                name: wealist-secrets
           env:
             - name: DATABASE_URL
               value: "postgresql://storage_service:storage_service_password@postgres:5432/wealist_storage_db?sslmode=disable"

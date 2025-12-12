@@ -7,7 +7,7 @@
 # 사용법 (각 서비스 deployment.yaml):
 #   envFrom:
 #     - configMapRef:
-#         name: wealist-shared-config
+#         name: wealist-config
 #
 # 업그레이드 경로:
 #   1. 현재: K8s ConfigMap (수동 관리)
@@ -17,7 +17,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: wealist-shared-config
+  name: wealist-config
   labels:
     app.kubernetes.io/name: wealist
     app.kubernetes.io/component: shared-config
