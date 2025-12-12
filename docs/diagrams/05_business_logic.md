@@ -811,32 +811,32 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Participant as 참여자
+    actor Participant as Participant
     participant FE as Frontend
     participant VideoSvc as Video Service
     participant LiveKit as LiveKit
     participant DB as PostgreSQL
-    actor Others as 다른 참여자들
+    actor Others as Others
 
-    Participant->>FE: 영상통화 참여
+    Participant->>FE: Join Room
     FE->>VideoSvc: POST /rooms/:id/join
 
-    VideoSvc->>DB: Participant 레코드 생성
-    VideoSvc->>LiveKit: Token 생성
+    VideoSvc->>DB: Create Participant
+    VideoSvc->>LiveKit: Generate Token
     LiveKit->>VideoSvc: Room Token
-    VideoSvc->>FE: Token 반환
+    VideoSvc->>FE: Return Token
 
-    FE->>LiveKit: WebRTC 연결
-    LiveKit->>FE: 기존 참여자 스트림 수신
-    LiveKit->>Others: 새 참여자 스트림 전송
+    FE->>LiveKit: WebRTC Connect
+    LiveKit->>FE: Receive Streams
+    LiveKit->>Others: Send New Stream
 
-    Note over FE,Others: 영상통화 진행...
+    Note over FE,Others: Video Call in Progress
 
-    Participant->>FE: 퇴장 버튼
+    Participant->>FE: Leave Button
     FE->>VideoSvc: POST /rooms/:id/leave
-    VideoSvc->>DB: left_at 업데이트
-    FE->>LiveKit: 연결 종료
-    LiveKit->>Others: 참여자 퇴장 알림
+    VideoSvc->>DB: Update left_at
+    FE->>LiveKit: Disconnect
+    LiveKit->>Others: Participant Left
 ```
 
 ---
