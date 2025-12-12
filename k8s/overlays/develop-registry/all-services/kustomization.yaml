@@ -15,6 +15,9 @@ resources:
   # Infrastructure (includes namespace)
   - ../../../../infrastructure/overlays/develop
 
+  # Dev secrets (hardcoded for local dev, Vault for prod)
+  - ../../../base/namespace-dev/secret.yaml
+
   # Shared config & ingress
   - ../../../base/shared
   - ingress.yaml

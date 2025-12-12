@@ -23,7 +23,7 @@ spec:
             - configMapRef:
                 name: wealist-shared-config
             - secretRef:
-                name: wealist-shared-secrets
+                name: wealist-secrets
           env:
             - name: DATABASE_URL
               value: "postgresql://chat_service:chat_service_password@postgres:5432/wealist_chat_db?sslmode=disable"

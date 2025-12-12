@@ -25,7 +25,7 @@ spec:
             - configMapRef:
                 name: user-service-config
             - secretRef:
-                name: wealist-shared-secrets
+                name: wealist-secrets
           env:
             - name: DATABASE_URL
               value: "postgresql://user_service:user_service_password@postgres:5432/wealist_user_db?sslmode=disable"
