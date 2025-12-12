@@ -208,7 +208,7 @@ export const VideoRoom: React.FC<VideoRoomProps> = ({
   // Subtitle/Transcript state
   const [isSubtitleEnabled, setIsSubtitleEnabled] = useState(false);
   const [currentSubtitle, setCurrentSubtitle] = useState('');
-  const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
+  const [_transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // Helper to get user display name
