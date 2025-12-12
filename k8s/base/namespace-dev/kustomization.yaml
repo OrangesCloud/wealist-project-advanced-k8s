@@ -1,10 +1,7 @@
 # =============================================================================
-# Kustomization - Dev Environment (namespace + secrets)
+# Kustomization - Dev Environment
 # =============================================================================
 # Dev 환경 전용 리소스
-# - namespace
-# - secret (dev용 하드코딩 시크릿)
-#
 # Prod는 Vault/External Secrets Operator 사용 예정
 
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -12,4 +9,5 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - configmap.yaml
   - secret.yaml

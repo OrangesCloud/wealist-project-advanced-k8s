@@ -21,7 +21,7 @@ spec:
             - containerPort: 8000
           envFrom:
             - configMapRef:
-                name: wealist-shared-config
+                name: wealist-config
             - configMapRef:
                 name: board-service-config
             - secretRef:
