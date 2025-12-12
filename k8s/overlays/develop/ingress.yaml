@@ -6,20 +6,23 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/use-regex: "true"
+    # WebSocket & SSE support
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/websocket-services: "board-service,chat-service,livekit"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/connection-proxy-header: "keep-alive, Upgrade"
 spec:
   ingressClassName: nginx
   rules:
     - host: wealist.local
       http:
         paths:
-          # Frontend (React)
-          - path: /()(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: frontend
-                port:
-                  number: 80
+          # ============================================
+          # API Routes (구체적인 경로 먼저)
+          # ============================================
+
           # Auth Service API
           - path: /api/auth(/|$)(.*)
             pathType: ImplementationSpecific
@@ -76,7 +79,21 @@ spec:
                 name: video-service
                 port:
                   number: 8004
+
+          # ============================================
+          # LiveKit (WebRTC/WebSocket)
+          # ============================================
+          - path: /livekit(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: livekit
+                port:
+                  number: 7880
+
+          # ============================================
           # MinIO Proxy (S3 Presigned URL 접근용)
+          # ============================================
           - path: /minio(/|$)(.*)
             pathType: ImplementationSpecific
             backend:
@@ -84,3 +101,14 @@ spec:
                 name: minio
                 port:
                   number: 9000
+
+          # ============================================
+          # Frontend (catch-all, 맨 마지막!)
+          # ============================================
+          - path: /()(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
