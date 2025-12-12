@@ -15,6 +15,7 @@ help:
 	@echo "  make -f Makefile.helm setup          - Create Kind cluster '$(KIND_CLUSTER)'"
 	@echo "  make -f Makefile.helm load-images    - Build and push images to local registry"
 	@echo "  make -f Makefile.helm deploy-infra   - Deploy PostgreSQL & Redis"
+	@echo "  make -f Makefile.helm deploy-configs - Deploy ConfigMaps & Secrets (Legacy)"
 	@echo "  make -f Makefile.helm deploy-helm    - Deploy ALL services using Helm"
 	@echo "  make -f Makefile.helm clean          - Delete cluster"
 	@echo ""
@@ -34,6 +35,16 @@ deploy-infra:
 	@echo "Waiting for infra pods..."
 	@kubectl wait --namespace $(K8S_NAMESPACE) --for=condition=ready pod --selector=app=postgres --timeout=120s || true
 	@kubectl wait --namespace $(K8S_NAMESPACE) --for=condition=ready pod --selector=app=redis --timeout=120s || true
+
+deploy-configs:
+	@echo "=== Deploying Legacy ConfigMaps (Shared & Service-specific) ==="
+	@# Shared Configs
+	kubectl apply -k k8s/base/shared -n $(K8S_NAMESPACE)
+	@# Service Configs (Find and apply all configmap-*.yaml in services/)
+	@find services -name "configmap-*.yaml" -exec kubectl apply -f {} -n $(K8S_NAMESPACE) \;
+	@# Secrets (Apply shared secrets if exists, warning: this checks local file, but secrets might be ignored)
+	@# Assuming wealist-shared-secrets is handled manually or via k8s/base/shared/secret-shared.yaml (if not ignored)
+
 
 deploy-helm:
 	@echo "=== Deploying Services via Helm ==="
