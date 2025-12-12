@@ -17,8 +17,8 @@ services:
   # User Service (Go)
   user-service:
     build:
-      context: ../../services/user-service
-      dockerfile: docker/Dockerfile
+      context: ../..
+      dockerfile: services/user-service/docker/Dockerfile
     image: wealist/user-service:${VERSION:-latest}
     container_name: wealist-user-service
     hostname: user-service
@@ -248,8 +248,8 @@ services:
   # Chat Service (Go)
   chat-service:
     build:
-      context: ../../services/chat-service
-      dockerfile: docker/Dockerfile
+      context: ../..
+      dockerfile: services/chat-service/docker/Dockerfile
     image: wealist/chat-service:${VERSION:-latest}
     container_name: wealist-chat-service
     hostname: chat-service
