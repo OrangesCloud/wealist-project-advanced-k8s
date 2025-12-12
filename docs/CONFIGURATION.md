@@ -13,6 +13,7 @@
 | K8s DB 초기화 | `infrastructure/base/postgres/configmap.yaml` |
 | K8s 서비스 설정 | `services/{service}/k8s/base/` |
 | 서비스별 환경변수 예시 | `services/{service}/.env.example` |
+| 비즈니스 로직 다이어그램 | `docs/diagrams/05_business_logic.md` |
 
 ---
 

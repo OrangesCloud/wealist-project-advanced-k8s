@@ -355,10 +355,17 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 
 | 문서                                                 | 설명                         |
 | ---------------------------------------------------- | ---------------------------- |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md)       | 환경 설정 레퍼런스           |
 | [docs/K8S_SETUP.md](docs/K8S_SETUP.md)               | Kubernetes 배포 가이드       |
 | [docs/infrastructure.md](docs/infrastructure.md)     | 인프라 구성 및 서비스 의존성 |
 | [docs/monitoring-setup.md](docs/monitoring-setup.md) | 모니터링 설정 가이드         |
 | [docs/ports.md](docs/ports.md)                       | 포트 구성 정보               |
+
+### 다이어그램
+
+| 문서                                                           | 설명                              |
+| -------------------------------------------------------------- | --------------------------------- |
+| [docs/diagrams/05_business_logic.md](docs/diagrams/05_business_logic.md) | 비즈니스 로직 다이어그램 (Mermaid) |
 
 ---
 
