@@ -1,0 +1,84 @@
+# values.yaml for video-service
+# Inherits from charts/microservice-chart
+
+replicaCount: 1
+
+image:
+  repository: video-service
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+nameOverride: "video-service"
+fullnameOverride: "video-service"
+
+service:
+  type: ClusterIP
+  port: 8004
+  targetPort: 8004
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
+envFrom:
+  - configMapRef:
+      name: wealist-shared-config
+  - secretRef:
+      name: wealist-shared-secrets
+
+env:
+  - name: LIVEKIT_WS_URL
+    value: "wss://local.wealist.co.kr/svc/livekit"
+  - name: DATABASE_URL
+    value: "postgresql://video_service:video_service_password@postgres:5432/wealist_video_db?sslmode=disable"
+  # Add other envs from video-service confimap if they are not in shared-config
+  - name: PORT
+    value: "8004"
+  - name: SERVER_BASE_PATH
+    value: "/api/video"
+  - name: LOG_LEVEL
+    value: "debug"
+  - name: REDIS_HOST
+    value: "redis"
+  - name: REDIS_PORT
+    value: "6379"
+  - name: AUTH_SERVICE_URL
+    value: "http://auth-service:8080"
+  - name: USER_SERVICE_URL
+    value: "http://user-service:8081"
+  - name: LIVEKIT_HOST
+    value: "http://livekit:7880"
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8004
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8004
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  hosts:
+    - host: local.wealist.co.kr
+      paths:
+        - path: /api/video
+          pathType: Prefix

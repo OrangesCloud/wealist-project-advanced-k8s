@@ -1,0 +1,59 @@
+# values.yaml for storage-service
+# Inherits from charts/microservice-chart
+
+replicaCount: 1
+
+image:
+  repository: storage-service
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+nameOverride: "storage-service"
+fullnameOverride: "storage-service"
+
+service:
+  type: ClusterIP
+  port: 8003
+  targetPort: 8003
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
+envFrom:
+  - configMapRef:
+      name: wealist-shared-config
+  - secretRef:
+      name: wealist-shared-secrets
+
+env:
+  - name: DATABASE_URL
+    value: "postgresql://storage_service:storage_service_password@postgres:5432/wealist_storage_db?sslmode=disable"
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8003
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8003
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  hosts: []

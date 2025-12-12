@@ -1,0 +1,67 @@
+# values.yaml for frontend
+# Inherits from charts/microservice-chart
+
+replicaCount: 1
+
+image:
+  repository: frontend
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+nameOverride: "frontend"
+fullnameOverride: "frontend"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "25m"
+  limits:
+    memory: "128Mi"
+    cpu: "100m"
+
+envFrom:
+  - configMapRef:
+      name: wealist-shared-config
+  - configMapRef:
+      name: frontend-config
+
+volumeMounts:
+  - name: runtime-config
+    mountPath: /usr/share/nginx/html/config.js
+    subPath: config.js
+
+volumes:
+  - name: runtime-config
+    configMap:
+      name: frontend-runtime-config
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: 80
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 80
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  hosts:
+    - host: local.wealist.co.kr
+      paths:
+        - path: /
+          pathType: Prefix

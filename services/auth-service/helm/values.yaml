@@ -1,0 +1,69 @@
+# values.yaml for auth-service
+# Inherits from charts/microservice-chart
+
+replicaCount: 1
+
+image:
+  repository: auth-service
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+nameOverride: "auth-service"
+fullnameOverride: "auth-service"
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+envFrom:
+  - configMapRef:
+      name: wealist-shared-config
+  - configMapRef:
+      name: auth-service-config
+  - secretRef:
+      name: wealist-shared-secrets
+
+env:
+  - name: AUTH_SERVICE_PORT
+    value: "8080"
+  - name: SPRING_REDIS_HOST
+    value: "redis"
+  - name: SPRING_REDIS_PORT
+    value: "6379"
+  - name: USER_SERVICE_URL
+    value: "http://user-service:8081"
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  hosts:
+    - host: local.wealist.co.kr
+      paths:
+        - path: /api/auth
+          pathType: Prefix

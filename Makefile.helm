@@ -1,0 +1,55 @@
+.PHONY: setup load-images deploy-infra deploy-helm status clean help
+
+# Helm Test Environment
+KIND_CLUSTER ?= wealist-helm
+LOCAL_REGISTRY ?= localhost:5001
+K8S_NAMESPACE ?= wealist-dev
+HELM_RELEASE_ARGS ?= --set image.repository=$(LOCAL_REGISTRY)
+
+# List of services to deploy
+SERVICES := auth-service board-service chat-service frontend noti-service storage-service user-service video-service
+
+help:
+	@echo "Helm Migration Test (Cluster: $(KIND_CLUSTER))"
+	@echo ""
+	@echo "  make -f Makefile.helm setup          - Create Kind cluster '$(KIND_CLUSTER)'"
+	@echo "  make -f Makefile.helm load-images    - Build and push images to local registry"
+	@echo "  make -f Makefile.helm deploy-infra   - Deploy PostgreSQL & Redis"
+	@echo "  make -f Makefile.helm deploy-helm    - Deploy ALL services using Helm"
+	@echo "  make -f Makefile.helm clean          - Delete cluster"
+	@echo ""
+
+setup:
+	@echo "=== Creating Cluster: $(KIND_CLUSTER) ==="
+	CLUSTER_NAME=$(KIND_CLUSTER) ./docker/scripts/dev/0.setup-cluster-helm.sh
+
+load-images:
+	@echo "=== Loading Images ==="
+	./docker/scripts/dev/1.load_infra_images.sh
+	./docker/scripts/dev/2.build_services_and_load.sh
+
+deploy-infra:
+	@echo "=== Deploying Infrastructure ==="
+	kubectl apply -k infrastructure/overlays/develop
+	@echo "Waiting for infra pods..."
+	@kubectl wait --namespace $(K8S_NAMESPACE) --for=condition=ready pod --selector=app=postgres --timeout=120s || true
+	@kubectl wait --namespace $(K8S_NAMESPACE) --for=condition=ready pod --selector=app=redis --timeout=120s || true
+
+deploy-helm:
+	@echo "=== Deploying Services via Helm ==="
+	@kubectl create namespace $(K8S_NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	@for app in $(SERVICES); do \
+		echo ">>> Deploying $$app..."; \
+		helm upgrade --install $$app ./charts/microservice-chart \
+			-f services/$$app/helm/values.yaml \
+			--set image.repository=$(LOCAL_REGISTRY)/$$app \
+			--namespace $(K8S_NAMESPACE); \
+	done
+	@echo ""
+	@echo "✅ Deployment complete! Check status with: kubectl get pods -n $(K8S_NAMESPACE)"
+
+status:
+	@kubectl get pods -n $(K8S_NAMESPACE)
+
+clean:
+	kind delete cluster --name $(KIND_CLUSTER)

@@ -1,0 +1,63 @@
+# values.yaml for board-service
+# Inherits from charts/microservice-chart
+
+replicaCount: 1
+
+image:
+  repository: board-service
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+nameOverride: "board-service"
+fullnameOverride: "board-service"
+
+service:
+  type: ClusterIP
+  port: 8000
+  targetPort: 8000
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "50m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
+envFrom:
+  - configMapRef:
+      name: wealist-shared-config
+  - configMapRef:
+      name: board-service-config
+  - secretRef:
+      name: wealist-shared-secrets
+
+env:
+  - name: DATABASE_URL
+    value: "postgresql://board_service:board_service_password@postgres:5432/wealist_board_db?sslmode=disable"
+
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 8000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  hosts:
+    - host: local.wealist.co.kr
+      paths:
+        - path: /api/boards
+          pathType: Prefix
