@@ -1,5 +1,6 @@
 .PHONY: help dev-up dev-down dev-logs kind-setup kind-load-images kind-apply kind-delete status clean
 .PHONY: local-kind-apply local-tls-secret
+.PHONY: sonar-up sonar-down sonar-logs sonar-status sonar-restart sonar-clean
 .PHONY: auth-service-build auth-service-load auth-service-redeploy auth-service-all
 .PHONY: board-service-build board-service-load board-service-redeploy board-service-all
 .PHONY: chat-service-build chat-service-load chat-service-redeploy chat-service-all
@@ -22,6 +23,14 @@ help:
 	@echo "    make dev-up       - Start all services"
 	@echo "    make dev-down     - Stop all services"
 	@echo "    make dev-logs     - View logs"
+	@echo ""
+	@echo "  SonarQube (Code Quality - Standalone):"
+	@echo "    make sonar-up     - Start SonarQube only (lightweight)"
+	@echo "    make sonar-down   - Stop SonarQube environment"
+	@echo "    make sonar-logs   - View SonarQube logs"
+	@echo "    make sonar-status - Check SonarQube status"
+	@echo "    make sonar-restart - Restart SonarQube environment"
+	@echo "    make sonar-clean  - Clean SonarQube data (destructive)"
 	@echo ""
 	@echo "  Kubernetes (Local - localhost) - 3 Step Setup:"
 	@echo "    make kind-setup       - 1. Create cluster + registry"
@@ -68,6 +77,32 @@ dev-down:
 
 dev-logs:
 	./docker/scripts/dev.sh logs
+
+# =============================================================================
+# SonarQube (Code Quality - Standalone Environment)
+# =============================================================================
+
+sonar-up:
+	@echo "🚀 Starting SonarQube standalone environment..."
+	./docker/scripts/sonar.sh up
+
+sonar-down:
+	@echo "⏹️  Stopping SonarQube standalone environment..."
+	./docker/scripts/sonar.sh down
+
+sonar-logs:
+	./docker/scripts/sonar.sh logs
+
+sonar-status:
+	./docker/scripts/sonar.sh status
+
+sonar-restart:
+	@echo "🔄 Restarting SonarQube standalone environment..."
+	./docker/scripts/sonar.sh restart
+
+sonar-clean:
+	@echo "🗑️  Cleaning SonarQube standalone environment..."
+	./docker/scripts/sonar.sh clean
 
 # =============================================================================
 # Kubernetes (Local - Kind)
