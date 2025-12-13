@@ -441,37 +441,38 @@ export const getBoardWebSocketUrl = (projectId: string, token: string): string =
   const encodedToken = encodeURIComponent(token);
 
   // K8s ingress 모드 (CloudFront + API origin)
+  // board-service WebSocket 경로: /ws/project/:projectId (not /api/boards/ws/...)
   if (isIngressMode) {
     const apiDomain = getApiDomain();
     // API_DOMAIN이 설정되어 있으면 CloudFront 우회하여 직접 연결
     if (apiDomain) {
       const protocol = getWebSocketProtocol();
-      return `${protocol}//${apiDomain}/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+      return `${protocol}//${apiDomain}/ws/project/${projectId}?token=${encodedToken}`;
     }
     // API_DOMAIN 없으면 CloudFront 통해 연결 시도 (fallback)
     const protocol = getWebSocketProtocol();
-    return `${protocol}//${window.location.host}/svc/board/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+    return `${protocol}//${window.location.host}/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   // Docker-compose (로컬 개발) - nginx를 통해 WebSocket 프록시
   if (INJECTED_API_BASE_URL?.includes('localhost')) {
-    return `ws://localhost/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+    return `ws://localhost/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
   if (INJECTED_API_BASE_URL) {
     const protocol = getWebSocketProtocol(INJECTED_API_BASE_URL);
     const host = INJECTED_API_BASE_URL.replace(/^https?:\/\//, '');
-    return `${protocol}//${host}/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+    return `${protocol}//${host}/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   // Fallback
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return `ws://localhost/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+    return `ws://localhost/ws/project/${projectId}?token=${encodedToken}`;
   }
 
-  return `wss://api.wealist.co.kr/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+  return `wss://api.wealist.co.kr/ws/project/${projectId}?token=${encodedToken}`;
 };
 
 /**
