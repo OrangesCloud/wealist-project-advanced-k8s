@@ -1,12 +1,13 @@
 # =============================================================================
-# Kustomization - All Services (Local Registry + Custom Domain)
+# Kustomization - All Services (Local Registry + CDN Backend)
 # =============================================================================
-# 로컬 레지스트리(localhost:5001)를 사용하고 커스텀 도메인으로 접근
-# __LOCAL_DOMAIN__ 플레이스홀더는 make kind-apply 시 실제 도메인으로 치환됨
+# 로컬 레지스트리(localhost:5001)를 사용하고 CloudFront CDN 백엔드로 동작
+# __PUBLIC_DOMAIN__: 사용자 접속용 도메인 (OAuth, WebSocket 등)
+# __API_DOMAIN__: CloudFront → 백엔드 Origin용 (자동 생성: api.PUBLIC_DOMAIN)
 #
 # 사용법:
-#   make kind-apply                              # 기본: local.wealist.co.kr
-#   make kind-apply LOCAL_DOMAIN=dev.wealist.co.kr  # 커스텀 도메인
+#   make kind-apply                                    # 기본: dev.wealist.co.kr
+#   make kind-apply PUBLIC_DOMAIN=prod.wealist.co.kr   # 커스텀 도메인
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -29,9 +30,6 @@ resources:
   - ../../../../services/noti-service/k8s/base
   - ../../../../services/storage-service/k8s/base
   - ../../../../services/video-service/k8s/base
-
-  # Frontend
-  - ../../../../services/frontend/k8s/base
 
 # Override images to use local registry
 images:
@@ -56,9 +54,6 @@ images:
   - name: video-service
     newName: localhost:5001/video-service
     newTag: latest
-  - name: frontend
-    newName: localhost:5001/frontend
-    newTag: latest
 
 # Set namespace for all resources
 namespace: wealist-dev
@@ -68,10 +63,10 @@ labels:
   - pairs:
       app.kubernetes.io/env: develop
       app.kubernetes.io/registry: local
-      app.kubernetes.io/domain: __LOCAL_DOMAIN__
+      app.kubernetes.io/domain: __PUBLIC_DOMAIN__
     includeSelectors: false
 
-# Patches for custom domain (use __LOCAL_DOMAIN__ placeholder)
+# Patches for custom domain (use __PUBLIC_DOMAIN__ placeholder)
 patches:
   # Auth service: OAuth2 redirect URLs
   - target:
@@ -80,10 +75,10 @@ patches:
     patch: |-
       - op: replace
         path: /data/OAUTH2_REDIRECT_URL_ENV
-        value: "http://__LOCAL_DOMAIN__/oauth/callback"
+        value: "https://__PUBLIC_DOMAIN__/oauth/callback"
       - op: replace
         path: /data/OAUTH2_CLIENT_REDIRECT_URI
-        value: "http://__LOCAL_DOMAIN__/login/oauth2/code/google"
+        value: "https://__PUBLIC_DOMAIN__/login/oauth2/code/google"
 
   # Chat service: Add SERVER_BASE_PATH for ingress routing
   - target:
@@ -134,7 +129,7 @@ patches:
     patch: |-
       - op: replace
         path: /data/S3_PUBLIC_ENDPOINT
-        value: "https://__LOCAL_DOMAIN__/minio"
+        value: "https://__PUBLIC_DOMAIN__/minio"
 
   # User service: S3_PUBLIC_ENDPOINT for custom domain
   - target:
@@ -143,7 +138,7 @@ patches:
     patch: |-
       - op: replace
         path: /data/S3_PUBLIC_ENDPOINT
-        value: "https://__LOCAL_DOMAIN__/minio"
+        value: "https://__PUBLIC_DOMAIN__/minio"
 
   # Board service: S3_PUBLIC_ENDPOINT for custom domain
   - target:
@@ -152,7 +147,7 @@ patches:
     patch: |-
       - op: replace
         path: /data/S3_PUBLIC_ENDPOINT
-        value: "https://__LOCAL_DOMAIN__/minio"
+        value: "https://__PUBLIC_DOMAIN__/minio"
 
   # Shared config: S3_PUBLIC_ENDPOINT for custom domain
   - target:
@@ -161,7 +156,7 @@ patches:
     patch: |-
       - op: replace
         path: /data/S3_PUBLIC_ENDPOINT
-        value: "https://__LOCAL_DOMAIN__/minio"
+        value: "https://__PUBLIC_DOMAIN__/minio"
 
   # Video service: LiveKit WebSocket URL for custom domain
   - target:
@@ -170,4 +165,4 @@ patches:
     patch: |-
       - op: replace
         path: /data/LIVEKIT_WS_URL
-        value: "wss://__LOCAL_DOMAIN__/svc/livekit"
+        value: "wss://__PUBLIC_DOMAIN__/svc/livekit"

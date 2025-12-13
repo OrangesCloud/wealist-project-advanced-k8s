@@ -40,7 +40,7 @@ data:
   NOTI_SERVICE_URL: "http://noti-service:8002"
   STORAGE_SERVICE_URL: "http://storage-service:8003"
   VIDEO_SERVICE_URL: "http://video-service:8004"
-  LIVEKIT_WS_URL: "wss://__LOCAL_DOMAIN__/svc/livekit"
+  LIVEKIT_WS_URL: "wss://__PUBLIC_DOMAIN__/svc/livekit"
 
   # ===========================================================================
   # Infrastructure URLs (K8s 내부)
@@ -55,7 +55,7 @@ data:
 
   # MinIO (S3 호환)
   S3_ENDPOINT: "http://minio:9000"
-  S3_PUBLIC_ENDPOINT: "http://minio:9000" # 기본값 (overlay에서 반드시 오버라이드 필요)
+  S3_PUBLIC_ENDPOINT: "http://minio:9000"  # 기본값 (overlay에서 반드시 오버라이드 필요)
   S3_BUCKET: "wealist-files"
   S3_REGION: "ap-northeast-2"
 
