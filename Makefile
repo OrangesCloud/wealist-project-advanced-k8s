@@ -284,10 +284,15 @@ frontend-all: frontend-load frontend-redeploy
 
 # --- noti-service ---
 noti-service-build:
-	$(call build-service,noti-service,services/noti-service,docker/Dockerfile)
+	@echo "Building noti-service..."
+	docker build -t $(LOCAL_REGISTRY)/noti-service:$(IMAGE_TAG) -f services/noti-service/docker/Dockerfile .
+	@echo "✅ Built $(LOCAL_REGISTRY)/noti-service:$(IMAGE_TAG)"
 
 noti-service-load:
-	$(call load-service,noti-service,services/noti-service,docker/Dockerfile)
+	@echo "Building and pushing noti-service to registry..."
+	docker build -t $(LOCAL_REGISTRY)/noti-service:$(IMAGE_TAG) -f services/noti-service/docker/Dockerfile .
+	docker push $(LOCAL_REGISTRY)/noti-service:$(IMAGE_TAG)
+	@echo "✅ Pushed $(LOCAL_REGISTRY)/noti-service:$(IMAGE_TAG)"
 
 noti-service-redeploy:
 	$(call redeploy-service,noti-service)
@@ -296,10 +301,15 @@ noti-service-all: noti-service-load noti-service-redeploy
 
 # --- storage-service ---
 storage-service-build:
-	$(call build-service,storage-service,services/storage-service,docker/Dockerfile)
+	@echo "Building storage-service..."
+	docker build -t $(LOCAL_REGISTRY)/storage-service:$(IMAGE_TAG) -f services/storage-service/docker/Dockerfile .
+	@echo "✅ Built $(LOCAL_REGISTRY)/storage-service:$(IMAGE_TAG)"
 
 storage-service-load:
-	$(call load-service,storage-service,services/storage-service,docker/Dockerfile)
+	@echo "Building and pushing storage-service to registry..."
+	docker build -t $(LOCAL_REGISTRY)/storage-service:$(IMAGE_TAG) -f services/storage-service/docker/Dockerfile .
+	docker push $(LOCAL_REGISTRY)/storage-service:$(IMAGE_TAG)
+	@echo "✅ Pushed $(LOCAL_REGISTRY)/storage-service:$(IMAGE_TAG)"
 
 storage-service-redeploy:
 	$(call redeploy-service,storage-service)
@@ -325,10 +335,15 @@ user-service-all: user-service-load user-service-redeploy
 
 # --- video-service ---
 video-service-build:
-	$(call build-service,video-service,services/video-service,docker/Dockerfile)
+	@echo "Building video-service..."
+	docker build -t $(LOCAL_REGISTRY)/video-service:$(IMAGE_TAG) -f services/video-service/docker/Dockerfile .
+	@echo "✅ Built $(LOCAL_REGISTRY)/video-service:$(IMAGE_TAG)"
 
 video-service-load:
-	$(call load-service,video-service,services/video-service,docker/Dockerfile)
+	@echo "Building and pushing video-service to registry..."
+	docker build -t $(LOCAL_REGISTRY)/video-service:$(IMAGE_TAG) -f services/video-service/docker/Dockerfile .
+	docker push $(LOCAL_REGISTRY)/video-service:$(IMAGE_TAG)
+	@echo "✅ Pushed $(LOCAL_REGISTRY)/video-service:$(IMAGE_TAG)"
 
 video-service-redeploy:
 	$(call redeploy-service,video-service)

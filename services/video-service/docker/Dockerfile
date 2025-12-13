@@ -1,47 +1,63 @@
 # syntax=docker/dockerfile:1.4
-# Build stage
-FROM golang:1.24-alpine AS builder
+# Builder stage
+FROM golang:1.24-bookworm AS builder
 
-# Install dependencies
-RUN apk add --no-cache git
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Set working directory to project root
+WORKDIR /workspace
 
-# Copy go mod files first (for layer caching)
-COPY go.mod go.sum ./
+# Copy shared package first
+COPY packages/wealist-advanced-go-pkg/ ./packages/wealist-advanced-go-pkg/
 
-# Download dependencies with cache mount
+# Copy service files
+WORKDIR /workspace/services/video-service
+
+# Copy source code first (needed for go mod tidy to work)
+COPY services/video-service/ ./
+
+# Add replace directive for local package
+RUN echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packages/wealist-advanced-go-pkg' >> go.mod
+
+# Tidy and download dependencies with cache mount (use GOWORK=off to ignore go.work)
 RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download
+    GOWORK=off go mod tidy && \
+    GOWORK=off go mod download
 
-# Copy source code
-COPY . .
-
-# Build with cache mount (dramatically speeds up incremental builds)
+# Build with cache mount (use GOWORK=off)
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /video-service ./cmd/api/main.go
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o video-api ./cmd/api
 
 # Runtime stage
-FROM alpine:3.19
+FROM alpine:latest
 
 # Install runtime dependencies
-RUN apk add --no-cache ca-certificates tzdata wget
+RUN apk --no-cache add ca-certificates tzdata wget
 
-WORKDIR /app
+# Create non-root user
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser
+
+# Set working directory
+WORKDIR /home/appuser
 
 # Copy binary from builder
-COPY --from=builder /video-service .
+COPY --from=builder --chown=appuser:appuser /workspace/services/video-service/video-api .
 
-# Copy config files
-COPY configs/ ./configs/
+# Copy configuration files
+COPY --from=builder --chown=appuser:appuser /workspace/services/video-service/configs ./configs
+
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8004
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD wget --no-verbose --tries=1 -O /dev/null http://localhost:8004/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8004/health/live || exit 1
 
-# Run
-CMD ["./video-service"]
+# Run the application
+CMD ["./video-api"]

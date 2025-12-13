@@ -5,23 +5,30 @@ FROM golang:1.24-bookworm AS builder
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /app
+# Set working directory to project root
+WORKDIR /workspace
 
-# Copy go mod files first (for layer caching)
-COPY go.mod go.sum ./
+# Copy shared package first
+COPY packages/wealist-advanced-go-pkg/ ./packages/wealist-advanced-go-pkg/
 
-# Download dependencies with cache mount
+# Copy service files
+WORKDIR /workspace/services/noti-service
+
+# Copy source code first (needed for go mod tidy to work)
+COPY services/noti-service/ ./
+
+# Add replace directive for local package
+RUN echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packages/wealist-advanced-go-pkg' >> go.mod
+
+# Tidy and download dependencies with cache mount (use GOWORK=off to ignore go.work)
 RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download
+    GOWORK=off go mod tidy && \
+    GOWORK=off go mod download
 
-# Copy source code
-COPY . .
-
-# Build with cache mount (dramatically speeds up incremental builds)
+# Build with cache mount (use GOWORK=off)
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o noti-api ./cmd/api
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o noti-api ./cmd/api
 
 # Runtime stage
 FROM alpine:latest
@@ -37,10 +44,10 @@ RUN addgroup -g 1000 appuser && \
 WORKDIR /home/appuser
 
 # Copy binary from builder
-COPY --from=builder --chown=appuser:appuser /app/noti-api .
+COPY --from=builder --chown=appuser:appuser /workspace/services/noti-service/noti-api .
 
 # Copy configuration files
-COPY --from=builder --chown=appuser:appuser /app/configs ./configs
+COPY --from=builder --chown=appuser:appuser /workspace/services/noti-service/configs ./configs
 
 # Switch to non-root user
 USER appuser
@@ -50,7 +57,7 @@ EXPOSE 8002
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8002/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8002/health/live || exit 1
 
 # Run the application
 CMD ["./noti-api"]
