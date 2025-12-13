@@ -1,0 +1,108 @@
+# =============================================================================
+# Frontend Deploy to S3 + CloudFront
+# =============================================================================
+# Triggers on push to main branch (services/frontend/ changes only)
+# Builds React app and deploys to S3, then invalidates CloudFront cache
+#
+# Required Secrets:
+#   AWS_ACCESS_KEY_ID
+#   AWS_SECRET_ACCESS_KEY
+#   AWS_S3_BUCKET (e.g., wealist-frontend-dev)
+#   AWS_CLOUDFRONT_DISTRIBUTION_ID
+#   VITE_API_BASE_URL (optional, defaults to /svc)
+
+name: Frontend Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'services/frontend/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '8'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: services/frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: services/frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm type-check
+
+      - name: Build
+        run: pnpm build
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || '/svc' }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync dist/ s3://${{ secrets.AWS_S3_BUCKET }}/ \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html" \
+            --exclude "config.js"
+
+          # index.html and config.js should not be cached
+          aws s3 cp dist/index.html s3://${{ secrets.AWS_S3_BUCKET }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+          if [ -f dist/config.js ]; then
+            aws s3 cp dist/config.js s3://${{ secrets.AWS_S3_BUCKET }}/config.js \
+              --cache-control "no-cache, no-store, must-revalidate"
+          fi
+
+      - name: Invalidate CloudFront Cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.AWS_CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+      - name: Deploy Summary
+        run: |
+          echo "## Frontend Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **S3 Bucket**: ${{ secrets.AWS_S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **CloudFront**: Cache invalidated" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
