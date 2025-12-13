@@ -51,13 +51,18 @@ config:
   # Spring Boot specific
   SPRING_PROFILES_ACTIVE: "production"
 
+  # Redis (Spring Boot uses SPRING_REDIS_* naming convention)
+  SPRING_REDIS_HOST: "redis"
+  SPRING_REDIS_PORT: "6379"
+
   # JWT configuration (service-specific)
   JWT_EXPIRATION: "3600000"  # 1 hour in milliseconds
   JWT_REFRESH_EXPIRATION: "86400000"  # 24 hours
 
-  # OAuth2 configuration (environment-specific overrides)
-  OAUTH2_REDIRECT_URL_ENV: ""
-  OAUTH2_CLIENT_REDIRECT_URI: ""
+  # OAuth2 configuration (set proper values for your environment)
+  # These must not be empty - Spring Boot OAuth2 requires redirect URIs
+  OAUTH2_REDIRECT_URL_ENV: "http://localhost/oauth/callback"
+  OAUTH2_CLIENT_REDIRECT_URI: "http://localhost/login/oauth2/code/google"
 
 # -----------------------------------------------------------------------------
 # External Secrets (for production credentials)

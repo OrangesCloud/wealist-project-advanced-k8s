@@ -51,6 +51,7 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   runAsNonRoot: false
+  runAsUser: 0  # Required for nginx (frontend) to run chown
   readOnlyRootFilesystem: false
 
 # -----------------------------------------------------------------------------
