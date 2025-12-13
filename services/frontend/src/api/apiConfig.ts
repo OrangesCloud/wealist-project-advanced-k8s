@@ -29,7 +29,7 @@ const INJECTED_API_BASE_URL = isIngressMode
 // K8s ingress용 서비스 prefix 매핑
 // ingress가 /svc/{service}/* 로 라우팅하고, rewrite로 prefix 제거
 const getIngressServicePrefix = (path: string): string => {
-  if (path?.includes('/api/auth')) return '/svc/auth';
+  if (path?.includes('/api/auth')) return '/svc/auth/api/auth';
   if (path?.includes('/api/users')) return '/svc/user';
   if (path?.includes('/api/workspaces')) return '/svc/user';
   if (path?.includes('/api/profiles')) return '/svc/user';
