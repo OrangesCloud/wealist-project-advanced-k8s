@@ -370,7 +370,7 @@ export const getChatWebSocketUrl = (chatId: string, token: string): string => {
     return `${protocol}//${window.location.host}/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
-  // Docker-compose (로컬 개발) - nginx를 통해 WebSocket 프록시~
+  // Docker-compose (로컬 개발) - nginx를 통해 WebSocket 프록시
   if (INJECTED_API_BASE_URL?.includes('localhost')) {
     return `ws://localhost/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
