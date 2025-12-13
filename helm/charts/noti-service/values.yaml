@@ -61,16 +61,17 @@ externalSecrets:
 # -----------------------------------------------------------------------------
 # Health Check Configuration
 # -----------------------------------------------------------------------------
+# Note: noti-service exposes /health and /ready (not /health/live, /health/ready)
 healthCheck:
   liveness:
-    path: /health/live
+    path: /health
     initialDelaySeconds: 30
     periodSeconds: 10
     timeoutSeconds: 5
     successThreshold: 1
     failureThreshold: 3
   readiness:
-    path: /health/ready
+    path: /ready
     initialDelaySeconds: 20
     periodSeconds: 5
     timeoutSeconds: 3
