@@ -28,5 +28,18 @@ nodes:
         hostPort: 8080
         listenAddress: "0.0.0.0"
         protocol: TCP
+      # LiveKit WebRTC ports
+      - containerPort: 30881
+        hostPort: 7881
+        listenAddress: "0.0.0.0"
+        protocol: TCP
+      - containerPort: 30478
+        hostPort: 3478
+        listenAddress: "0.0.0.0"
+        protocol: TCP
+      - containerPort: 30478
+        hostPort: 3478
+        listenAddress: "0.0.0.0"
+        protocol: UDP
   - role: worker
   - role: worker

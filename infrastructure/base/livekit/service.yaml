@@ -41,5 +41,20 @@ spec:
       nodePort: 30880
       protocol: TCP
       name: http
+    - port: 7881
+      targetPort: 7881
+      nodePort: 30881
+      protocol: TCP
+      name: rtc-tcp
+    - port: 3478
+      targetPort: 3478
+      nodePort: 30478
+      protocol: TCP
+      name: turn-tcp
+    - port: 3478
+      targetPort: 3478
+      nodePort: 30478
+      protocol: UDP
+      name: turn-udp
   selector:
     app: livekit
