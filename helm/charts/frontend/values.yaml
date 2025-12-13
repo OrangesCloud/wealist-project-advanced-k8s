@@ -119,6 +119,10 @@ securityContext:
   runAsUser: 0  # Run as root for nginx
   readOnlyRootFilesystem: false
   allowPrivilegeEscalation: false
+  capabilities:
+    drop: []  # Don't drop capabilities - nginx needs CAP_CHOWN for cache dirs
+    add:
+      - CHOWN
 
 # -----------------------------------------------------------------------------
 # Service Account

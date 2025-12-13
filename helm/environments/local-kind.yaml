@@ -53,6 +53,8 @@ securityContext:
   runAsNonRoot: false
   runAsUser: 0  # Required for nginx (frontend) to run chown
   readOnlyRootFilesystem: false
+  capabilities:
+    drop: []  # Override base.yaml's drop ALL - local dev doesn't need strict caps
 
 # -----------------------------------------------------------------------------
 # Features Disabled for Local
