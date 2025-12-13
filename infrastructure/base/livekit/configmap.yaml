@@ -6,13 +6,11 @@ data:
   livekit.yaml: |
     port: 7880
     rtc:
-      port_range_start: 50000
-      port_range_end: 50100
       tcp_port: 7881
-      # Kind/Docker 환경에서는 use_external_ip가 제대로 동작 안 할 수 있음
-      # node_ip를 명시적으로 설정
-      use_external_ip: false
-      node_ip: "192.168.45.2"
+      use_external_ip: true
+      node_ip: "39.119.192.15"      # ← 공인 IP
+      port_range_start: 7881        # ← TCP만 사용
+      port_range_end: 7881
 
     keys:
       devkey: devsecretkey1234567890abcdefghijk
