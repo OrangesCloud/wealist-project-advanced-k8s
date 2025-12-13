@@ -13,8 +13,25 @@
 # Kind cluster name
 KIND_CLUSTER ?= wealist
 LOCAL_REGISTRY ?= localhost:5001
-K8S_NAMESPACE ?= wealist-dev
 IMAGE_TAG ?= latest
+
+# Environment configuration (used across all commands)
+ENV ?= local-kind
+
+# Namespace based on environment
+ifeq ($(ENV),local-kind)
+  K8S_NAMESPACE = wealist-kind-local
+else ifeq ($(ENV),local-ubuntu)
+  K8S_NAMESPACE = wealist-dev
+else ifeq ($(ENV),dev)
+  K8S_NAMESPACE = wealist-dev
+else ifeq ($(ENV),staging)
+  K8S_NAMESPACE = wealist-staging
+else ifeq ($(ENV),prod)
+  K8S_NAMESPACE = wealist-prod
+else
+  K8S_NAMESPACE = wealist-kind-local
+endif
 
 help:
 	@echo "Wealist Project"
@@ -355,8 +372,8 @@ video-service-all: video-service-load video-service-redeploy
 # =============================================================================
 
 status:
-	@echo "=== Kubernetes Pods ==="
-	@kubectl get pods -n wealist-dev 2>/dev/null || echo "Namespace not found"
+	@echo "=== Kubernetes Pods (ENV=$(ENV), NS=$(K8S_NAMESPACE)) ==="
+	@kubectl get pods -n $(K8S_NAMESPACE) 2>/dev/null || echo "Namespace not found"
 
 clean:
 	./docker/scripts/clean.sh
@@ -369,26 +386,7 @@ clean:
 .PHONY: helm-upgrade-all helm-uninstall-all helm-validate
 .PHONY: helm-local-kind helm-local-ubuntu helm-dev helm-staging helm-prod
 
-# Environment configuration
-# Usage: make helm-install-all ENV=local-kind
-ENV ?= local-ubuntu
-
-# Environment to namespace mapping
-ifeq ($(ENV),local-kind)
-  HELM_NAMESPACE = wealist-kind-local
-else ifeq ($(ENV),local-ubuntu)
-  HELM_NAMESPACE = wealist-dev
-else ifeq ($(ENV),dev)
-  HELM_NAMESPACE = wealist-dev
-else ifeq ($(ENV),staging)
-  HELM_NAMESPACE = wealist-staging
-else ifeq ($(ENV),prod)
-  HELM_NAMESPACE = wealist-prod
-else
-  HELM_NAMESPACE = wealist-dev
-endif
-
-# Helm values files
+# Helm values files (uses K8S_NAMESPACE defined at top of file)
 HELM_BASE_VALUES = ./helm/environments/base.yaml
 HELM_ENV_VALUES = ./helm/environments/$(ENV).yaml
 
@@ -405,23 +403,23 @@ helm-lint:
 	@echo "✅ All charts linted successfully!"
 
 helm-install-infra:
-	@echo "📦 Installing infrastructure (ENV=$(ENV), NS=$(HELM_NAMESPACE))..."
+	@echo "📦 Installing infrastructure (ENV=$(ENV), NS=$(K8S_NAMESPACE))..."
 	helm install wealist-infrastructure ./helm/charts/wealist-infrastructure \
 		-f $(HELM_BASE_VALUES) \
 		-f $(HELM_ENV_VALUES) \
 		-f ./helm/charts/wealist-infrastructure/values.yaml \
-		-n $(HELM_NAMESPACE) --create-namespace
+		-n $(K8S_NAMESPACE) --create-namespace
 	@echo "✅ Infrastructure installed!"
 
 helm-install-services:
-	@echo "📦 Installing services (ENV=$(ENV), NS=$(HELM_NAMESPACE))..."
+	@echo "📦 Installing services (ENV=$(ENV), NS=$(K8S_NAMESPACE))..."
 	@for service in $(SERVICES); do \
 		echo "Installing $$service..."; \
 		helm install $$service ./helm/charts/$$service \
 			-f $(HELM_BASE_VALUES) \
 			-f $(HELM_ENV_VALUES) \
 			-f ./helm/charts/$$service/values.yaml \
-			-n $(HELM_NAMESPACE); \
+			-n $(K8S_NAMESPACE); \
 	done
 	@echo "✅ All services installed!"
 
@@ -430,29 +428,29 @@ helm-install-all: helm-install-infra
 	@$(MAKE) helm-install-services ENV=$(ENV)
 
 helm-upgrade-all:
-	@echo "🔄 Upgrading all charts (ENV=$(ENV), NS=$(HELM_NAMESPACE))..."
+	@echo "🔄 Upgrading all charts (ENV=$(ENV), NS=$(K8S_NAMESPACE))..."
 	@helm upgrade wealist-infrastructure ./helm/charts/wealist-infrastructure \
 		-f $(HELM_BASE_VALUES) \
 		-f $(HELM_ENV_VALUES) \
 		-f ./helm/charts/wealist-infrastructure/values.yaml \
-		-n $(HELM_NAMESPACE)
+		-n $(K8S_NAMESPACE)
 	@for service in $(SERVICES); do \
 		echo "Upgrading $$service..."; \
 		helm upgrade $$service ./helm/charts/$$service \
 			-f $(HELM_BASE_VALUES) \
 			-f $(HELM_ENV_VALUES) \
 			-f ./helm/charts/$$service/values.yaml \
-			-n $(HELM_NAMESPACE); \
+			-n $(K8S_NAMESPACE); \
 	done
 	@echo "✅ All charts upgraded!"
 
 helm-uninstall-all:
-	@echo "🗑️  Uninstalling all charts (ENV=$(ENV), NS=$(HELM_NAMESPACE))..."
+	@echo "🗑️  Uninstalling all charts (ENV=$(ENV), NS=$(K8S_NAMESPACE))..."
 	@for service in $(SERVICES); do \
 		echo "Uninstalling $$service..."; \
-		helm uninstall $$service -n $(HELM_NAMESPACE) 2>/dev/null || true; \
+		helm uninstall $$service -n $(K8S_NAMESPACE) 2>/dev/null || true; \
 	done
-	@helm uninstall wealist-infrastructure -n $(HELM_NAMESPACE) 2>/dev/null || true
+	@helm uninstall wealist-infrastructure -n $(K8S_NAMESPACE) 2>/dev/null || true
 	@echo "✅ All charts uninstalled!"
 
 helm-validate:
