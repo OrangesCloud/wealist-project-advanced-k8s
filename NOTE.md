@@ -47,21 +47,10 @@ make kind-apply LOCAL_DOMAIN=wonny.wealist.co.kr  # 커스텀 도메인
 ### 예시: wonny.wealist.co.kr로 배포
 
 ```bash
-# CNAME 등록 후 아래 명령어 실행
+# CNAME/A 레코드 등록 후 아래 명령어 실행
 make kind-apply LOCAL_DOMAIN=wonny.wealist.co.kr
 
-# 접속: https://wonny.wealist.co.kr
-# (자체 서명 인증서 - 브라우저 경고 무시)
-```
-
-### mkcert로 브라우저 경고 없애기 (선택)
-
-```bash
-# mkcert 설치 후
-cd docker/scripts/dev/certs/
-mkcert <서버IP> wonny.wealist.co.kr local.wealist.co.kr localhost 127.0.0.1
-
-# 생성된 .pem 파일들이 자동으로 인식됨
+# 접속: http://wonny.wealist.co.kr (CDN 사용 시 https)
 ```
 
 ---

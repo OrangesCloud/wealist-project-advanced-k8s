@@ -108,33 +108,6 @@ kubectl patch configmap ingress-nginx-controller -n ingress-nginx \
 # 9. 네임스페이스 생성
 kubectl create namespace wealist-dev 2>/dev/null || true
 
-# 10. TLS Secret 생성 (인증서 파일이 있는 경우)
-# mkcert로 생성한 인증서를 docker/scripts/dev/certs/ 폴더에 넣으면 자동 적용
-# 예: mkcert 192.168.0.3 local.wealist.co.kr localhost 127.0.0.1
-CERT_DIR="${SCRIPT_DIR}/certs"
-if [ -d "$CERT_DIR" ]; then
-    CERT_FILE=$(find "$CERT_DIR" -name "*.pem" ! -name "*-key.pem" | head -1)
-    KEY_FILE=$(find "$CERT_DIR" -name "*-key.pem" | head -1)
-
-    if [ -n "$CERT_FILE" ] && [ -n "$KEY_FILE" ]; then
-        echo "🔐 TLS Secret 생성 중..."
-        echo "   인증서: $CERT_FILE"
-        echo "   키: $KEY_FILE"
-        kubectl delete secret local-wealist-tls -n wealist-dev 2>/dev/null || true
-        kubectl create secret tls local-wealist-tls \
-            --cert="$CERT_FILE" \
-            --key="$KEY_FILE" \
-            -n wealist-dev
-        echo "✅ TLS Secret 생성 완료 (local-wealist-tls)"
-    else
-        echo "⚠️  TLS 인증서 파일이 없습니다. HTTPS를 사용하려면:"
-        echo "   1. mkcert 192.168.0.3 local.wealist.co.kr localhost 127.0.0.1"
-        echo "   2. 생성된 .pem 파일들을 ${CERT_DIR}/ 폴더에 복사"
-    fi
-else
-    echo "⚠️  ${CERT_DIR} 폴더가 없습니다. HTTPS를 사용하려면 폴더를 생성하고 인증서를 넣어주세요."
-fi
-
 echo ""
 echo "✅ 클러스터 준비 완료!"
 echo ""

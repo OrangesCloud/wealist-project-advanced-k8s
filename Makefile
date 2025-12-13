@@ -1,5 +1,4 @@
 .PHONY: help dev-up dev-down dev-logs kind-setup kind-load-images kind-apply kind-delete status clean
-.PHONY: kind-tls-secret
 .PHONY: auth-service-build auth-service-load auth-service-redeploy auth-service-all
 .PHONY: board-service-build board-service-load board-service-redeploy board-service-all
 .PHONY: chat-service-build chat-service-load chat-service-redeploy chat-service-all
@@ -85,7 +84,7 @@ kind-load-images:
 	@echo "  (Or: make kind-apply LOCAL_DOMAIN=wonny.wealist.co.kr)"
 
 # Step 3: Deploy all to k8s
-kind-apply: kind-tls-secret
+kind-apply:
 	@echo "=== Step 3: Deploying to Kubernetes ($(LOCAL_DOMAIN)) ==="
 	@echo ""
 	@echo "--- Deploying infrastructure ---"
@@ -131,28 +130,8 @@ kind-apply: kind-tls-secret
 	@mv infrastructure/base/livekit/configmap.yaml.bak \
 		infrastructure/base/livekit/configmap.yaml
 	@echo ""
-	@echo "✅ Done! Access: https://$(LOCAL_DOMAIN)"
-	@echo "(Self-signed cert - browser will show warning, click 'Advanced' → 'Proceed')"
+	@echo "✅ Done! Access: http://$(LOCAL_DOMAIN)"
 	@echo "Check: make status"
-
-kind-tls-secret:
-	@echo "=== Creating TLS secret for $(LOCAL_DOMAIN) ==="
-	@if kubectl get secret local-wealist-tls -n $(K8S_NAMESPACE) >/dev/null 2>&1; then \
-		echo "TLS secret already exists, deleting to recreate for new domain..."; \
-		kubectl delete secret local-wealist-tls -n $(K8S_NAMESPACE); \
-	fi
-	@echo "Generating self-signed certificate for $(LOCAL_DOMAIN)..."
-	@openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-		-keyout /tmp/local-wealist-tls.key \
-		-out /tmp/local-wealist-tls.crt \
-		-subj "/CN=$(LOCAL_DOMAIN)/O=wealist" \
-		-addext "subjectAltName=DNS:$(LOCAL_DOMAIN)"
-	@kubectl create secret tls local-wealist-tls \
-		--cert=/tmp/local-wealist-tls.crt \
-		--key=/tmp/local-wealist-tls.key \
-		-n $(K8S_NAMESPACE)
-	@rm -f /tmp/local-wealist-tls.key /tmp/local-wealist-tls.crt
-	@echo "✅ TLS secret created for $(LOCAL_DOMAIN)"
 
 kind-delete:
 	kind delete cluster --name $(KIND_CLUSTER)
