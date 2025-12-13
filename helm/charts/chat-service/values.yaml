@@ -172,18 +172,7 @@ podAnnotations: {}
 
 nodeSelector: {}
 tolerations: []
-affinity:
-  podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - ${SERVICE_NAME}
-          topologyKey: kubernetes.io/hostname
+affinity: {}
 
 extraEnv: []
 extraEnvFrom: []

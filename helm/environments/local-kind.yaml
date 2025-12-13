@@ -20,6 +20,7 @@ replicaCount: 1
 
 image:
   pullPolicy: Always  # Always pull for development
+  tag: "latest"       # Local images use :latest tag
 
 # -----------------------------------------------------------------------------
 # Resources (Lower for local development)
