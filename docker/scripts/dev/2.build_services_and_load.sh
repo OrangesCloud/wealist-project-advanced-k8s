@@ -42,9 +42,9 @@ TEMP_DIR=$(mktemp -d)
 trap "rm -rf $TEMP_DIR" EXIT
 
 # 서비스 정보 배열 (빠른 빌드 먼저)
-# 순서: Go 서비스들 → auth-service(Gradle, 느림)
-# 참고: frontend는 CloudFront + S3로 배포되므로 K8s 빌드 대상이 아님
+# 순서: frontend(npm) → Go 서비스들 → auth-service(Gradle, 느림)
 declare -a SERVICES=(
+    "frontend|services/frontend|Dockerfile"
     "video-service|services/video-service|docker/Dockerfile"
     "board-service|services/board-service|docker/Dockerfile"
     "noti-service|services/noti-service|docker/Dockerfile"
@@ -197,6 +197,5 @@ echo "로컬 레지스트리 이미지 확인:"
 echo "  curl -s http://${LOCAL_REG}/v2/_catalog"
 echo ""
 echo "배포 명령어:"
-echo "  make kind-apply                              # 기본: dev.wealist.co.kr"
-echo "  make kind-apply PUBLIC_DOMAIN=<your-domain> # 커스텀 도메인"
+echo "  make kind-apply"
 echo ""
