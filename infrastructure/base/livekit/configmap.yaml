@@ -31,5 +31,3 @@ data:
       domain: __API_DOMAIN__
       tls_port: 0
       udp_port: 3478
-      # Enable TCP relay for firewall/NAT traversal
-      tcp_port: 3478
