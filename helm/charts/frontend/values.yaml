@@ -187,5 +187,18 @@ nginx:
   cacheControl: "public, max-age=31536000, immutable"
 
 extraEnv: []
-extraVolumes: []
-extraVolumeMounts: []
+
+# -----------------------------------------------------------------------------
+# Volume Configuration (for runtime config injection)
+# -----------------------------------------------------------------------------
+# Mount the runtime-config ConfigMap as config.js
+# This overrides the default config.js baked into the Docker image
+volumes:
+  - name: runtime-config
+    configMap:
+      name: frontend-runtime-config
+
+volumeMounts:
+  - name: runtime-config
+    mountPath: /usr/share/nginx/html/config.js
+    subPath: config.js

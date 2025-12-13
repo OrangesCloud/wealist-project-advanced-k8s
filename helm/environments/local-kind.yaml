@@ -87,6 +87,9 @@ shared:
     CORS_ORIGINS: "*"
     S3_PUBLIC_ENDPOINT: "http://localhost/minio"
     LIVEKIT_WS_URL: "ws://localhost/svc/livekit"
+    # OAuth2 Redirect URLs (localhost, no TLS)
+    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost/login/oauth2/code/google"
+    OAUTH2_REDIRECT_URL_ENV: "http://localhost/oauth/callback"
 
 # -----------------------------------------------------------------------------
 # Ingress (localhost, no TLS)

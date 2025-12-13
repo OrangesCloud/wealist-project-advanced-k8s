@@ -59,10 +59,11 @@ config:
   JWT_EXPIRATION: "3600000"  # 1 hour in milliseconds
   JWT_REFRESH_EXPIRATION: "86400000"  # 24 hours
 
-  # OAuth2 configuration (set proper values for your environment)
-  # These must not be empty - Spring Boot OAuth2 requires redirect URIs
-  OAUTH2_REDIRECT_URL_ENV: "http://localhost/oauth/callback"
-  OAUTH2_CLIENT_REDIRECT_URI: "http://localhost/login/oauth2/code/google"
+  # OAuth2 configuration is now centralized in helm/environments/*.yaml
+  # via shared.config section. These values are environment-specific:
+  # - OAUTH2_CLIENT_REDIRECT_URI: Where Google redirects after auth
+  # - OAUTH2_REDIRECT_URL_ENV: Where auth-service redirects frontend
+  # Do NOT define them here to avoid overriding environment values.
 
 # -----------------------------------------------------------------------------
 # External Secrets (for production credentials)

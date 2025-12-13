@@ -161,6 +161,12 @@ shared:
     GOOGLE_CLIENT_ID: "placeholder-client-id.apps.googleusercontent.com"
     GOOGLE_CLIENT_SECRET: "placeholder-client-secret"
 
+    # OAuth2 Redirect URLs (override per environment)
+    # OAUTH2_CLIENT_REDIRECT_URI: Where Google redirects after authentication
+    # OAUTH2_REDIRECT_URL_ENV: Where auth-service redirects frontend after token generation
+    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost/login/oauth2/code/google"
+    OAUTH2_REDIRECT_URL_ENV: "http://localhost/oauth/callback"
+
     # LiveKit (WebRTC)
     LIVEKIT_URL: "http://livekit:7880"
     LIVEKIT_WS_URL: "ws://localhost/svc/livekit"
