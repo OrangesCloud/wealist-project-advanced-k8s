@@ -48,12 +48,12 @@ spec:
       name: rtc-tcp
     - port: 3478
       targetPort: 3478
-      nodePort: 30478
+      nodePort: 30488
       protocol: TCP
       name: turn-tcp
     - port: 3479
       targetPort: 3478
-      nodePort: 30479
+      nodePort: 30489
       protocol: UDP
       name: turn-udp
   selector:
