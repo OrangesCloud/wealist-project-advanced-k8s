@@ -41,17 +41,31 @@ make kind-setup
 make kind-load-images
 
 # 3. 배포 (도메인 선택)
-make kind-apply                                   # 기본: local.wealist.co.kr
-make kind-apply LOCAL_DOMAIN=dev.wealist.co.kr  # 커스텀 도메인
+make kind-apply                                    # 기본: dev.wealist.co.kr
+make kind-apply PUBLIC_DOMAIN=prod.wealist.co.kr   # 커스텀 도메인
+```
+
+### 도메인 구조 (CloudFront CDN)
+
+- **PUBLIC_DOMAIN** (예: `dev.wealist.co.kr`): 사용자 접속용 (OAuth, 프론트엔드)
+- **API_DOMAIN** (예: `api.dev.wealist.co.kr`): CloudFront → 백엔드 Origin용 (자동 생성)
+
+```
+사용자 → CloudFront (dev.wealist.co.kr)
+         ├── /           → S3 (프론트엔드)
+         └── /svc/*      → api.dev.wealist.co.kr (백엔드 API)
 ```
 
 ### 예시: dev.wealist.co.kr로 배포
 
 ```bash
-# CNAME/A 레코드 등록 후 아래 명령어 실행
-make kind-apply LOCAL_DOMAIN=dev.wealist.co.kr
+# Route 53에서 설정:
+# - dev.wealist.co.kr → CloudFront Alias
+# - api.dev.wealist.co.kr → Kind 클러스터 IP (A 레코드)
 
-# 접속: http://dev.wealist.co.kr (CDN 사용 시 https)
+make kind-apply PUBLIC_DOMAIN=dev.wealist.co.kr
+
+# 접속: https://dev.wealist.co.kr (CloudFront)
 ```
 
 ---
@@ -95,12 +109,14 @@ make kind-delete && make kind-setup && make kind-load-images && make kind-apply
 
 ```bash
 # 서비스 빌드 + 푸시 + 재배포 (한 번에)
-make frontend-all
 make auth-service-all
 make board-service-all
+make chat-service-all
 # ... 등
 
 # 또는 단계별로
-make frontend-load      # 빌드 + 레지스트리 푸시
-make frontend-redeploy  # k8s 롤아웃 재시작
+make auth-service-load      # 빌드 + 레지스트리 푸시
+make auth-service-redeploy  # k8s 롤아웃 재시작
 ```
+
+> 프론트엔드는 CloudFront + S3에서 호스팅되므로 K8s 배포 대상이 아님

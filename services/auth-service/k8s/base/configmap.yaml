@@ -10,6 +10,6 @@ data:
   SPRING_REDIS_PORT: "6379"
   # Service URLs
   USER_SERVICE_URL: "http://user-service:8081"
-  # OAuth2 설정 - __LOCAL_DOMAIN__ is replaced by make kind-apply
-  OAUTH2_REDIRECT_URL_ENV: "https://__LOCAL_DOMAIN__/oauth/callback"
-  OAUTH2_CLIENT_REDIRECT_URI: "https://__LOCAL_DOMAIN__/login/oauth2/code/google"
+  # OAuth2 설정 - __PUBLIC_DOMAIN__ is replaced by make kind-apply
+  OAUTH2_REDIRECT_URL_ENV: "https://__PUBLIC_DOMAIN__/oauth/callback"
+  OAUTH2_CLIENT_REDIRECT_URI: "https://__PUBLIC_DOMAIN__/login/oauth2/code/google"

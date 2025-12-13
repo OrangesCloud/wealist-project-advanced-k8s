@@ -30,7 +30,7 @@ spec:
                 name: wealist-secrets
           env:
             - name: LIVEKIT_WS_URL
-              value: "wss://__LOCAL_DOMAIN__/svc/livekit"
+              value: "wss://__PUBLIC_DOMAIN__/svc/livekit"
             - name: DATABASE_URL
               value: "postgresql://video_service:video_service_password@postgres:5432/wealist_video_db?sslmode=disable"
           resources:

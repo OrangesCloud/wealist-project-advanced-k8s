@@ -25,6 +25,6 @@ data:
 
     turn:
       enabled: true
-      domain: __LOCAL_DOMAIN__
+      domain: __API_DOMAIN__
       tls_port: 0
       udp_port: 3478

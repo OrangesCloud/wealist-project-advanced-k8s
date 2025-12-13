@@ -2,7 +2,6 @@
 .PHONY: auth-service-build auth-service-load auth-service-redeploy auth-service-all
 .PHONY: board-service-build board-service-load board-service-redeploy board-service-all
 .PHONY: chat-service-build chat-service-load chat-service-redeploy chat-service-all
-.PHONY: frontend-build frontend-load frontend-redeploy frontend-all
 .PHONY: noti-service-build noti-service-load noti-service-redeploy noti-service-all
 .PHONY: storage-service-build storage-service-load storage-service-redeploy storage-service-all
 .PHONY: user-service-build user-service-load user-service-redeploy user-service-all
@@ -13,7 +12,10 @@ KIND_CLUSTER ?= wealist
 LOCAL_REGISTRY ?= localhost:5001
 K8S_NAMESPACE ?= wealist-dev
 IMAGE_TAG ?= latest
-LOCAL_DOMAIN ?= local.wealist.co.kr
+# PUBLIC_DOMAIN: 사용자 접속용 (OAuth, 프론트엔드)
+# API_DOMAIN: CloudFront → 백엔드 Origin용 (자동 생성: api.PUBLIC_DOMAIN)
+PUBLIC_DOMAIN ?= dev.wealist.co.kr
+API_DOMAIN = api.$(PUBLIC_DOMAIN)
 
 help:
 	@echo "Wealist Project"
@@ -26,8 +28,8 @@ help:
 	@echo "  Kubernetes (Kind) - 3 Step Setup:"
 	@echo "    make kind-setup       - 1. Create cluster + registry"
 	@echo "    make kind-load-images - 2. Build/pull all images (infra + services)"
-	@echo "    make kind-apply       - 3. Deploy to k8s (default: local.wealist.co.kr)"
-	@echo "    make kind-apply LOCAL_DOMAIN=<domain> - Deploy with custom domain"
+	@echo "    make kind-apply       - 3. Deploy to k8s (default: dev.wealist.co.kr)"
+	@echo "    make kind-apply PUBLIC_DOMAIN=<domain> - Deploy with custom domain"
 	@echo "    make kind-delete      - Delete cluster"
 	@echo ""
 	@echo "  Per-Service Commands:"
@@ -37,7 +39,7 @@ help:
 	@echo "    make <service>-all      - Build + load + redeploy"
 	@echo ""
 	@echo "  Available services:"
-	@echo "    auth-service, board-service, chat-service, frontend,"
+	@echo "    auth-service, board-service, chat-service,"
 	@echo "    noti-service, storage-service, user-service, video-service"
 	@echo ""
 	@echo "  Utility:"
@@ -81,11 +83,13 @@ kind-load-images:
 	@echo "✅ All images loaded!"
 	@echo ""
 	@echo "Next: make kind-apply"
-	@echo "  (Or: make kind-apply LOCAL_DOMAIN=dev.wealist.co.kr)"
+	@echo "  (Or: make kind-apply PUBLIC_DOMAIN=dev.wealist.co.kr)"
 
 # Step 3: Deploy all to k8s
 kind-apply:
-	@echo "=== Step 3: Deploying to Kubernetes ($(LOCAL_DOMAIN)) ==="
+	@echo "=== Step 3: Deploying to Kubernetes ==="
+	@echo "  PUBLIC_DOMAIN: $(PUBLIC_DOMAIN) (OAuth, 프론트엔드)"
+	@echo "  API_DOMAIN:    $(API_DOMAIN) (Ingress host)"
 	@echo ""
 	@echo "--- Deploying infrastructure ---"
 	kubectl apply -k infrastructure/overlays/develop
@@ -94,9 +98,9 @@ kind-apply:
 	kubectl wait --namespace $(K8S_NAMESPACE) --for=condition=ready pod --selector=app=postgres --timeout=120s || true
 	kubectl wait --namespace $(K8S_NAMESPACE) --for=condition=ready pod --selector=app=redis --timeout=120s || true
 	@echo ""
-	@echo "--- Deploying services ($(LOCAL_DOMAIN)) ---"
-	@# Replace placeholder with actual domain in template files
-	@sed -i.bak 's/__LOCAL_DOMAIN__/$(LOCAL_DOMAIN)/g' \
+	@echo "--- Deploying services ---"
+	@# Replace placeholders with actual domains
+	@sed -i.bak -e 's/__PUBLIC_DOMAIN__/$(PUBLIC_DOMAIN)/g' -e 's/__API_DOMAIN__/$(API_DOMAIN)/g' \
 		k8s/overlays/develop-registry/all-services/ingress.yaml \
 		k8s/overlays/develop-registry/all-services/kustomization.yaml \
 		services/auth-service/k8s/base/configmap.yaml \
@@ -130,7 +134,7 @@ kind-apply:
 	@mv infrastructure/base/livekit/configmap.yaml.bak \
 		infrastructure/base/livekit/configmap.yaml
 	@echo ""
-	@echo "✅ Done! Access: http://$(LOCAL_DOMAIN)"
+	@echo "✅ Done! Access: https://$(PUBLIC_DOMAIN)"
 	@echo "Check: make status"
 
 kind-delete:
@@ -201,18 +205,6 @@ chat-service-redeploy:
 	$(call redeploy-service,chat-service)
 
 chat-service-all: chat-service-load chat-service-redeploy
-
-# --- frontend ---
-frontend-build:
-	$(call build-service,frontend,services/frontend,Dockerfile)
-
-frontend-load:
-	$(call load-service,frontend,services/frontend,Dockerfile)
-
-frontend-redeploy:
-	$(call redeploy-service,frontend)
-
-frontend-all: frontend-load frontend-redeploy
 
 # --- noti-service ---
 noti-service-build:
