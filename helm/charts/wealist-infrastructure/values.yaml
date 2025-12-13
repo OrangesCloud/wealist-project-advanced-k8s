@@ -1,44 +1,8 @@
 # Default values for wealist-infrastructure
-
-# Global settings
-global:
-  namespace: wealist-dev
-  environment: production
-  domain: wealist.co.kr
-  imageRegistry: ""
-
-# Shared configuration (replaces k8s/base/shared/configmap-shared.yaml)
-shared:
-  config:
-    # Environment
-    ENV: "production"
-    LOG_LEVEL: "info"
-
-    # Service URLs (K8s internal DNS)
-    AUTH_SERVICE_URL: "http://auth-service:8080"
-    USER_SERVICE_URL: "http://user-service:8081"
-    BOARD_SERVICE_URL: "http://board-service:8000"
-    CHAT_SERVICE_URL: "http://chat-service:8001"
-    NOTI_SERVICE_URL: "http://noti-service:8002"
-    STORAGE_SERVICE_URL: "http://storage-service:8003"
-    VIDEO_SERVICE_URL: "http://video-service:8004"
-    LIVEKIT_WS_URL: "wss://wealist.co.kr/svc/livekit"
-
-    # Infrastructure URLs
-    POSTGRES_HOST: "postgres"
-    POSTGRES_PORT: "5432"
-    REDIS_HOST: "redis"
-    REDIS_PORT: "6379"
-
-    # MinIO/S3
-    S3_ENDPOINT: "http://minio:9000"
-    S3_PUBLIC_ENDPOINT: "http://minio:9000"
-    S3_BUCKET: "wealist-files"
-    S3_REGION: "ap-northeast-2"
-
-    # CORS & Security
-    CORS_ORIGINS: "*"
-    INTERNAL_API_KEY: "internal-prod-key-change-me"
+#
+# Note: Global settings (namespace, environment, domain, imageRegistry) and
+# shared.config are defined in helm/environments/*.yaml files, NOT here.
+# This file contains only infrastructure-specific configuration (postgres, redis, ingress).
 
 # PostgreSQL configuration
 postgres:

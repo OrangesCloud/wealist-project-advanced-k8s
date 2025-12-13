@@ -1,16 +1,9 @@
 # =============================================================================
 # user-service Helm Chart - Default Values
 # =============================================================================
-# Production-ready configuration with security, autoscaling, and monitoring
-
-# -----------------------------------------------------------------------------
-# Global Configuration (inherited from parent chart or set at install time)
-# -----------------------------------------------------------------------------
-global:
-  namespace: wealist-prod
-  environment: production
-  imageRegistry: ""  # Set to your container registry (e.g., ghcr.io/your-org)
-  domain: wealist.co.kr
+# Service-specific configuration only.
+# Global settings (namespace, environment, imageRegistry, domain) are defined
+# in helm/environments/*.yaml files.
 
 # -----------------------------------------------------------------------------
 # Image Configuration

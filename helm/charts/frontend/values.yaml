@@ -1,16 +1,10 @@
 # =============================================================================
-# frontend - Production-Ready Configuration
+# frontend - Service Configuration
 # =============================================================================
 # React 18 + Vite application served by NGINX
-
-# -----------------------------------------------------------------------------
-# Global Configuration
-# -----------------------------------------------------------------------------
-global:
-  namespace: wealist
-  environment: production
-  domain: wealist.co.kr
-  imageRegistry: ""
+#
+# Global settings (namespace, environment, imageRegistry, domain) are defined
+# in helm/environments/*.yaml files.
 
 # -----------------------------------------------------------------------------
 # Image Configuration

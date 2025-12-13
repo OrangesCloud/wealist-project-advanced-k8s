@@ -1,17 +1,11 @@
 # =============================================================================
-# auth-service - Production-Ready Configuration
+# auth-service - Service Configuration
 # =============================================================================
 # Spring Boot 3 authentication service using JWT and OAuth2
 # Uses Redis only (no database)
-
-# -----------------------------------------------------------------------------
-# Global Configuration (can be overridden by parent chart)
-# -----------------------------------------------------------------------------
-global:
-  namespace: wealist
-  environment: production
-  domain: wealist.co.kr
-  imageRegistry: ""  # Default to Docker Hub or set to private registry
+#
+# Global settings (namespace, environment, imageRegistry, domain) are defined
+# in helm/environments/*.yaml files.
 
 # -----------------------------------------------------------------------------
 # Image Configuration
