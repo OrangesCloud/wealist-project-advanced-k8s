@@ -446,7 +446,6 @@ helm-install-infra:
 	helm install wealist-infrastructure ./helm/charts/wealist-infrastructure \
 		-f $(HELM_BASE_VALUES) \
 		-f $(HELM_ENV_VALUES) \
-		-f ./helm/charts/wealist-infrastructure/values.yaml \
 		-n $(K8S_NAMESPACE) --create-namespace
 	@echo "✅ Infrastructure installed!"
 
@@ -457,7 +456,6 @@ helm-install-services:
 		helm install $$service ./helm/charts/$$service \
 			-f $(HELM_BASE_VALUES) \
 			-f $(HELM_ENV_VALUES) \
-			-f ./helm/charts/$$service/values.yaml \
 			-n $(K8S_NAMESPACE); \
 	done
 	@echo "✅ All services installed!"
@@ -471,14 +469,12 @@ helm-upgrade-all:
 	@helm upgrade wealist-infrastructure ./helm/charts/wealist-infrastructure \
 		-f $(HELM_BASE_VALUES) \
 		-f $(HELM_ENV_VALUES) \
-		-f ./helm/charts/wealist-infrastructure/values.yaml \
 		-n $(K8S_NAMESPACE)
 	@for service in $(SERVICES); do \
 		echo "Upgrading $$service..."; \
 		helm upgrade $$service ./helm/charts/$$service \
 			-f $(HELM_BASE_VALUES) \
 			-f $(HELM_ENV_VALUES) \
-			-f ./helm/charts/$$service/values.yaml \
 			-n $(K8S_NAMESPACE); \
 	done
 	@echo "✅ All charts upgraded!"
