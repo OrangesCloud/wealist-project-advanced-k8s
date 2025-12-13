@@ -20,7 +20,7 @@ name: Frontend Deploy
 on:
   push:
     branches:
-      - dev-frontend
+      - main
     paths:
       - "services/frontend/**"
   workflow_dispatch:
@@ -79,11 +79,13 @@ jobs:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || '' }}
 
       - name: Inject runtime config
+        env:
+          API_DOMAIN: ${{ secrets.API_DOMAIN }}
         run: |
           # Inject API_DOMAIN for WebSocket/SSE direct connection (bypasses CloudFront)
-          if [ -n "${{ secrets.API_DOMAIN }}" ]; then
-            sed -i 's|API_DOMAIN: ""|API_DOMAIN: "${{ secrets.API_DOMAIN }}"|' dist/config.js
-            echo "Injected API_DOMAIN: ${{ secrets.API_DOMAIN }}"
+          if [ -n "$API_DOMAIN" ]; then
+            sed -i "s|API_DOMAIN: \"\"|API_DOMAIN: \"$API_DOMAIN\"|" dist/config.js
+            echo "Injected API_DOMAIN: $API_DOMAIN"
           else
             echo "API_DOMAIN not set, WebSocket will use CloudFront (may have issues)"
           fi
