@@ -7,7 +7,7 @@ export interface ColorOption {
   name: string;
   hex: string;
   bgClass: string; // Tailwind background class
-  textClass: string; // Tailwind text class for labels~
+  textClass: string; // Tailwind text class for labels
 }
 
 export const CUSTOM_FIELD_COLORS: ColorOption[] = [

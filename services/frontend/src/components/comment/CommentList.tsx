@@ -14,7 +14,7 @@ import {
 import { WorkspaceMemberResponse } from '../../types/user';
 import { useUserLookup } from '../../hooks/useUserLookup';
 import { useFileUpload } from '../../hooks/useFileUpload';
-import { ChangeEvent } from 'react'; // ChangeEvent 명시적 임포트!
+import { ChangeEvent } from 'react'; // ChangeEvent 명시적 임포트
 
 // =============================================================================
 // [Sub Component] 댓글 작성 인풋 (Compact Style)
@@ -246,7 +246,7 @@ const CommentItem = ({
 
       // 만약 사용자가 UI에서 파일을 삭제했는데, DB에도 해당 파일이 있었다면,
       // attachmentIds는 빈 배열이어야 합니다. 현재 로직은 이 부분을 명확하게 처리하지 못합니다.
-      // 일단, selectedFile이 없고 existingAttachment도 없으면 빈 배열로 보냅니다. (기존 로직 유지)
+      // 일단,, selectedFile이 없고 existingAttachment도 없으면 빈 배열로 보냅니다. (기존 로직 유지)
 
       await updateComment(comment.commentId, {
         content: editContent.trim(),

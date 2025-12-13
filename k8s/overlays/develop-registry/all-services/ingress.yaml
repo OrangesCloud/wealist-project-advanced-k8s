@@ -119,3 +119,4 @@ spec:
                 name: minio
                 port:
                   number: 9000
+

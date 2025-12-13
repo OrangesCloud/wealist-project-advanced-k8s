@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+// API 경로 설정 - auth-service 사용
 import { AUTH_SERVICE_API_URL } from '../api/apiConfig';
 import { getAllMyProfiles } from '../api/userService';
 

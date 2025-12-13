@@ -29,7 +29,7 @@ spring:
             scope:
               - email
               - profile
-            redirect-uri: ${OAUTH2_CLIENT_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
+            redirect-uri: ${OAUTH2_CLIENT_REDIRECT_URI:http://localhost:8080/oauth2/callback/google}
             authorization-grant-type: authorization_code
             client-name: Google
         provider:
