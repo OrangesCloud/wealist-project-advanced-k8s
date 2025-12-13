@@ -51,9 +51,9 @@ spec:
       nodePort: 30478
       protocol: TCP
       name: turn-tcp
-    - port: 3478
+    - port: 3479
       targetPort: 3478
-      nodePort: 30478
+      nodePort: 30479
       protocol: UDP
       name: turn-udp
   selector:

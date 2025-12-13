@@ -37,8 +37,8 @@ nodes:
         hostPort: 3478
         listenAddress: "0.0.0.0"
         protocol: TCP
-      - containerPort: 30478
-        hostPort: 3478
+      - containerPort: 30479
+        hostPort: 3479
         listenAddress: "0.0.0.0"
         protocol: UDP
   - role: worker
