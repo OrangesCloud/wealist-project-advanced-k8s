@@ -1,4 +1,4 @@
-.PHONY: help dev-up dev-down dev-logs kind-setup kind-load-images kind-apply kind-delete kind-recover init-local-db status clean
+.PHONY: help dev-up dev-down dev-logs kind-setup kind-load-images kind-apply kind-delete kind-recover init-local-db status clean redeploy-all
 .PHONY: local-kind-apply local-tls-secret
 .PHONY: helm-deps-build
 .PHONY: sonar-up sonar-down sonar-logs sonar-status sonar-restart sonar-clean
@@ -67,6 +67,7 @@ help:
 	@echo "    make <service>-load     - Build + push to registry"
 	@echo "    make <service>-redeploy - Rollout restart in k8s"
 	@echo "    make <service>-all      - Build + load + redeploy"
+	@echo "    make redeploy-all       - Restart all deployments (pick up new secrets)"
 	@echo ""
 	@echo "  Available services:"
 	@echo "    auth-service, board-service, chat-service, frontend,"
@@ -285,6 +286,12 @@ define redeploy-service
 	kubectl rollout restart deployment/$(1) -n $(K8S_NAMESPACE)
 	@echo "✅ Rollout restart triggered for $(1)"
 endef
+
+# Redeploy all services (pick up new secrets/configmaps)
+redeploy-all:
+	@echo "🔄 Restarting all deployments in $(K8S_NAMESPACE)..."
+	kubectl rollout restart deployment -n $(K8S_NAMESPACE)
+	@echo "✅ All deployments restarted"
 
 # --- auth-service ---
 auth-service-build:
