@@ -104,21 +104,22 @@ podDisruptionBudget:
 #   4. PostgreSQL postgresql.conf: listen_addresses = '*'
 #   5. Redis redis.conf: bind 0.0.0.0, protected-mode no
 #
-# Note: 172.17.0.1 is the Docker bridge gateway IP on Linux
-#       This allows Kind pods to connect to host machine services
+# Note: Kind uses its own bridge network (172.18.0.0/16)
+#       172.18.0.1 is the gateway IP that Kind pods use to reach the host
+#       (Check with: docker exec wealist-control-plane ip route | grep default)
 
 postgres:
   enabled: false  # Disable internal PostgreSQL StatefulSet
   external:
     enabled: true
-    host: "172.17.0.1"  # Docker bridge gateway (host machine)
+    host: "172.18.0.1"  # Kind bridge gateway (host machine)
     port: 5432
 
 redis:
   enabled: false  # Disable internal Redis StatefulSet
   external:
     enabled: true
-    host: "172.17.0.1"  # Docker bridge gateway (host machine)
+    host: "172.18.0.1"  # Kind bridge gateway (host machine)
     port: 6379
 
 # -----------------------------------------------------------------------------

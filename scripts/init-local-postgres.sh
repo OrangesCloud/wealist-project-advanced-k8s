@@ -60,13 +60,14 @@ configure_pg_hba() {
 
     PG_HBA=$(sudo -u postgres psql -t -P format=unaligned -c "SHOW hba_file")
 
-    # Check if Docker network is already configured
-    if grep -q "172.17.0.0/16" "$PG_HBA"; then
-        log_info "Docker network already configured in pg_hba.conf"
+    # Check if Docker/Kind networks are already configured
+    if grep -q "172.18.0.0/16" "$PG_HBA"; then
+        log_info "Kind bridge network already configured in pg_hba.conf"
     else
-        log_info "Adding Docker network to pg_hba.conf"
-        echo "# Allow connections from Docker network (for Kind cluster)" >> "$PG_HBA"
+        log_info "Adding Docker/Kind networks to pg_hba.conf"
+        echo "# Allow connections from Docker/Kind networks" >> "$PG_HBA"
         echo "host    all    all    172.17.0.0/16    md5" >> "$PG_HBA"
+        echo "host    all    all    172.18.0.0/16    md5" >> "$PG_HBA"
     fi
 }
 
