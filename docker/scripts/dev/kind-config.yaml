@@ -8,10 +8,6 @@ containerdConfigPatches:
           endpoint = ["http://kind-registry:5000"]
 nodes:
   - role: control-plane
-    extraMounts:
-      - hostPath: /etc/localtime
-        containerPath: /etc/localtime
-        readOnly: true
     kubeadmConfigPatches:
       - |
         kind: InitConfiguration
@@ -29,12 +25,4 @@ nodes:
         hostPort: 8080
         protocol: TCP
   - role: worker
-    extraMounts:
-      - hostPath: /etc/localtime
-        containerPath: /etc/localtime
-        readOnly: true
   - role: worker
-    extraMounts:
-      - hostPath: /etc/localtime
-        containerPath: /etc/localtime
-        readOnly: true
