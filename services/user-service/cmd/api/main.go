@@ -68,7 +68,7 @@ func main() {
 		zap.String("base_path", cfg.Server.BasePath),
 	)
 
-	// Initialize database
+	// Initialize database with retry (wait for DB to be ready)
 	dbConfig := database.Config{
 		DSN:             cfg.Database.GetDSN(),
 		MaxOpenConns:    cfg.Database.MaxOpenConns,
@@ -76,25 +76,24 @@ func main() {
 		ConnMaxLifetime: cfg.Database.ConnMaxLifetime,
 	}
 
-	db, err := database.New(dbConfig)
+	// Retry up to 30 times (5s interval = ~2.5 minutes total wait)
+	db, err := database.NewWithRetry(dbConfig, 5*time.Second, 30)
 	if err != nil {
-		logger.Warn("Failed to connect to database on startup, will retry in background",
+		logger.Fatal("Failed to connect to database after retries",
 			zap.Error(err))
-		database.NewAsync(dbConfig, 5*time.Second)
-	} else {
-		logger.Info("Database connected successfully")
+	}
+	logger.Info("Database connected successfully")
 
-		// Run auto migration (conditional based on DB_AUTO_MIGRATE env)
-		if cfg.Database.AutoMigrate {
-			logger.Info("Running database migrations (DB_AUTO_MIGRATE=true)")
-			if err := database.AutoMigrate(db); err != nil {
-				logger.Warn("Failed to run database migrations", zap.Error(err))
-			} else {
-				logger.Info("Database migrations completed")
-			}
+	// Run auto migration (conditional based on DB_AUTO_MIGRATE env)
+	if cfg.Database.AutoMigrate {
+		logger.Info("Running database migrations (DB_AUTO_MIGRATE=true)")
+		if err := database.AutoMigrate(db); err != nil {
+			logger.Warn("Failed to run database migrations", zap.Error(err))
 		} else {
-			logger.Info("Database auto-migration disabled (DB_AUTO_MIGRATE=false)")
+			logger.Info("Database migrations completed")
 		}
+	} else {
+		logger.Info("Database auto-migration disabled (DB_AUTO_MIGRATE=false)")
 	}
 
 	// Initialize S3 client
