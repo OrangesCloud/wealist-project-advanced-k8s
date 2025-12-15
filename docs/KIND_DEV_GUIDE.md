@@ -37,25 +37,31 @@ kubectl version       # v1.28+ 권장
 helm version          # v3.12+ 권장
 ```
 
-### (선택) Google OAuth 설정
+### Secrets 설정 (필수)
 
-로컬에서 Google 로그인 테스트가 필요한 경우에만:
+OAuth 로그인과 JWT 토큰이 정상 동작하려면 secrets 파일이 필요합니다:
 
 ```bash
 # 1. secrets 파일 생성
 cp helm/environments/secrets.example.yaml helm/environments/local-kind-secrets.yaml
 
 # 2. 파일 편집하여 실제 값 입력
+vi helm/environments/local-kind-secrets.yaml
+
+# 필수 항목:
 # - GOOGLE_CLIENT_ID: Google Cloud Console에서 발급
 # - GOOGLE_CLIENT_SECRET: 위와 동일
+# - JWT_SECRET: 자동 생성됨 (기본값 사용 가능)
 ```
 
-> secrets 파일이 없어도 대부분의 기능 테스트는 가능합니다.
-> Google OAuth만 placeholder로 동작합니다.
+> ⚠️ **secrets 파일이 없으면:**
+> - Google OAuth 로그인 실패 (invalid_client 에러)
+> - JWT 토큰 생성 실패 (WeakKeyException)
+> - API 호출 시 401/500 에러
 
 ---
 
-## 빠른 시작 (3단계)
+## 빠른 시작 (4단계)
 
 처음 환경을 설정하거나, 클러스터를 새로 만들 때 사용합니다.
 
@@ -66,7 +72,11 @@ make kind-setup
 # 2단계: 모든 이미지 빌드 및 로드
 make kind-load-images
 
-# 3단계: Helm으로 전체 배포
+# 3단계: Secrets 설정 (위 "Secrets 설정" 섹션 참고)
+cp helm/environments/secrets.example.yaml helm/environments/local-kind-secrets.yaml
+vi helm/environments/local-kind-secrets.yaml  # GOOGLE_CLIENT_ID 등 입력
+
+# 4단계: Helm으로 전체 배포
 make helm-install-all ENV=local-kind
 ```
 
