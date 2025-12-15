@@ -22,15 +22,12 @@ image:
   pullPolicy: IfNotPresent
 
 # -----------------------------------------------------------------------------
-# Default Resource Limits (Go services)
+# Default Resource Limits - Use service-specific defaults
 # -----------------------------------------------------------------------------
-resources:
-  requests:
-    memory: "128Mi"
-    cpu: "50m"
-  limits:
-    memory: "256Mi"
-    cpu: "200m"
+# Note: Removed global resource override. Each service uses its own values:
+# - Go services: 128Mi-256Mi (fast, low memory)
+# - auth-service (Spring Boot): 512Mi-1Gi (JVM needs more memory)
+# Overriding globally caused OOMKilled for Spring Boot services.
 
 # -----------------------------------------------------------------------------
 # Health Check Settings - Use service-specific defaults

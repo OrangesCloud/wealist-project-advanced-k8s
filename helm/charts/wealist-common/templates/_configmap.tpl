@@ -22,14 +22,18 @@ data:
   {{- if .Values.shared }}
   {{- if .Values.shared.config }}
   {{- range $key, $value := .Values.shared.config }}
-  {{ $key }}: {{ $value | quote }}
+  {{- if not (kindIs "invalid" $value) }}
+  {{ $key }}: {{ $value | toString | quote }}
+  {{- end }}
   {{- end }}
   {{- end }}
   {{- end }}
   {{- /* Then, add/override with service-specific config */}}
   {{- if .Values.config }}
   {{- range $key, $value := .Values.config }}
-  {{ $key }}: {{ $value | quote }}
+  {{- if not (kindIs "invalid" $value) }}
+  {{ $key }}: {{ $value | toString | quote }}
+  {{- end }}
   {{- end }}
   {{- end }}
 {{- end }}
