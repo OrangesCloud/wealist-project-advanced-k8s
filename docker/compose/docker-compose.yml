@@ -33,6 +33,7 @@ services:
       - SERVER_PORT=8081
       - USER_SERVICE_PORT=8081
       - LOG_LEVEL=debug
+      - DB_AUTO_MIGRATE=true
 
       # Database Configuration
       - DATABASE_URL=postgresql://${USER_DB_USER}:${USER_DB_PASSWORD}@postgres:5432/${USER_DB_NAME}?sslmode=disable
