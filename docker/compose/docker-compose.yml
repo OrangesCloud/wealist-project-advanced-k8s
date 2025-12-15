@@ -221,6 +221,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      user-service:
+        condition: service_healthy
 
     healthcheck:
       test:
@@ -282,6 +284,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      user-service:
         condition: service_healthy
 
     healthcheck:
@@ -508,6 +512,8 @@ services:
         condition: service_healthy
       livekit:
         condition: service_started
+      user-service:
+        condition: service_healthy
 
     healthcheck:
       test:
