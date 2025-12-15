@@ -40,13 +40,11 @@ resources:
     cpu: "200m"
 
 # -----------------------------------------------------------------------------
-# Health Check (Faster startup in local)
+# Health Check - Use service-specific defaults
 # -----------------------------------------------------------------------------
-healthCheck:
-  liveness:
-    initialDelaySeconds: 15
-  readiness:
-    initialDelaySeconds: 5
+# Note: Removed global healthCheck override. Each service uses its own values:
+# - Go services: 30s liveness, 10s readiness (fast startup)
+# - auth-service (Spring Boot): 60s liveness, 45s readiness (slow startup)
 
 # -----------------------------------------------------------------------------
 # Security (Relaxed for local development)

@@ -86,21 +86,23 @@ externalSecrets:
 # -----------------------------------------------------------------------------
 # Health Check Configuration (Spring Boot Actuator)
 # -----------------------------------------------------------------------------
+# Note: Spring Boot takes longer to start than Go services.
+# These values should NOT be overridden by environment files.
 healthCheck:
   liveness:
     path: /actuator/health/liveness
-    initialDelaySeconds: 30
+    initialDelaySeconds: 60    # Spring Boot needs more time to start
     periodSeconds: 10
     timeoutSeconds: 5
     successThreshold: 1
-    failureThreshold: 3
+    failureThreshold: 5        # More retries for slow startup
   readiness:
     path: /actuator/health/readiness
-    initialDelaySeconds: 20
+    initialDelaySeconds: 45    # Wait for app to be ready
     periodSeconds: 5
     timeoutSeconds: 3
     successThreshold: 1
-    failureThreshold: 3
+    failureThreshold: 5
 
 # -----------------------------------------------------------------------------
 # Resource Management

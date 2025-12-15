@@ -33,19 +33,13 @@ resources:
     cpu: "200m"
 
 # -----------------------------------------------------------------------------
-# Default Health Check Settings
+# Health Check Settings - Use service-specific defaults
 # -----------------------------------------------------------------------------
-healthCheck:
-  liveness:
-    initialDelaySeconds: 30
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 3
-  readiness:
-    initialDelaySeconds: 10
-    periodSeconds: 5
-    timeoutSeconds: 3
-    failureThreshold: 3
+# Note: Removed global healthCheck to allow each service to define its own values.
+# This is important because:
+# - Go services: Fast startup (~5-10s)
+# - auth-service (Spring Boot): Slow startup (~40-60s)
+# See each service's values.yaml for their healthCheck configuration.
 
 # -----------------------------------------------------------------------------
 # Autoscaling (disabled by default, enable in prod)
