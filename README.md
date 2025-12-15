@@ -1,487 +1,179 @@
 # weAlist - 협업 프로젝트 관리 플랫폼
 
-weAlist는 팀 협업을 위한 프로젝트 관리 플랫폼입니다. 워크스페이스 기반의 프로젝트 관리, 실시간 채팅, 알림, 파일 스토리지, 영상통화 기능을 제공합니다.
+> 클라우드 네이티브 마이크로서비스 기반 협업 플랫폼
+
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+[![Helm](https://img.shields.io/badge/Helm-0F1689?logo=helm&logoColor=white)](https://helm.sh/)
+[![ArgoCD](https://img.shields.io/badge/ArgoCD-EF7B4D?logo=argo&logoColor=white)](https://argoproj.github.io/cd/)
+[![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white)](https://golang.org/)
+[![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
+
+## Highlights
+
+- **8개 마이크로서비스** - 6 Go + 1 Spring Boot + 1 React Frontend
+- **Kubernetes + Helm + ArgoCD** - GitOps 기반 배포 자동화
+- **Prometheus + Loki + Grafana** - 통합 모니터링/로깅
+- **LiveKit + Coturn** - WebRTC 기반 영상통화
 
 ---
 
-## 목차
+## Architecture
 
-- [아키텍처 개요](#아키텍처-개요)
-- [서비스 구성](#서비스-구성)
-- [기술 스택](#기술-스택)
-- [시작하기](#시작하기)
-- [모니터링](#모니터링)
-- [Kubernetes 배포](#kubernetes-배포)
-- [문서](#문서)
-- [아키텍처 결정 기록](#아키텍처-결정-기록)
+![AWS Architecture](docs/images/wealist_aws_arch.png)
+
+> 상세 아키텍처: [Wiki - Architecture](../../wiki/Architecture)
 
 ---
 
-## 아키텍처 개요
+## Services
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Client (Browser)                                │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           NGINX (API Gateway) :80                            │
-│    /api/auth  /api/users  /api/boards  /api/chats  /api/notifications       │
-│                    /api/storage  /api/video  /ws/*                          │
-└─────────────────────────────────────────────────────────────────────────────┘
-          │              │              │              │              │
-          ▼              ▼              ▼              ▼              ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│ user-service │ │ auth-service │ │board-service │ │ chat-service │ │ noti-service │
-│   (Go)       │ │ (Spring)     │ │   (Go)       │ │   (Go)       │ │   (Go)       │
-│   :8081      │ │   :8080      │ │   :8000      │ │   :8001      │ │   :8002      │
-└──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
-          │              │              │              │              │
-          ▼              ▼              ▼              ▼              ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│storage-service│ │video-service │ │   frontend   │
-│   (Go)       │ │   (Go)       │ │   (React)    │
-│   :8003      │ │   :8004      │ │   :3000      │
-└──────────────┘ └──────┬───────┘ └──────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Infrastructure Layer                                 │
-├──────────────┬──────────────┬──────────────┬──────────────┬─────────────────┤
-│  PostgreSQL  │    Redis     │    MinIO     │   LiveKit    │     Coturn      │
-│    :5432     │    :6379     │  :9000/:9001 │ :7880/:7881  │  :3478/:5349    │
-└──────────────┴──────────────┴──────────────┴──────────────┴─────────────────┘
-```
-
-### 서비스 간 통신
-
-```mermaid
-flowchart LR
-    subgraph External["외부 API (JWT 인증)"]
-        FE[Frontend]
-    end
-
-    subgraph Internal["Internal API (서비스 간)"]
-        Auth[Auth Service]
-        User[User Service]
-        Board[Board Service]
-        Chat[Chat Service]
-        Noti[Noti Service]
-        Storage[Storage Service]
-        Video[Video Service]
-    end
-
-    FE -->|JWT| Auth
-    FE -->|JWT| User
-    FE -->|JWT| Board
-    FE -->|JWT| Chat
-    FE -->|JWT| Noti
-    FE -->|JWT| Storage
-    FE -->|JWT| Video
-
-    Auth -->|/internal/oauth/login| User
-    Board -->|/internal/users/exists| User
-    Board -->|/internal/notifications| Noti
-    Chat -->|/internal/notifications| Noti
-    Video -->|LiveKit API| LiveKit[LiveKit SFU]
-
-    Board -.->|토큰 검증| Auth
-    Chat -.->|토큰 검증| Auth
-    Noti -.->|토큰 검증| Auth
-    Storage -.->|토큰 검증| Auth
-    Video -.->|토큰 검증| Auth
-```
+| Service | Tech | Port | Description |
+|---------|------|------|-------------|
+| **auth-service** | Spring Boot 3 | 8080 | JWT/OAuth2 인증 |
+| **user-service** | Go + Gin | 8081 | 사용자/워크스페이스 |
+| **board-service** | Go + Gin | 8000 | 프로젝트/보드/댓글 |
+| **chat-service** | Go + Gin | 8001 | 실시간 채팅 (WebSocket) |
+| **noti-service** | Go + Gin | 8002 | 알림 (SSE) |
+| **storage-service** | Go + Gin | 8003 | 파일 스토리지 (S3) |
+| **video-service** | Go + Gin | 8004 | 영상통화 (LiveKit) |
+| **frontend** | React + Vite | 3000 | Web UI |
 
 ---
 
-## 디렉토리 구조
+## Tech Stack
 
-```
-wealist-project-advanced/
-├── argocd/                    # ArgoCD 앱 정의
-│   └── apps/
-│
-├── docker/                    # Docker 관련 파일
-│   ├── compose/
-│   │   └── docker-compose.yml
-│   ├── env/
-│   │   └── .env.dev.example
-│   ├── init/postgres/
-│   ├── nginx/
-│   ├── livekit/
-│   ├── coturn/
-│   ├── monitoring/            # Prometheus, Loki, Grafana 설정
-│   │   ├── prometheus/
-│   │   ├── loki/
-│   │   ├── promtail/
-│   │   └── grafana/
-│   └── scripts/
-│       ├── dev.sh
-│       ├── monitoring.sh
-│       ├── test-health.sh
-│       └── generate-swagger.sh
-│
-├── docs/                      # 문서
-│   ├── K8S_SETUP.md
-│   ├── infrastructure.md
-│   ├── monitoring-setup.md
-│   └── ports.md
-│
-├── infrastructure/            # 인프라 Kustomize
-│   ├── base/
-│   │   ├── namespace.yaml
-│   │   ├── postgres/
-│   │   ├── redis/
-│   │   ├── coturn/
-│   │   └── livekit/
-│   └── overlays/
-│       ├── local/
-│       └── eks/
-│
-├── services/                  # 애플리케이션 서비스
-│   ├── user-service/
-│   ├── auth-service/
-│   ├── board-service/
-│   ├── chat-service/
-│   ├── noti-service/
-│   ├── storage-service/
-│   ├── video-service/
-│   └── frontend/
-│
-├── Makefile
-└── README.md
-```
+| Category | Technologies |
+|----------|--------------|
+| **Backend** | Go 1.24, Spring Boot 3, Gin, GORM |
+| **Frontend** | React 18, TypeScript, Vite, TailwindCSS |
+| **Database** | PostgreSQL 17, Redis 7.2 |
+| **Infrastructure** | Kubernetes, Helm, ArgoCD, NGINX Ingress |
+| **Monitoring** | Prometheus, Loki, Grafana |
+| **Media** | LiveKit (WebRTC SFU), Coturn (TURN/STUN) |
+| **Storage** | MinIO (S3 Compatible) |
 
 ---
 
-## 서비스 구성
+## Quick Start
 
-| 서비스              | 기술         | 포트 | 설명                                |
-| ------------------- | ------------ | ---- | ----------------------------------- |
-| **Frontend**        | React + Vite | 3000 | 웹 UI                               |
-| **Auth Service**    | Spring Boot  | 8080 | JWT 토큰 관리, OAuth 인증           |
-| **User Service**    | Go + Gin     | 8081 | 사용자, 워크스페이스 관리           |
-| **Board Service**   | Go + Gin     | 8000 | 프로젝트, 보드, 댓글 관리           |
-| **Chat Service**    | Go + Gin     | 8001 | 실시간 채팅 (WebSocket)             |
-| **Noti Service**    | Go + Gin     | 8002 | 알림 관리 (SSE)                     |
-| **Storage Service** | Go + Gin     | 8003 | 파일 스토리지 (Google Drive 스타일) |
-| **Video Service**   | Go + Gin     | 8004 | 영상/음성 통화 (LiveKit 연동)       |
-
-### 인프라 서비스
-
-| 서비스     | 포트      | 설명                      |
-| ---------- | --------- | ------------------------- |
-| PostgreSQL | 5432      | 관계형 데이터베이스       |
-| Redis      | 6379      | 캐시 및 세션 저장소       |
-| MinIO      | 9000/9001 | S3 호환 오브젝트 스토리지 |
-| LiveKit    | 7880/7881 | WebRTC SFU 서버           |
-| Coturn     | 3478/5349 | TURN/STUN 서버            |
-
-### 모니터링 서비스
-
-| 서비스     | 포트 | 설명            |
-| ---------- | ---- | --------------- |
-| Prometheus | 9090 | 메트릭 수집     |
-| Loki       | 3100 | 로그 수집       |
-| Grafana    | 3001 | 시각화 대시보드 |
-
-### 데이터베이스
-
-| 서비스          | 데이터베이스 | 주요 테이블                             |
-| --------------- | ------------ | --------------------------------------- |
-| User Service    | user_db      | users, workspaces, workspace_members    |
-| Board Service   | board_db     | projects, boards, comments, attachments |
-| Chat Service    | chat_db      | chats, messages, chat_participants      |
-| Noti Service    | noti_db      | notifications, notification_preferences |
-| Storage Service | storage_db   | files, folders, shares                  |
-| Video Service   | video_db     | rooms, call_history, participants       |
-| Auth Service    | Redis        | refresh_tokens, blacklist               |
-
----
-
-## 기술 스택
-
-### Backend
-
-- **Go 1.24** - User, Board, Chat, Noti, Storage, Video Service
-- **Spring Boot 3** - Auth Service
-- **PostgreSQL 17** - 관계형 데이터베이스
-- **Redis 7.2** - 캐시 및 토큰 저장소
-- **MinIO** - S3 호환 오브젝트 스토리지
-- **LiveKit** - WebRTC SFU (영상통화)
-- **Coturn** - TURN/STUN 서버 (NAT 트래버설)
-
-### Frontend
-
-- **React 18** + **Vite**
-- **TypeScript**
-- **TailwindCSS**
-- **LiveKit Client SDK** (영상통화)
-
-### Infrastructure
-
-- **Docker** + **Docker Compose** - 컨테이너화
-- **Kustomize** - Kubernetes 매니페스트 관리
-- **ArgoCD** - GitOps 기반 배포
-- **NGINX** - API Gateway / 리버스 프록시
-
-### Monitoring
-
-- **Prometheus** - 메트릭 수집
-- **Loki** - 로그 수집
-- **Promtail** - Docker 로그 수집기
-- **Grafana** - 시각화 대시보드
-
----
-
-## 시작하기
-
-### 사전 요구사항
-
+### Prerequisites
 - Docker & Docker Compose
-- (선택) Kubernetes (EKS 배포 시)
-- (선택) kubectl & kustomize
+- Kind (Kubernetes in Docker)
+- Helm 3.x
+- kubectl
 
-### 로컬 개발 환경 (Docker Compose)
+### Local Development (Kind + Helm)
 
 ```bash
-# 1. 환경 변수 설정
+# 1. 클러스터 생성
+make kind-setup
+
+# 2. 이미지 빌드 및 로드
+make kind-load-images
+
+# 3. Helm으로 전체 배포
+make helm-install-all ENV=local-kind
+
+# 4. 상태 확인
+make status
+
+# 접속: http://localhost
+```
+
+### Docker Compose (간단 테스트)
+
+```bash
+# 환경 변수 설정
 cp docker/env/.env.dev.example docker/env/.env.dev
 
-# 2. 전체 서비스 시작
+# 전체 서비스 시작
 make dev-up
-# 또는
-./docker/scripts/dev.sh up
 
-# 3. 서비스 접속
-# - Frontend: http://localhost:3000
-# - API Gateway: http://localhost:80
-# - MinIO Console: http://localhost:9001
-
-# 4. 로그 확인
-make dev-logs
-
-# 5. Health Check 테스트
-./docker/scripts/test-health.sh
-
-# 6. 서비스 종료
-make dev-down
-```
-
-### Swagger API 문서
-
-```bash
-# Swagger 문서 생성
-./docker/scripts/generate-swagger.sh
-
-# 접속 URL
-# - User API: http://localhost:8081/swagger/index.html
-# - Auth API: http://localhost:8080/swagger-ui/index.html
-# - Board API: http://localhost:8000/swagger/index.html
-# - Chat API: http://localhost:8001/swagger/index.html
-# - Noti API: http://localhost:8002/swagger/index.html
-# - Storage API: http://localhost:8003/swagger/index.html
-# - Video API: http://localhost:8004/swagger/index.html
+# 접속: http://localhost:3000
 ```
 
 ---
 
-## 모니터링
+## Documentation
 
-```bash
-# 모니터링 스택 시작
-./docker/scripts/monitoring.sh up
-
-# 접속 정보
-# - Prometheus: http://localhost:9090
-# - Grafana: http://localhost:3001 (admin/admin)
-# - Loki: http://localhost:3100
-
-# 모니터링 스택 중지
-./docker/scripts/monitoring.sh down
-```
-
-자세한 내용은 [docs/monitoring-setup.md](docs/monitoring-setup.md) 참조
+| 문서 | 설명 |
+|------|------|
+| [Architecture](../../wiki/Architecture) | 시스템 아키텍처 상세 |
+| [AWS Architecture](../../wiki/Architecture-AWS) | AWS 인프라 구성 |
+| [CI/CD Pipeline](../../wiki/Architecture-CICD) | CI/CD 파이프라인 |
+| [Security (VPC)](../../wiki/Architecture-VPC) | 네트워크 및 보안 |
+| [Monitoring](../../wiki/Architecture-Monitoring) | 모니터링 스택 |
+| [Requirements](../../wiki/Requirements) | 요구사항 정의서 |
+| [Cloud Proposal](../../wiki/Cloud-Proposal) | 클라우드 제안서 |
+| [ADR](../../wiki/ADR) | 아키텍처 결정 기록 |
+| [Getting Started](../../wiki/Getting-Started) | 시작 가이드 |
 
 ---
 
-## Kubernetes 배포
+## Project Status
 
-### Local (Minikube/Kind)
+### Phase 1: 로컬 기반 구축
+- [x] K8s manifest 정리
+- [x] Kind 로컬 배포 테스트
+- [x] Helm 차트 전환
+- [ ] ArgoCD 로컬 설치 + GitOps 테스트
 
-```bash
-# 1. 이미지 빌드
-make build-all
+### Phase 2: 모니터링/로깅
+- [ ] Prometheus + Grafana 설치
+- [ ] Loki 로그 수집
+- [ ] Pod 리소스 튜닝
 
-# 2. 배포
-make k8s-apply-local
+### Phase 3: 서비스 메시 + 고급 배포
+- [ ] Istio 설치
+- [ ] mTLS 설정
+- [ ] Argo Rollouts 카나리 배포
 
-# 3. 상태 확인
-kubectl get pods -n wealist-local
-
-# 4. 삭제
-make k8s-delete-local
-```
-
-### EKS 배포
-
-```bash
-# 1. 환경 변수 설정
-export AWS_ACCOUNT_ID=123456789012
-export AWS_REGION=ap-northeast-2
-export IMAGE_TAG=v1.0.0
-export RDS_ENDPOINT=wealist-db.xxx.rds.amazonaws.com
-
-# 2. 배포
-make k8s-apply-eks
-```
-
-### ArgoCD 사용
-
-```bash
-# ArgoCD 앱 배포
-make argocd-apply
-
-# ArgoCD UI 접속
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-```
-
-자세한 내용은 [docs/K8S_SETUP.md](docs/K8S_SETUP.md) 참조
+### Phase 4: AWS 인프라
+- [ ] Terraform EKS 클러스터
+- [ ] Cluster Autoscaler
+- [ ] ALB Ingress Controller
+- [ ] 부하 테스트 (k6)
 
 ---
 
-## 문서
+## Team
 
-| 문서                                                 | 설명                         |
-| ---------------------------------------------------- | ---------------------------- |
-| [docs/K8S_SETUP.md](docs/K8S_SETUP.md)               | Kubernetes 배포 가이드       |
-| [docs/infrastructure.md](docs/infrastructure.md)     | 인프라 구성 및 서비스 의존성 |
-| [docs/monitoring-setup.md](docs/monitoring-setup.md) | 모니터링 설정 가이드         |
-| [docs/ports.md](docs/ports.md)                       | 포트 구성 정보               |
+| 역할 | 담당 | 주요 업무 |
+|------|------|----------|
+| **Service Mesh** | 혁준 | Istio + mTLS + Argo Rollouts |
+| **Observability** | 원이 | Prometheus + Grafana + Loki + OTel |
+| **GitOps** | 명재 | ArgoCD + Sealed Secrets + Discord 알림 |
+| **Security & IaC** | 재형 | Trivy + Kyverno + Terraform EKS |
 
 ---
 
-## Makefile 명령어
+## Commands Reference
 
 ```bash
-make help              # 사용 가능한 명령어 목록
-
 # Development
-make dev-up            # Docker Compose로 전체 서비스 시작
-make dev-down          # 서비스 종료
-make dev-logs          # 로그 확인
+make dev-up              # Docker Compose 시작
+make dev-down            # 종료
+make dev-logs            # 로그
 
-# Build
-make build-all         # 모든 서비스 이미지 빌드
-make build-<service>   # 특정 서비스 빌드
+# Kubernetes (Helm)
+make helm-install-all    # 전체 설치
+make helm-upgrade-all    # 업그레이드
+make helm-uninstall-all  # 삭제
+make helm-validate       # 검증 (156 테스트)
 
-# Kubernetes
-make k8s-apply-local   # Local 환경에 배포
-make k8s-apply-eks     # EKS 환경에 배포
-make kustomize-<svc>   # Kustomize 미리보기
+# Per-Service
+make {service}-build     # 이미지 빌드
+make {service}-load      # 레지스트리 푸시
+make {service}-redeploy  # 재배포
+make {service}-all       # 빌드 + 로드 + 재배포
 
-# ArgoCD
-make argocd-apply      # ArgoCD 앱 배포
-
-# Utility
-make status            # 현재 상태 확인
-make clean             # 정리
+# Utilities
+make status              # Pod 상태
+make redeploy-all        # 전체 재시작
 ```
 
 ---
 
-## 아키텍처 결정 기록 (ADR)
-
-### ADR-001: 마이크로서비스 아키텍처 선택
-
-**상황:** 협업 플랫폼의 여러 도메인을 어떻게 구성할 것인가?
-
-**결정:** 도메인별 마이크로서비스 분리 (User, Auth, Board, Chat, Noti, Storage, Video)
-
-**이유:**
-
-- 각 도메인의 독립적인 배포 및 확장 가능
-- 팀별 독립적인 개발 가능
-- 장애 격리 (한 서비스 장애가 전체에 영향 X)
-
----
-
-### ADR-002: 서비스별 데이터베이스 분리
-
-**상황:** 마이크로서비스들이 데이터베이스를 공유할 것인가?
-
-**결정:** 서비스별 독립 데이터베이스 사용 (6개 DB)
-
-**이유:**
-
-- 서비스 간 데이터 결합도 최소화
-- 독립적인 스키마 변경 가능
-- 서비스별 최적화된 DB 선택 가능
-
----
-
-### ADR-003: LiveKit 기반 영상통화
-
-**상황:** 영상/음성 통화 기능을 어떻게 구현할 것인가?
-
-**결정:** LiveKit SFU + Coturn TURN 서버
-
-**이유:**
-
-- 오픈소스 SFU 솔루션 (Selective Forwarding Unit)
-- 클라이언트 SDK 제공 (React)
-- Coturn으로 NAT/방화벽 환경 지원
-- 녹화, 스트리밍 기능 확장 가능
-
----
-
-### ADR-004: Health Check 분리 (Liveness vs Readiness)
-
-**상황:** Kubernetes에서 Pod 상태를 어떻게 체크할 것인가?
-
-**결정:** Liveness와 Readiness 프로브 분리
-
-```yaml
-livenessProbe: # 서비스 자체가 살아있는지 (DB 무관)
-  path: /health
-
-readinessProbe: # 트래픽 수신 가능한지 (DB 연결 포함)
-  path: /ready
-```
-
-**이유:**
-
-- DB 일시적 장애 시 Pod 재시작 방지 (Liveness)
-- DB 연결 안 되면 트래픽 차단 (Readiness)
-- 안정적인 롤링 업데이트 지원
-
----
-
-### ADR-005: Prometheus + Loki 모니터링
-
-**상황:** 분산 시스템의 모니터링을 어떻게 구성할 것인가?
-
-**결정:** Prometheus (메트릭) + Loki (로그) + Grafana (시각화)
-
-**이유:**
-
-- Prometheus: 시계열 메트릭 수집의 표준
-- Loki: Prometheus와 유사한 라벨 기반 로그 시스템
-- Grafana: 통합 대시보드 제공
-- 오픈소스 + 커뮤니티 지원 활발
-
----
-
-## 기여하기
-
-1. Feature 브랜치 생성: `git checkout -b feature/amazing-feature`
-2. 커밋: `git commit -m 'Add amazing feature'`
-3. 푸시: `git push origin feature/amazing-feature`
-4. Pull Request 생성
-
----
-
-## 라이선스
+## License
 
 This project is licensed under the MIT License.
