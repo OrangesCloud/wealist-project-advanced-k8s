@@ -18,6 +18,10 @@
 
 set -e
 
+# BuildKit 활성화 (병렬 빌드)
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
 # 색상 정의
 RED='\033[0;31m'
 GREEN='\033[0;32m'

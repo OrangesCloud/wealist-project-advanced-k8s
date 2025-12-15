@@ -176,7 +176,7 @@ services:
     container_name: wealist-minio-init
     depends_on:
       minio:
-        condition: service_healthy
+        condition: service_started
 
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
@@ -290,9 +290,9 @@ services:
 
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
       minio:
-        condition: service_healthy
+        condition: service_started
 
     healthcheck:
       test:
@@ -372,7 +372,7 @@ services:
 
     depends_on:
       redis:
-        condition: service_healthy
+        condition: service_started
 
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
@@ -444,13 +444,13 @@ services:
 
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
       redis:
-        condition: service_healthy
+        condition: service_started
       minio:
-        condition: service_healthy
+        condition: service_started
       user-service:
-        condition: service_healthy
+        condition: service_started
 
     healthcheck:
       test:
@@ -510,11 +510,11 @@ services:
 
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
       redis:
-        condition: service_healthy
+        condition: service_started
       user-service:
-        condition: service_healthy
+        condition: service_started
 
     healthcheck:
       test:
@@ -581,9 +581,9 @@ services:
 
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
       redis:
-        condition: service_healthy
+        condition: service_started
 
     healthcheck:
       test:
@@ -656,9 +656,9 @@ services:
 
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
       minio:
-        condition: service_healthy
+        condition: service_started
 
     healthcheck:
       test:
@@ -735,13 +735,13 @@ services:
 
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
       redis:
-        condition: service_healthy
+        condition: service_started
       livekit:
         condition: service_started
       user-service:
-        condition: service_healthy
+        condition: service_started
 
     healthcheck:
       test:
@@ -999,7 +999,7 @@ services:
 
     depends_on:
       redis:
-        condition: service_healthy
+        condition: service_started
 
     restart: unless-stopped
 
@@ -1026,7 +1026,7 @@ services:
 
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
 
     restart: unless-stopped
 
@@ -1066,7 +1066,7 @@ services:
 
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
 
     healthcheck:
       test:
