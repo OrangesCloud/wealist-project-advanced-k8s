@@ -21,6 +21,7 @@ replicaCount: 1
 
 image:
   pullPolicy: Always
+  tag: "latest"  # Local registry uses :latest tag
 
 # -----------------------------------------------------------------------------
 # Resources (Development)
