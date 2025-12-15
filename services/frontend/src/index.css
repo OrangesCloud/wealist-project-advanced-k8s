@@ -2,11 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 다크모드 방지 - 항상 라이트모드 유지 */
+:root {
+  color-scheme: light only;
+}
+
+html {
+  color-scheme: light only;
+  background-color: #ffffff;
+}
+
 /* 폰트 import */
 body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #f9fafb; /* bg-gray-50 */
+  color: #111827; /* text-gray-900 */
 }
 
 /* 레트로 테마 폰트 */

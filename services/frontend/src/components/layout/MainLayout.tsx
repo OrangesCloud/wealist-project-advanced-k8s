@@ -159,6 +159,25 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     setIsVideoOpen(true); // 통화 종료 후 패널 다시 열기
   };
 
+  // 영상통화 토큰 갱신 핸들러 (재연결 시 사용)
+  const handleVideoTokenRefresh = useCallback(async () => {
+    if (!currentVideoRoom || !userProfile) return null;
+    try {
+      console.log('[MainLayout] Refreshing video token for room:', currentVideoRoom.room.id);
+      const response = await videoService.joinRoom(currentVideoRoom.room.id, userProfile.nickName);
+      // Update current video room state with new token
+      setCurrentVideoRoom({
+        room: response.room,
+        token: response.token,
+        wsUrl: response.wsUrl,
+      });
+      return { token: response.token, wsUrl: response.wsUrl };
+    } catch (e) {
+      console.error('Failed to refresh video token:', e);
+      return null;
+    }
+  }, [currentVideoRoom, userProfile]);
+
   useEffect(() => {
     refreshUnreadCount();
 
@@ -362,6 +381,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           token={currentVideoRoom.token}
           wsUrl={currentVideoRoom.wsUrl}
           onLeave={handleLeaveVideoRoom}
+          onTokenRefresh={handleVideoTokenRefresh}
           userProfile={
             userProfile
               ? {

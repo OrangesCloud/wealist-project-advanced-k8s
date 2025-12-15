@@ -1,45 +1,29 @@
 # LiveKit Server Configuration
-# For local development
+# For local development (TCP only - UDP disabled for simplicity)
 
 port: 7880
 rtc:
-  port_range_start: 50000
-  port_range_end: 60000
-  # Use TCP when UDP is blocked
+  # TCP only mode - UDP disabled for local dev/kind environment
   tcp_port: 7881
-  # Enable STUN for NAT traversal
+  port_range_start: 7881
+  port_range_end: 7881
   use_external_ip: false
+  node_ip: 127.0.0.1
 
-# API Keys - for development only
+# API Keys - for development only (secret must be 32+ chars)
 keys:
-  devkey: secret
+  devkey: devsecretkey1234567890abcdefghijk
 
 # Logging
 logging:
   level: info
-  # JSON format for production, text for development
   json: false
 
 # Room settings
 room:
-  # Auto-close empty rooms after this duration (seconds)
   empty_timeout: 300
-  # Maximum participants per room
   max_participants: 100
 
-# Redis for multi-node deployment (optional for single node)
-# redis:
-#   address: redis:6379
-#   password: ""
-
-# TURN server configuration (optional - uses built-in)
+# TURN server disabled for local dev (using TCP only via rtc.tcp_port)
 turn:
-  enabled: true
-  # Use built-in TURN server
-  domain: localhost
-  # TLS for TURN (disabled for local dev)
-  tls_port: 0
-  # UDP port for TURN
-  udp_port: 3478
-  # External TURN servers (for production)
-  # external_tls: true
+  enabled: false

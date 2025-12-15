@@ -18,6 +18,10 @@
 
 set -e
 
+# BuildKit 활성화 (병렬 빌드)
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
 # 색상 정의
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -28,15 +32,83 @@ NC='\033[0m' # No Color
 # 프로젝트 루트 디렉토리로 이동
 cd "$(dirname "$0")/../.."
 
-# 환경변수 파일 확인
+# =============================================================================
+# 환경 파일 자동 생성 함수
+# =============================================================================
+setup_env_files() {
+    local created_files=()
+    local needs_review=false
+
+    echo -e "${BLUE}🔧 환경 파일 확인 중...${NC}"
+
+    # 1. 공용 환경변수 파일 확인
+    if [ ! -f "docker/env/.env.dev" ]; then
+        if [ -f "docker/env/.env.dev.example" ]; then
+            cp docker/env/.env.dev.example docker/env/.env.dev
+            created_files+=("docker/env/.env.dev")
+            needs_review=true
+        else
+            echo -e "${RED}❌ docker/env/.env.dev.example 파일이 없습니다.${NC}"
+            exit 1
+        fi
+    fi
+
+    # 2. 각 서비스별 .env 파일 확인
+    local services=(
+        "auth-service"
+        "user-service"
+        "board-service"
+        "chat-service"
+        "noti-service"
+        "storage-service"
+        "video-service"
+        "frontend"
+    )
+
+    for service in "${services[@]}"; do
+        local service_dir="services/$service"
+        local env_file="$service_dir/.env"
+        local example_file="$service_dir/.env.example"
+
+        if [ -d "$service_dir" ] && [ ! -f "$env_file" ]; then
+            if [ -f "$example_file" ]; then
+                cp "$example_file" "$env_file"
+                created_files+=("$env_file")
+            fi
+        fi
+    done
+
+    # 생성된 파일 출력
+    if [ ${#created_files[@]} -gt 0 ]; then
+        echo -e "${GREEN}✅ 환경 파일이 생성되었습니다:${NC}"
+        for file in "${created_files[@]}"; do
+            echo "   - $file"
+        done
+        echo ""
+
+        if [ "$needs_review" = true ]; then
+            echo -e "${YELLOW}💡 docker/env/.env.dev 파일을 확인하고 필요한 값을 수정하세요.${NC}"
+            echo -e "${YELLOW}   특히 다음 항목들을 확인해주세요:${NC}"
+            echo "   - JWT_SECRET (프로덕션에서는 반드시 변경)"
+            echo "   - GOOGLE_CLIENT_ID/SECRET (OAuth 사용 시)"
+            echo ""
+            read -p "계속 진행하시겠습니까? (Y/n): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Nn]$ ]]; then
+                echo -e "${YELLOW}환경 파일을 수정한 후 다시 실행하세요.${NC}"
+                exit 0
+            fi
+        fi
+    else
+        echo -e "${GREEN}✅ 모든 환경 파일이 이미 존재합니다.${NC}"
+    fi
+}
+
+# 환경 파일 설정 실행
+setup_env_files
+
+# 환경변수 파일 경로 설정
 ENV_FILE="docker/env/.env.dev"
-if [ ! -f "$ENV_FILE" ]; then
-    echo -e "${YELLOW}⚠️  환경변수 파일이 없습니다. 템플릿에서 생성합니다...${NC}"
-    cp docker/env/.env.dev.example "$ENV_FILE"
-    echo -e "${GREEN}✅ $ENV_FILE 파일이 생성되었습니다.${NC}"
-    echo -e "${YELLOW}   필요한 값들을 수정한 후 다시 실행하세요.${NC}"
-    exit 1
-fi
 
 # Docker Compose 파일 경로
 COMPOSE_FILES="-f docker/compose/docker-compose.yml"
@@ -69,11 +141,8 @@ case $COMMAND in
         # echo -e "${BLUE}📝 Swagger 문서 확인 중...${NC}"
         # ./docker/scripts/generate-swagger.sh all 2>/dev/null || echo -e "${YELLOW}⚠️  Swagger 생성 스킵 (swag 미설치 - Docker에서 생성됨)${NC}"
 
-        echo -e "${BLUE}🔨 이미지 빌드 및 컨테이너 시작 중 (병렬 처리)...${NC}"
-        # --parallel: 서비스 빌드를 병렬로 수행
-        # --build: 빌드 완료된 서비스부터 바로 시작
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES build --parallel
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES up -d
+        echo -e "${BLUE}🔨 이미지 빌드 및 컨테이너 시작 중...${NC}"
+        docker compose $ENV_FILE_OPTION $COMPOSE_FILES up -d --build
         echo -e "${GREEN}✅ 개발 환경이 시작되었습니다.${NC}"
         echo -e "${BLUE}📊 서비스 접속 정보:${NC}"
         echo "   - Frontend:    http://localhost:3000"
@@ -93,6 +162,9 @@ case $COMMAND in
         echo "   - Grafana:     http://localhost:3001 (admin/admin)"
         echo "   - Prometheus:  http://localhost:9090"
         echo "   - Loki:        http://localhost:3100"
+        echo -e ""
+        echo -e "${BLUE}🔍 코드 품질:${NC}"
+        echo "   - SonarQube:   http://localhost:9002 (admin/admin)"
         echo -e ""
         echo -e "${BLUE}📚 Swagger 문서:${NC}"
         echo "   - Auth API:    http://localhost:8080/swagger-ui/index.html"
@@ -133,15 +205,14 @@ case $COMMAND in
         ;;
 
     build)
-        echo -e "${BLUE}🔨 이미지를 다시 빌드합니다 (병렬)...${NC}"
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES build --parallel --no-cache
+        echo -e "${BLUE}🔨 이미지를 다시 빌드합니다...${NC}"
+        docker compose $ENV_FILE_OPTION $COMPOSE_FILES build --no-cache
         echo -e "${GREEN}✅ 빌드가 완료되었습니다.${NC}"
         ;;
 
     rebuild)
-        echo -e "${BLUE}🔨 이미지를 다시 빌드하고 시작합니다 (병렬 처리)...${NC}"
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES build --parallel
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES up -d
+        echo -e "${BLUE}🔨 이미지를 다시 빌드하고 시작합니다...${NC}"
+        docker compose $ENV_FILE_OPTION $COMPOSE_FILES up -d --build
         echo -e "${GREEN}✅ 빌드 및 시작이 완료되었습니다.${NC}"
         ;;
 
