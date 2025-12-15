@@ -253,6 +253,8 @@ services:
     image: wealist/chat-service:${VERSION:-latest}
     container_name: wealist-chat-service
     hostname: chat-service
+    env_file:
+      - ../env/.env.dev
     ports:
       - "${CHAT_HOST_PORT:-8001}:8001"
 
@@ -313,6 +315,8 @@ services:
     image: wealist/noti-service:${VERSION:-latest}
     container_name: wealist-noti-service
     hostname: noti-service
+    env_file:
+      - ../env/.env.dev
     ports:
       - "${NOTI_HOST_PORT:-8002}:8002"
 
