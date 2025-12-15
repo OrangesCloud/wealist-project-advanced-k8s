@@ -1,102 +1,102 @@
-# =============================================================================
-# Staging Environment
-# =============================================================================
-# Pre-production staging environment
-# Namespace: wealist-staging
+# # =============================================================================
+# # Staging Environment
+# # =============================================================================
+# # Pre-production staging environment
+# # Namespace: wealist-staging
 
-# -----------------------------------------------------------------------------
-# Global Settings
-# -----------------------------------------------------------------------------
-global:
-  namespace: wealist-staging
-  environment: staging
-  domain: staging.wealist.co.kr
-  imageRegistry: ghcr.io/orangescloud
+# # -----------------------------------------------------------------------------
+# # Global Settings
+# # -----------------------------------------------------------------------------
+# global:
+#   namespace: wealist-staging
+#   environment: staging
+#   domain: staging.wealist.co.kr
+#   imageRegistry: ghcr.io/orangescloud
 
-# -----------------------------------------------------------------------------
-# Deployment Settings
-# -----------------------------------------------------------------------------
-replicaCount: 2  # Higher availability in staging
+# # -----------------------------------------------------------------------------
+# # Deployment Settings
+# # -----------------------------------------------------------------------------
+# replicaCount: 2  # Higher availability in staging
 
-image:
-  pullPolicy: IfNotPresent
+# image:
+#   pullPolicy: IfNotPresent
 
-# -----------------------------------------------------------------------------
-# Resources (Staging - closer to prod)
-# -----------------------------------------------------------------------------
-resources:
-  requests:
-    memory: "256Mi"
-    cpu: "100m"
-  limits:
-    memory: "512Mi"
-    cpu: "500m"
+# # -----------------------------------------------------------------------------
+# # Resources (Staging - closer to prod)
+# # -----------------------------------------------------------------------------
+# resources:
+#   requests:
+#     memory: "256Mi"
+#     cpu: "100m"
+#   limits:
+#     memory: "512Mi"
+#     cpu: "500m"
 
-# -----------------------------------------------------------------------------
-# Health Check
-# -----------------------------------------------------------------------------
-healthCheck:
-  liveness:
-    initialDelaySeconds: 30
-  readiness:
-    initialDelaySeconds: 10
+# # -----------------------------------------------------------------------------
+# # Health Check
+# # -----------------------------------------------------------------------------
+# healthCheck:
+#   liveness:
+#     initialDelaySeconds: 30
+#   readiness:
+#     initialDelaySeconds: 10
 
-# -----------------------------------------------------------------------------
-# Security (Production-like)
-# -----------------------------------------------------------------------------
-podSecurityContext:
-  runAsNonRoot: true
-  fsGroup: 1000
+# # -----------------------------------------------------------------------------
+# # Security (Production-like)
+# # -----------------------------------------------------------------------------
+# podSecurityContext:
+#   runAsNonRoot: true
+#   fsGroup: 1000
 
-securityContext:
-  allowPrivilegeEscalation: false
-  runAsNonRoot: true
-  readOnlyRootFilesystem: true
-  capabilities:
-    drop:
-      - ALL
+# securityContext:
+#   allowPrivilegeEscalation: false
+#   runAsNonRoot: true
+#   readOnlyRootFilesystem: true
+#   capabilities:
+#     drop:
+#       - ALL
 
-# -----------------------------------------------------------------------------
-# Features (Partial production features)
-# -----------------------------------------------------------------------------
-autoscaling:
-  enabled: false  # Manual scaling in staging
+# # -----------------------------------------------------------------------------
+# # Features (Partial production features)
+# # -----------------------------------------------------------------------------
+# autoscaling:
+#   enabled: false  # Manual scaling in staging
 
-serviceAccount:
-  create: true
+# serviceAccount:
+#   create: true
 
-networkPolicy:
-  enabled: true
+# networkPolicy:
+#   enabled: true
 
-podDisruptionBudget:
-  enabled: true
-  minAvailable: 1
+# podDisruptionBudget:
+#   enabled: true
+#   minAvailable: 1
 
-# -----------------------------------------------------------------------------
-# Shared Configuration
-# -----------------------------------------------------------------------------
-shared:
-  config:
-    ENV: "staging"
-    LOG_LEVEL: "info"
-    CORS_ORIGINS: "https://staging.wealist.co.kr"
-    S3_PUBLIC_ENDPOINT: "https://staging.wealist.co.kr/minio"
-    LIVEKIT_WS_URL: "wss://staging.wealist.co.kr/svc/livekit"
-    # OAuth2 Redirect URLs
-    OAUTH2_CLIENT_REDIRECT_URI: "https://staging.wealist.co.kr/login/oauth2/code/google"
-    OAUTH2_REDIRECT_URL_ENV: "https://staging.wealist.co.kr/oauth/callback"
+# # -----------------------------------------------------------------------------
+# # Shared Configuration
+# # -----------------------------------------------------------------------------
+# shared:
+#   config:
+#     ENV: "staging"
+#     LOG_LEVEL: "info"
+#     CORS_ORIGINS: "https://staging.wealist.co.kr"
+#     S3_PUBLIC_ENDPOINT: "https://staging.wealist.co.kr/minio"
+#     LIVEKIT_WS_URL: "wss://staging.wealist.co.kr/svc/livekit"
+#     # OAuth2 Redirect URLs
+#     OAUTH2_CLIENT_REDIRECT_URI: "https://staging.wealist.co.kr/login/oauth2/code/google"
+#     OAUTH2_REDIRECT_URL_ENV: "https://staging.wealist.co.kr/oauth/callback"
 
-# -----------------------------------------------------------------------------
-# Ingress
-# -----------------------------------------------------------------------------
-ingress:
-  enabled: true
-  className: nginx
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-  hosts:
-    - host: staging.wealist.co.kr
-  tls:
-    - secretName: staging-wealist-tls
-      hosts:
-        - staging.wealist.co.kr
+# # -----------------------------------------------------------------------------
+# # Ingress
+# # -----------------------------------------------------------------------------
+# ingress:
+#   enabled: true
+#   className: nginx
+#   annotations:
+#     cert-manager.io/cluster-issuer: letsencrypt-prod
+#   hosts:
+#     - host: staging.wealist.co.kr
+#   tls:
+#     - secretName: staging-wealist-tls
+#       hosts:
+#         - staging.wealist.co.kr
