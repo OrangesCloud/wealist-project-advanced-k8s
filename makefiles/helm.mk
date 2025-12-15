@@ -15,6 +15,7 @@
 # Cloud environments (dev, staging, prod) use CDN/S3/Route53 for frontend
 ifeq ($(ENV),local-kind)
   HELM_SERVICES = $(SERVICES)
+# DEPRECATED-SOON: local-ubuntu will be replaced by staging
 else ifeq ($(ENV),local-ubuntu)
   HELM_SERVICES = $(BACKEND_SERVICES)
 else
@@ -161,7 +162,8 @@ helm-uninstall-all: ## Uninstall all charts
 helm-local-kind: ## Deploy to local Kind cluster
 	@$(MAKE) helm-install-all ENV=local-kind
 
-helm-local-ubuntu: ## Deploy to local Ubuntu
+# DEPRECATED-SOON: local-ubuntu will be replaced by staging
+helm-local-ubuntu: ## Deploy to local Ubuntu (DEPRECATED-SOON: use staging instead)
 	@$(MAKE) helm-install-all ENV=local-ubuntu
 
 helm-dev: ## Deploy to dev server

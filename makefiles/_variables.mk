@@ -8,12 +8,14 @@ LOCAL_REGISTRY ?= localhost:5001
 IMAGE_TAG ?= latest
 
 # Environment configuration (used across all commands)
-# Options: local-kind, local-ubuntu, dev, staging, prod
+# Options: local-kind, dev, staging, prod
+# DEPRECATED-SOON: local-ubuntu (will be replaced by staging)
 ENV ?= local-kind
 
 # Namespace mapping based on environment
 ifeq ($(ENV),local-kind)
   K8S_NAMESPACE = wealist-kind-local
+# DEPRECATED-SOON: local-ubuntu will be replaced by staging
 else ifeq ($(ENV),local-ubuntu)
   K8S_NAMESPACE = wealist-dev
 else ifeq ($(ENV),dev)

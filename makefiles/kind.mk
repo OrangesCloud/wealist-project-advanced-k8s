@@ -99,11 +99,12 @@ kind-recover: ## Recover cluster after reboot
 	@echo "Cluster recovered!"
 	@kubectl get nodes
 
-##@ Local Domain (local.wealist.co.kr)
+##@ Local Domain (local.wealist.co.kr) - DEPRECATED-SOON: will be replaced by staging
 
 .PHONY: local-tls-secret local-kind-apply
 
-local-tls-secret: ## Create TLS secret for local.wealist.co.kr
+# DEPRECATED-SOON: local.wealist.co.kr will be replaced by staging environment
+local-tls-secret: ## Create TLS secret for local.wealist.co.kr (DEPRECATED-SOON)
 	@echo "=== Creating TLS secret for local.wealist.co.kr ==="
 	@if kubectl get secret local-wealist-tls -n $(K8S_NAMESPACE) >/dev/null 2>&1; then \
 		echo "TLS secret already exists, skipping..."; \
@@ -122,7 +123,8 @@ local-tls-secret: ## Create TLS secret for local.wealist.co.kr
 		echo "TLS secret created"; \
 	fi
 
-local-kind-apply: local-tls-secret ## Deploy with local.wealist.co.kr domain
+# DEPRECATED-SOON: local.wealist.co.kr will be replaced by staging environment
+local-kind-apply: local-tls-secret ## Deploy with local.wealist.co.kr domain (DEPRECATED-SOON)
 	@echo "=== Deploying to Kubernetes (local.wealist.co.kr) ==="
 	@echo ""
 	@echo "--- Deploying infrastructure ---"
@@ -139,11 +141,12 @@ local-kind-apply: local-tls-secret ## Deploy with local.wealist.co.kr domain
 	@echo "(Self-signed cert - browser will show warning)"
 	@echo "Check: make status"
 
-##@ Local Database
+##@ Local Database - DEPRECATED-SOON: will be replaced by staging
 
 .PHONY: init-local-db
 
-init-local-db: ## Init local PostgreSQL/Redis (Ubuntu, ENV=local-ubuntu)
+# DEPRECATED-SOON: local-ubuntu environment will be replaced by staging
+init-local-db: ## Init local PostgreSQL/Redis (DEPRECATED-SOON: use staging instead)
 	@echo "Initializing local PostgreSQL and Redis for Wealist..."
 	@echo ""
 	@echo "This will configure your local PostgreSQL and Redis to accept"
