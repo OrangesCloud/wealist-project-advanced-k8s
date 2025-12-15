@@ -8,7 +8,7 @@ weAlist의 전체 시스템 아키텍처입니다.
 
 ![AWS Architecture](../images/wealist_aws_arch.png)
 
-> AWS 인프라 상세: [Architecture-AWS](Architecture-AWS)
+> AWS 인프라 상세: [Architecture-AWS](Architecture-AWS.md)
 
 ---
 
@@ -76,7 +76,7 @@ weAlist의 전체 시스템 아키텍처입니다.
 
 ## Related Pages
 
-- [AWS Architecture](Architecture-AWS)
-- [CI/CD Pipeline](Architecture-CICD)
-- [Security (VPC)](Architecture-VPC)
-- [Monitoring Stack](Architecture-Monitoring)
+- [AWS Architecture](Architecture-AWS.md)
+- [CI/CD Pipeline](Architecture-CICD.md)
+- [Security (VPC)](Architecture-VPC.md)
+- [Monitoring Stack](Architecture-Monitoring.md)

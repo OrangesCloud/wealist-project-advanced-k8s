@@ -83,5 +83,5 @@ RDS/ElastiCache (Private Subnet - DB)
 
 ## Related Pages
 
-- [Architecture Overview](Architecture)
-- [AWS Architecture](Architecture-AWS)
+- [Architecture Overview](Architecture.md)
+- [AWS Architecture](Architecture-AWS.md)

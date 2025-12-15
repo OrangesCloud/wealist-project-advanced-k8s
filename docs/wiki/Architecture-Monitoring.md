@@ -102,5 +102,5 @@ Grafana (Query)
 
 ## Related Pages
 
-- [Architecture Overview](Architecture)
+- [Architecture Overview](Architecture.md)
 - [ADR-005: Prometheus + Loki](ADR#adr-005-prometheus--loki-모니터링)

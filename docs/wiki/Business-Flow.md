@@ -87,5 +87,5 @@ weAlist의 비즈니스 플로우입니다.
 
 ## Related Pages
 
-- [Requirements](Requirements)
-- [Architecture Overview](Architecture)
+- [Requirements](Requirements.md)
+- [Architecture Overview](Architecture.md)

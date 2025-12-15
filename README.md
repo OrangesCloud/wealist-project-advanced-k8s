@@ -21,7 +21,7 @@
 
 ![AWS Architecture](docs/images/wealist_aws_arch.png)
 
-> 상세 아키텍처: [Wiki - Architecture](../../wiki/Architecture)
+> 상세 아키텍처: [Architecture](docs/wiki/Architecture.md)
 
 ---
 
@@ -98,15 +98,15 @@ make dev-up
 
 | 문서 | 설명 |
 |------|------|
-| [Architecture](../../wiki/Architecture) | 시스템 아키텍처 상세 |
-| [AWS Architecture](../../wiki/Architecture-AWS) | AWS 인프라 구성 |
-| [CI/CD Pipeline](../../wiki/Architecture-CICD) | CI/CD 파이프라인 |
-| [Security (VPC)](../../wiki/Architecture-VPC) | 네트워크 및 보안 |
-| [Monitoring](../../wiki/Architecture-Monitoring) | 모니터링 스택 |
-| [Requirements](../../wiki/Requirements) | 요구사항 정의서 |
-| [Cloud Proposal](../../wiki/Cloud-Proposal) | 클라우드 제안서 |
-| [ADR](../../wiki/ADR) | 아키텍처 결정 기록 |
-| [Getting Started](../../wiki/Getting-Started) | 시작 가이드 |
+| [Architecture](docs/wiki/Architecture.md) | 시스템 아키텍처 상세 |
+| [AWS Architecture](docs/wiki/Architecture-AWS.md) | AWS 인프라 구성 |
+| [CI/CD Pipeline](docs/wiki/Architecture-CICD.md) | CI/CD 파이프라인 |
+| [Security (VPC)](docs/wiki/Architecture-VPC.md) | 네트워크 및 보안 |
+| [Monitoring](docs/wiki/Architecture-Monitoring.md) | 모니터링 스택 |
+| [Requirements](docs/wiki/Requirements.md) | 요구사항 정의서 |
+| [Cloud Proposal](docs/wiki/Cloud-Proposal.md) | 클라우드 제안서 |
+| [ADR](docs/wiki/ADR.md) | 아키텍처 결정 기록 |
+| [Getting Started](docs/wiki/Getting-Started.md) | 시작 가이드 |
 
 ---
 

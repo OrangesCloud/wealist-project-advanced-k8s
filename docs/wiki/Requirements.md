@@ -76,5 +76,5 @@ weAlist 요구사항 정의서입니다.
 
 ## Related Pages
 
-- [Cloud Proposal](Cloud-Proposal)
-- [Architecture Overview](Architecture)
+- [Cloud Proposal](Cloud-Proposal.md)
+- [Architecture Overview](Architecture.md)

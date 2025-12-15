@@ -1,30 +1,30 @@
 **weAlist**
-- [Home](Home)
+- [Home](Home.md)
 
 ---
 
 **Architecture**
-- [Overview](Architecture)
-- [AWS](Architecture-AWS)
-- [CI/CD](Architecture-CICD)
-- [Security (VPC)](Architecture-VPC)
-- [Monitoring](Architecture-Monitoring)
-- [Business Flow](Business-Flow)
+- [Overview](Architecture.md)
+- [AWS](Architecture-AWS.md)
+- [CI/CD](Architecture-CICD.md)
+- [Security (VPC)](Architecture-VPC.md)
+- [Monitoring](Architecture-Monitoring.md)
+- [Business Flow](Business-Flow.md)
 
 ---
 
 **Documentation**
-- [Requirements](Requirements)
-- [Cloud Proposal](Cloud-Proposal)
-- [ADR](ADR)
+- [Requirements](Requirements.md)
+- [Cloud Proposal](Cloud-Proposal.md)
+- [ADR](ADR.md)
 
 ---
 
 **Guides**
-- [Getting Started](Getting-Started)
-- [Development](Development-Guide)
+- [Getting Started](Getting-Started.md)
+- [Development](Development-Guide.md)
 
 ---
 
 **Team**
-- [Roles & Contributions](Team)
+- [Roles & Contributions](Team.md)

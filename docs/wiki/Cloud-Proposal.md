@@ -86,5 +86,5 @@ weAlist는 AWS 기반 클라우드 네이티브 아키텍처를 채택하여 높
 
 ## Related Pages
 
-- [Requirements](Requirements)
-- [AWS Architecture](Architecture-AWS)
+- [Requirements](Requirements.md)
+- [AWS Architecture](Architecture-AWS.md)

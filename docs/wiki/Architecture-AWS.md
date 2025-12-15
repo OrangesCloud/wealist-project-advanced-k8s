@@ -57,6 +57,6 @@ weAlist의 AWS 인프라 아키텍처입니다.
 
 ## Related Pages
 
-- [Architecture Overview](Architecture)
-- [Security (VPC)](Architecture-VPC)
-- [CI/CD Pipeline](Architecture-CICD)
+- [Architecture Overview](Architecture.md)
+- [Security (VPC)](Architecture-VPC.md)
+- [CI/CD Pipeline](Architecture-CICD.md)

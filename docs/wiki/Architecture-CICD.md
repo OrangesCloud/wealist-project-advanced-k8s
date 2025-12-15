@@ -83,5 +83,5 @@ Kubernetes Cluster
 
 ## Related Pages
 
-- [Architecture Overview](Architecture)
-- [Getting Started](Getting-Started)
+- [Architecture Overview](Architecture.md)
+- [Getting Started](Getting-Started.md)
