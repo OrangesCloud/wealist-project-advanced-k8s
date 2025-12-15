@@ -4,28 +4,11 @@
 
 ##@ Helm Charts (Recommended)
 
-.PHONY: helm-deps-build helm-lint helm-validate helm-check-secrets
+.PHONY: helm-deps-build helm-lint helm-validate
 .PHONY: helm-install-cert-manager helm-install-infra helm-install-services
 .PHONY: helm-install-all helm-install-all-init helm-upgrade-all helm-uninstall-all
 .PHONY: helm-setup-route53-secret
 .PHONY: helm-local-kind helm-local-ubuntu helm-dev helm-staging helm-prod
-
-helm-check-secrets: ## Check if secrets file exists for current ENV
-	@if [ ! -f "$(HELM_SECRETS_VALUES)" ]; then \
-		echo ""; \
-		echo "⚠️  WARNING: Secrets file not found!"; \
-		echo "   Missing: $(HELM_SECRETS_VALUES)"; \
-		echo ""; \
-		echo "   Create it with:"; \
-		echo "   cp helm/environments/secrets.example.yaml $(HELM_SECRETS_VALUES)"; \
-		echo "   vi $(HELM_SECRETS_VALUES)  # Add GOOGLE_CLIENT_ID, etc."; \
-		echo ""; \
-		echo "   Without secrets: OAuth login and JWT tokens will NOT work!"; \
-		echo ""; \
-		exit 1; \
-	else \
-		echo "✓ Secrets file found: $(HELM_SECRETS_VALUES)"; \
-	fi
 
 helm-deps-build: ## Build all Helm dependencies
 	@echo "Building all Helm dependencies..."
@@ -110,11 +93,11 @@ helm-install-services: ## Install all service charts
 	@echo ""
 	@echo "Next: make status"
 
-helm-install-all: helm-check-secrets helm-deps-build helm-install-cert-manager helm-install-infra ## Install all charts
+helm-install-all: helm-deps-build helm-install-cert-manager helm-install-infra ## Install all charts
 	@sleep 5
 	@$(MAKE) helm-install-services ENV=$(ENV)
 
-helm-install-all-init: helm-check-secrets helm-deps-build helm-install-cert-manager helm-install-infra ## Install all with DB migration (first time)
+helm-install-all-init: helm-deps-build helm-install-cert-manager helm-install-infra ## Install all with DB migration (first time)
 	@sleep 5
 	@echo "Installing services with DB migration enabled (initial setup)..."
 	@for service in $(SERVICES); do \
@@ -129,7 +112,7 @@ helm-install-all-init: helm-check-secrets helm-deps-build helm-install-cert-mana
 
 ##@ Helm Upgrade/Uninstall
 
-helm-upgrade-all: helm-check-secrets helm-deps-build ## Upgrade all charts
+helm-upgrade-all: helm-deps-build ## Upgrade all charts
 	@echo "Upgrading all charts (ENV=$(ENV), NS=$(K8S_NAMESPACE))..."
 	@helm upgrade wealist-infrastructure ./helm/charts/wealist-infrastructure \
 		-f $(HELM_BASE_VALUES) \

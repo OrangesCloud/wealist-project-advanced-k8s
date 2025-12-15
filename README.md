@@ -71,20 +71,14 @@ make kind-setup
 # 2. 이미지 빌드 및 로드
 make kind-load-images
 
-# 3. Secrets 설정 (필수!)
-cp helm/environments/secrets.example.yaml helm/environments/local-kind-secrets.yaml
-# 파일 편집하여 Google OAuth 자격증명 입력 (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
-
-# 4. Helm으로 전체 배포
+# 3. Helm으로 전체 배포
 make helm-install-all ENV=local-kind
 
-# 5. 상태 확인
+# 4. 상태 확인
 make status
 
 # 접속: http://localhost
 ```
-
-> ⚠️ **secrets 파일 없이 배포하면 OAuth 로그인 및 JWT 토큰이 동작하지 않습니다.**
 
 ### Docker Compose (간단 테스트)
 
