@@ -99,7 +99,7 @@ shared:
     LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/svc/livekit"
     # OAuth2 Redirect URLs
     # Google redirects here after user authenticates
-    OAUTH2_CLIENT_REDIRECT_URI: "https://dev.wealist.co.kr/login/oauth2/code/google"
+    OAUTH2_CLIENT_REDIRECT_URI: "https://dev.wealist.co.kr/oauth2/callback/google"
     # auth-service redirects here (frontend) after processing OAuth
     OAUTH2_REDIRECT_URL_ENV: "https://dev.wealist.co.kr/oauth/callback"
 
