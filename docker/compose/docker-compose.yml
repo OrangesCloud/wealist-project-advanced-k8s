@@ -68,8 +68,8 @@ services:
   # Video Service (Go) - Video Call Room Management
   video-service:
     build:
-      context: ../..
-      dockerfile: services/video-service/docker/Dockerfile
+      context: ../../services/video-service
+      dockerfile: docker/Dockerfile
     image: wealist/video-service:${VERSION:-latest}
     container_name: wealist-video-service
     hostname: video-service
@@ -149,8 +149,8 @@ services:
   # Board Service (Go)
   board-service:
     build:
-      context: ../..
-      dockerfile: services/board-service/docker/Dockerfile
+      context: ../../services/board-service
+      dockerfile: docker/Dockerfile
     image: wealist/board-service:${VERSION:-latest}
     container_name: wealist-board-service
     hostname: board-service
@@ -234,8 +234,8 @@ services:
   # Notification Service (Go)
   noti-service:
     build:
-      context: ../..
-      dockerfile: services/noti-service/docker/Dockerfile
+      context: ../../services/noti-service
+      dockerfile: docker/Dockerfile
     image: wealist/noti-service:${VERSION:-latest}
     container_name: wealist-noti-service
     hostname: noti-service
@@ -301,8 +301,8 @@ services:
   # Storage Service (Go) - Google Drive like storage
   storage-service:
     build:
-      context: ../..
-      dockerfile: services/storage-service/docker/Dockerfile
+      context: ../../services/storage-service
+      dockerfile: docker/Dockerfile
     image: wealist/storage-service:${VERSION:-latest}
     container_name: wealist-storage-service
     hostname: storage-service
