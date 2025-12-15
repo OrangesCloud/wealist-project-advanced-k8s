@@ -53,7 +53,7 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   runAsNonRoot: true
-  readOnlyRootFilesystem: true
+  readOnlyRootFilesystem: false  # Spring Boot (Tomcat) needs /tmp write access
 
 # -----------------------------------------------------------------------------
 # Features
