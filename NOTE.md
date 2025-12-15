@@ -31,6 +31,23 @@ make status
 # 접속: http://localhost
 ```
 
+## ####### 1. dev 클러스터 생성 (미니피씨)
+
+```
+# 1. Kind 클러스터 설정 (이미 했으면 생략)
+make kind-setup
+
+# 2. 로컬 레지스트리에 이미지 빌드 & push
+make kind-load-images-backend   # 프론트엔드 제외
+
+# 3. dev.wealist.co.kr로 배포
+make helm-uninstall-all ENV=dev  # 기존 설치 제거
+make helm-install-all ENV=dev
+
+# 4. 상태 확인
+make status ENV=dev
+```
+
 ## 그 외
 
 kind get clusters (클러스터 확인)
