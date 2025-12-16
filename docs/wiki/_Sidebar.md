@@ -6,6 +6,7 @@
 **Architecture**
 - [Overview](Architecture.md)
 - [AWS](Architecture-AWS.md)
+- [Kubernetes](Architecture-K8s.md)
 - [CI/CD](Architecture-CICD.md)
 - [Security (VPC)](Architecture-VPC.md)
 - [Monitoring](Architecture-Monitoring.md)

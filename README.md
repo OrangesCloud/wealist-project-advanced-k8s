@@ -19,7 +19,7 @@
 
 ## Architecture
 
-![AWS Architecture](docs/images/wealist_aws_arch.png)
+![AWS Architecture](docs/images/wealist_aws_arch_v2.png)
 
 > 상세 아키텍처: [Wiki - Architecture](../../wiki/Architecture)
 
