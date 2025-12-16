@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" version="29.2.7">
   <diagram name="AWS Architecture" id="aws-arch-v2">
-    <mxGraphModel dx="1320" dy="989" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" background="#FFFFFF" math="0" shadow="0">
+    <mxGraphModel dx="767" dy="774" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" background="#FFFFFF" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -50,19 +50,16 @@
           <mxGeometry height="50" width="50" x="490" y="355" as="geometry" />
         </mxCell>
         <mxCell id="nat-a" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.nat_gateway;html=1;fillColor=#8C4FFF;strokeColor=#FFFFFF;" value="" vertex="1">
-          <mxGeometry height="50" width="50" x="690" y="350" as="geometry" />
-        </mxCell>
-        <mxCell id="EMJsQGTl7-aODv0Csqga-1" edge="1" parent="1" source="nat-a-label" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="nat-a" value="">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry height="50" width="50" x="740" y="350" as="geometry" />
         </mxCell>
         <mxCell id="nat-a-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=10;fontColor=#232F3E;" value="NAT GW (AZ-a)" vertex="1">
-          <mxGeometry height="16" width="85" x="672" y="402" as="geometry" />
+          <mxGeometry height="16" width="85" x="722.5" y="400" as="geometry" />
         </mxCell>
         <mxCell id="nat-b" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.nat_gateway;html=1;fillColor=#8C4FFF;strokeColor=#FFFFFF;" value="" vertex="1">
           <mxGeometry height="50" width="50" x="830" y="350" as="geometry" />
         </mxCell>
         <mxCell id="nat-b-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=10;fontColor=#232F3E;" value="NAT GW (AZ-b)" vertex="1">
-          <mxGeometry height="16" width="85" x="812" y="402" as="geometry" />
+          <mxGeometry height="16" width="85" x="812.5" y="400" as="geometry" />
         </mxCell>
         <mxCell id="private-subnet-app" parent="1" style="shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_private_subnet;strokeColor=#147EBA;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontStyle=0;fontColor=#147EBA;dashed=0;" value="Private Subnet - App (10.0.11.0/24, 10.0.12.0/24)" vertex="1">
           <mxGeometry height="260" width="810" x="120" y="460" as="geometry" />
@@ -248,7 +245,12 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="flow-5" edge="1" parent="1" source="alb-sg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2.5;strokeColor=#8C4FFF;endArrow=classic;endSize=8;" target="eks-sg">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="515" y="470" />
+              <mxPoint x="515" y="470" />
+            </Array>
+          </mxGeometry>
         </mxCell>
         <mxCell id="flow-6" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2.5;strokeColor=#8C4FFF;endArrow=classic;endSize=8;">
           <mxGeometry relative="1" as="geometry">
