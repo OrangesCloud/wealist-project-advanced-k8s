@@ -10,10 +10,22 @@
 .PHONY: helm-setup-route53-secret
 .PHONY: helm-local-kind helm-local-ubuntu helm-dev helm-staging helm-prod
 
+# Determine which services to deploy based on environment
+# Frontend is only deployed in local environments (docker-compose, localhost)
+# Cloud environments (dev, staging, prod) use CDN/S3/Route53 for frontend
+ifeq ($(ENV),local-kind)
+  HELM_SERVICES = $(SERVICES)
+# DEPRECATED-SOON: local-ubuntu will be replaced by staging
+else ifeq ($(ENV),local-ubuntu)
+  HELM_SERVICES = $(BACKEND_SERVICES)
+else
+  HELM_SERVICES = $(BACKEND_SERVICES)
+endif
+
 helm-deps-build: ## Build all Helm dependencies
 	@echo "Building all Helm dependencies..."
 	@helm dependency update ./helm/charts/wealist-common 2>/dev/null || true
-	@for chart in $(SERVICES); do \
+	@for chart in $(HELM_SERVICES); do \
 		echo "Updating $$chart dependencies..."; \
 		helm dependency update ./helm/charts/$$chart; \
 	done
@@ -26,7 +38,7 @@ helm-lint: ## Lint all Helm charts
 	@helm lint ./helm/charts/wealist-common
 	@helm lint ./helm/charts/wealist-infrastructure
 	@helm lint ./helm/charts/cert-manager-config 2>/dev/null || echo "cert-manager-config: run 'helm dependency update' first"
-	@for service in $(SERVICES); do \
+	@for service in $(HELM_SERVICES); do \
 		echo "Linting $$service..."; \
 		helm lint ./helm/charts/$$service; \
 	done
@@ -82,7 +94,8 @@ helm-install-infra: ## Install infrastructure chart
 
 helm-install-services: ## Install all service charts
 	@echo "Installing services (ENV=$(ENV), NS=$(K8S_NAMESPACE))..."
-	@for service in $(SERVICES); do \
+	@echo "Services to install: $(HELM_SERVICES)"
+	@for service in $(HELM_SERVICES); do \
 		echo "Installing $$service..."; \
 		helm install $$service ./helm/charts/$$service \
 			-f $(HELM_BASE_VALUES) \
@@ -100,7 +113,8 @@ helm-install-all: helm-deps-build helm-install-cert-manager helm-install-infra #
 helm-install-all-init: helm-deps-build helm-install-cert-manager helm-install-infra ## Install all with DB migration (first time)
 	@sleep 5
 	@echo "Installing services with DB migration enabled (initial setup)..."
-	@for service in $(SERVICES); do \
+	@echo "Services to install: $(HELM_SERVICES)"
+	@for service in $(HELM_SERVICES); do \
 		echo "Installing $$service with DB migration..."; \
 		helm install $$service ./helm/charts/$$service \
 			-f $(HELM_BASE_VALUES) \
@@ -114,11 +128,12 @@ helm-install-all-init: helm-deps-build helm-install-cert-manager helm-install-in
 
 helm-upgrade-all: helm-deps-build ## Upgrade all charts
 	@echo "Upgrading all charts (ENV=$(ENV), NS=$(K8S_NAMESPACE))..."
+	@echo "Services to upgrade: $(HELM_SERVICES)"
 	@helm upgrade wealist-infrastructure ./helm/charts/wealist-infrastructure \
 		-f $(HELM_BASE_VALUES) \
 		-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
 		-n $(K8S_NAMESPACE)
-	@for service in $(SERVICES); do \
+	@for service in $(HELM_SERVICES); do \
 		echo "Upgrading $$service..."; \
 		helm upgrade $$service ./helm/charts/$$service \
 			-f $(HELM_BASE_VALUES) \
@@ -129,6 +144,7 @@ helm-upgrade-all: helm-deps-build ## Upgrade all charts
 
 helm-uninstall-all: ## Uninstall all charts
 	@echo "Uninstalling all charts (ENV=$(ENV), NS=$(K8S_NAMESPACE))..."
+	@# Uninstall all services (including frontend if it was installed)
 	@for service in $(SERVICES); do \
 		echo "Uninstalling $$service..."; \
 		helm uninstall $$service -n $(K8S_NAMESPACE) 2>/dev/null || true; \
@@ -146,7 +162,8 @@ helm-uninstall-all: ## Uninstall all charts
 helm-local-kind: ## Deploy to local Kind cluster
 	@$(MAKE) helm-install-all ENV=local-kind
 
-helm-local-ubuntu: ## Deploy to local Ubuntu
+# DEPRECATED-SOON: local-ubuntu will be replaced by staging
+helm-local-ubuntu: ## Deploy to local Ubuntu (DEPRECATED-SOON: use staging instead)
 	@$(MAKE) helm-install-all ENV=local-ubuntu
 
 helm-dev: ## Deploy to dev server

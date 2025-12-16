@@ -174,3 +174,50 @@ status: ## Show pods status
 
 clean: ## Clean up
 	./docker/scripts/clean.sh
+
+##@ GHCR Push (Cloud Deployment)
+
+# Get imageRegistry from environment yaml file
+GHCR_REGISTRY = $(shell grep 'imageRegistry:' $(HELM_ENV_VALUES) 2>/dev/null | awk '{print $$2}')
+
+.PHONY: ghcr-push-all ghcr-login
+
+ghcr-login: ## Login to ghcr.io (requires GHCR_TOKEN env var)
+	@if [ -z "$$GHCR_TOKEN" ]; then \
+		echo "Error: GHCR_TOKEN environment variable not set"; \
+		echo "Usage: GHCR_TOKEN=xxx make ghcr-login"; \
+		exit 1; \
+	fi
+	@echo "Logging in to ghcr.io..."
+	@echo "$$GHCR_TOKEN" | docker login ghcr.io -u $(shell echo $(GHCR_REGISTRY) | cut -d'/' -f2) --password-stdin
+
+ghcr-push-all: ## Build and push all backend services to ghcr.io (ENV=dev|staging|prod)
+	@if [ -z "$(GHCR_REGISTRY)" ]; then \
+		echo "Error: Could not read imageRegistry from $(HELM_ENV_VALUES)"; \
+		echo "Make sure ENV is set correctly (dev, staging, prod)"; \
+		exit 1; \
+	fi
+	@echo "=== Pushing backend services to $(GHCR_REGISTRY) ==="
+	@echo "ENV: $(ENV)"
+	@echo "Registry: $(GHCR_REGISTRY)"
+	@echo "Tag: $(IMAGE_TAG)"
+	@echo ""
+	@# Build and push Go services (root context)
+	@for svc in user-service board-service chat-service noti-service storage-service video-service; do \
+		echo "--- Building $$svc ---"; \
+		docker build -t $(GHCR_REGISTRY)/$$svc:$(IMAGE_TAG) \
+			-f services/$$svc/docker/Dockerfile . || exit 1; \
+		echo "--- Pushing $$svc ---"; \
+		docker push $(GHCR_REGISTRY)/$$svc:$(IMAGE_TAG) || exit 1; \
+		echo ""; \
+	done
+	@# Build and push auth-service (local context)
+	@echo "--- Building auth-service ---"
+	@docker build -t $(GHCR_REGISTRY)/auth-service:$(IMAGE_TAG) \
+		-f services/auth-service/Dockerfile services/auth-service
+	@echo "--- Pushing auth-service ---"
+	@docker push $(GHCR_REGISTRY)/auth-service:$(IMAGE_TAG)
+	@echo ""
+	@echo "=== All backend services pushed to $(GHCR_REGISTRY) ==="
+	@echo ""
+	@echo "Next: make helm-install-all ENV=$(ENV)"

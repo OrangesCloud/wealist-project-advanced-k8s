@@ -20,7 +20,7 @@ name: Frontend Deploy
 on:
   push:
     branches:
-      - dev-frontend
+      - forked/develop
     paths:
       - "services/frontend/**"
   workflow_dispatch:

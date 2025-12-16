@@ -1,6 +1,7 @@
 # =============================================================================
 # Local Ubuntu Development Environment
 # =============================================================================
+# DEPRECATED-SOON: This environment will be replaced by staging
 # For local PC Ubuntu with local.wealist.co.kr domain
 # Namespace: wealist-dev
 

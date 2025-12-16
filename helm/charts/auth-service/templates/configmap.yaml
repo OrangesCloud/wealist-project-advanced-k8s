@@ -1,1 +1,1 @@
-{ { - include "wealist-common.configmap" . } }
+{{- include "wealist-common.configmap" . }}

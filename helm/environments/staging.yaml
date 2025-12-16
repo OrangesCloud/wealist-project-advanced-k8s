@@ -92,6 +92,8 @@
 ingress:
   enabled: true
   className: nginx
+  # Frontend is served via S3/CloudFront, not K8s
+  includeFrontend: false
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-staging  # Use staging issuer first
     nginx.ingress.kubernetes.io/ssl-redirect: "true"

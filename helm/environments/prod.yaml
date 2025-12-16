@@ -115,6 +115,8 @@ metrics:
 ingress:
   enabled: true
   className: nginx
+  # Frontend is served via S3/CloudFront, not K8s
+  includeFrontend: false
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/ssl-redirect: "true"

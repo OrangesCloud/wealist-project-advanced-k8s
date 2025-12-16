@@ -10,6 +10,7 @@ REG_PORT="5001"
 LOCAL_REG="localhost:${REG_PORT}"
 TAG="${IMAGE_TAG:-latest}"  # 환경변수로 오버라이드 가능, 기본값 latest
 MAX_PARALLEL="${MAX_PARALLEL:-4}"  # 동시 빌드 수 (기본 4)
+SKIP_FRONTEND="${SKIP_FRONTEND:-false}"  # 프론트엔드 제외 (CDN/S3 배포 환경용)
 
 # 색상 출력
 RED='\033[0;31m'
@@ -21,6 +22,7 @@ NC='\033[0m' # No Color
 echo "=== 서비스 이미지 빌드 & 로컬 레지스트리 푸시 (병렬) ==="
 echo "로컬 레지스트리: ${LOCAL_REG}"
 echo "동시 빌드 수: ${MAX_PARALLEL}"
+echo "프론트엔드 제외: ${SKIP_FRONTEND}"
 echo ""
 
 # 레지스트리 실행 확인
@@ -55,17 +57,27 @@ uses_common_packages() {
     esac
 }
 
-# 서비스 정보 배열
-declare -a SERVICES=(
+# 서비스 정보 배열 (backend services)
+declare -a BACKEND_SERVICES=(
     "auth-service|services/auth-service|Dockerfile"
     "board-service|services/board-service|docker/Dockerfile"
     "chat-service|services/chat-service|docker/Dockerfile"
-    "frontend|services/frontend|Dockerfile"
     "noti-service|services/noti-service|docker/Dockerfile"
     "storage-service|services/storage-service|docker/Dockerfile"
     "user-service|services/user-service|docker/Dockerfile"
     "video-service|services/video-service|docker/Dockerfile"
 )
+
+# Frontend service (only for local development, not for CDN/S3 deployments)
+declare -a FRONTEND_SERVICE=(
+    "frontend|services/frontend|Dockerfile"
+)
+
+# Build full service list based on SKIP_FRONTEND flag
+declare -a SERVICES=("${BACKEND_SERVICES[@]}")
+if [ "$SKIP_FRONTEND" != "true" ]; then
+    SERVICES+=("${FRONTEND_SERVICE[@]}")
+fi
 
 # 빌드할 서비스 선택
 if [ $# -eq 0 ]; then

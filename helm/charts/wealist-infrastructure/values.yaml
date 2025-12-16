@@ -105,6 +105,9 @@ redis:
 ingress:
   enabled: true
   className: nginx
+  # Include frontend catch-all route (only for local K8s deployments)
+  # Set to false for cloud environments where frontend is served via CDN/S3
+  includeFrontend: true
 
   annotations:
     # Common annotations (used in all environments)
