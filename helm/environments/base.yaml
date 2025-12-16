@@ -145,7 +145,7 @@ shared:
     CORS_ORIGINS: "*"
 
     # OAuth2 Redirect URLs (override per environment)
-    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost/login/oauth2/code/google"
+    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "http://localhost/oauth/callback"
 
     # LiveKit (WebRTC) - non-sensitive

@@ -97,7 +97,7 @@ shared:
     S3_PUBLIC_ENDPOINT: "https://cdn.wealist.co.kr"
     LIVEKIT_WS_URL: "wss://wealist.co.kr/svc/livekit"
     # OAuth2 Redirect URLs
-    OAUTH2_CLIENT_REDIRECT_URI: "https://wealist.co.kr/login/oauth2/code/google"
+    OAUTH2_CLIENT_REDIRECT_URI: "https://wealist.co.kr/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "https://wealist.co.kr/oauth/callback"
 
 # -----------------------------------------------------------------------------

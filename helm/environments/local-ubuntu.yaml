@@ -134,7 +134,7 @@ shared:
     S3_PUBLIC_ENDPOINT: "https://local.wealist.co.kr/minio"
     LIVEKIT_WS_URL: "wss://local.wealist.co.kr/svc/livekit"
     # OAuth2 Redirect URLs (local.wealist.co.kr with TLS)
-    OAUTH2_CLIENT_REDIRECT_URI: "https://local.wealist.co.kr/login/oauth2/code/google"
+    OAUTH2_CLIENT_REDIRECT_URI: "https://local.wealist.co.kr/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "https://local.wealist.co.kr/oauth/callback"
     # Database Migration (disabled - external DB has existing data)
     # 최초 배포 시만: helm install ... --set shared.config.DB_AUTO_MIGRATE=true

@@ -30,7 +30,7 @@ services:
       # OAuth
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-your-google-client-id}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-your-google-client-secret}
-      - OAUTH2_CLIENT_REDIRECT_URI=http://localhost:8080/login/oauth2/code/google
+      - OAUTH2_CLIENT_REDIRECT_URI=http://localhost:8080/oauth2/callback/google
       - OAUTH2_REDIRECT_URL_ENV=http://localhost:3000/oauth/callback
       # User Service URL
       - USER_SERVICE_URL=http://host.docker.internal:8081

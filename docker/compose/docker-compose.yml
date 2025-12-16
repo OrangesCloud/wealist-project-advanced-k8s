@@ -715,7 +715,7 @@ services:
       # OAuth Configuration
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - OAUTH2_CLIENT_REDIRECT_URI=${OAUTH2_CLIENT_REDIRECT_URI:-http://localhost:8080/login/oauth2/code/google}
+      - OAUTH2_CLIENT_REDIRECT_URI=${OAUTH2_CLIENT_REDIRECT_URI:-http://localhost:8080/oauth2/callback/google}
       - OAUTH2_REDIRECT_URL_ENV=${OAUTH2_REDIRECT_URL:-http://localhost:3000/oauth/callback}
 
       # User Service URL (OAuth 로그인 시 유저 조회/생성용)

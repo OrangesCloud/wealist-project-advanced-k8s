@@ -33,7 +33,7 @@ config:
 
   # OAuth2 URLs for local development
   OAUTH2_REDIRECT_URL_ENV: "http://local.wealist.co.kr/oauth/callback"
-  OAUTH2_CLIENT_REDIRECT_URI: "http://local.wealist.co.kr/login/oauth2/code/google"
+  OAUTH2_CLIENT_REDIRECT_URI: "http://local.wealist.co.kr/oauth2/callback/google"
 
   # CORS for local development
   CORS_ALLOWED_ORIGINS: "http://local.wealist.co.kr,http://localhost:3000"
