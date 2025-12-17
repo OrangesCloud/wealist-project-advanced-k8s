@@ -1,16 +1,33 @@
 # weAlist - 협업 프로젝트 관리 플랫폼
 
-> 클라우드 네이티브 마이크로서비스 기반 협업 플랫폼
+> Docker Compose → Kubernetes 마이그레이션을 통한 클라우드 네이티브 전환 프로젝트
 
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![Helm](https://img.shields.io/badge/Helm-0F1689?logo=helm&logoColor=white)](https://helm.sh/)
 [![ArgoCD](https://img.shields.io/badge/ArgoCD-EF7B4D?logo=argo&logoColor=white)](https://argoproj.github.io/cd/)
 [![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white)](https://golang.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
+
+---
+
+## 📋 프로젝트 배경
+
+| 단계 | 문서 | 설명 |
+|------|------|------|
+| 1️⃣ | [요구사항 정의서](../../wiki/Requirements) | 서비스 성장에 따른 확장성/유연성 요구 |
+| 2️⃣ | [클라우드 제안서](../../wiki/Cloud-Proposal) | EKS 전환 제안 및 비용/효율 분석 |
+| 3️⃣ | [아키텍처 설계](../../wiki/Architecture) | K8s 기반 마이크로서비스 설계 |
+| 🔧 | [트러블슈팅](../../wiki/Troubleshooting) | 마이그레이션 과정 이슈 해결 기록 |
+
+> **시나리오**: 성공적인 서비스 오픈 → 트래픽 증가로 기능 추가/확장 어려움 → 클라우드 네이티브 전환 결정
+
+---
 
 ## Highlights
 
-- **8개 마이크로서비스** - 6 Go + 1 Spring Boot + 1 React Frontend
+- **7개 백엔드 서비스** - 6 Go + 1 Spring Boot (auth)
+- **Frontend** - React + Vite (S3 + CloudFront 별도 배포)
 - **Kubernetes + Helm + ArgoCD** - GitOps 기반 배포 자동화
 - **Prometheus + Loki + Grafana** - 통합 모니터링/로깅
 - **LiveKit + Coturn** - WebRTC 기반 영상통화
@@ -36,7 +53,7 @@
 | **noti-service** | Go + Gin | 8002 | 알림 (SSE) |
 | **storage-service** | Go + Gin | 8003 | 파일 스토리지 (S3) |
 | **video-service** | Go + Gin | 8004 | 영상통화 (LiveKit) |
-| **frontend** | React + Vite | 3000 | Web UI |
+| **frontend** | React + Vite | - | Web UI (S3 + CloudFront) |
 
 ---
 
