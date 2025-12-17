@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { ThemeProvider } from './contexts/ThemeContext'; // ✅
 import { AuthProvider } from './contexts/AuthContext'; // ✅
-// 1. react-router-dom에서 필요한 것들을 임포트합니다.
+// 1. react-router-dom에서 필요한 것들을 임포트합니다
 import { Routes, Route, Navigate, Outlet, useNavigate } from 'react-router-dom';
 
 // Lazy load 페이지들
