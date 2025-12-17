@@ -46,6 +46,7 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: develop
 
     defaults:
       run:
