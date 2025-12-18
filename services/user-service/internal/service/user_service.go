@@ -11,6 +11,7 @@ import (
 	"user-service/internal/domain"
 	"user-service/internal/metrics"
 	"user-service/internal/repository"
+	"user-service/internal/response"
 )
 
 // UserService handles user business logic
@@ -33,14 +34,15 @@ func NewUserService(userRepo *repository.UserRepository, logger *zap.Logger, m *
 }
 
 // CreateUser creates a new user
+// 이메일이 이미 존재하면 AlreadyExistsError를 반환합니다.
 func (s *UserService) CreateUser(req domain.CreateUserRequest) (*domain.User, error) {
-	// Check if user already exists
+	// 이미 존재하는 사용자인지 확인
 	existingUser, err := s.userRepo.FindByEmail(req.Email)
 	if err == nil && existingUser != nil {
-		return nil, errors.New("user with this email already exists")
+		return nil, response.NewAlreadyExistsError("User with this email already exists", req.Email)
 	}
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
+		return nil, response.NewInternalError("Failed to check existing user", err.Error())
 	}
 
 	provider := "google"

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"user-service/internal/client"
 	"user-service/internal/domain"
 	"user-service/internal/repository"
+	"user-service/internal/response"
 )
 
 // AllowedImageTypes defines allowed image content types
@@ -49,13 +49,15 @@ func NewAttachmentService(
 // GeneratePresignedURL generates a presigned URL for file upload
 func (s *AttachmentService) GeneratePresignedURL(ctx context.Context, userID uuid.UUID, req domain.PresignedURLRequest) (*domain.PresignedURLResponse, error) {
 	// Validate file type
+	// 파일 타입 검증: 허용된 이미지 형식만 업로드 가능
 	if !AllowedImageTypes[strings.ToLower(req.ContentType)] {
-		return nil, errors.New("invalid file type, allowed: jpg, jpeg, png, gif, webp")
+		return nil, response.NewValidationError("Invalid file type", "allowed: jpg, jpeg, png, gif, webp")
 	}
 
 	// Validate file size
+	// 파일 크기 검증: 최대 20MB까지 허용
 	if req.FileSize > MaxFileSize {
-		return nil, errors.New("file size exceeds maximum of 20MB")
+		return nil, response.NewValidationError("File size exceeds maximum", "maximum allowed size is 20MB")
 	}
 
 	// Generate presigned URL
@@ -75,10 +77,12 @@ func (s *AttachmentService) GeneratePresignedURL(ctx context.Context, userID uui
 }
 
 // SaveAttachment saves attachment metadata after S3 upload
+// S3 업로드 완료 후 첨부파일 메타데이터를 저장합니다.
 func (s *AttachmentService) SaveAttachment(ctx context.Context, userID uuid.UUID, req domain.SaveAttachmentRequest) (*domain.Attachment, error) {
 	// Validate file type
+	// 파일 타입 검증
 	if !AllowedImageTypes[strings.ToLower(req.ContentType)] {
-		return nil, errors.New("invalid file type")
+		return nil, response.NewValidationError("Invalid file type", "")
 	}
 
 	expiresAt := time.Now().Add(1 * time.Hour)
@@ -115,13 +119,15 @@ func (s *AttachmentService) ConfirmAttachment(ctx context.Context, userID uuid.U
 	}
 
 	// Check ownership
+	// 소유권 확인: 본인이 업로드한 첨부파일만 확정 가능
 	if attachment.UploadedBy != userID {
-		return nil, errors.New("attachment not owned by user")
+		return nil, response.NewForbiddenError("Attachment not owned by user", "")
 	}
 
 	// Check status
+	// 상태 확인: 임시 상태의 첨부파일만 확정 가능
 	if attachment.Status != domain.AttachmentStatusTemp {
-		return nil, errors.New("attachment is not in temporary status")
+		return nil, response.NewConflictError("Attachment is not in temporary status", "")
 	}
 
 	// Confirm attachment
@@ -144,6 +150,7 @@ func (s *AttachmentService) GetAttachment(attachmentID uuid.UUID) (*domain.Attac
 }
 
 // DeleteAttachment deletes an attachment
+// 첨부파일을 삭제합니다. 본인이 업로드한 첨부파일만 삭제 가능합니다.
 func (s *AttachmentService) DeleteAttachment(ctx context.Context, userID uuid.UUID, attachmentID uuid.UUID) error {
 	attachment, err := s.attachmentRepo.FindByID(attachmentID)
 	if err != nil {
@@ -151,8 +158,9 @@ func (s *AttachmentService) DeleteAttachment(ctx context.Context, userID uuid.UU
 	}
 
 	// Check ownership
+	// 소유권 확인: 본인이 업로드한 첨부파일만 삭제 가능
 	if attachment.UploadedBy != userID {
-		return errors.New("attachment not owned by user")
+		return response.NewForbiddenError("Attachment not owned by user", "")
 	}
 
 	// Delete from S3

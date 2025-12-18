@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +9,7 @@ import (
 	"user-service/internal/domain"
 	"user-service/internal/metrics"
 	"user-service/internal/repository"
+	"user-service/internal/response"
 )
 
 // ProfileService handles user profile business logic
@@ -49,13 +49,13 @@ func (s *ProfileService) CreateProfile(userID uuid.UUID, req domain.CreateProfil
 		return nil, err
 	}
 	if !isMember {
-		return nil, errors.New("user is not a member of this workspace")
+		return nil, response.NewForbiddenError("User is not a member of this workspace", "")
 	}
 
 	// Check if profile already exists
 	existing, _ := s.profileRepo.FindByUserAndWorkspace(userID, req.WorkspaceID)
 	if existing != nil {
-		return nil, errors.New("profile already exists for this workspace")
+		return nil, response.NewAlreadyExistsError("Profile already exists for this workspace", "")
 	}
 
 	profile := &domain.UserProfile{
@@ -101,7 +101,7 @@ func (s *ProfileService) GetUserProfile(viewerID, targetUserID, workspaceID uuid
 		return nil, err
 	}
 	if !isMember {
-		return nil, errors.New("viewer is not a member of this workspace")
+		return nil, response.NewForbiddenError("Viewer is not a member of this workspace", "")
 	}
 
 	return s.profileRepo.FindByUserAndWorkspace(targetUserID, workspaceID)
@@ -179,7 +179,7 @@ func (s *ProfileService) GetOrCreateProfile(userID, workspaceID uuid.UUID, defau
 			members, err := s.memberRepo.FindByUser(userID)
 			if err != nil || len(members) == 0 {
 				s.logger.Error("User has no workspaces", zap.String("userId", userID.String()))
-				return nil, errors.New("user has no workspaces")
+				return nil, response.NewNotFoundError("User has no workspaces", userID.String())
 			}
 			workspaceID = members[0].WorkspaceID
 			s.logger.Info("Using first available workspace",

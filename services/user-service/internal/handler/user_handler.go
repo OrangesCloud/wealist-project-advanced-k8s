@@ -38,7 +38,8 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	user, err := h.userService.CreateUser(req)
 	if err != nil {
-		response.BadRequestWithDetails(c, "Failed to create user", err.Error())
+		// 서비스 에러(AlreadyExists, Internal 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -129,7 +130,8 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 
 	user, err := h.userService.UpdateUser(userID, req)
 	if err != nil {
-		response.BadRequestWithDetails(c, "Failed to update user", err.Error())
+		// 서비스 에러를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 

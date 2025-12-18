@@ -5,7 +5,6 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +13,7 @@ import (
 	"user-service/internal/domain"
 	"user-service/internal/metrics"
 	"user-service/internal/repository"
+	"user-service/internal/response"
 )
 
 // WorkspaceService는 워크스페이스 비즈니스 로직을 처리합니다.
@@ -59,12 +59,12 @@ func (s *WorkspaceService) CreateWorkspace(ownerID uuid.UUID, req domain.CreateW
 	exists, err := s.userRepo.Exists(ownerID)
 	if err != nil {
 		s.logger.Error("사용자 존재 확인 실패", zap.Error(err))
-		return nil, errors.New("failed to verify user, please try logging in again")
+		return nil, response.NewInternalError("Failed to verify user", "please try logging in again")
 	}
 	if !exists {
 		s.logger.Warn("사용자 DB에 없음, OAuth 동기화 실패 가능성",
 			zap.String("user_id", ownerID.String()))
-		return nil, errors.New("user not found, please log out and log in again to sync your account")
+		return nil, response.NewNotFoundError("User not found", "please log out and log in again to sync your account")
 	}
 
 	// 기본값 설정: 모두 true
@@ -179,7 +179,7 @@ func (s *WorkspaceService) UpdateWorkspace(id uuid.UUID, userID uuid.UUID, req d
 
 	// 소유자 확인
 	if workspace.OwnerID != userID {
-		return nil, errors.New("only owner can update workspace")
+		return nil, response.NewForbiddenError("Only owner can update workspace", "")
 	}
 
 	if req.WorkspaceName != nil {
@@ -216,7 +216,7 @@ func (s *WorkspaceService) UpdateWorkspaceSettings(id uuid.UUID, userID uuid.UUI
 
 	// 소유자 확인
 	if workspace.OwnerID != userID {
-		return nil, errors.New("only owner can update workspace settings")
+		return nil, response.NewForbiddenError("Only owner can update workspace settings", "")
 	}
 
 	if req.WorkspaceName != nil {
@@ -256,7 +256,7 @@ func (s *WorkspaceService) DeleteWorkspace(id uuid.UUID, userID uuid.UUID) error
 
 	// 소유자 확인
 	if workspace.OwnerID != userID {
-		return errors.New("only owner can delete workspace")
+		return response.NewForbiddenError("Only owner can delete workspace", "")
 	}
 
 	if err := s.workspaceRepo.SoftDelete(id); err != nil {
@@ -278,7 +278,7 @@ func (s *WorkspaceService) SetDefaultWorkspace(userID, workspaceID uuid.UUID) er
 		return err
 	}
 	if !isMember {
-		return errors.New("user is not a member of this workspace")
+		return response.NewForbiddenError("User is not a member of this workspace", "")
 	}
 
 	return s.memberRepo.SetDefault(userID, workspaceID)

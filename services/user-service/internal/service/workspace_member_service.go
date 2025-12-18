@@ -5,13 +5,13 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"user-service/internal/domain"
+	"user-service/internal/response"
 )
 
 // ============================================================
@@ -82,7 +82,7 @@ func (s *WorkspaceService) InviteMember(workspaceID, inviterID uuid.UUID, req do
 	// 워크스페이스 조회
 	workspace, err := s.workspaceRepo.FindByID(workspaceID)
 	if err != nil {
-		return nil, errors.New("workspace not found")
+		return nil, response.NewNotFoundError("Workspace not found", workspaceID.String())
 	}
 
 	// 초대 권한 확인
@@ -91,7 +91,7 @@ func (s *WorkspaceService) InviteMember(workspaceID, inviterID uuid.UUID, req do
 		s.logger.Warn("초대 권한 없음 - 소유자만 초대 가능",
 			zap.String("workspace_id", workspaceID.String()),
 			zap.String("inviter_id", inviterID.String()))
-		return nil, errors.New("only owner can invite members to this workspace")
+		return nil, response.NewForbiddenError("Only owner can invite members to this workspace", "")
 	}
 
 	// 초대자의 역할 확인 (MEMBER는 초대 불가)
@@ -101,10 +101,10 @@ func (s *WorkspaceService) InviteMember(workspaceID, inviterID uuid.UUID, req do
 			zap.String("workspace_id", workspaceID.String()),
 			zap.String("inviter_id", inviterID.String()),
 			zap.Error(err))
-		return nil, errors.New("failed to verify invite permission")
+		return nil, response.NewInternalError("Failed to verify invite permission", err.Error())
 	}
 	if inviterRole == domain.RoleMember {
-		return nil, errors.New("members cannot invite others")
+		return nil, response.NewForbiddenError("Members cannot invite others", "")
 	}
 
 	// 이메일로 사용자 조회
@@ -113,13 +113,13 @@ func (s *WorkspaceService) InviteMember(workspaceID, inviterID uuid.UUID, req do
 		s.logger.Warn("초대할 사용자를 찾을 수 없음",
 			zap.String("email", req.Email),
 			zap.Error(err))
-		return nil, errors.New("user not found with the provided email")
+		return nil, response.NewNotFoundError("User not found with the provided email", req.Email)
 	}
 
 	// 이미 멤버인지 확인
 	isMember, _ := s.memberRepo.IsMember(workspaceID, user.ID)
 	if isMember {
-		return nil, errors.New("user is already a member of this workspace")
+		return nil, response.NewAlreadyExistsError("User is already a member of this workspace", "")
 	}
 
 	// 역할 결정 (기본값: MEMBER)
@@ -129,7 +129,7 @@ func (s *WorkspaceService) InviteMember(workspaceID, inviterID uuid.UUID, req do
 	}
 	// OWNER 역할은 부여 불가
 	if roleName == domain.RoleOwner {
-		return nil, errors.New("cannot assign owner role through invitation")
+		return nil, response.NewForbiddenError("Cannot assign owner role through invitation", "")
 	}
 
 	// 멤버 생성
@@ -189,39 +189,39 @@ func (s *WorkspaceService) UpdateMemberRole(workspaceID, memberID, updaterID uui
 	// 워크스페이스 조회
 	workspace, err := s.workspaceRepo.FindByID(workspaceID)
 	if err != nil {
-		return nil, errors.New("workspace not found")
+		return nil, response.NewNotFoundError("Workspace not found", workspaceID.String())
 	}
 
 	// 업데이터의 역할 확인
 	updaterRole, err := s.memberRepo.GetRole(workspaceID, updaterID)
 	if err != nil {
-		return nil, errors.New("permission denied")
+		return nil, response.NewForbiddenError("Permission denied", "failed to verify role")
 	}
 
 	// MEMBER는 역할 변경 불가
 	if updaterRole == domain.RoleMember {
-		return nil, errors.New("members cannot change roles")
+		return nil, response.NewForbiddenError("Members cannot change roles", "")
 	}
 
 	// 대상 멤버 조회
 	member, err := s.memberRepo.FindByID(memberID)
 	if err != nil {
-		return nil, errors.New("member not found")
+		return nil, response.NewNotFoundError("Member not found", memberID.String())
 	}
 
 	// 소유자의 역할은 변경 불가
 	if member.UserID == workspace.OwnerID {
-		return nil, errors.New("cannot change owner's role")
+		return nil, response.NewForbiddenError("Cannot change owner's role", "")
 	}
 
 	// OWNER 역할 부여 불가
 	if req.RoleName == domain.RoleOwner {
-		return nil, errors.New("cannot assign owner role")
+		return nil, response.NewForbiddenError("Cannot assign owner role", "")
 	}
 
 	// ADMIN이 다른 ADMIN의 역할을 변경하려 하면 거부
 	if updaterRole == domain.RoleAdmin && member.RoleName == domain.RoleAdmin {
-		return nil, errors.New("admins cannot change other admins' roles")
+		return nil, response.NewForbiddenError("Admins cannot change other admins' roles", "")
 	}
 
 	// 역할 업데이트
@@ -250,35 +250,35 @@ func (s *WorkspaceService) RemoveMember(workspaceID, memberID, removerID uuid.UU
 	// 워크스페이스 조회
 	workspace, err := s.workspaceRepo.FindByID(workspaceID)
 	if err != nil {
-		return errors.New("workspace not found")
+		return response.NewNotFoundError("Workspace not found", workspaceID.String())
 	}
 
 	// 제거자의 역할 확인
 	removerRole, err := s.memberRepo.GetRole(workspaceID, removerID)
 	if err != nil {
-		return errors.New("permission denied")
+		return response.NewForbiddenError("Permission denied", "failed to verify role")
 	}
 
 	// MEMBER는 다른 멤버 제거 불가 (자기 탈퇴만 가능)
 	member, err := s.memberRepo.FindByID(memberID)
 	if err != nil {
-		return errors.New("member not found")
+		return response.NewNotFoundError("Member not found", memberID.String())
 	}
 
 	// 자기 탈퇴가 아닌 경우 권한 확인
 	if member.UserID != removerID {
 		if removerRole == domain.RoleMember {
-			return errors.New("members cannot remove others")
+			return response.NewForbiddenError("Members cannot remove others", "")
 		}
 		// ADMIN이 다른 ADMIN 제거 시도 시 거부
 		if removerRole == domain.RoleAdmin && member.RoleName == domain.RoleAdmin {
-			return errors.New("admins cannot remove other admins")
+			return response.NewForbiddenError("Admins cannot remove other admins", "")
 		}
 	}
 
 	// 소유자는 제거 불가
 	if member.UserID == workspace.OwnerID {
-		return errors.New("cannot remove workspace owner")
+		return response.NewForbiddenError("Cannot remove workspace owner", "")
 	}
 
 	// 멤버 제거 (soft delete)
@@ -350,24 +350,24 @@ func (s *WorkspaceService) CreateJoinRequest(workspaceID, userID uuid.UUID) (*do
 	// 워크스페이스 존재 확인
 	workspace, err := s.workspaceRepo.FindByID(workspaceID)
 	if err != nil {
-		return nil, errors.New("workspace not found")
+		return nil, response.NewNotFoundError("Workspace not found", workspaceID.String())
 	}
 
 	// 비공개 워크스페이스는 참여 요청 불가
 	if !workspace.IsPublic {
-		return nil, errors.New("cannot request to join private workspace")
+		return nil, response.NewForbiddenError("Cannot request to join private workspace", "")
 	}
 
 	// 이미 멤버인지 확인
 	isMember, _ := s.memberRepo.IsMember(workspaceID, userID)
 	if isMember {
-		return nil, errors.New("already a member of this workspace")
+		return nil, response.NewAlreadyExistsError("Already a member of this workspace", "")
 	}
 
 	// 대기 중인 요청이 있는지 확인
 	hasPending, _ := s.joinReqRepo.HasPendingRequest(workspaceID, userID)
 	if hasPending {
-		return nil, errors.New("already have a pending request")
+		return nil, response.NewAlreadyExistsError("Already have a pending request", "")
 	}
 
 	// 승인 필요 없는 경우 바로 멤버로 추가
@@ -458,12 +458,12 @@ func (s *WorkspaceService) GetJoinRequests(workspaceID, requesterID uuid.UUID) (
 	// 요청자의 역할 확인
 	role, err := s.memberRepo.GetRole(workspaceID, requesterID)
 	if err != nil {
-		return nil, errors.New("permission denied")
+		return nil, response.NewForbiddenError("Permission denied", "failed to verify role")
 	}
 
 	// MEMBER는 조회 불가
 	if role == domain.RoleMember {
-		return nil, errors.New("members cannot view join requests")
+		return nil, response.NewForbiddenError("Members cannot view join requests", "")
 	}
 
 	return s.joinReqRepo.FindPendingByWorkspace(workspaceID)
@@ -480,28 +480,28 @@ func (s *WorkspaceService) ProcessJoinRequest(workspaceID, requestID, processorI
 	// 처리자의 역할 확인
 	role, err := s.memberRepo.GetRole(workspaceID, processorID)
 	if err != nil {
-		return nil, errors.New("permission denied")
+		return nil, response.NewForbiddenError("Permission denied", "failed to verify role")
 	}
 
 	// MEMBER는 처리 불가
 	if role == domain.RoleMember {
-		return nil, errors.New("members cannot process join requests")
+		return nil, response.NewForbiddenError("Members cannot process join requests", "")
 	}
 
 	// 요청 조회
 	request, err := s.joinReqRepo.FindByID(requestID)
 	if err != nil {
-		return nil, errors.New("join request not found")
+		return nil, response.NewNotFoundError("Join request not found", requestID.String())
 	}
 
 	// 이미 처리된 요청인지 확인
 	if request.Status != domain.JoinStatusPending {
-		return nil, errors.New("request already processed")
+		return nil, response.NewConflictError("Request already processed", "")
 	}
 
 	// 워크스페이스 ID 일치 확인
 	if request.WorkspaceID != workspaceID {
-		return nil, errors.New("request does not belong to this workspace")
+		return nil, response.NewBadRequestError("Request does not belong to this workspace", "")
 	}
 
 	// 상태 업데이트

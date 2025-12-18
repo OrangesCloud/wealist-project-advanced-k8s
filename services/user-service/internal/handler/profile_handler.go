@@ -49,7 +49,8 @@ func (h *ProfileHandler) CreateProfile(c *gin.Context) {
 
 	profile, err := h.profileService.CreateProfile(userID, req)
 	if err != nil {
-		response.BadRequestWithDetails(c, "Failed to create profile", err.Error())
+		// 서비스 에러(Forbidden, AlreadyExists 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -149,7 +150,8 @@ func (h *ProfileHandler) GetUserProfile(c *gin.Context) {
 
 	profile, err := h.profileService.GetUserProfile(viewerID, userID, workspaceID)
 	if err != nil {
-		response.NotFound(c, "Profile not found or access denied")
+		// 서비스 에러(Forbidden, NotFound 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -189,7 +191,8 @@ func (h *ProfileHandler) UpdateProfile(c *gin.Context) {
 
 	profile, err := h.profileService.UpdateProfile(userID, workspaceID, req)
 	if err != nil {
-		response.BadRequestWithDetails(c, "Failed to update profile", err.Error())
+		// 서비스 에러를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -251,7 +254,8 @@ func (h *ProfileHandler) GeneratePresignedURL(c *gin.Context) {
 
 	resp, err := h.attachmentService.GeneratePresignedURL(c.Request.Context(), userID, req)
 	if err != nil {
-		response.BadRequestWithDetails(c, "Failed to generate presigned URL", err.Error())
+		// 서비스 에러(Validation 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -283,7 +287,8 @@ func (h *ProfileHandler) SaveAttachment(c *gin.Context) {
 
 	attachment, err := h.attachmentService.SaveAttachment(c.Request.Context(), userID, req)
 	if err != nil {
-		response.BadRequestWithDetails(c, "Failed to save attachment", err.Error())
+		// 서비스 에러(Validation 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -342,9 +347,11 @@ func (h *ProfileHandler) ConfirmProfileImage(c *gin.Context) {
 	}
 
 	// Confirm attachment
+	// 첨부파일 확정: 프로필에 연결
 	_, err = h.attachmentService.ConfirmAttachment(c.Request.Context(), userID, req.AttachmentID, profile.ID)
 	if err != nil {
-		response.BadRequestWithDetails(c, "Failed to confirm attachment", err.Error())
+		// 서비스 에러(Forbidden, Conflict 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 

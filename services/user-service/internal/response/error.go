@@ -1,4 +1,5 @@
 // Package response provides HTTP response utilities for the user-service.
+// Handler용 응답 함수와 Service용 에러 생성 함수를 제공합니다.
 package response
 
 import (
@@ -8,6 +9,79 @@ import (
 
 	apperrors "github.com/OrangesCloud/wealist-advanced-go-pkg/errors"
 )
+
+// ============================================================
+// 타입 및 상수 (공통 모듈 재사용)
+// ============================================================
+
+// AppError는 공통 모듈의 AppError 타입 alias입니다.
+// Service 레이어에서 타입화된 에러를 반환할 때 사용합니다.
+type AppError = apperrors.AppError
+
+// 에러 코드 상수 - 공통 모듈 상수 재사용
+const (
+	ErrCodeNotFound      = apperrors.ErrCodeNotFound
+	ErrCodeAlreadyExists = apperrors.ErrCodeAlreadyExists
+	ErrCodeValidation    = apperrors.ErrCodeValidation
+	ErrCodeInternal      = apperrors.ErrCodeInternal
+	ErrCodeUnauthorized  = apperrors.ErrCodeUnauthorized
+	ErrCodeForbidden     = apperrors.ErrCodeForbidden
+	ErrCodeBadRequest    = apperrors.ErrCodeBadRequest
+	ErrCodeConflict      = apperrors.ErrCodeConflict
+)
+
+// ============================================================
+// Service 레이어용 에러 생성 함수
+// ============================================================
+
+// NewNotFoundError는 리소스를 찾을 수 없을 때 사용합니다. (404)
+func NewNotFoundError(message, details string) *AppError {
+	return apperrors.NotFound(message, details)
+}
+
+// NewAlreadyExistsError는 리소스가 이미 존재할 때 사용합니다. (409)
+func NewAlreadyExistsError(message, details string) *AppError {
+	return apperrors.AlreadyExists(message, details)
+}
+
+// NewValidationError는 유효성 검증 실패 시 사용합니다. (400)
+func NewValidationError(message, details string) *AppError {
+	return apperrors.Validation(message, details)
+}
+
+// NewInternalError는 내부 서버 오류 시 사용합니다. (500)
+func NewInternalError(message, details string) *AppError {
+	return apperrors.Internal(message, details)
+}
+
+// NewUnauthorizedError는 인증 실패 시 사용합니다. (401)
+func NewUnauthorizedError(message, details string) *AppError {
+	return apperrors.Unauthorized(message, details)
+}
+
+// NewForbiddenError는 권한 부족 시 사용합니다. (403)
+func NewForbiddenError(message, details string) *AppError {
+	return apperrors.Forbidden(message, details)
+}
+
+// NewBadRequestError는 잘못된 요청 시 사용합니다. (400)
+func NewBadRequestError(message, details string) *AppError {
+	return apperrors.BadRequest(message, details)
+}
+
+// NewConflictError는 충돌 발생 시 사용합니다. (409)
+func NewConflictError(message, details string) *AppError {
+	return apperrors.Conflict(message, details)
+}
+
+// NewAppError는 사용자 정의 에러 코드로 에러를 생성합니다.
+func NewAppError(code, message, details string) *AppError {
+	return apperrors.New(code, message, details)
+}
+
+// ============================================================
+// Handler 레이어용 응답 함수
+// ============================================================
 
 // Error sends an error response using the common AppError type.
 func Error(c *gin.Context, err *apperrors.AppError) {

@@ -45,7 +45,8 @@ func (h *WorkspaceHandler) CreateWorkspace(c *gin.Context) {
 
 	workspace, err := h.workspaceService.CreateWorkspace(userID, req)
 	if err != nil {
-		response.BadRequestWithDetails(c, "Failed to create workspace", err.Error())
+		// 서비스 에러를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -178,7 +179,8 @@ func (h *WorkspaceHandler) UpdateWorkspace(c *gin.Context) {
 
 	workspace, err := h.workspaceService.UpdateWorkspace(workspaceID, userID, req)
 	if err != nil {
-		response.Forbidden(c, err.Error())
+		// 서비스 에러(Forbidden, NotFound 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -209,7 +211,8 @@ func (h *WorkspaceHandler) DeleteWorkspace(c *gin.Context) {
 	}
 
 	if err := h.workspaceService.DeleteWorkspace(workspaceID, userID); err != nil {
-		response.Forbidden(c, err.Error())
+		// 서비스 에러(Forbidden 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -247,7 +250,8 @@ func (h *WorkspaceHandler) SetDefaultWorkspace(c *gin.Context) {
 	}
 
 	if err := h.workspaceService.SetDefaultWorkspace(userID, workspaceID); err != nil {
-		response.BadRequestWithDetails(c, "Failed to set default workspace", err.Error())
+		// 서비스 에러(Forbidden 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -313,7 +317,8 @@ func (h *WorkspaceHandler) InviteMember(c *gin.Context) {
 
 	member, err := h.workspaceService.InviteMember(workspaceID, userID, req)
 	if err != nil {
-		response.Forbidden(c, err.Error())
+		// 서비스 에러(Forbidden, AlreadyExists 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -361,7 +366,8 @@ func (h *WorkspaceHandler) UpdateMemberRole(c *gin.Context) {
 
 	member, err := h.workspaceService.UpdateMemberRole(workspaceID, memberID, userID, req)
 	if err != nil {
-		response.Forbidden(c, err.Error())
+		// 서비스 에러(Forbidden, NotFound 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -400,7 +406,8 @@ func (h *WorkspaceHandler) RemoveMember(c *gin.Context) {
 	}
 
 	if err := h.workspaceService.RemoveMember(workspaceID, memberID, userID); err != nil {
-		response.Forbidden(c, err.Error())
+		// 서비스 에러(Forbidden, NotFound 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -464,7 +471,8 @@ func (h *WorkspaceHandler) CreateJoinRequest(c *gin.Context) {
 
 	request, err := h.workspaceService.CreateJoinRequest(req.WorkspaceID, userID)
 	if err != nil {
-		response.BadRequestWithDetails(c, "Failed to create join request", err.Error())
+		// 서비스 에러(AlreadyExists, NotFound 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -495,7 +503,8 @@ func (h *WorkspaceHandler) GetJoinRequests(c *gin.Context) {
 
 	requests, err := h.workspaceService.GetJoinRequests(workspaceID, userID)
 	if err != nil {
-		response.Forbidden(c, err.Error())
+		// 서비스 에러(Forbidden 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -547,7 +556,8 @@ func (h *WorkspaceHandler) ProcessJoinRequest(c *gin.Context) {
 
 	request, err := h.workspaceService.ProcessJoinRequest(workspaceID, requestID, userID, req)
 	if err != nil {
-		response.Forbidden(c, err.Error())
+		// 서비스 에러(Forbidden, Conflict, BadRequest 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
@@ -611,7 +621,8 @@ func (h *WorkspaceHandler) UpdateWorkspaceSettings(c *gin.Context) {
 
 	workspace, err := h.workspaceService.UpdateWorkspaceSettings(workspaceID, userID, req)
 	if err != nil {
-		response.Forbidden(c, err.Error())
+		// 서비스 에러(Forbidden 등)를 자동으로 적절한 HTTP 상태 코드로 변환
+		response.HandleError(c, err)
 		return
 	}
 
