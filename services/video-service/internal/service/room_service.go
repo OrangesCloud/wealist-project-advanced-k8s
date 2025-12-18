@@ -14,6 +14,7 @@ import (
 	"video-service/internal/client"
 	"video-service/internal/config"
 	"video-service/internal/domain"
+	"video-service/internal/metrics"
 	"video-service/internal/repository"
 
 	"github.com/google/uuid"
@@ -88,6 +89,7 @@ type RoomService interface {
 
 // roomService는 RoomService 인터페이스를 구현합니다.
 // repository, LiveKit, user-service 클라이언트 간의 조정을 담당합니다.
+// 메트릭과 로깅을 통해 모니터링을 지원합니다.
 type roomService struct {
 	roomRepo    repository.RoomRepository
 	userClient  client.UserClient
@@ -95,17 +97,20 @@ type roomService struct {
 	lkConfig    config.LiveKitConfig
 	redisClient *redis.Client
 	logger      *zap.Logger
+	metrics     *metrics.Metrics // 메트릭 수집을 위한 필드
 }
 
 // NewRoomService는 주어진 의존성으로 새 RoomService를 생성합니다.
 // LiveKit 설정이 제공되면 LiveKit 클라이언트를 초기화합니다.
 // userClient가 nil이면 워크스페이스 검증을 건너뜁니다.
+// metrics 파라미터가 nil인 경우에도 안전하게 동작합니다.
 func NewRoomService(
 	roomRepo repository.RoomRepository,
 	userClient client.UserClient,
 	lkConfig config.LiveKitConfig,
 	redisClient *redis.Client,
 	logger *zap.Logger,
+	m *metrics.Metrics,
 ) RoomService {
 	var lkClient *lksdk.RoomServiceClient
 	if lkConfig.Host != "" && lkConfig.APIKey != "" && lkConfig.APISecret != "" {
@@ -119,6 +124,7 @@ func NewRoomService(
 		lkConfig:    lkConfig,
 		redisClient: redisClient,
 		logger:      logger,
+		metrics:     m,
 	}
 }
 
@@ -169,6 +175,11 @@ func (s *roomService) CreateRoom(ctx context.Context, req *domain.CreateRoomRequ
 		if err != nil {
 			s.logger.Warn("LiveKit 룸 생성 실패", zap.Error(err))
 		}
+	}
+
+	// 메트릭 기록: 룸 생성 성공
+	if s.metrics != nil {
+		s.metrics.RecordRoomCreated()
 	}
 
 	s.logger.Info("룸 생성 완료",
@@ -229,6 +240,7 @@ func (s *roomService) GetWorkspaceRooms(ctx context.Context, workspaceID uuid.UU
 
 // EndRoom은 룸을 종료하고 통화 기록을 생성합니다.
 // 룸 생성자만 룸을 종료할 수 있습니다.
+// 종료 성공 시 메트릭과 통화 시간을 기록합니다.
 func (s *roomService) EndRoom(ctx context.Context, roomID, userID uuid.UUID) error {
 	room, err := s.roomRepo.GetByID(roomID)
 	if err != nil {
@@ -239,6 +251,9 @@ func (s *roomService) EndRoom(ctx context.Context, roomID, userID uuid.UUID) err
 	if room.CreatorID != userID {
 		return errors.New("only room creator can end the room")
 	}
+
+	// 통화 시간 계산 (메트릭 기록용)
+	callDuration := time.Since(room.CreatedAt)
 
 	room.IsActive = false
 	if err := s.roomRepo.Update(room); err != nil {
@@ -255,9 +270,16 @@ func (s *roomService) EndRoom(ctx context.Context, roomID, userID uuid.UUID) err
 		})
 	}
 
+	// 메트릭 기록: 룸 종료 및 통화 시간
+	if s.metrics != nil {
+		s.metrics.RecordRoomEnded()
+		s.metrics.RecordCallDuration(callDuration)
+	}
+
 	s.logger.Info("룸 종료 완료",
 		zap.String("room_id", roomID.String()),
 		zap.String("ended_by", userID.String()),
+		zap.Duration("call_duration", callDuration),
 	)
 
 	return nil

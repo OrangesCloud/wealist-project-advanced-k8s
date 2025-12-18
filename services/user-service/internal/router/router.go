@@ -62,7 +62,9 @@ func Setup(cfg Config) *gin.Engine {
 	attachmentRepo := repository.NewAttachmentRepository(cfg.DB)
 
 	// Initialize services
-	userService := service.NewUserService(userRepo, cfg.Logger)
+	// 사용자 서비스 초기화 (메트릭 포함)
+	userService := service.NewUserService(userRepo, cfg.Logger, m)
+	// 워크스페이스 서비스 초기화 (메트릭 포함)
 	workspaceService := service.NewWorkspaceService(
 		workspaceRepo,
 		memberRepo,
@@ -70,8 +72,10 @@ func Setup(cfg Config) *gin.Engine {
 		profileRepo,
 		userRepo,
 		cfg.Logger,
+		m,
 	)
-	profileService := service.NewProfileService(profileRepo, memberRepo, userRepo, cfg.Logger)
+	// 프로필 서비스 초기화 (메트릭 포함)
+	profileService := service.NewProfileService(profileRepo, memberRepo, userRepo, cfg.Logger, m)
 	attachmentService := service.NewAttachmentService(attachmentRepo, cfg.S3Client, cfg.Logger)
 
 	// Initialize handlers

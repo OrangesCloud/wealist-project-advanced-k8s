@@ -41,9 +41,11 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 	r.Use(metrics.HTTPMiddleware(m))
 
 	// Initialize services
+	// 레포지토리와 SSE 서비스 초기화
 	notificationRepo := repository.NewNotificationRepository(db)
 	sseService := sse.NewSSEService(redisClient, logger)
-	notificationService := service.NewNotificationService(notificationRepo, redisClient, cfg, logger)
+	// 알림 서비스 초기화 (메트릭 포함)
+	notificationService := service.NewNotificationService(notificationRepo, redisClient, cfg, logger, m)
 
 	// Initialize handlers
 	validator := middleware.NewAuthServiceValidator(cfg.Auth.ServiceURL, cfg.Auth.SecretKey, logger)

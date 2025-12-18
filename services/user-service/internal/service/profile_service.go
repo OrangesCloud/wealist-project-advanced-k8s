@@ -8,29 +8,36 @@ import (
 	"go.uber.org/zap"
 
 	"user-service/internal/domain"
+	"user-service/internal/metrics"
 	"user-service/internal/repository"
 )
 
 // ProfileService handles user profile business logic
+// 사용자 프로필 생성, 조회, 수정, 삭제 등의 비즈니스 로직을 처리합니다.
+// 메트릭과 로깅을 통해 모니터링을 지원합니다.
 type ProfileService struct {
 	profileRepo *repository.UserProfileRepository
 	memberRepo  *repository.WorkspaceMemberRepository
 	userRepo    *repository.UserRepository
 	logger      *zap.Logger
+	metrics     *metrics.Metrics // 메트릭 수집을 위한 필드
 }
 
 // NewProfileService creates a new ProfileService
+// metrics 파라미터가 nil인 경우에도 안전하게 동작합니다.
 func NewProfileService(
 	profileRepo *repository.UserProfileRepository,
 	memberRepo *repository.WorkspaceMemberRepository,
 	userRepo *repository.UserRepository,
 	logger *zap.Logger,
+	m *metrics.Metrics,
 ) *ProfileService {
 	return &ProfileService{
 		profileRepo: profileRepo,
 		memberRepo:  memberRepo,
 		userRepo:    userRepo,
 		logger:      logger,
+		metrics:     m,
 	}
 }
 
@@ -65,6 +72,11 @@ func (s *ProfileService) CreateProfile(userID uuid.UUID, req domain.CreateProfil
 	if err := s.profileRepo.Create(profile); err != nil {
 		s.logger.Error("Failed to create profile", zap.Error(err))
 		return nil, err
+	}
+
+	// 메트릭 기록: 프로필 생성 성공
+	if s.metrics != nil {
+		s.metrics.RecordProfileCreated()
 	}
 
 	s.logger.Info("Profile created", zap.String("profileId", profile.ID.String()))
@@ -206,6 +218,11 @@ func (s *ProfileService) GetOrCreateProfile(userID, workspaceID uuid.UUID, defau
 	if err := s.profileRepo.Create(newProfile); err != nil {
 		s.logger.Error("Failed to create profile", zap.Error(err))
 		return nil, err
+	}
+
+	// 메트릭 기록: 프로필 자동 생성 성공
+	if s.metrics != nil {
+		s.metrics.RecordProfileCreated()
 	}
 
 	s.logger.Info("Profile created", zap.String("profileId", newProfile.ID.String()))

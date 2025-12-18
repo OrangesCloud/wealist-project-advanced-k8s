@@ -74,6 +74,11 @@ func (s *roomService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, us
 			return nil, fmt.Errorf("failed to add participant: %w", err)
 		}
 
+		// 메트릭 기록: 참가자 추가 성공
+		if s.metrics != nil {
+			s.metrics.RecordParticipantJoined()
+		}
+
 		s.logger.Info("참가자 추가 완료",
 			zap.String("room_id", roomID.String()),
 			zap.String("user_id", userID.String()),
@@ -122,6 +127,11 @@ func (s *roomService) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) e
 
 	if err := s.roomRepo.RemoveParticipant(roomID, userID); err != nil {
 		return fmt.Errorf("failed to remove participant: %w", err)
+	}
+
+	// 메트릭 기록: 참가자 퇴장 성공
+	if s.metrics != nil {
+		s.metrics.RecordParticipantLeft()
 	}
 
 	s.logger.Info("참가자 퇴장 완료",

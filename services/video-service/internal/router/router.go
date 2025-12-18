@@ -50,7 +50,8 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 	}
 
 	// Initialize services
-	roomService := service.NewRoomService(roomRepo, userClient, cfg.LiveKit, redisClient, logger)
+	// 룸 서비스 초기화 (메트릭 포함)
+	roomService := service.NewRoomService(roomRepo, userClient, cfg.LiveKit, redisClient, logger, m)
 
 	// Initialize validator
 	validator := middleware.NewAuthServiceValidator(cfg.Auth.ServiceURL, cfg.Auth.SecretKey, logger)

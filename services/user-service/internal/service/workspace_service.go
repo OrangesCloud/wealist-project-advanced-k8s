@@ -12,10 +12,13 @@ import (
 	"go.uber.org/zap"
 
 	"user-service/internal/domain"
+	"user-service/internal/metrics"
 	"user-service/internal/repository"
 )
 
 // WorkspaceService는 워크스페이스 비즈니스 로직을 처리합니다.
+// 워크스페이스 생성, 조회, 수정, 삭제 등의 비즈니스 로직을 처리합니다.
+// 메트릭과 로깅을 통해 모니터링을 지원합니다.
 type WorkspaceService struct {
 	workspaceRepo *repository.WorkspaceRepository
 	memberRepo    *repository.WorkspaceMemberRepository
@@ -23,9 +26,11 @@ type WorkspaceService struct {
 	profileRepo   *repository.UserProfileRepository
 	userRepo      *repository.UserRepository
 	logger        *zap.Logger
+	metrics       *metrics.Metrics // 메트릭 수집을 위한 필드
 }
 
 // NewWorkspaceService는 새 WorkspaceService를 생성합니다.
+// metrics 파라미터가 nil인 경우에도 안전하게 동작합니다.
 func NewWorkspaceService(
 	workspaceRepo *repository.WorkspaceRepository,
 	memberRepo *repository.WorkspaceMemberRepository,
@@ -33,6 +38,7 @@ func NewWorkspaceService(
 	profileRepo *repository.UserProfileRepository,
 	userRepo *repository.UserRepository,
 	logger *zap.Logger,
+	m *metrics.Metrics,
 ) *WorkspaceService {
 	return &WorkspaceService{
 		workspaceRepo: workspaceRepo,
@@ -41,6 +47,7 @@ func NewWorkspaceService(
 		profileRepo:   profileRepo,
 		userRepo:      userRepo,
 		logger:        logger,
+		metrics:       m,
 	}
 }
 
@@ -85,6 +92,11 @@ func (s *WorkspaceService) CreateWorkspace(ownerID uuid.UUID, req domain.CreateW
 	if err := s.workspaceRepo.Create(workspace); err != nil {
 		s.logger.Error("워크스페이스 생성 실패", zap.Error(err))
 		return nil, err
+	}
+
+	// 메트릭 기록: 워크스페이스 생성 성공
+	if s.metrics != nil {
+		s.metrics.RecordWorkspaceCreated()
 	}
 
 	// 소유자를 멤버로 추가

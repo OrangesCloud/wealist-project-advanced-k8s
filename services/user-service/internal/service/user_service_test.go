@@ -371,11 +371,13 @@ func TestUserService_UserExists(t *testing.T) {
 }
 
 // TestNewUserService verifies the constructor
+// NewUserService 생성자가 올바르게 서비스를 초기화하는지 검증
 func TestNewUserService(t *testing.T) {
 	logger := zap.NewNop()
 	repo := &repository.UserRepository{}
 
-	svc := NewUserService(repo, logger)
+	// metrics는 nil 전달 가능 (nil-safe 설계)
+	svc := NewUserService(repo, logger, nil)
 
 	assert.NotNil(t, svc)
 }
