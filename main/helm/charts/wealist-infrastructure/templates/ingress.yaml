@@ -1,0 +1,131 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wealist-ingress
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "wealist-infrastructure.labels" . | nindent 4 }}
+  annotations:
+    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls }}
+  tls:
+    {{- range .Values.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          # OAuth2 Routes (auth-service)
+          - path: /()(oauth2/.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 8080
+          - path: /()(login/oauth2/.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 8080
+
+          # Service Routes (prefix-based routing)
+          # Frontend sends /svc/{service}/api/... requests
+          # Ingress removes /svc/{service} and forwards to service
+
+          - path: /svc/auth(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 8080
+
+          - path: /svc/user(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8081
+
+          - path: /svc/board(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: board-service
+                port:
+                  number: 8000
+
+          - path: /svc/chat(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: chat-service
+                port:
+                  number: 8001
+
+          - path: /svc/noti(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: noti-service
+                port:
+                  number: 8002
+
+          - path: /svc/storage(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: storage-service
+                port:
+                  number: 8003
+
+          - path: /svc/video(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: video-service
+                port:
+                  number: 8004
+
+          # LiveKit WebRTC
+          - path: /svc/livekit(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: livekit
+                port:
+                  number: 7880
+
+          # MinIO S3
+          - path: /()(minio/.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: minio
+                port:
+                  number: 9000
+
+          # Frontend (catch-all, must be last)
+          - path: /()(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 3000
+    {{- end }}
+{{- end }}

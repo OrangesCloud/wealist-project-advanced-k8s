@@ -1,0 +1,130 @@
+# Default values for wealist-infrastructure
+#
+# Note: Global settings (namespace, environment, domain, imageRegistry) and
+# shared.config are defined in helm/environments/*.yaml files, NOT here.
+# This file contains only infrastructure-specific configuration (postgres, redis, ingress).
+
+# PostgreSQL configuration
+postgres:
+  enabled: true
+
+  # External PostgreSQL (when internal is disabled)
+  # Use this to connect to host machine's PostgreSQL
+  external:
+    enabled: false
+    host: ""      # Host IP (e.g., 172.17.0.1 for Docker bridge gateway on Linux)
+    port: 5432
+
+  image:
+    repository: postgres
+    tag: "17-alpine"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  service:
+    type: ClusterIP
+    port: 5432
+
+  persistence:
+    enabled: true
+    storageClass: ""  # Use default storage class
+    size: 10Gi
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  config:
+    superuser: "postgres"
+    superuserPassword: "postgres"  # Override in production
+
+    # Database list (init script creates these)
+    # Note: DB names must match service config (DB_NAME in charts/*/values.yaml)
+    databases:
+      - name: wealist_user_service_db
+        user: user_service
+        password: user_service_password
+      - name: wealist_board_service_db
+        user: board_service
+        password: board_service_password
+      - name: wealist_chat_service_db
+        user: chat_service
+        password: chat_service_password
+      - name: wealist_noti_service_db
+        user: noti_service
+        password: noti_service_password
+      - name: wealist_storage_service_db
+        user: storage_service
+        password: storage_service_password
+      - name: wealist_video_service_db
+        user: video_service
+        password: video_service_password
+
+# Redis configuration
+redis:
+  enabled: true
+
+  # External Redis (when internal is disabled)
+  # Use this to connect to host machine's Redis
+  external:
+    enabled: false
+    host: ""      # Host IP (e.g., 172.17.0.1 for Docker bridge gateway on Linux)
+    port: 6379
+
+  image:
+    repository: redis
+    tag: "7.2-alpine"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 5Gi
+
+  config:
+    password: ""  # Set in production
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# Ingress configuration
+# Note: These are LOCAL/DEV defaults. Production settings should be in
+# helm/environments/prod.yaml or staging.yaml.
+ingress:
+  enabled: true
+  className: nginx
+
+  annotations:
+    # Common annotations (used in all environments)
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    # WebSocket support
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/websocket-services: "livekit"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    # SSL/TLS - default off for local (override in prod/staging)
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # cert-manager annotation should be added via environment files (prod.yaml, staging.yaml)
+    # NOT here - local/dev environments don't use cert-manager
+
+  # Default: localhost (override in environment files)
+  hosts:
+    - host: localhost
+
+  # Default: no TLS (override in environment files)
+  tls: []
