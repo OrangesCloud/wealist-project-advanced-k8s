@@ -1,37 +1,34 @@
 # syntax=docker/dockerfile:1.4
-# Builder stage - optimized layer caching (2025-12-18)
-FROM golang:1.24-bookworm AS builder
+# Builder stage
+FROM golang:1.23-bookworm AS builder
 
-# Install build dependencies (cached layer)
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
 
 # Set working directory to project root
 WORKDIR /workspace
 
-# Copy shared package first (for replace directive)
+# Copy shared package first
 COPY packages/wealist-advanced-go-pkg/ ./packages/wealist-advanced-go-pkg/
 
 # Copy service files
 WORKDIR /workspace/services/user-service
 
-# OPTIMIZATION: Copy only go.mod/go.sum first for dependency caching
-COPY services/user-service/go.mod services/user-service/go.sum ./
+# Copy source code first (needed for go mod tidy to work)
+COPY services/user-service/ ./
 
 # Add replace directive for local package
 RUN echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packages/wealist-advanced-go-pkg' >> go.mod
 
-# Download dependencies (cached if go.mod/go.sum unchanged)
+# Tidy and download dependencies with cache mount (use GOWORK=off to ignore go.work)
 RUN --mount=type=cache,target=/go/pkg/mod \
-    GOWORK=off go mod download -x
+    GOTOOLCHAIN=auto GOWORK=off go mod tidy && \
+    GOTOOLCHAIN=auto GOWORK=off go mod download
 
-# Copy source code (changes here don't invalidate dependency cache)
-COPY services/user-service/ ./
-
-# Verify dependencies and build
+# Build with cache mount (use GOWORK=off)
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    GOWORK=off go mod tidy && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o user-api ./cmd/api
+    GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o user-api ./cmd/api
 
 # Runtime stage
 FROM alpine:latest

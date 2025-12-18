@@ -43,27 +43,37 @@ scrape_configs:
         target_label: 'container_id'
 
     pipeline_stages:
-      # JSON 로그 파싱 (Go 서비스들은 JSON 로그 출력)
+      # JSON 로그 파싱 (Go 서비스들은 zap JSON 로그 출력)
+      # zap 로거 필드: timestamp, level, message, caller, stacktrace, request_id 등
       - json:
           expressions:
             level: level
-            msg: msg
-            time: time
+            message: message
+            timestamp: timestamp
             error: error
             caller: caller
+            request_id: request_id
+            service: service
+            method: method
+            path: path
+            status: status
+            duration: duration
 
       # 로그 레벨 라벨 추가
       - labels:
           level:
+          service:
 
-      # 타임스탬프 파싱
+      # 타임스탬프 파싱 (zap ISO8601 형식)
       - timestamp:
-          source: time
-          format: RFC3339Nano
+          source: timestamp
+          format: "2006-01-02T15:04:05.000Z0700"
           fallback_formats:
+            - RFC3339Nano
             - RFC3339
             - "2006-01-02T15:04:05.999999999Z07:00"
+            - "2006-01-02T15:04:05Z07:00"
 
       # 출력 포맷 설정
       - output:
-          source: msg
+          source: message

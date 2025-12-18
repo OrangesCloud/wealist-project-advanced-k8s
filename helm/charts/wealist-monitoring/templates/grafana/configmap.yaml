@@ -1,0 +1,67 @@
+{{- if .Values.grafana.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+data:
+  datasources.yaml: |
+    # =============================================================================
+    # Grafana Datasources Configuration
+    # =============================================================================
+    apiVersion: 1
+
+    datasources:
+      # Prometheus - 메트릭 데이터
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+        editable: false
+        jsonData:
+          httpMethod: POST
+          manageAlerts: true
+          prometheusType: Prometheus
+
+      # Loki - 로그 데이터
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki:3100
+        editable: false
+        jsonData:
+          maxLines: 1000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-provider
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+data:
+  dashboards.yaml: |
+    # =============================================================================
+    # Grafana Dashboard Provisioning Configuration
+    # =============================================================================
+    apiVersion: 1
+
+    providers:
+      - name: 'wealist-dashboards'
+        orgId: 1
+        folder: 'weAlist'
+        folderUid: 'wealist'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/json
+{{- end }}

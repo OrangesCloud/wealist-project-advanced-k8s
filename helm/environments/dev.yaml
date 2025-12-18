@@ -115,3 +115,54 @@ ingress:
     - host: wonnyhome.myddns.me
   # No TLS - CloudFront handles SSL termination
   tls: []
+
+# -----------------------------------------------------------------------------
+# Monitoring Stack
+# -----------------------------------------------------------------------------
+# wealist-monitoring 차트 배포 시 사용할 설정
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    service:
+      type: ClusterIP
+      port: 9090
+    persistence:
+      enabled: true
+      storageClass: "standard"
+      size: 10Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    config:
+      scrapeInterval: 15s
+      retentionTime: 7d
+  loki:
+    enabled: true
+    service:
+      type: ClusterIP
+      port: 3100
+    persistence:
+      enabled: true
+      storageClass: "standard"
+      size: 10Gi
+    config:
+      retentionPeriod: 168h  # 7 days
+  promtail:
+    enabled: true
+  grafana:
+    enabled: true
+    service:
+      type: NodePort
+      port: 3000
+      nodePort: 30001
+    persistence:
+      enabled: true
+      size: 5Gi
+    admin:
+      user: admin
+      password: admin  # TODO: 프로덕션에서는 시크릿으로 관리
