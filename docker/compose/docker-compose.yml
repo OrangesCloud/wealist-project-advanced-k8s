@@ -855,6 +855,7 @@ services:
     image: prom/prometheus:v2.48.0
     container_name: wealist-prometheus
     hostname: prometheus
+    user: root  # Fix volume permission issue on macOS
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
 
