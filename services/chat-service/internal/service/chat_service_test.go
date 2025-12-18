@@ -265,13 +265,16 @@ func TestChatService_SendMessage_ValidatesMessageType(t *testing.T) {
 }
 
 func TestChatService_SendMessage_CustomMessageType(t *testing.T) {
-	// Given
+	// Given: 파일 메시지 요청 생성
+	fileURL := "http://example.com/file.pdf"
+	fileName := "document.pdf"
+	fileSize := int64(1024)
 	req := &domain.SendMessageRequest{
 		Content:     "Check this file",
 		MessageType: domain.MessageTypeFile,
-		FileURL:     "http://example.com/file.pdf",
-		FileName:    "document.pdf",
-		FileSize:    1024,
+		FileURL:     &fileURL,
+		FileName:    &fileName,
+		FileSize:    &fileSize,
 	}
 
 	// When: 커스텀 MessageType 처리
@@ -282,8 +285,8 @@ func TestChatService_SendMessage_CustomMessageType(t *testing.T) {
 
 	// Then
 	assert.Equal(t, domain.MessageTypeFile, messageType)
-	assert.Equal(t, "document.pdf", req.FileName)
-	assert.Equal(t, int64(1024), req.FileSize)
+	assert.Equal(t, "document.pdf", *req.FileName)
+	assert.Equal(t, int64(1024), *req.FileSize)
 }
 
 // ============================================================
