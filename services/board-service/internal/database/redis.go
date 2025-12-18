@@ -4,7 +4,7 @@ import (
 	"context"
 	"project-board-api/internal/config"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 

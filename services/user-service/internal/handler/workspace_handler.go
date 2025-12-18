@@ -1,13 +1,12 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"user-service/internal/domain"
 	"user-service/internal/middleware"
+	"user-service/internal/response"
 	"user-service/internal/service"
 )
 
@@ -34,29 +33,23 @@ func NewWorkspaceHandler(workspaceService *service.WorkspaceService) *WorkspaceH
 func (h *WorkspaceHandler) CreateWorkspace(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	var req domain.CreateWorkspaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	workspace, err := h.workspaceService.CreateWorkspace(userID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "CREATE_FAILED", Message: err.Error()},
-		})
+		response.BadRequestWithDetails(c, "Failed to create workspace", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, workspace.ToResponse())
+	response.Created(c, workspace.ToResponse())
 }
 
 // GetWorkspace godoc
@@ -72,21 +65,17 @@ func (h *WorkspaceHandler) GetWorkspace(c *gin.Context) {
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	workspace, err := h.workspaceService.GetWorkspace(workspaceID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{
-			Error: ErrorDetail{Code: "NOT_FOUND", Message: "Workspace not found"},
-		})
+		response.NotFound(c, "Workspace not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, workspace.ToResponse())
+	response.OK(c, workspace.ToResponse())
 }
 
 // GetAllWorkspaces godoc
@@ -99,17 +88,13 @@ func (h *WorkspaceHandler) GetWorkspace(c *gin.Context) {
 func (h *WorkspaceHandler) GetAllWorkspaces(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	members, err := h.workspaceService.GetUserWorkspaces(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{Code: "FETCH_FAILED", Message: err.Error()},
-		})
+		response.InternalErrorWithDetails(c, "Failed to fetch workspaces", err)
 		return
 	}
 
@@ -133,7 +118,7 @@ func (h *WorkspaceHandler) GetAllWorkspaces(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, responses)
+	response.OK(c, responses)
 }
 
 // SearchPublicWorkspaces godoc
@@ -148,9 +133,7 @@ func (h *WorkspaceHandler) SearchPublicWorkspaces(c *gin.Context) {
 
 	workspaces, err := h.workspaceService.SearchPublicWorkspaces(name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{Code: "SEARCH_FAILED", Message: err.Error()},
-		})
+		response.InternalErrorWithDetails(c, "Failed to search workspaces", err)
 		return
 	}
 
@@ -159,7 +142,7 @@ func (h *WorkspaceHandler) SearchPublicWorkspaces(c *gin.Context) {
 		responses[i] = w.ToResponse()
 	}
 
-	c.JSON(http.StatusOK, responses)
+	response.OK(c, responses)
 }
 
 // UpdateWorkspace godoc
@@ -176,38 +159,30 @@ func (h *WorkspaceHandler) SearchPublicWorkspaces(c *gin.Context) {
 func (h *WorkspaceHandler) UpdateWorkspace(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	var req domain.UpdateWorkspaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	workspace, err := h.workspaceService.UpdateWorkspace(workspaceID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error: ErrorDetail{Code: "UPDATE_FAILED", Message: err.Error()},
-		})
+		response.Forbidden(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, workspace.ToResponse())
+	response.OK(c, workspace.ToResponse())
 }
 
 // DeleteWorkspace godoc
@@ -222,29 +197,23 @@ func (h *WorkspaceHandler) UpdateWorkspace(c *gin.Context) {
 func (h *WorkspaceHandler) DeleteWorkspace(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	if err := h.workspaceService.DeleteWorkspace(workspaceID, userID); err != nil {
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error: ErrorDetail{Code: "DELETE_FAILED", Message: err.Error()},
-		})
+		response.Forbidden(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{Message: "Workspace deleted successfully"})
+	response.Success(c, "Workspace deleted successfully")
 }
 
 // SetDefaultWorkspace godoc
@@ -259,9 +228,7 @@ func (h *WorkspaceHandler) DeleteWorkspace(c *gin.Context) {
 func (h *WorkspaceHandler) SetDefaultWorkspace(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
@@ -269,28 +236,22 @@ func (h *WorkspaceHandler) SetDefaultWorkspace(c *gin.Context) {
 		WorkspaceID string `json:"workspaceId" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	workspaceID, err := uuid.Parse(req.WorkspaceID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	if err := h.workspaceService.SetDefaultWorkspace(userID, workspaceID); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "SET_DEFAULT_FAILED", Message: err.Error()},
-		})
+		response.BadRequestWithDetails(c, "Failed to set default workspace", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{Message: "Default workspace set successfully"})
+	response.Success(c, "Default workspace set successfully")
 }
 
 // GetMembers godoc
@@ -305,22 +266,18 @@ func (h *WorkspaceHandler) GetMembers(c *gin.Context) {
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	// Use GetMembersWithProfiles to include nickName and profileImageUrl
 	responses, err := h.workspaceService.GetMembersWithProfiles(workspaceID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{Code: "FETCH_FAILED", Message: err.Error()},
-		})
+		response.InternalErrorWithDetails(c, "Failed to fetch members", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, responses)
+	response.OK(c, responses)
 }
 
 // InviteMember godoc
@@ -337,38 +294,30 @@ func (h *WorkspaceHandler) GetMembers(c *gin.Context) {
 func (h *WorkspaceHandler) InviteMember(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	var req domain.InviteMemberRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	member, err := h.workspaceService.InviteMember(workspaceID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error: ErrorDetail{Code: "INVITE_FAILED", Message: err.Error()},
-		})
+		response.Forbidden(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, member.ToResponse())
+	response.Created(c, member.ToResponse())
 }
 
 // UpdateMemberRole godoc
@@ -386,47 +335,37 @@ func (h *WorkspaceHandler) InviteMember(c *gin.Context) {
 func (h *WorkspaceHandler) UpdateMemberRole(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	memberIDStr := c.Param("memberId")
 	memberID, err := uuid.Parse(memberIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid member ID"},
-		})
+		response.BadRequest(c, "Invalid member ID")
 		return
 	}
 
 	var req domain.UpdateMemberRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	member, err := h.workspaceService.UpdateMemberRole(workspaceID, memberID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error: ErrorDetail{Code: "UPDATE_FAILED", Message: err.Error()},
-		})
+		response.Forbidden(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, member.ToResponse())
+	response.OK(c, member.ToResponse())
 }
 
 // RemoveMember godoc
@@ -442,38 +381,30 @@ func (h *WorkspaceHandler) UpdateMemberRole(c *gin.Context) {
 func (h *WorkspaceHandler) RemoveMember(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	memberIDStr := c.Param("memberId")
 	memberID, err := uuid.Parse(memberIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid member ID"},
-		})
+		response.BadRequest(c, "Invalid member ID")
 		return
 	}
 
 	if err := h.workspaceService.RemoveMember(workspaceID, memberID, userID); err != nil {
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error: ErrorDetail{Code: "REMOVE_FAILED", Message: err.Error()},
-		})
+		response.Forbidden(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{Message: "Member removed successfully"})
+	response.Success(c, "Member removed successfully")
 }
 
 // ValidateMember godoc
@@ -489,30 +420,24 @@ func (h *WorkspaceHandler) ValidateMember(c *gin.Context) {
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	userIDStr := c.Param("userId")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid user ID"},
-		})
+		response.BadRequest(c, "Invalid user ID")
 		return
 	}
 
 	isMember, err := h.workspaceService.ValidateMemberAccess(workspaceID, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_FAILED", Message: err.Error()},
-		})
+		response.InternalErrorWithDetails(c, "Validation failed", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"isMember": isMember})
+	response.OK(c, gin.H{"isMember": isMember})
 }
 
 // CreateJoinRequest godoc
@@ -527,29 +452,23 @@ func (h *WorkspaceHandler) ValidateMember(c *gin.Context) {
 func (h *WorkspaceHandler) CreateJoinRequest(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	var req domain.CreateJoinRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	request, err := h.workspaceService.CreateJoinRequest(req.WorkspaceID, userID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "CREATE_FAILED", Message: err.Error()},
-		})
+		response.BadRequestWithDetails(c, "Failed to create join request", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, request.ToResponse())
+	response.Created(c, request.ToResponse())
 }
 
 // GetJoinRequests godoc
@@ -563,26 +482,20 @@ func (h *WorkspaceHandler) CreateJoinRequest(c *gin.Context) {
 func (h *WorkspaceHandler) GetJoinRequests(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	requests, err := h.workspaceService.GetJoinRequests(workspaceID, userID)
 	if err != nil {
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error: ErrorDetail{Code: "FETCH_FAILED", Message: err.Error()},
-		})
+		response.Forbidden(c, err.Error())
 		return
 	}
 
@@ -591,7 +504,7 @@ func (h *WorkspaceHandler) GetJoinRequests(c *gin.Context) {
 		responses[i] = r.ToResponse()
 	}
 
-	c.JSON(http.StatusOK, responses)
+	response.OK(c, responses)
 }
 
 // ProcessJoinRequest godoc
@@ -608,47 +521,37 @@ func (h *WorkspaceHandler) GetJoinRequests(c *gin.Context) {
 func (h *WorkspaceHandler) ProcessJoinRequest(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	requestIDStr := c.Param("requestId")
 	requestID, err := uuid.Parse(requestIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid request ID"},
-		})
+		response.BadRequest(c, "Invalid request ID")
 		return
 	}
 
 	var req domain.ProcessJoinRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	request, err := h.workspaceService.ProcessJoinRequest(workspaceID, requestID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error: ErrorDetail{Code: "PROCESS_FAILED", Message: err.Error()},
-		})
+		response.Forbidden(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, request.ToResponse())
+	response.OK(c, request.ToResponse())
 }
 
 // GetWorkspaceSettings godoc
@@ -663,21 +566,17 @@ func (h *WorkspaceHandler) GetWorkspaceSettings(c *gin.Context) {
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	workspace, err := h.workspaceService.GetWorkspace(workspaceID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{
-			Error: ErrorDetail{Code: "NOT_FOUND", Message: "Workspace not found"},
-		})
+		response.NotFound(c, "Workspace not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, workspace.ToSettingsResponse())
+	response.OK(c, workspace.ToSettingsResponse())
 }
 
 // UpdateWorkspaceSettings godoc
@@ -693,36 +592,28 @@ func (h *WorkspaceHandler) GetWorkspaceSettings(c *gin.Context) {
 func (h *WorkspaceHandler) UpdateWorkspaceSettings(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	var req domain.UpdateWorkspaceSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	workspace, err := h.workspaceService.UpdateWorkspaceSettings(workspaceID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error: ErrorDetail{Code: "UPDATE_FAILED", Message: err.Error()},
-		})
+		response.Forbidden(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, workspace.ToSettingsResponse())
+	response.OK(c, workspace.ToSettingsResponse())
 }

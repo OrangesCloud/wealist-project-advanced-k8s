@@ -2,82 +2,70 @@ package metrics
 
 import (
 	"context"
-	"time"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+
+	commonmetrics "github.com/OrangesCloud/wealist-advanced-go-pkg/metrics"
 )
 
-// BusinessMetricsCollector collects business metrics periodically
+// BusinessMetricsCollector는 비즈니스 메트릭을 주기적으로 수집합니다.
+// commonmetrics.MetricsCollector 인터페이스를 구현합니다.
 type BusinessMetricsCollector struct {
 	db      *gorm.DB
 	metrics *Metrics
 	logger  *zap.Logger
-	ticker  *time.Ticker
-	done    chan bool
 }
 
-// NewBusinessMetricsCollector creates a new collector
+// NewBusinessMetricsCollector는 새 수집기를 생성합니다.
 func NewBusinessMetricsCollector(db *gorm.DB, metrics *Metrics, logger *zap.Logger) *BusinessMetricsCollector {
 	return &BusinessMetricsCollector{
 		db:      db,
 		metrics: metrics,
 		logger:  logger,
-		ticker:  time.NewTicker(60 * time.Second),
-		done:    make(chan bool),
 	}
 }
 
-// Start begins collecting metrics
-func (c *BusinessMetricsCollector) Start() {
-	go func() {
-		// 즉시 한 번 수집
-		c.collect()
+// Collect는 commonmetrics.MetricsCollector 인터페이스를 구현합니다.
+// PeriodicCollector에 의해 주기적으로 호출됩니다.
+func (c *BusinessMetricsCollector) Collect(ctx context.Context) error {
+	// nil db를 우아하게 처리
+	if c.db == nil {
+		return nil
+	}
 
-		// 주기적 수집
-		for {
-			select {
-			case <-c.ticker.C:
-				c.collect()
-			case <-c.done:
-				return
-			}
-		}
-	}()
-}
-
-// Stop stops the collector
-func (c *BusinessMetricsCollector) Stop() {
-	c.ticker.Stop()
-	c.done <- true
-}
-
-// collect gathers business metrics
-func (c *BusinessMetricsCollector) collect() {
-	defer func() {
-		if r := recover(); r != nil {
-			c.logger.Error("Panic in business metrics collection",
-				zap.Any("panic", r),
-			)
-		}
-	}()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Count projects
+	// 프로젝트 수 조회
 	var projectCount int64
 	if err := c.db.WithContext(ctx).Table("projects").Count(&projectCount).Error; err != nil {
-		c.logger.Error("Failed to count projects", zap.Error(err))
+		if c.logger != nil {
+			c.logger.Error("프로젝트 수 조회 실패", zap.Error(err))
+		}
 	} else {
 		c.metrics.SetProjectsTotal(projectCount)
 	}
 
-	// Count boards
+	// 보드 수 조회
 	var boardCount int64
 	if err := c.db.WithContext(ctx).Table("boards").Count(&boardCount).Error; err != nil {
-		c.logger.Error("Failed to count boards", zap.Error(err))
+		if c.logger != nil {
+			c.logger.Error("보드 수 조회 실패", zap.Error(err))
+		}
 	} else {
 		c.metrics.SetBoardsTotal(boardCount)
 	}
+
+	return nil
+}
+
+// StartPeriodicCollection은 이 수집기를 위한 PeriodicCollector를 생성하고 시작합니다.
+// 나중에 중지할 수 있도록 수집기를 반환합니다.
+func (c *BusinessMetricsCollector) StartPeriodicCollection() *commonmetrics.PeriodicCollector {
+	collector := commonmetrics.NewPeriodicCollector(
+		&commonmetrics.CollectorConfig{
+			Logger: c.logger,
+		},
+		c,
+	)
+	collector.Start()
+	return collector
 }

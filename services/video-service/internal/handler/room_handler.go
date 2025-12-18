@@ -1,3 +1,8 @@
+// Package handler provides HTTP handlers for video-service endpoints.
+//
+// This package implements Gin handlers for managing video call rooms,
+// participants, call history, and transcripts. All handlers use centralized
+// error responses from the response package.
 package handler
 
 import (
@@ -5,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"video-service/internal/domain"
+	"video-service/internal/response"
 	"video-service/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -12,11 +18,15 @@ import (
 	"go.uber.org/zap"
 )
 
+// RoomHandler handles HTTP requests for video room operations.
+// It provides endpoints for creating rooms, joining/leaving calls,
+// managing participants, and accessing call history.
 type RoomHandler struct {
 	roomService service.RoomService
 	logger      *zap.Logger
 }
 
+// NewRoomHandler creates a new RoomHandler with the given service and logger.
 func NewRoomHandler(roomService service.RoomService, logger *zap.Logger) *RoomHandler {
 	return &RoomHandler{
 		roomService: roomService,
@@ -41,34 +51,22 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 
 	var req domain.CreateRoomRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	room, err := h.roomService.CreateRoom(c.Request.Context(), &req, userID, token)
 	if err != nil {
 		if errors.Is(err, service.ErrNotWorkspaceMember) {
-			c.JSON(http.StatusForbidden, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "FORBIDDEN", "message": "You are not a member of this workspace"},
-			})
+			response.Forbidden(c, "You are not a member of this workspace")
 			return
 		}
 		h.logger.Error("Failed to create room", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to create room"},
-		})
+		response.InternalError(c, "Failed to create room")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"data":    room,
-	})
+	response.Created(c, room)
 }
 
 // GetRoom godoc
@@ -84,33 +82,21 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 	roomIDStr := c.Param("roomId")
 	roomID, err := uuid.Parse(roomIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid room ID"},
-		})
+		response.BadRequest(c, "Invalid room ID")
 		return
 	}
 
 	room, err := h.roomService.GetRoom(c.Request.Context(), roomID)
 	if err != nil {
 		if errors.Is(err, service.ErrRoomNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "NOT_FOUND", "message": "Room not found"},
-			})
+			response.NotFound(c, "Room not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get room"},
-		})
+		response.InternalError(c, "Failed to get room")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    room,
-	})
+	response.OK(c, room)
 }
 
 // GetWorkspaceRooms godoc
@@ -129,10 +115,7 @@ func (h *RoomHandler) GetWorkspaceRooms(c *gin.Context) {
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
@@ -141,24 +124,15 @@ func (h *RoomHandler) GetWorkspaceRooms(c *gin.Context) {
 	rooms, err := h.roomService.GetWorkspaceRooms(c.Request.Context(), workspaceID, userID, token, activeOnly)
 	if err != nil {
 		if errors.Is(err, service.ErrNotWorkspaceMember) {
-			c.JSON(http.StatusForbidden, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "FORBIDDEN", "message": "You are not a member of this workspace"},
-			})
+			response.Forbidden(c, "You are not a member of this workspace")
 			return
 		}
 		h.logger.Error("Failed to get workspace rooms", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get rooms"},
-		})
+		response.InternalError(c, "Failed to get rooms")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    rooms,
-	})
+	response.OK(c, rooms)
 }
 
 // JoinRoom godoc
@@ -179,10 +153,7 @@ func (h *RoomHandler) JoinRoom(c *gin.Context) {
 	roomIDStr := c.Param("roomId")
 	roomID, err := uuid.Parse(roomIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid room ID"},
-		})
+		response.BadRequest(c, "Invalid room ID")
 		return
 	}
 
@@ -192,48 +163,27 @@ func (h *RoomHandler) JoinRoom(c *gin.Context) {
 		userName = userID.String()[:8]
 	}
 
-	response, err := h.roomService.JoinRoom(c.Request.Context(), roomID, userID, userName, token)
+	resp, err := h.roomService.JoinRoom(c.Request.Context(), roomID, userID, userName, token)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrRoomNotFound):
-			c.JSON(http.StatusNotFound, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "NOT_FOUND", "message": "Room not found"},
-			})
+			response.NotFound(c, "Room not found")
 		case errors.Is(err, service.ErrRoomFull):
-			c.JSON(http.StatusConflict, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "ROOM_FULL", "message": "Room is full"},
-			})
+			response.CustomError(c, http.StatusConflict, "ROOM_FULL", "Room is full")
 		case errors.Is(err, service.ErrAlreadyInRoom):
-			c.JSON(http.StatusConflict, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "ALREADY_IN_ROOM", "message": "User is already in room"},
-			})
+			response.CustomError(c, http.StatusConflict, "ALREADY_IN_ROOM", "User is already in room")
 		case errors.Is(err, service.ErrRoomNotActive):
-			c.JSON(http.StatusGone, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "ROOM_ENDED", "message": "Room has ended"},
-			})
+			response.CustomError(c, http.StatusGone, "ROOM_ENDED", "Room has ended")
 		case errors.Is(err, service.ErrNotWorkspaceMember):
-			c.JSON(http.StatusForbidden, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "FORBIDDEN", "message": "You are not a member of this workspace"},
-			})
+			response.Forbidden(c, "You are not a member of this workspace")
 		default:
 			h.logger.Error("Failed to join room", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to join room"},
-			})
+			response.InternalError(c, "Failed to join room")
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    response,
-	})
+	response.OK(c, resp)
 }
 
 // LeaveRoom godoc
@@ -249,33 +199,21 @@ func (h *RoomHandler) LeaveRoom(c *gin.Context) {
 	roomIDStr := c.Param("roomId")
 	roomID, err := uuid.Parse(roomIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid room ID"},
-		})
+		response.BadRequest(c, "Invalid room ID")
 		return
 	}
 
 	if err := h.roomService.LeaveRoom(c.Request.Context(), roomID, userID); err != nil {
 		if errors.Is(err, service.ErrNotInRoom) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "NOT_IN_ROOM", "message": "User is not in room"},
-			})
+			response.CustomError(c, http.StatusBadRequest, "NOT_IN_ROOM", "User is not in room")
 			return
 		}
 		h.logger.Error("Failed to leave room", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to leave room"},
-		})
+		response.InternalError(c, "Failed to leave room")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Left room successfully",
-	})
+	response.Success(c, "Left room successfully")
 }
 
 // EndRoom godoc
@@ -291,33 +229,21 @@ func (h *RoomHandler) EndRoom(c *gin.Context) {
 	roomIDStr := c.Param("roomId")
 	roomID, err := uuid.Parse(roomIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid room ID"},
-		})
+		response.BadRequest(c, "Invalid room ID")
 		return
 	}
 
 	if err := h.roomService.EndRoom(c.Request.Context(), roomID, userID); err != nil {
 		if errors.Is(err, service.ErrRoomNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "NOT_FOUND", "message": "Room not found"},
-			})
+			response.NotFound(c, "Room not found")
 			return
 		}
 		h.logger.Error("Failed to end room", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to end room"},
-		})
+		response.InternalError(c, "Failed to end room")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Room ended successfully",
-	})
+	response.Success(c, "Room ended successfully")
 }
 
 // GetParticipants godoc
@@ -332,27 +258,18 @@ func (h *RoomHandler) GetParticipants(c *gin.Context) {
 	roomIDStr := c.Param("roomId")
 	roomID, err := uuid.Parse(roomIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid room ID"},
-		})
+		response.BadRequest(c, "Invalid room ID")
 		return
 	}
 
 	participants, err := h.roomService.GetParticipants(c.Request.Context(), roomID)
 	if err != nil {
 		h.logger.Error("Failed to get participants", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get participants"},
-		})
+		response.InternalError(c, "Failed to get participants")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    participants,
-	})
+	response.OK(c, participants)
 }
 
 // GetWorkspaceCallHistory godoc
@@ -372,10 +289,7 @@ func (h *RoomHandler) GetWorkspaceCallHistory(c *gin.Context) {
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
@@ -395,27 +309,15 @@ func (h *RoomHandler) GetWorkspaceCallHistory(c *gin.Context) {
 	histories, total, err := h.roomService.GetWorkspaceCallHistory(c.Request.Context(), workspaceID, userID, token, limit, offset)
 	if err != nil {
 		if errors.Is(err, service.ErrNotWorkspaceMember) {
-			c.JSON(http.StatusForbidden, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "FORBIDDEN", "message": "You are not a member of this workspace"},
-			})
+			response.Forbidden(c, "You are not a member of this workspace")
 			return
 		}
 		h.logger.Error("Failed to get call history", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get call history"},
-		})
+		response.InternalError(c, "Failed to get call history")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    histories,
-		"total":   total,
-		"limit":   limit,
-		"offset":  offset,
-	})
+	response.OKWithPagination(c, histories, total, limit, offset)
 }
 
 // GetMyCallHistory godoc
@@ -446,20 +348,11 @@ func (h *RoomHandler) GetMyCallHistory(c *gin.Context) {
 	histories, total, err := h.roomService.GetUserCallHistory(c.Request.Context(), userID, limit, offset)
 	if err != nil {
 		h.logger.Error("Failed to get call history", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get call history"},
-		})
+		response.InternalError(c, "Failed to get call history")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    histories,
-		"total":   total,
-		"limit":   limit,
-		"offset":  offset,
-	})
+	response.OKWithPagination(c, histories, total, limit, offset)
 }
 
 // GetCallHistory godoc
@@ -474,35 +367,23 @@ func (h *RoomHandler) GetCallHistory(c *gin.Context) {
 	historyIDStr := c.Param("historyId")
 	historyID, err := uuid.Parse(historyIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid history ID"},
-		})
+		response.BadRequest(c, "Invalid history ID")
 		return
 	}
 
 	history, err := h.roomService.GetCallHistoryByID(c.Request.Context(), historyID)
 	if err != nil {
 		h.logger.Error("Failed to get call history", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get call history"},
-		})
+		response.InternalError(c, "Failed to get call history")
 		return
 	}
 
 	if history == nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "NOT_FOUND", "message": "Call history not found"},
-		})
+		response.NotFound(c, "Call history not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    history,
-	})
+	response.OK(c, history)
 }
 
 // SaveTranscript godoc
@@ -519,10 +400,7 @@ func (h *RoomHandler) SaveTranscript(c *gin.Context) {
 	roomIDStr := c.Param("roomId")
 	roomID, err := uuid.Parse(roomIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid room ID"},
-		})
+		response.BadRequest(c, "Invalid room ID")
 		return
 	}
 
@@ -530,27 +408,18 @@ func (h *RoomHandler) SaveTranscript(c *gin.Context) {
 		Content string `json:"content" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	transcript, err := h.roomService.SaveTranscript(c.Request.Context(), roomID, req.Content)
 	if err != nil {
 		h.logger.Error("Failed to save transcript", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to save transcript"},
-		})
+		response.InternalError(c, "Failed to save transcript")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    transcript,
-	})
+	response.OK(c, transcript)
 }
 
 // GetTranscript godoc
@@ -565,25 +434,16 @@ func (h *RoomHandler) GetTranscript(c *gin.Context) {
 	historyIDStr := c.Param("historyId")
 	historyID, err := uuid.Parse(historyIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid history ID"},
-		})
+		response.BadRequest(c, "Invalid history ID")
 		return
 	}
 
 	transcript, err := h.roomService.GetTranscriptByCallHistoryID(c.Request.Context(), historyID)
 	if err != nil {
 		// Return empty content instead of error if not found
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data":    nil,
-		})
+		response.OK(c, nil)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    transcript,
-	})
+	response.OK(c, transcript)
 }

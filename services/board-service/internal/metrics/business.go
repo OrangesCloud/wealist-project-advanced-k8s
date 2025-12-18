@@ -1,30 +1,30 @@
-// Package metrics provides Prometheus metrics for the application.
+// Package metrics는 애플리케이션의 Prometheus 메트릭을 제공합니다.
 package metrics
 
-// IncrementProjectCreated increments project creation counter
+// IncrementProjectCreated는 프로젝트 생성 카운터를 증가시킵니다.
 func (m *Metrics) IncrementProjectCreated() {
-	m.safeExecute("IncrementProjectCreated", func() {
+	if m.ProjectCreatedTotal != nil {
 		m.ProjectCreatedTotal.Inc()
-	})
+	}
 }
 
-// IncrementBoardCreated increments board creation counter
+// IncrementBoardCreated는 보드 생성 카운터를 증가시킵니다.
 func (m *Metrics) IncrementBoardCreated() {
-	m.safeExecute("IncrementBoardCreated", func() {
+	if m.BoardCreatedTotal != nil {
 		m.BoardCreatedTotal.Inc()
-	})
+	}
 }
 
-// SetProjectsTotal sets total projects gauge
+// SetProjectsTotal은 총 프로젝트 수 게이지를 설정합니다.
 func (m *Metrics) SetProjectsTotal(count int64) {
-	m.safeExecute("SetProjectsTotal", func() {
+	if m.ProjectsTotal != nil {
 		m.ProjectsTotal.Set(float64(count))
-	})
+	}
 }
 
-// SetBoardsTotal sets total boards gauge
+// SetBoardsTotal은 총 보드 수 게이지를 설정합니다.
 func (m *Metrics) SetBoardsTotal(count int64) {
-	m.safeExecute("SetBoardsTotal", func() {
+	if m.BoardsTotal != nil {
 		m.BoardsTotal.Set(float64(count))
-	})
+	}
 }

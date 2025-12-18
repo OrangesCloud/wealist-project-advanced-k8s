@@ -23,6 +23,10 @@ minio-data/
 /storage/
 /files/
 
+# Go binaries
+services/*/api
+*.exe
+
 # Java / Gradle
 .gradle
 build/

@@ -10,6 +10,7 @@ import (
 	commonmw "github.com/OrangesCloud/wealist-advanced-go-pkg/middleware"
 	"storage-service/internal/client"
 	"storage-service/internal/handler"
+	"storage-service/internal/metrics"
 	"storage-service/internal/middleware"
 	"storage-service/internal/repository"
 	"storage-service/internal/service"
@@ -17,24 +18,31 @@ import (
 
 // Config holds router configuration
 type Config struct {
-	DB         *gorm.DB
-	Logger     *zap.Logger
-	JWTSecret  string
-	BasePath   string
-	S3Client   *client.S3Client
-	AuthClient *client.AuthClient
-	UserClient client.UserClient
+	DB             *gorm.DB
+	Logger         *zap.Logger
+	JWTSecret      string
+	BasePath       string
+	S3Client       *client.S3Client
+	TokenValidator middleware.TokenValidator // 공통 모듈의 TokenValidator 인터페이스 사용
+	UserClient     client.UserClient
+	Metrics        *metrics.Metrics
 }
 
 // Setup sets up the router with all routes
 func Setup(cfg Config) *gin.Engine {
 	r := gin.New()
 
+	// Initialize metrics if not provided
+	m := cfg.Metrics
+	if m == nil {
+		m = metrics.New()
+	}
+
 	// Middleware (using common package)
 	r.Use(commonmw.Recovery(cfg.Logger))
 	r.Use(commonmw.Logger(cfg.Logger))
 	r.Use(commonmw.DefaultCORS())
-	r.Use(commonmw.Metrics())
+	r.Use(metrics.HTTPMiddleware(m))
 
 	// Prometheus metrics endpoint
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
@@ -50,8 +58,9 @@ func Setup(cfg Config) *gin.Engine {
 	projectRepo := repository.NewProjectRepository(cfg.DB)
 
 	// Initialize services
+	// 각 서비스에 필요한 의존성 주입
 	folderService := service.NewFolderService(folderRepo, fileRepo, cfg.Logger)
-	fileService := service.NewFileService(fileRepo, folderRepo, cfg.S3Client, cfg.Logger)
+	fileService := service.NewFileService(fileRepo, folderRepo, cfg.S3Client, cfg.Logger, m) // 메트릭 포함
 	shareService := service.NewShareService(shareRepo, fileRepo, folderRepo, cfg.Logger)
 	projectService := service.NewProjectService(projectRepo, cfg.UserClient, cfg.Logger)
 	accessService := service.NewAccessService(projectRepo, fileRepo, folderRepo, cfg.UserClient, cfg.Logger)
@@ -67,8 +76,8 @@ func Setup(cfg Config) *gin.Engine {
 
 	// Auth middleware
 	var authMiddleware gin.HandlerFunc
-	if cfg.AuthClient != nil {
-		authMiddleware = middleware.AuthWithValidator(cfg.AuthClient)
+	if cfg.TokenValidator != nil {
+		authMiddleware = middleware.AuthWithValidator(cfg.TokenValidator)
 	} else {
 		authMiddleware = middleware.Auth(cfg.JWTSecret)
 	}

@@ -2,9 +2,6 @@
 package router
 
 import (
-	"context"
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	swaggerFiles "github.com/swaggo/files"
@@ -12,6 +9,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	commonhealth "github.com/OrangesCloud/wealist-advanced-go-pkg/health"
 	commonmw "github.com/OrangesCloud/wealist-advanced-go-pkg/middleware"
 	"project-board-api/internal/client"
 	"project-board-api/internal/converter"
@@ -95,13 +93,9 @@ func Setup(cfg Config) *gin.Engine {
 		cfg.Logger.Info("No base path configured, using root path")
 	}
 
-	// Health check endpoints
-	// Liveness probe - 앱 프로세스만 확인 (DB/Redis 무관)
-	baseGroup.GET("/health/live", livenessHandler())
-	// Readiness probe - DB, Redis 연결 확인
-	baseGroup.GET("/health/ready", readinessHandler(cfg.DB))
-	// 기존 /health 엔드포인트 유지 (하위 호환성)
-	baseGroup.GET("/health", readinessHandler(cfg.DB))
+	// Health check endpoints using common package
+	healthChecker := commonhealth.NewHealthChecker(cfg.DB, database.GetRedis())
+	healthChecker.RegisterRoutes(router, cfg.BasePath)
 
 	// Swagger documentation endpoint
 	baseGroup.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -128,76 +122,6 @@ func Setup(cfg Config) *gin.Engine {
 	baseGroup.GET("/ws/project/:projectId", wsHandler.HandleWebSocket)
 
 	return router
-}
-
-// livenessHandler returns a handler for the liveness probe
-// This only checks if the application process is running (no DB/Redis check)
-// Used by Kubernetes to determine if the pod should be restarted
-func livenessHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status": "alive",
-		})
-	}
-}
-
-// readinessHandler returns a handler for the readiness probe
-// This checks database and Redis connections
-// Used by Kubernetes to determine if the pod should receive traffic
-func readinessHandler(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		checks := gin.H{}
-		isReady := true
-
-		// Check database connection
-		sqlDB, err := db.DB()
-		if err != nil {
-			c.JSON(503, gin.H{
-				"status":   "not_ready",
-				"database": "error",
-				"error":    err.Error(),
-			})
-			return
-		}
-
-		if err := sqlDB.Ping(); err != nil {
-			c.JSON(503, gin.H{
-				"status":   "not_ready",
-				"database": "disconnected",
-				"error":    err.Error(),
-			})
-			return
-		}
-		checks["database"] = "connected"
-
-		// Check Redis connection
-		redisClient := database.GetRedis()
-		if redisClient != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-
-			if err := redisClient.Ping(ctx).Err(); err != nil {
-				checks["redis"] = "disconnected"
-				isReady = false
-			} else {
-				checks["redis"] = "connected"
-			}
-		} else {
-			checks["redis"] = "not_configured"
-		}
-
-		if isReady {
-			c.JSON(200, gin.H{
-				"status": "ready",
-				"checks": checks,
-			})
-		} else {
-			c.JSON(503, gin.H{
-				"status": "not_ready",
-				"checks": checks,
-			})
-		}
-	}
 }
 
 // setupRoutes configures all API routes

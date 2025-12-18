@@ -14,6 +14,7 @@ import (
 
 	"storage-service/internal/client"
 	"storage-service/internal/domain"
+	"storage-service/internal/metrics"
 	"storage-service/internal/repository"
 )
 
@@ -30,25 +31,31 @@ var (
 const MaxFileSize = 100 * 1024 * 1024
 
 // FileService handles file business logic
+// 파일 업로드, 다운로드, 삭제 등의 비즈니스 로직을 처리합니다.
+// 메트릭과 로깅을 통해 모니터링을 지원합니다.
 type FileService struct {
 	fileRepo   *repository.FileRepository
 	folderRepo *repository.FolderRepository
 	s3Client   *client.S3Client
 	logger     *zap.Logger
+	metrics    *metrics.Metrics // 메트릭 수집을 위한 필드
 }
 
 // NewFileService creates a new FileService
+// metrics 파라미터가 nil인 경우에도 안전하게 동작합니다.
 func NewFileService(
 	fileRepo *repository.FileRepository,
 	folderRepo *repository.FolderRepository,
 	s3Client *client.S3Client,
 	logger *zap.Logger,
+	m *metrics.Metrics,
 ) *FileService {
 	return &FileService{
 		fileRepo:   fileRepo,
 		folderRepo: folderRepo,
 		s3Client:   s3Client,
 		logger:     logger,
+		metrics:    m,
 	}
 }
 
@@ -173,9 +180,15 @@ func (s *FileService) ConfirmUpload(ctx context.Context, fileID, userID uuid.UUI
 		return nil, fmt.Errorf("failed to update file status: %w", err)
 	}
 
+	// 메트릭 기록: 파일 업로드 성공
+	if s.metrics != nil {
+		s.metrics.RecordFileUpload()
+	}
+
 	s.logger.Info("File upload confirmed",
 		zap.String("fileId", file.ID.String()),
 		zap.String("userId", userID.String()),
+		zap.Int64("fileSize", file.FileSize),
 	)
 
 	return file, nil
@@ -303,22 +316,37 @@ func (s *FileService) UpdateFile(ctx context.Context, fileID uuid.UUID, req doma
 }
 
 // DeleteFile soft deletes a file (move to trash)
+// 소프트 삭제 성공 시 메트릭을 기록합니다.
 func (s *FileService) DeleteFile(ctx context.Context, fileID uuid.UUID, userID uuid.UUID) error {
 	file, err := s.fileRepo.FindByID(ctx, fileID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("file not found")
 		}
+		s.logger.Error("Failed to find file for deletion",
+			zap.String("fileId", fileID.String()),
+			zap.Error(err),
+		)
 		return fmt.Errorf("failed to get file: %w", err)
 	}
 
 	if err := s.fileRepo.SoftDelete(ctx, fileID); err != nil {
+		s.logger.Error("Failed to soft delete file",
+			zap.String("fileId", fileID.String()),
+			zap.Error(err),
+		)
 		return fmt.Errorf("failed to delete file: %w", err)
+	}
+
+	// 메트릭 기록: 파일 삭제 성공
+	if s.metrics != nil {
+		s.metrics.RecordFileDelete()
 	}
 
 	s.logger.Info("File deleted (moved to trash)",
 		zap.String("fileId", file.ID.String()),
 		zap.String("userId", userID.String()),
+		zap.String("fileName", file.Name),
 	)
 
 	return nil
@@ -464,6 +492,7 @@ func (s *FileService) CleanupOrphanedUploads(ctx context.Context) error {
 }
 
 // GenerateDownloadURL generates a presigned URL for file download
+// 다운로드 URL 생성 시 메트릭을 기록합니다.
 func (s *FileService) GenerateDownloadURL(ctx context.Context, fileID uuid.UUID) (string, error) {
 	file, err := s.fileRepo.FindByID(ctx, fileID)
 	if err != nil {
@@ -475,8 +504,22 @@ func (s *FileService) GenerateDownloadURL(ctx context.Context, fileID uuid.UUID)
 
 	url, err := s.s3Client.GenerateDownloadURL(ctx, file.FileKey, file.OriginalName)
 	if err != nil {
+		s.logger.Error("Failed to generate download URL",
+			zap.String("fileId", fileID.String()),
+			zap.Error(err),
+		)
 		return "", fmt.Errorf("failed to generate download URL: %w", err)
 	}
+
+	// 메트릭 기록: 파일 다운로드 요청
+	if s.metrics != nil {
+		s.metrics.RecordFileDownload()
+	}
+
+	s.logger.Info("Download URL generated",
+		zap.String("fileId", fileID.String()),
+		zap.String("fileName", file.Name),
+	)
 
 	return url, nil
 }

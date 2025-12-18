@@ -4,6 +4,7 @@ import (
 	"chat-service/internal/client"
 	"chat-service/internal/config"
 	"chat-service/internal/handler"
+	"chat-service/internal/metrics"
 	"chat-service/internal/middleware"
 	"chat-service/internal/repository"
 	"chat-service/internal/service"
@@ -28,11 +29,14 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 
 	r := gin.New()
 
+	// Initialize metrics
+	m := metrics.New()
+
 	// Middleware (using common package)
 	r.Use(commonmw.Recovery(logger))
 	r.Use(commonmw.Logger(logger))
 	r.Use(commonmw.DefaultCORS())
-	r.Use(commonmw.Metrics())
+	r.Use(metrics.HTTPMiddleware(m))
 
 	// Initialize repositories
 	chatRepo := repository.NewChatRepository(db)
@@ -48,9 +52,9 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 		logger.Warn("User service URL not configured, workspace validation will be skipped")
 	}
 
-	// Initialize services
-	chatService := service.NewChatService(chatRepo, messageRepo, userClient, redisClient, logger)
-	presenceService := service.NewPresenceService(presenceRepo, redisClient, logger)
+	// Initialize services (메트릭 연동)
+	chatService := service.NewChatService(chatRepo, messageRepo, userClient, redisClient, logger, m)
+	presenceService := service.NewPresenceService(presenceRepo, redisClient, logger, m)
 
 	// Initialize validator
 	validator := middleware.NewAuthServiceValidator(cfg.Auth.ServiceURL, cfg.Auth.SecretKey, logger)

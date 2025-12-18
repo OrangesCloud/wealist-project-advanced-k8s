@@ -130,7 +130,7 @@ func main() {
 
 	// Initialize and start business metrics collector
 	businessCollector := metrics.NewBusinessMetricsCollector(db, m, log.Logger)
-	businessCollector.Start()
+	periodicCollector := businessCollector.StartPeriodicCollection()
 	log.Info("Business metrics collector started")
 
 	// Run GORM auto-migration with retry logic (conditional based on DB_AUTO_MIGRATE env)
@@ -277,7 +277,7 @@ func main() {
 
 	// Stop business metrics collector
 	log.Info("Stopping business metrics collector")
-	businessCollector.Stop()
+	periodicCollector.Stop()
 	log.Info("Business metrics collector stopped")
 
 	// Stop cron scheduler

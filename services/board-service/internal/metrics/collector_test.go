@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -10,6 +11,8 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	commonmetrics "github.com/OrangesCloud/wealist-advanced-go-pkg/metrics"
 )
 
 // testProject is a simple project model for testing
@@ -70,11 +73,9 @@ func TestNewBusinessMetricsCollector(t *testing.T) {
 	assert.NotNil(t, collector.db, "DB should not be nil")
 	assert.NotNil(t, collector.metrics, "Metrics should not be nil")
 	assert.NotNil(t, collector.logger, "Logger should not be nil")
-	assert.NotNil(t, collector.ticker, "Ticker should not be nil")
-	assert.NotNil(t, collector.done, "Done channel should not be nil")
 }
 
-// TestBusinessMetricsCollector_Collect tests the collect method
+// TestBusinessMetricsCollector_Collect tests the Collect method
 // **Feature: board-service-prometheus-metrics, Property 12: 비즈니스 메트릭 노출**
 // **Validates: Requirements 7.1, 7.2**
 func TestBusinessMetricsCollector_Collect(t *testing.T) {
@@ -109,8 +110,10 @@ func TestBusinessMetricsCollector_Collect(t *testing.T) {
 	// Create collector
 	collector := NewBusinessMetricsCollector(db, m, logger)
 
-	// Manually trigger collection
-	collector.collect()
+	// Manually trigger collection using the new interface
+	ctx := context.Background()
+	err := collector.Collect(ctx)
+	require.NoError(t, err)
 
 	// Verify metrics
 	projectsTotal := getGaugeValue(t, m.ProjectsTotal)
@@ -132,8 +135,10 @@ func TestBusinessMetricsCollector_CollectEmpty(t *testing.T) {
 	// Create collector
 	collector := NewBusinessMetricsCollector(db, m, logger)
 
-	// Manually trigger collection
-	collector.collect()
+	// Manually trigger collection using the new interface
+	ctx := context.Background()
+	err := collector.Collect(ctx)
+	require.NoError(t, err)
 
 	// Verify metrics
 	projectsTotal := getGaugeValue(t, m.ProjectsTotal)
@@ -143,7 +148,7 @@ func TestBusinessMetricsCollector_CollectEmpty(t *testing.T) {
 	assert.Equal(t, float64(0), boardsTotal, "BoardsTotal should be 0")
 }
 
-// TestBusinessMetricsCollector_StartStop tests start and stop
+// TestBusinessMetricsCollector_StartStop tests start and stop using PeriodicCollector
 // **Feature: board-service-prometheus-metrics, Property 12: 비즈니스 메트릭 노출**
 // **Validates: Requirements 7.1, 7.2**
 func TestBusinessMetricsCollector_StartStop(t *testing.T) {
@@ -156,13 +161,19 @@ func TestBusinessMetricsCollector_StartStop(t *testing.T) {
 	err := db.Create(&project).Error
 	require.NoError(t, err)
 
-	// Create collector with shorter interval for testing
+	// Create collector
 	collector := NewBusinessMetricsCollector(db, m, logger)
-	collector.ticker.Stop()
-	collector.ticker = time.NewTicker(20 * time.Millisecond)
 
-	// Start collector
-	collector.Start()
+	// Start using the new PeriodicCollector with short interval for testing
+	periodicCollector := commonmetrics.NewPeriodicCollector(
+		&commonmetrics.CollectorConfig{
+			Interval: 20 * time.Millisecond,
+			Timeout:  5 * time.Second,
+			Logger:   logger,
+		},
+		collector,
+	)
+	periodicCollector.Start()
 
 	// Wait for at least one collection cycle
 	time.Sleep(30 * time.Millisecond)
@@ -172,10 +183,7 @@ func TestBusinessMetricsCollector_StartStop(t *testing.T) {
 	assert.Equal(t, float64(1), projectsTotal, "ProjectsTotal should be 1")
 
 	// Stop collector
-	collector.Stop()
-
-	// Wait to ensure goroutine exits
-	time.Sleep(10 * time.Millisecond)
+	periodicCollector.Stop()
 
 	// Test passes if no panic or deadlock occurs
 }
@@ -194,14 +202,20 @@ func TestBusinessMetricsCollector_PeriodicCollection(t *testing.T) {
 	require.NoError(t, err, "Failed to check if projects table exists")
 	require.Equal(t, int64(1), tableCount, "Projects table should exist")
 
-	// Create collector with shorter interval for faster test execution
+	// Create collector
 	collector := NewBusinessMetricsCollector(db, m, logger)
-	collector.ticker.Stop()
-	collector.ticker = time.NewTicker(20 * time.Millisecond)
 
-	// Start collector
-	collector.Start()
-	defer collector.Stop()
+	// Start using the new PeriodicCollector with short interval for testing
+	periodicCollector := commonmetrics.NewPeriodicCollector(
+		&commonmetrics.CollectorConfig{
+			Interval: 20 * time.Millisecond,
+			Timeout:  5 * time.Second,
+			Logger:   logger,
+		},
+		collector,
+	)
+	periodicCollector.Start()
+	defer periodicCollector.Stop()
 
 	// Insert initial data
 	project1 := testProject{ID: uuid.New().String(), Name: "Project 1"}
@@ -259,10 +273,12 @@ func TestBusinessMetricsCollector_ImmediateCollection(t *testing.T) {
 	err = db.Create(&board).Error
 	require.NoError(t, err)
 
-	// Create and start collector
+	// Create collector
 	collector := NewBusinessMetricsCollector(db, m, logger)
-	collector.Start()
-	defer collector.Stop()
+
+	// Start using the convenience method
+	periodicCollector := collector.StartPeriodicCollection()
+	defer periodicCollector.Stop()
 
 	// Wait a bit for immediate collection to complete
 	time.Sleep(20 * time.Millisecond)
@@ -307,7 +323,9 @@ func TestBusinessMetricsCollector_Integration(t *testing.T) {
 
 	// Create collector and manually trigger collection
 	collector := NewBusinessMetricsCollector(db, m, logger)
-	collector.collect()
+	ctx := context.Background()
+	err = collector.Collect(ctx)
+	require.NoError(t, err)
 
 	// Verify event counters incremented
 	newProjectCreated := getCounterValue(t, m.ProjectCreatedTotal)
@@ -342,10 +360,11 @@ func TestBusinessMetricsCollector_ErrorHandling(t *testing.T) {
 	// Close the database to simulate error
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
-	sqlDB.Close()
+	_ = sqlDB.Close()
 
 	// Trigger collection (should handle error gracefully)
-	collector.collect()
+	ctx := context.Background()
+	_ = collector.Collect(ctx) // Errors are logged, not returned for individual queries
 
 	// Verify metrics retain previous values (not updated due to error)
 	projectsTotal := getGaugeValue(t, m.ProjectsTotal)
@@ -380,20 +399,27 @@ func TestBusinessMetricsCollector_ConcurrentAccess(t *testing.T) {
 		m.IncrementBoardCreated()
 	}
 
-	// Create collector with shorter interval to test concurrent collection
+	// Create collector
 	collector := NewBusinessMetricsCollector(db, m, logger)
-	collector.ticker.Stop()
-	collector.ticker = time.NewTicker(10 * time.Millisecond)
 
-	// Start collector
-	collector.Start()
-	defer collector.Stop()
+	// Start using the new PeriodicCollector with short interval for testing
+	periodicCollector := commonmetrics.NewPeriodicCollector(
+		&commonmetrics.CollectorConfig{
+			Interval: 10 * time.Millisecond,
+			Timeout:  5 * time.Second,
+			Logger:   logger,
+		},
+		collector,
+	)
+	periodicCollector.Start()
+	defer periodicCollector.Stop()
 
 	// Concurrently trigger multiple collections
 	done := make(chan bool, 3)
+	ctx := context.Background()
 	for i := 0; i < 3; i++ {
 		go func() {
-			collector.collect()
+			_ = collector.Collect(ctx)
 			done <- true
 		}()
 	}

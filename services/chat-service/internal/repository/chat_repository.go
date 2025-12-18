@@ -136,3 +136,13 @@ func (r *ChatRepository) UpdateLastReadAt(chatID, userID uuid.UUID) error {
 		Where("chat_id = ? AND user_id = ? AND is_active = ?", chatID, userID, true).
 		Update("last_read_at", time.Now()).Error
 }
+
+// CountAll은 전체 채팅방 수를 반환합니다.
+// 메트릭용으로 사용됩니다.
+func (r *ChatRepository) CountAll() (int64, error) {
+	var count int64
+	err := r.db.Model(&domain.Chat{}).
+		Where("deleted_at IS NULL").
+		Count(&count).Error
+	return count, err
+}

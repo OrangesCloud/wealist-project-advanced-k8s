@@ -2,19 +2,31 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"project-board-api/internal/response"
 )
 
+// getErrorLogger retrieves the zap logger from gin context or returns a nop logger
+func getErrorLogger(c *gin.Context) *zap.Logger {
+	if logger, exists := c.Get("logger"); exists {
+		if log, ok := logger.(*zap.Logger); ok {
+			return log
+		}
+	}
+	return zap.NewNop()
+}
+
 // handleServiceError maps service layer errors to appropriate HTTP responses
 func handleServiceError(c *gin.Context, err error) {
+	log := getErrorLogger(c)
+
 	// Log the error for debugging
-	fmt.Printf("[ERROR] Service error: %v\n", err)
+	log.Error("Service error", zap.Error(err))
 
 	// Check for GORM errors
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -25,14 +37,17 @@ func handleServiceError(c *gin.Context, err error) {
 	// Check for custom AppError
 	var appErr *response.AppError
 	if errors.As(err, &appErr) {
-		fmt.Printf("[ERROR] AppError - Code: %s, Message: %s, Details: %s\n", appErr.Code, appErr.Message, appErr.Details)
+		log.Error("AppError",
+			zap.String("code", appErr.Code),
+			zap.String("message", appErr.Message),
+			zap.String("details", appErr.Details))
 		statusCode := mapErrorCodeToHTTPStatus(appErr.Code)
 		response.SendError(c, statusCode, appErr.Code, appErr.Message)
 		return
 	}
 
 	// Default to internal server error
-	fmt.Printf("[ERROR] Unhandled error type: %T, value: %v\n", err, err)
+	log.Error("Unhandled error type", zap.String("type", errors.Unwrap(err).Error()), zap.Error(err))
 	response.SendError(c, http.StatusInternalServerError, response.ErrCodeInternal, "Internal server error")
 }
 

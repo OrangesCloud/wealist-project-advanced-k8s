@@ -1,13 +1,12 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"user-service/internal/domain"
 	"user-service/internal/middleware"
+	"user-service/internal/response"
 	"user-service/internal/service"
 )
 
@@ -38,29 +37,23 @@ func NewProfileHandler(profileService *service.ProfileService, attachmentService
 func (h *ProfileHandler) CreateProfile(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	var req domain.CreateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	profile, err := h.profileService.CreateProfile(userID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "CREATE_FAILED", Message: err.Error()},
-		})
+		response.BadRequestWithDetails(c, "Failed to create profile", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, profile.ToResponse())
+	response.Created(c, profile.ToResponse())
 }
 
 // GetMyProfile godoc
@@ -75,30 +68,24 @@ func (h *ProfileHandler) CreateProfile(c *gin.Context) {
 func (h *ProfileHandler) GetMyProfile(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.GetHeader("X-Workspace-Id")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_WORKSPACE_ID", Message: "Valid X-Workspace-Id header required"},
-		})
+		response.BadRequest(c, "Valid X-Workspace-Id header required")
 		return
 	}
 
 	profile, err := h.profileService.GetMyProfile(userID, workspaceID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{
-			Error: ErrorDetail{Code: "NOT_FOUND", Message: "Profile not found"},
-		})
+		response.NotFound(c, "Profile not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, profile.ToResponse())
+	response.OK(c, profile.ToResponse())
 }
 
 // GetAllMyProfiles godoc
@@ -111,17 +98,13 @@ func (h *ProfileHandler) GetMyProfile(c *gin.Context) {
 func (h *ProfileHandler) GetAllMyProfiles(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	profiles, err := h.profileService.GetAllMyProfiles(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{Code: "FETCH_FAILED", Message: err.Error()},
-		})
+		response.InternalErrorWithDetails(c, "Failed to fetch profiles", err)
 		return
 	}
 
@@ -130,7 +113,7 @@ func (h *ProfileHandler) GetAllMyProfiles(c *gin.Context) {
 		responses[i] = p.ToResponse()
 	}
 
-	c.JSON(http.StatusOK, responses)
+	response.OK(c, responses)
 }
 
 // GetUserProfile godoc
@@ -146,39 +129,31 @@ func (h *ProfileHandler) GetAllMyProfiles(c *gin.Context) {
 func (h *ProfileHandler) GetUserProfile(c *gin.Context) {
 	viewerID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	userIDStr := c.Param("userId")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid user ID"},
-		})
+		response.BadRequest(c, "Invalid user ID")
 		return
 	}
 
 	profile, err := h.profileService.GetUserProfile(viewerID, userID, workspaceID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{
-			Error: ErrorDetail{Code: "NOT_FOUND", Message: "Profile not found or access denied"},
-		})
+		response.NotFound(c, "Profile not found or access denied")
 		return
 	}
 
-	c.JSON(http.StatusOK, profile.ToResponse())
+	response.OK(c, profile.ToResponse())
 }
 
 // UpdateProfile godoc
@@ -195,38 +170,30 @@ func (h *ProfileHandler) GetUserProfile(c *gin.Context) {
 func (h *ProfileHandler) UpdateProfile(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.GetHeader("X-Workspace-Id")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_WORKSPACE_ID", Message: "Valid X-Workspace-Id header required"},
-		})
+		response.BadRequest(c, "Valid X-Workspace-Id header required")
 		return
 	}
 
 	var req domain.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	profile, err := h.profileService.UpdateProfile(userID, workspaceID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "UPDATE_FAILED", Message: err.Error()},
-		})
+		response.BadRequestWithDetails(c, "Failed to update profile", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, profile.ToResponse())
+	response.OK(c, profile.ToResponse())
 }
 
 // DeleteProfile godoc
@@ -240,29 +207,23 @@ func (h *ProfileHandler) UpdateProfile(c *gin.Context) {
 func (h *ProfileHandler) DeleteProfile(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	if err := h.profileService.DeleteProfile(userID, workspaceID); err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{Code: "DELETE_FAILED", Message: err.Error()},
-		})
+		response.InternalErrorWithDetails(c, "Failed to delete profile", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{Message: "Profile deleted successfully"})
+	response.Success(c, "Profile deleted successfully")
 }
 
 // GeneratePresignedURL godoc
@@ -278,29 +239,23 @@ func (h *ProfileHandler) DeleteProfile(c *gin.Context) {
 func (h *ProfileHandler) GeneratePresignedURL(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	var req domain.PresignedURLRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
-	response, err := h.attachmentService.GeneratePresignedURL(c.Request.Context(), userID, req)
+	resp, err := h.attachmentService.GeneratePresignedURL(c.Request.Context(), userID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "GENERATE_FAILED", Message: err.Error()},
-		})
+		response.BadRequestWithDetails(c, "Failed to generate presigned URL", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	response.OK(c, resp)
 }
 
 // SaveAttachment godoc
@@ -316,29 +271,23 @@ func (h *ProfileHandler) GeneratePresignedURL(c *gin.Context) {
 func (h *ProfileHandler) SaveAttachment(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	var req domain.SaveAttachmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	attachment, err := h.attachmentService.SaveAttachment(c.Request.Context(), userID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "SAVE_FAILED", Message: err.Error()},
-		})
+		response.BadRequestWithDetails(c, "Failed to save attachment", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, attachment.ToResponse())
+	response.Created(c, attachment.ToResponse())
 }
 
 // ConfirmProfileImage godoc
@@ -355,35 +304,27 @@ func (h *ProfileHandler) SaveAttachment(c *gin.Context) {
 func (h *ProfileHandler) ConfirmProfileImage(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	workspaceIDStr := c.GetHeader("X-Workspace-Id")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_WORKSPACE_ID", Message: "Valid X-Workspace-Id header required"},
-		})
+		response.BadRequest(c, "Valid X-Workspace-Id header required")
 		return
 	}
 
 	var req domain.ConfirmAttachmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	// Get attachment
 	attachment, err := h.attachmentService.GetAttachment(req.AttachmentID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{
-			Error: ErrorDetail{Code: "NOT_FOUND", Message: "Attachment not found"},
-		})
+		response.NotFound(c, "Attachment not found")
 		return
 	}
 
@@ -396,29 +337,23 @@ func (h *ProfileHandler) ConfirmProfileImage(c *gin.Context) {
 
 	profile, err := h.profileService.GetOrCreateProfile(userID, workspaceID, defaultNickName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{Code: "PROFILE_ERROR", Message: "Failed to get or create profile"},
-		})
+		response.InternalError(c, "Failed to get or create profile")
 		return
 	}
 
 	// Confirm attachment
 	_, err = h.attachmentService.ConfirmAttachment(c.Request.Context(), userID, req.AttachmentID, profile.ID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "CONFIRM_FAILED", Message: err.Error()},
-		})
+		response.BadRequestWithDetails(c, "Failed to confirm attachment", err.Error())
 		return
 	}
 
 	// Update profile with image URL (use profile.WorkspaceID which was resolved from default UUID)
 	updatedProfile, err := h.profileService.UpdateProfileImage(userID, profile.WorkspaceID, attachment.FileURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{Code: "UPDATE_FAILED", Message: err.Error()},
-		})
+		response.InternalErrorWithDetails(c, "Failed to update profile image", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, updatedProfile.ToResponse())
+	response.OK(c, updatedProfile.ToResponse())
 }

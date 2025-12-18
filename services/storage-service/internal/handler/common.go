@@ -1,15 +1,17 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"storage-service/internal/response"
 	"storage-service/internal/service"
 )
 
-// ErrorResponse represents an error response
+// ErrorResponse represents an error response (kept for backward compatibility)
 type ErrorResponse struct {
 	Error ErrorDetail `json:"error"`
 }
@@ -127,75 +129,39 @@ func handleInternalError(c *gin.Context, message string) {
 	respondWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", message)
 }
 
-// handleServiceError maps service errors to HTTP responses
+// handleServiceError maps service errors to HTTP responses using errors.Is()
+// for proper error comparison instead of string matching.
 func handleServiceError(c *gin.Context, err error) {
-	switch err {
-	case service.ErrAccessDenied:
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error: ErrorDetail{
-				Code:    "ACCESS_DENIED",
-				Message: "Access denied",
-			},
-		})
-	case service.ErrNotWorkspaceMember:
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error: ErrorDetail{
-				Code:    "NOT_WORKSPACE_MEMBER",
-				Message: "User is not a member of this workspace",
-			},
-		})
-	case service.ErrInsufficientPermission:
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error: ErrorDetail{
-				Code:    "INSUFFICIENT_PERMISSION",
-				Message: "Insufficient permission to perform this action",
-			},
-		})
-	case service.ErrCannotRemoveOwner:
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{
-				Code:    "CANNOT_REMOVE_OWNER",
-				Message: "Cannot remove the only owner of the project",
-			},
-		})
-	case service.ErrCannotChangeOwnRole:
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{
-				Code:    "CANNOT_CHANGE_OWN_ROLE",
-				Message: "Cannot change your own role",
-			},
-		})
-	case service.ErrInvalidPermission:
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{
-				Code:    "INVALID_PERMISSION",
-				Message: "Invalid permission value",
-			},
-		})
+	switch {
+	case errors.Is(err, service.ErrAccessDenied):
+		response.Forbidden(c, "Access denied")
+
+	case errors.Is(err, service.ErrNotWorkspaceMember):
+		response.Forbidden(c, "User is not a member of this workspace")
+
+	case errors.Is(err, service.ErrInsufficientPermission):
+		response.Forbidden(c, "Insufficient permission to perform this action")
+
+	case errors.Is(err, service.ErrCannotRemoveOwner):
+		response.BadRequest(c, "Cannot remove the only owner of the project")
+
+	case errors.Is(err, service.ErrCannotChangeOwnRole):
+		response.BadRequest(c, "Cannot change your own role")
+
+	case errors.Is(err, service.ErrInvalidPermission):
+		response.BadRequest(c, "Invalid permission value")
+
 	default:
-		// Check for repository errors
+		// Check error message for repository errors
+		// TODO: Replace with proper error types in repository layer
 		errStr := err.Error()
-		if errStr == "project not found" || errStr == "project member not found" || errStr == "file not found" || errStr == "folder not found" {
-			c.JSON(http.StatusNotFound, ErrorResponse{
-				Error: ErrorDetail{
-					Code:    "NOT_FOUND",
-					Message: errStr,
-				},
-			})
-		} else if errStr == "project member already exists" {
-			c.JSON(http.StatusConflict, ErrorResponse{
-				Error: ErrorDetail{
-					Code:    "MEMBER_EXISTS",
-					Message: "User is already a member of this project",
-				},
-			})
-		} else {
-			c.JSON(http.StatusInternalServerError, ErrorResponse{
-				Error: ErrorDetail{
-					Code:    "INTERNAL_ERROR",
-					Message: "An internal error occurred",
-				},
-			})
+		switch errStr {
+		case "project not found", "project member not found", "file not found", "folder not found", "share not found":
+			response.NotFound(c, errStr)
+		case "project member already exists":
+			response.Conflict(c, "User is already a member of this project")
+		default:
+			response.InternalError(c, "An internal error occurred")
 		}
 	}
 }

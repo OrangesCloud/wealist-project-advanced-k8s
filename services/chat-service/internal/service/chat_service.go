@@ -1,8 +1,13 @@
+// Package service는 chat-service의 비즈니스 로직을 구현합니다.
+//
+// 이 패키지는 채팅방 생성, 메시지 전송, 참가자 관리 등의 핵심 기능을 제공합니다.
+// 메트릭 수집 및 로깅이 통합되어 있습니다.
 package service
 
 import (
 	"chat-service/internal/client"
 	"chat-service/internal/domain"
+	"chat-service/internal/metrics"
 	"chat-service/internal/repository"
 	"context"
 	"encoding/json"
@@ -14,20 +19,24 @@ import (
 	"go.uber.org/zap"
 )
 
+// ChatService는 채팅 관련 비즈니스 로직을 처리합니다.
 type ChatService struct {
 	chatRepo    *repository.ChatRepository
 	messageRepo *repository.MessageRepository
 	userClient  client.UserClient
 	redis       *redis.Client
 	logger      *zap.Logger
+	metrics     *metrics.Metrics
 }
 
+// NewChatService는 새 ChatService를 생성합니다.
 func NewChatService(
 	chatRepo *repository.ChatRepository,
 	messageRepo *repository.MessageRepository,
 	userClient client.UserClient,
 	redis *redis.Client,
 	logger *zap.Logger,
+	m *metrics.Metrics,
 ) *ChatService {
 	return &ChatService{
 		chatRepo:    chatRepo,
@@ -35,9 +44,12 @@ func NewChatService(
 		userClient:  userClient,
 		redis:       redis,
 		logger:      logger,
+		metrics:     m,
 	}
 }
 
+// CreateChat은 새 채팅방을 생성합니다.
+// 생성자를 자동으로 참가자 목록에 추가합니다.
 func (s *ChatService) CreateChat(ctx context.Context, req *domain.CreateChatRequest, createdBy uuid.UUID) (*domain.Chat, error) {
 	chat := &domain.Chat{
 		ID:          uuid.New(),
@@ -51,10 +63,14 @@ func (s *ChatService) CreateChat(ctx context.Context, req *domain.CreateChatRequ
 	}
 
 	if err := s.chatRepo.Create(chat); err != nil {
+		s.logger.Error("채팅방 생성 실패",
+			zap.String("workspace_id", req.WorkspaceID.String()),
+			zap.String("created_by", createdBy.String()),
+			zap.Error(err))
 		return nil, err
 	}
 
-	// Ensure creator is in participants
+	// 생성자를 참가자 목록에 추가
 	participantIDs := append([]uuid.UUID{createdBy}, req.Participants...)
 	uniqueIDs := make(map[uuid.UUID]bool)
 	for _, id := range participantIDs {
@@ -67,41 +83,105 @@ func (s *ChatService) CreateChat(ctx context.Context, req *domain.CreateChatRequ
 	}
 
 	if err := s.chatRepo.AddParticipants(chat.ID, uniqueParticipants); err != nil {
+		s.logger.Error("채팅방 참가자 추가 실패",
+			zap.String("chat_id", chat.ID.String()),
+			zap.Error(err))
 		return nil, err
 	}
 
-	// Reload with participants
+	// 📊 메트릭: 채팅방 수 업데이트
+	if s.metrics != nil {
+		count, _ := s.chatRepo.CountAll()
+		s.metrics.SetChatsTotal(count)
+	}
+
+	s.logger.Info("채팅방 생성 완료",
+		zap.String("chat_id", chat.ID.String()),
+		zap.String("workspace_id", req.WorkspaceID.String()),
+		zap.String("chat_type", string(req.ChatType)),
+		zap.String("created_by", createdBy.String()),
+		zap.Int("participant_count", len(uniqueParticipants)))
+
+	// 참가자 정보와 함께 리로드
 	return s.chatRepo.GetByID(chat.ID)
 }
 
+// GetChatByID는 ID로 채팅방을 조회합니다.
 func (s *ChatService) GetChatByID(ctx context.Context, chatID uuid.UUID) (*domain.Chat, error) {
 	return s.chatRepo.GetByID(chatID)
 }
 
+// GetUserChats는 사용자가 참여 중인 채팅방 목록을 조회합니다.
 func (s *ChatService) GetUserChats(ctx context.Context, userID uuid.UUID) ([]domain.ChatWithUnread, error) {
 	return s.chatRepo.GetUserChats(userID)
 }
 
+// GetWorkspaceChats는 워크스페이스의 채팅방 목록을 조회합니다.
 func (s *ChatService) GetWorkspaceChats(ctx context.Context, workspaceID uuid.UUID) ([]domain.Chat, error) {
 	return s.chatRepo.GetWorkspaceChats(workspaceID)
 }
 
+// DeleteChat은 채팅방을 소프트 삭제합니다.
 func (s *ChatService) DeleteChat(ctx context.Context, chatID uuid.UUID) error {
-	return s.chatRepo.SoftDelete(chatID)
+	if err := s.chatRepo.SoftDelete(chatID); err != nil {
+		s.logger.Error("채팅방 삭제 실패",
+			zap.String("chat_id", chatID.String()),
+			zap.Error(err))
+		return err
+	}
+
+	// 📊 메트릭: 채팅방 수 업데이트
+	if s.metrics != nil {
+		count, _ := s.chatRepo.CountAll()
+		s.metrics.SetChatsTotal(count)
+	}
+
+	s.logger.Info("채팅방 삭제 완료",
+		zap.String("chat_id", chatID.String()))
+
+	return nil
 }
 
+// AddParticipants는 채팅방에 참가자를 추가합니다.
 func (s *ChatService) AddParticipants(ctx context.Context, chatID uuid.UUID, userIDs []uuid.UUID) error {
-	return s.chatRepo.AddParticipants(chatID, userIDs)
+	if err := s.chatRepo.AddParticipants(chatID, userIDs); err != nil {
+		s.logger.Error("참가자 추가 실패",
+			zap.String("chat_id", chatID.String()),
+			zap.Error(err))
+		return err
+	}
+
+	s.logger.Info("참가자 추가 완료",
+		zap.String("chat_id", chatID.String()),
+		zap.Int("added_count", len(userIDs)))
+
+	return nil
 }
 
+// RemoveParticipant는 채팅방에서 참가자를 제거합니다.
 func (s *ChatService) RemoveParticipant(ctx context.Context, chatID, userID uuid.UUID) error {
-	return s.chatRepo.RemoveParticipant(chatID, userID)
+	if err := s.chatRepo.RemoveParticipant(chatID, userID); err != nil {
+		s.logger.Error("참가자 제거 실패",
+			zap.String("chat_id", chatID.String()),
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return err
+	}
+
+	s.logger.Info("참가자 제거 완료",
+		zap.String("chat_id", chatID.String()),
+		zap.String("user_id", userID.String()))
+
+	return nil
 }
 
+// IsUserInChat은 사용자가 채팅방에 참여 중인지 확인합니다.
 func (s *ChatService) IsUserInChat(ctx context.Context, chatID, userID uuid.UUID) (bool, error) {
 	return s.chatRepo.IsUserInChat(chatID, userID)
 }
 
+// SendMessage는 채팅방에 메시지를 전송합니다.
+// 메시지 생성 후 Redis를 통해 실시간 브로드캐스트합니다.
 func (s *ChatService) SendMessage(ctx context.Context, chatID, userID uuid.UUID, req *domain.SendMessageRequest) (*domain.Message, error) {
 	messageType := domain.MessageTypeText
 	if req.MessageType != "" {
@@ -122,18 +202,37 @@ func (s *ChatService) SendMessage(ctx context.Context, chatID, userID uuid.UUID,
 	}
 
 	if err := s.messageRepo.Create(message); err != nil {
+		s.logger.Error("메시지 생성 실패",
+			zap.String("chat_id", chatID.String()),
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
 		return nil, err
 	}
 
-	// Update chat timestamp
+	// 채팅방 타임스탬프 업데이트
 	s.chatRepo.UpdateTimestamp(chatID)
 
-	// Publish to Redis for WebSocket broadcast
+	// 📊 메트릭: 메시지 전송 카운트 증가
+	if s.metrics != nil {
+		s.metrics.RecordMessageSent()
+		count, _ := s.messageRepo.CountAll()
+		s.metrics.SetMessagesTotal(count)
+	}
+
+	s.logger.Debug("메시지 전송 완료",
+		zap.String("message_id", message.ID.String()),
+		zap.String("chat_id", chatID.String()),
+		zap.String("user_id", userID.String()),
+		zap.String("message_type", string(messageType)))
+
+	// Redis를 통해 WebSocket 브로드캐스트
 	s.publishMessage(ctx, chatID, message)
 
 	return message, nil
 }
 
+// GetMessages는 채팅방의 메시지 목록을 조회합니다.
+// 커서 기반 페이지네이션을 지원합니다.
 func (s *ChatService) GetMessages(ctx context.Context, chatID uuid.UUID, limit int, before *uuid.UUID) ([]domain.Message, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
@@ -141,18 +240,51 @@ func (s *ChatService) GetMessages(ctx context.Context, chatID uuid.UUID, limit i
 	return s.messageRepo.GetByChatID(chatID, limit, before)
 }
 
+// DeleteMessage는 메시지를 소프트 삭제합니다.
 func (s *ChatService) DeleteMessage(ctx context.Context, messageID uuid.UUID) error {
-	return s.messageRepo.SoftDelete(messageID)
+	if err := s.messageRepo.SoftDelete(messageID); err != nil {
+		s.logger.Error("메시지 삭제 실패",
+			zap.String("message_id", messageID.String()),
+			zap.Error(err))
+		return err
+	}
+
+	s.logger.Info("메시지 삭제 완료",
+		zap.String("message_id", messageID.String()))
+
+	return nil
 }
 
+// MarkMessagesAsRead는 메시지들을 읽음으로 표시합니다.
 func (s *ChatService) MarkMessagesAsRead(ctx context.Context, messageIDs []uuid.UUID, userID uuid.UUID) error {
-	return s.messageRepo.MarkMultipleAsRead(messageIDs, userID)
+	if err := s.messageRepo.MarkMultipleAsRead(messageIDs, userID); err != nil {
+		s.logger.Error("메시지 읽음 표시 실패",
+			zap.String("user_id", userID.String()),
+			zap.Int("message_count", len(messageIDs)),
+			zap.Error(err))
+		return err
+	}
+
+	// 📊 메트릭: 메시지 읽음 카운트 증가
+	if s.metrics != nil {
+		for range messageIDs {
+			s.metrics.RecordMessageRead()
+		}
+	}
+
+	s.logger.Debug("메시지 읽음 표시 완료",
+		zap.String("user_id", userID.String()),
+		zap.Int("message_count", len(messageIDs)))
+
+	return nil
 }
 
+// UpdateLastReadAt은 채팅방의 마지막 읽은 시간을 업데이트합니다.
 func (s *ChatService) UpdateLastReadAt(ctx context.Context, chatID, userID uuid.UUID) error {
 	return s.chatRepo.UpdateLastReadAt(chatID, userID)
 }
 
+// GetUnreadCount는 채팅방의 안 읽은 메시지 수를 반환합니다.
 func (s *ChatService) GetUnreadCount(ctx context.Context, chatID, userID uuid.UUID) (int64, error) {
 	chat, err := s.chatRepo.GetByID(chatID)
 	if err != nil {
@@ -170,6 +302,7 @@ func (s *ChatService) GetUnreadCount(ctx context.Context, chatID, userID uuid.UU
 	return s.messageRepo.GetUnreadCount(chatID, userID, lastReadAt)
 }
 
+// publishMessage는 Redis를 통해 메시지를 브로드캐스트합니다.
 func (s *ChatService) publishMessage(ctx context.Context, chatID uuid.UUID, message *domain.Message) {
 	if s.redis == nil {
 		return
@@ -181,11 +314,15 @@ func (s *ChatService) publishMessage(ctx context.Context, chatID uuid.UUID, mess
 		"message": message,
 	})
 	if err != nil {
-		s.logger.Error("failed to marshal message for publish", zap.Error(err))
+		s.logger.Error("메시지 직렬화 실패",
+			zap.String("chat_id", chatID.String()),
+			zap.Error(err))
 		return
 	}
 
 	if err := s.redis.Publish(ctx, channel, data).Err(); err != nil {
-		s.logger.Error("failed to publish message", zap.Error(err))
+		s.logger.Error("Redis 메시지 발행 실패",
+			zap.String("channel", channel),
+			zap.Error(err))
 	}
 }

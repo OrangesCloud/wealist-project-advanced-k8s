@@ -35,10 +35,11 @@ import (
 
 	_ "user-service/docs" // Swagger docs import
 
-	"user-service/internal/client"
 	"user-service/internal/config"
 	"user-service/internal/database"
+	"user-service/internal/middleware"
 	"user-service/internal/router"
+	"user-service/internal/client"
 )
 
 func main() {
@@ -112,21 +113,21 @@ func main() {
 		logger.Warn("S3 configuration incomplete, profile image uploads disabled")
 	}
 
-	// Initialize Auth client
-	var authClient *client.AuthClient
+	// Initialize Auth validator (공통 모듈 사용)
+	var tokenValidator middleware.TokenValidator
 	if cfg.AuthAPI.BaseURL != "" {
-		authClient = client.NewAuthClient(cfg.AuthAPI.BaseURL, cfg.AuthAPI.Timeout, logger)
-		logger.Info("Auth client initialized", zap.String("auth_api_url", cfg.AuthAPI.BaseURL))
+		tokenValidator = middleware.NewAuthServiceValidator(cfg.AuthAPI.BaseURL, cfg.JWT.Secret, logger)
+		logger.Info("Auth validator initialized", zap.String("auth_api_url", cfg.AuthAPI.BaseURL))
 	}
 
 	// Setup router
 	r := router.Setup(router.Config{
-		DB:         db,
-		Logger:     logger,
-		JWTSecret:  cfg.JWT.Secret,
-		BasePath:   cfg.Server.BasePath,
-		S3Client:   s3Client,
-		AuthClient: authClient,
+		DB:             db,
+		Logger:         logger,
+		JWTSecret:      cfg.JWT.Secret,
+		BasePath:       cfg.Server.BasePath,
+		S3Client:       s3Client,
+		TokenValidator: tokenValidator,
 	})
 
 	// Create HTTP server

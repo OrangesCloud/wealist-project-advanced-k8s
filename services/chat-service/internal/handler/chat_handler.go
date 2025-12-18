@@ -2,8 +2,8 @@ package handler
 
 import (
 	"chat-service/internal/domain"
+	"chat-service/internal/response"
 	"chat-service/internal/service"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -34,24 +34,18 @@ func (h *ChatHandler) CreateChat(c *gin.Context) {
 
 	var req domain.CreateChatRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	chat, err := h.chatService.CreateChat(c.Request.Context(), &req, userID)
 	if err != nil {
 		h.logger.Error("failed to create chat", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to create chat"},
-		})
+		response.InternalError(c, "Failed to create chat")
 		return
 	}
 
-	c.JSON(http.StatusCreated, chat)
+	response.Created(c, chat)
 }
 
 // GetMyChats returns user's chats
@@ -61,38 +55,29 @@ func (h *ChatHandler) GetMyChats(c *gin.Context) {
 	chats, err := h.chatService.GetUserChats(c.Request.Context(), userID)
 	if err != nil {
 		h.logger.Error("failed to get user chats", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get chats"},
-		})
+		response.InternalError(c, "Failed to get chats")
 		return
 	}
 
-	c.JSON(http.StatusOK, chats)
+	response.Success(c, chats)
 }
 
 // GetWorkspaceChats returns chats in a workspace
 func (h *ChatHandler) GetWorkspaceChats(c *gin.Context) {
 	workspaceID, err := uuid.Parse(c.Param("workspaceId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid workspace ID"},
-		})
+		response.BadRequest(c, "Invalid workspace ID")
 		return
 	}
 
 	chats, err := h.chatService.GetWorkspaceChats(c.Request.Context(), workspaceID)
 	if err != nil {
 		h.logger.Error("failed to get workspace chats", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get chats"},
-		})
+		response.InternalError(c, "Failed to get chats")
 		return
 	}
 
-	c.JSON(http.StatusOK, chats)
+	response.Success(c, chats)
 }
 
 // GetChat returns a specific chat
@@ -101,33 +86,24 @@ func (h *ChatHandler) GetChat(c *gin.Context) {
 
 	chatID, err := uuid.Parse(c.Param("chatId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid chat ID"},
-		})
+		response.BadRequest(c, "Invalid chat ID")
 		return
 	}
 
 	// Verify user is in chat
 	inChat, err := h.chatService.IsUserInChat(c.Request.Context(), chatID, userID)
 	if err != nil || !inChat {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "FORBIDDEN", "message": "Not a participant"},
-		})
+		response.Forbidden(c, "Not a participant")
 		return
 	}
 
 	chat, err := h.chatService.GetChatByID(c.Request.Context(), chatID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "NOT_FOUND", "message": "Chat not found"},
-		})
+		response.NotFound(c, "Chat not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, chat)
+	response.Success(c, chat)
 }
 
 // DeleteChat soft deletes a chat
@@ -136,33 +112,24 @@ func (h *ChatHandler) DeleteChat(c *gin.Context) {
 
 	chatID, err := uuid.Parse(c.Param("chatId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid chat ID"},
-		})
+		response.BadRequest(c, "Invalid chat ID")
 		return
 	}
 
 	// Verify user is in chat
 	inChat, _ := h.chatService.IsUserInChat(c.Request.Context(), chatID, userID)
 	if !inChat {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "FORBIDDEN", "message": "Not a participant"},
-		})
+		response.Forbidden(c, "Not a participant")
 		return
 	}
 
 	if err := h.chatService.DeleteChat(c.Request.Context(), chatID); err != nil {
 		h.logger.Error("failed to delete chat", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to delete chat"},
-		})
+		response.InternalError(c, "Failed to delete chat")
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	response.NoContent(c)
 }
 
 // AddParticipants adds participants to a chat
@@ -171,10 +138,7 @@ func (h *ChatHandler) AddParticipants(c *gin.Context) {
 
 	chatID, err := uuid.Parse(c.Param("chatId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid chat ID"},
-		})
+		response.BadRequest(c, "Invalid chat ID")
 		return
 	}
 
@@ -182,34 +146,25 @@ func (h *ChatHandler) AddParticipants(c *gin.Context) {
 		UserIDs []uuid.UUID `json:"userIds" binding:"required,min=1"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	// Verify user is in chat
 	inChat, _ := h.chatService.IsUserInChat(c.Request.Context(), chatID, userID)
 	if !inChat {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "FORBIDDEN", "message": "Not a participant"},
-		})
+		response.Forbidden(c, "Not a participant")
 		return
 	}
 
 	if err := h.chatService.AddParticipants(c.Request.Context(), chatID, req.UserIDs); err != nil {
 		h.logger.Error("failed to add participants", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to add participants"},
-		})
+		response.InternalError(c, "Failed to add participants")
 		return
 	}
 
 	chat, _ := h.chatService.GetChatByID(c.Request.Context(), chatID)
-	c.JSON(http.StatusOK, chat)
+	response.Success(c, chat)
 }
 
 // RemoveParticipant removes a participant from a chat
@@ -218,40 +173,28 @@ func (h *ChatHandler) RemoveParticipant(c *gin.Context) {
 
 	chatID, err := uuid.Parse(c.Param("chatId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid chat ID"},
-		})
+		response.BadRequest(c, "Invalid chat ID")
 		return
 	}
 
 	userID, err := uuid.Parse(c.Param("userId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid user ID"},
-		})
+		response.BadRequest(c, "Invalid user ID")
 		return
 	}
 
 	// Verify current user is in chat
 	inChat, _ := h.chatService.IsUserInChat(c.Request.Context(), chatID, currentUserID)
 	if !inChat {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "FORBIDDEN", "message": "Not a participant"},
-		})
+		response.Forbidden(c, "Not a participant")
 		return
 	}
 
 	if err := h.chatService.RemoveParticipant(c.Request.Context(), chatID, userID); err != nil {
 		h.logger.Error("failed to remove participant", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to remove participant"},
-		})
+		response.InternalError(c, "Failed to remove participant")
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	response.NoContent(c)
 }

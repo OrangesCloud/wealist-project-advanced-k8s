@@ -2,8 +2,8 @@ package handler
 
 import (
 	"chat-service/internal/domain"
+	"chat-service/internal/response"
 	"chat-service/internal/service"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -29,20 +29,14 @@ func (h *MessageHandler) GetMessages(c *gin.Context) {
 
 	chatID, err := uuid.Parse(c.Param("chatId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid chat ID"},
-		})
+		response.BadRequest(c, "Invalid chat ID")
 		return
 	}
 
 	// Verify user is in chat
 	inChat, _ := h.chatService.IsUserInChat(c.Request.Context(), chatID, userID)
 	if !inChat {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "FORBIDDEN", "message": "Not a participant"},
-		})
+		response.Forbidden(c, "Not a participant")
 		return
 	}
 
@@ -57,14 +51,11 @@ func (h *MessageHandler) GetMessages(c *gin.Context) {
 	messages, err := h.chatService.GetMessages(c.Request.Context(), chatID, limit, before)
 	if err != nil {
 		h.logger.Error("failed to get messages", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get messages"},
-		})
+		response.InternalError(c, "Failed to get messages")
 		return
 	}
 
-	c.JSON(http.StatusOK, messages)
+	response.Success(c, messages)
 }
 
 // SendMessage sends a message to a chat
@@ -73,66 +64,48 @@ func (h *MessageHandler) SendMessage(c *gin.Context) {
 
 	chatID, err := uuid.Parse(c.Param("chatId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid chat ID"},
-		})
+		response.BadRequest(c, "Invalid chat ID")
 		return
 	}
 
 	// Verify user is in chat
 	inChat, _ := h.chatService.IsUserInChat(c.Request.Context(), chatID, userID)
 	if !inChat {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "FORBIDDEN", "message": "Not a participant"},
-		})
+		response.Forbidden(c, "Not a participant")
 		return
 	}
 
 	var req domain.SendMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	message, err := h.chatService.SendMessage(c.Request.Context(), chatID, userID, &req)
 	if err != nil {
 		h.logger.Error("failed to send message", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to send message"},
-		})
+		response.InternalError(c, "Failed to send message")
 		return
 	}
 
-	c.JSON(http.StatusCreated, message)
+	response.Created(c, message)
 }
 
 // DeleteMessage soft deletes a message
 func (h *MessageHandler) DeleteMessage(c *gin.Context) {
 	messageID, err := uuid.Parse(c.Param("messageId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid message ID"},
-		})
+		response.BadRequest(c, "Invalid message ID")
 		return
 	}
 
 	if err := h.chatService.DeleteMessage(c.Request.Context(), messageID); err != nil {
 		h.logger.Error("failed to delete message", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to delete message"},
-		})
+		response.InternalError(c, "Failed to delete message")
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	response.NoContent(c)
 }
 
 // MarkMessagesAsRead marks messages as read
@@ -143,23 +116,17 @@ func (h *MessageHandler) MarkMessagesAsRead(c *gin.Context) {
 		MessageIDs []uuid.UUID `json:"messageIds" binding:"required,min=1"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	if err := h.chatService.MarkMessagesAsRead(c.Request.Context(), req.MessageIDs, userID); err != nil {
 		h.logger.Error("failed to mark messages as read", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to mark as read"},
-		})
+		response.InternalError(c, "Failed to mark as read")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	response.Success(c, "Messages marked as read")
 }
 
 // GetUnreadCount returns unread count for a chat
@@ -168,24 +135,18 @@ func (h *MessageHandler) GetUnreadCount(c *gin.Context) {
 
 	chatID, err := uuid.Parse(c.Param("chatId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid chat ID"},
-		})
+		response.BadRequest(c, "Invalid chat ID")
 		return
 	}
 
 	count, err := h.chatService.GetUnreadCount(c.Request.Context(), chatID, userID)
 	if err != nil {
 		h.logger.Error("failed to get unread count", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get unread count"},
-		})
+		response.InternalError(c, "Failed to get unread count")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"unreadCount": count})
+	response.OK(c, map[string]int64{"unreadCount": count})
 }
 
 // UpdateLastRead updates last read timestamp
@@ -194,21 +155,15 @@ func (h *MessageHandler) UpdateLastRead(c *gin.Context) {
 
 	chatID, err := uuid.Parse(c.Param("chatId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid chat ID"},
-		})
+		response.BadRequest(c, "Invalid chat ID")
 		return
 	}
 
 	if err := h.chatService.UpdateLastReadAt(c.Request.Context(), chatID, userID); err != nil {
 		h.logger.Error("failed to update last read", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to update last read"},
-		})
+		response.InternalError(c, "Failed to update last read")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	response.Success(c, "Last read updated")
 }

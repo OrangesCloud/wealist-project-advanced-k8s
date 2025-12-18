@@ -1,157 +1,60 @@
+// Package middleware는 HTTP 미들웨어를 제공합니다.
+// 이 파일은 JWT 인증 미들웨어와 서비스 전용 미들웨어를 포함합니다.
 package middleware
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"net/http"
+	"noti-service/internal/response"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+
+	commonauth "github.com/OrangesCloud/wealist-advanced-go-pkg/auth"
 )
 
-type TokenValidator interface {
-	ValidateToken(ctx context.Context, token string) (uuid.UUID, error)
-}
+// TokenValidator는 공통 모듈의 TokenValidator 타입 별칭입니다.
+// 토큰 검증 전략을 추상화합니다.
+type TokenValidator = commonauth.TokenValidator
 
-type AuthServiceValidator struct {
-	authServiceURL string
-	secretKey      string
-	httpClient     *http.Client
-	logger         *zap.Logger
-}
+// AuthServiceValidator는 공통 모듈의 AuthServiceValidator 타입 별칭입니다.
+// auth-service 연동 + 로컬 JWT fallback을 지원합니다.
+type AuthServiceValidator = commonauth.AuthServiceValidator
 
+// NewAuthServiceValidator는 새 AuthServiceValidator를 생성합니다.
+// authServiceURL: auth-service URL (비어있으면 로컬 검증만 사용)
+// secretKey: JWT 서명 키 (로컬 검증용)
+// logger: 로거 (nil이면 nop 로거 사용)
 func NewAuthServiceValidator(authServiceURL, secretKey string, logger *zap.Logger) *AuthServiceValidator {
-	return &AuthServiceValidator{
-		authServiceURL: authServiceURL,
-		secretKey:      secretKey,
-		httpClient: &http.Client{
-			Timeout: 5 * time.Second,
-		},
-		logger: logger,
-	}
+	return commonauth.NewAuthServiceValidator(authServiceURL, secretKey, logger)
 }
 
-func (v *AuthServiceValidator) ValidateToken(ctx context.Context, tokenString string) (uuid.UUID, error) {
-	// Try auth service first
-	if v.authServiceURL != "" {
-		userID, err := v.validateWithAuthService(ctx, tokenString)
-		if err == nil {
-			return userID, nil
-		}
-		v.logger.Debug("Auth service validation failed, falling back to local", zap.Error(err))
-	}
-
-	// Fallback to local JWT validation
-	return v.validateLocally(tokenString)
-}
-
-func (v *AuthServiceValidator) validateWithAuthService(ctx context.Context, token string) (uuid.UUID, error) {
-	url := v.authServiceURL + "/api/auth/validate"
-
-	reqBody, _ := json.Marshal(map[string]string{"token": token})
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(reqBody))
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	resp, err := v.httpClient.Do(req)
-	if err != nil {
-		return uuid.Nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return uuid.Nil, jwt.ErrTokenInvalidClaims
-	}
-
-	var result struct {
-		UserID string `json:"userId"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return uuid.Nil, err
-	}
-
-	return uuid.Parse(result.UserID)
-}
-
-func (v *AuthServiceValidator) validateLocally(tokenString string) (uuid.UUID, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return []byte(v.secretKey), nil
-	})
-
-	if err != nil || !token.Valid {
-		return uuid.Nil, jwt.ErrTokenInvalidClaims
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return uuid.Nil, jwt.ErrTokenInvalidClaims
-	}
-
-	// Try different claim keys
-	var userIDStr string
-	for _, key := range []string{"sub", "userId", "user_id"} {
-		if val, exists := claims[key]; exists {
-			userIDStr = val.(string)
-			break
-		}
-	}
-
-	if userIDStr == "" {
-		return uuid.Nil, jwt.ErrTokenInvalidClaims
-	}
-
-	return uuid.Parse(userIDStr)
-}
-
-// AuthMiddleware validates JWT token from Authorization header
+// AuthMiddleware는 JWT 토큰을 검증하는 Gin 미들웨어입니다.
+// TokenValidator를 사용하여 토큰을 검증하고 user_id를 컨텍스트에 저장합니다.
 func AuthMiddleware(validator TokenValidator) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "UNAUTHORIZED", "message": "No authorization header"},
-			})
-			c.Abort()
-			return
-		}
-
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "UNAUTHORIZED", "message": "Invalid authorization header format"},
-			})
-			c.Abort()
-			return
-		}
-
-		tokenString := parts[1]
-		userID, err := validator.ValidateToken(c.Request.Context(), tokenString)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "UNAUTHORIZED", "message": "Invalid token"},
-			})
-			c.Abort()
-			return
-		}
-
-		c.Set("user_id", userID)
-		c.Next()
-	}
+	return commonauth.AuthMiddlewareWithValidator(validator)
 }
 
-// InternalAuthMiddleware validates internal API key
+// GetUserID는 컨텍스트에서 사용자 ID를 추출합니다.
+func GetUserID(c *gin.Context) (uuid.UUID, bool) {
+	return commonauth.GetUserID(c)
+}
+
+// GetJWTToken은 컨텍스트에서 JWT 토큰을 추출합니다.
+func GetJWTToken(c *gin.Context) (string, bool) {
+	return commonauth.GetJWTToken(c)
+}
+
+// ValidateTokenFromContext는 컨텍스트에서 토큰을 가져와 검증합니다.
+func ValidateTokenFromContext(ctx context.Context, validator TokenValidator, token string) (uuid.UUID, error) {
+	return validator.ValidateToken(ctx, token)
+}
+
+// ===== noti-service 전용 미들웨어 =====
+
+// InternalAuthMiddleware는 서비스 간 내부 API 키를 검증하는 미들웨어입니다.
+// x-internal-api-key 또는 X-Internal-Api-Key 헤더를 확인합니다.
 func InternalAuthMiddleware(apiKey string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		providedKey := c.GetHeader("x-internal-api-key")
@@ -160,10 +63,7 @@ func InternalAuthMiddleware(apiKey string) gin.HandlerFunc {
 		}
 
 		if providedKey == "" || providedKey != apiKey {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "UNAUTHORIZED", "message": "Invalid internal API key"},
-			})
+			response.Unauthorized(c, "Invalid internal API key")
 			c.Abort()
 			return
 		}
@@ -172,7 +72,8 @@ func InternalAuthMiddleware(apiKey string) gin.HandlerFunc {
 	}
 }
 
-// WorkspaceMiddleware extracts workspace ID from header
+// WorkspaceMiddleware는 요청 헤더에서 워크스페이스 ID를 추출하는 미들웨어입니다.
+// x-workspace-id 또는 X-Workspace-Id 헤더에서 추출하여 컨텍스트에 저장합니다.
 func WorkspaceMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		workspaceIDStr := c.GetHeader("x-workspace-id")
@@ -191,15 +92,13 @@ func WorkspaceMiddleware() gin.HandlerFunc {
 	}
 }
 
-// RequireWorkspace ensures workspace ID is present
+// RequireWorkspace는 워크스페이스 ID가 컨텍스트에 있는지 확인하는 미들웨어입니다.
+// WorkspaceMiddleware 이후에 사용해야 합니다.
 func RequireWorkspace() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		_, exists := c.Get("workspace_id")
 		if !exists {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "BAD_REQUEST", "message": "x-workspace-id header is required"},
-			})
+			response.BadRequest(c, "x-workspace-id header is required")
 			c.Abort()
 			return
 		}
@@ -207,14 +106,15 @@ func RequireWorkspace() gin.HandlerFunc {
 	}
 }
 
-// SSEAuthMiddleware validates JWT token from query parameter for SSE connections
-// EventSource API doesn't support custom headers, so token must be passed as query param
+// SSEAuthMiddleware는 SSE 연결을 위한 인증 미들웨어입니다.
+// EventSource API는 커스텀 헤더를 지원하지 않으므로 쿼리 파라미터로 토큰을 전달받습니다.
+// 쿼리 파라미터가 없으면 Authorization 헤더를 확인합니다.
 func SSEAuthMiddleware(validator TokenValidator) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Try query parameter first (for SSE)
+		// 쿼리 파라미터에서 토큰 확인 (SSE용)
 		tokenString := c.Query("token")
 
-		// Fallback to Authorization header
+		// Authorization 헤더로 fallback
 		if tokenString == "" {
 			authHeader := c.GetHeader("Authorization")
 			if authHeader != "" {
@@ -226,20 +126,14 @@ func SSEAuthMiddleware(validator TokenValidator) gin.HandlerFunc {
 		}
 
 		if tokenString == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "UNAUTHORIZED", "message": "No token provided"},
-			})
+			response.Unauthorized(c, "No token provided")
 			c.Abort()
 			return
 		}
 
 		userID, err := validator.ValidateToken(c.Request.Context(), tokenString)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"error":   gin.H{"code": "UNAUTHORIZED", "message": "Invalid token"},
-			})
+			response.Unauthorized(c, "Invalid token")
 			c.Abort()
 			return
 		}

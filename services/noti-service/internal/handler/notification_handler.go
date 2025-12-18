@@ -1,8 +1,12 @@
+// Package handler provides HTTP handlers for noti-service endpoints.
+//
+// This package implements Gin handlers for managing notifications,
+// including CRUD operations, SSE streaming, and bulk notification creation.
 package handler
 
 import (
-	"net/http"
 	"noti-service/internal/domain"
+	"noti-service/internal/response"
 	"noti-service/internal/service"
 	"noti-service/internal/sse"
 	"strconv"
@@ -12,12 +16,16 @@ import (
 	"go.uber.org/zap"
 )
 
+// NotificationHandler handles HTTP requests for notification operations.
+// It provides endpoints for listing, reading, deleting notifications,
+// and SSE streaming for real-time updates.
 type NotificationHandler struct {
 	service    *service.NotificationService
 	sseService *sse.SSEService
 	logger     *zap.Logger
 }
 
+// NewNotificationHandler creates a new NotificationHandler with the given dependencies.
 func NewNotificationHandler(
 	service *service.NotificationService,
 	sseService *sse.SSEService,
@@ -49,14 +57,11 @@ func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 	result, err := h.service.GetNotifications(c.Request.Context(), userID, workspaceID, page, limit, unreadOnly)
 	if err != nil {
 		h.logger.Error("failed to get notifications", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get notifications"},
-		})
+		response.InternalError(c, "Failed to get notifications")
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	c.JSON(200, result)
 }
 
 // GetUnreadCount returns unread notification count
@@ -67,14 +72,11 @@ func (h *NotificationHandler) GetUnreadCount(c *gin.Context) {
 	result, err := h.service.GetUnreadCount(c.Request.Context(), userID, workspaceID)
 	if err != nil {
 		h.logger.Error("failed to get unread count", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get unread count"},
-		})
+		response.InternalError(c, "Failed to get unread count")
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	c.JSON(200, result)
 }
 
 // StreamNotifications handles SSE connection
@@ -89,23 +91,17 @@ func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 
 	notificationID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid notification ID"},
-		})
+		response.BadRequest(c, "Invalid notification ID")
 		return
 	}
 
 	notification, err := h.service.MarkAsRead(c.Request.Context(), notificationID, userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "NOT_FOUND", "message": "Notification not found"},
-		})
+		response.NotFound(c, "Notification not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, notification)
+	c.JSON(200, notification)
 }
 
 // MarkAllAsRead marks all notifications as read
@@ -116,14 +112,11 @@ func (h *NotificationHandler) MarkAllAsRead(c *gin.Context) {
 	count, err := h.service.MarkAllAsRead(c.Request.Context(), userID, workspaceID)
 	if err != nil {
 		h.logger.Error("failed to mark all as read", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to mark all as read"},
-		})
+		response.InternalError(c, "Failed to mark all as read")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"markedAsRead": count})
+	c.JSON(200, gin.H{"markedAsRead": count})
 }
 
 // DeleteNotification deletes a notification
@@ -132,56 +125,41 @@ func (h *NotificationHandler) DeleteNotification(c *gin.Context) {
 
 	notificationID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": "Invalid notification ID"},
-		})
+		response.BadRequest(c, "Invalid notification ID")
 		return
 	}
 
 	deleted, err := h.service.DeleteNotification(c.Request.Context(), notificationID, userID)
 	if err != nil {
 		h.logger.Error("failed to delete notification", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to delete notification"},
-		})
+		response.InternalError(c, "Failed to delete notification")
 		return
 	}
 
 	if !deleted {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "NOT_FOUND", "message": "Notification not found"},
-		})
+		response.NotFound(c, "Notification not found")
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	response.NoContent(c)
 }
 
 // CreateNotification creates a new notification (internal API)
 func (h *NotificationHandler) CreateNotification(c *gin.Context) {
 	var event domain.NotificationEvent
 	if err := c.ShouldBindJSON(&event); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	notification, err := h.service.CreateNotification(c.Request.Context(), &event)
 	if err != nil {
 		h.logger.Error("failed to create notification", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to create notification"},
-		})
+		response.InternalError(c, "Failed to create notification")
 		return
 	}
 
-	c.JSON(http.StatusCreated, notification)
+	c.JSON(201, notification)
 }
 
 // CreateBulkNotifications creates multiple notifications (internal API)
@@ -191,24 +169,18 @@ func (h *NotificationHandler) CreateBulkNotifications(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "BAD_REQUEST", "message": err.Error()},
-		})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	notifications, err := h.service.CreateBulkNotifications(c.Request.Context(), req.Notifications)
 	if err != nil {
 		h.logger.Error("failed to create bulk notifications", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   gin.H{"code": "INTERNAL_ERROR", "message": "Failed to create notifications"},
-		})
+		response.InternalError(c, "Failed to create notifications")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	c.JSON(201, gin.H{
 		"created":       len(notifications),
 		"notifications": notifications,
 	})

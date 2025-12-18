@@ -1,113 +1,41 @@
+// Package middleware는 HTTP 미들웨어를 제공합니다.
 package middleware
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	commonmetrics "github.com/OrangesCloud/wealist-advanced-go-pkg/metrics"
 )
 
-var (
-	httpRequestsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "http_requests_total",
-			Help: "Total number of HTTP requests",
-		},
-		[]string{"method", "path", "status"},
-	)
-
-	httpRequestDuration = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "http_request_duration_seconds",
-			Help:    "HTTP request duration in seconds",
-			Buckets: prometheus.DefBuckets,
-		},
-		[]string{"method", "path", "status"},
-	)
-
-	httpRequestsInFlight = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "http_requests_in_flight",
-			Help: "Current number of HTTP requests being processed",
-		},
-	)
-)
-
-// Metrics returns a middleware that collects Prometheus metrics
-func Metrics() gin.HandlerFunc {
+// MetricsMiddleware는 HTTP 메트릭을 기록하는 미들웨어를 반환합니다.
+// basePath는 서비스의 기본 경로입니다 (예: "/api/boards")
+func MetricsMiddleware(m *commonmetrics.Metrics, basePath string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Skip metrics endpoint itself
-		if c.Request.URL.Path == "/metrics" {
-			c.Next()
-			return
-		}
-
-		httpRequestsInFlight.Inc()
-		start := time.Now()
-
-		c.Next()
-
-		httpRequestsInFlight.Dec()
-		duration := time.Since(start).Seconds()
-		status := strconv.Itoa(c.Writer.Status())
-
-		// Normalize path for metrics (avoid high cardinality)
-		path := normalizePath(c.FullPath())
-		if path == "" {
-			path = c.Request.URL.Path
-		}
-
-		httpRequestsTotal.WithLabelValues(c.Request.Method, path, status).Inc()
-		httpRequestDuration.WithLabelValues(c.Request.Method, path, status).Observe(duration)
-	}
-}
-
-// normalizePath normalizes the path to avoid high cardinality in metrics
-func normalizePath(path string) string {
-	if path == "" {
-		return "unknown"
-	}
-	return path
-}
-
-// MetricsWithPrefix returns metrics middleware with custom metric prefix
-func MetricsWithPrefix(prefix string) gin.HandlerFunc {
-	requestsTotal := promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: prefix + "_http_requests_total",
-			Help: "Total number of HTTP requests for " + prefix,
-		},
-		[]string{"method", "path", "status"},
-	)
-
-	requestDuration := promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    prefix + "_http_request_duration_seconds",
-			Help:    "HTTP request duration in seconds for " + prefix,
-			Buckets: prometheus.DefBuckets,
-		},
-		[]string{"method", "path", "status"},
-	)
-
-	return func(c *gin.Context) {
-		if c.Request.URL.Path == "/metrics" {
+		// 메트릭/헬스 엔드포인트 스킵
+		if commonmetrics.ShouldSkipEndpointWithBasePath(c.Request.URL.Path, basePath) {
 			c.Next()
 			return
 		}
 
 		start := time.Now()
+
+		// 요청 처리
 		c.Next()
 
-		duration := time.Since(start).Seconds()
-		status := strconv.Itoa(c.Writer.Status())
-		path := normalizePath(c.FullPath())
-		if path == "" {
-			path = c.Request.URL.Path
-		}
-
-		requestsTotal.WithLabelValues(c.Request.Method, path, status).Inc()
-		requestDuration.WithLabelValues(c.Request.Method, path, status).Observe(duration)
+		// 메트릭 기록
+		duration := time.Since(start)
+		m.RecordHTTPRequest(
+			c.Request.Method,
+			c.FullPath(), // 실제 경로가 아닌 라우트 패턴 사용
+			c.Writer.Status(),
+			duration,
+		)
 	}
+}
+
+// MetricsMiddlewareSimple은 basePath 없이 메트릭을 기록하는 미들웨어입니다.
+func MetricsMiddlewareSimple(m *commonmetrics.Metrics) gin.HandlerFunc {
+	return MetricsMiddleware(m, "")
 }

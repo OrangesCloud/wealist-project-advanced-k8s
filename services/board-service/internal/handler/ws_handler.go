@@ -67,7 +67,21 @@ var upgrader = websocket.Upgrader{
 var (
 	clients   = make(map[string]map[*Client]bool)
 	clientsMu sync.RWMutex
+	wsLogger  *zap.Logger // Package-level logger for WebSocket operations
 )
+
+// InitWSLogger initializes the package-level WebSocket logger
+func InitWSLogger(log *zap.Logger) {
+	wsLogger = log
+}
+
+// getWSLogger returns the package-level logger or a nop logger if not initialized
+func getWSLogger() *zap.Logger {
+	if wsLogger != nil {
+		return wsLogger
+	}
+	return zap.NewNop()
+}
 
 // HandleWebSocket godoc
 // @Summary      WebSocket 실시간 연결
@@ -295,26 +309,29 @@ func subscribeToRedis(projectID string, client *Client, log *zap.Logger) {
 
 // BroadcastEvent broadcasts a WebSocket event to all clients subscribed to the given project.
 func BroadcastEvent(projectID string, event WSEvent) {
+	log := getWSLogger()
 	payload, _ := json.Marshal(event)
 
 	clientsMu.RLock()
 	defer clientsMu.RUnlock()
 
-	fmt.Printf("🔊 [BROADCAST] ProjectID: %s, ClientCount: %d\n", projectID, len(clients[projectID]))
-	fmt.Printf("🔊 [BROADCAST] Event: %+v\n", event)
+	log.Debug("Broadcasting event",
+		zap.String("projectID", projectID),
+		zap.Int("clientCount", len(clients[projectID])),
+		zap.String("eventType", event.Type))
 
 	if projectClients, ok := clients[projectID]; ok {
 		for client := range projectClients {
 			select {
 			case client.send <- payload:
-				fmt.Println("✅ [BROADCAST] Message sent to client")
+				log.Debug("Message sent to client")
 			default:
-				fmt.Println("❌ [BROADCAST] Client channel full, closing")
+				log.Warn("Client channel full, closing")
 				close(client.send)
 			}
 		}
 	} else {
-		fmt.Printf("⚠️ [BROADCAST] No clients found for project: %s\n", projectID)
+		log.Debug("No clients found for project", zap.String("projectID", projectID))
 	}
 
 	redis := database.GetRedis()

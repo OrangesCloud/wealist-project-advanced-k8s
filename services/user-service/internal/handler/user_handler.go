@@ -1,13 +1,12 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"user-service/internal/domain"
 	"user-service/internal/middleware"
+	"user-service/internal/response"
 	"user-service/internal/service"
 )
 
@@ -33,21 +32,17 @@ func NewUserHandler(userService *service.UserService) *UserHandler {
 func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req domain.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	user, err := h.userService.CreateUser(req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "CREATE_FAILED", Message: err.Error()},
-		})
+		response.BadRequestWithDetails(c, "Failed to create user", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, user.ToResponse())
+	response.Created(c, user.ToResponse())
 }
 
 // GetMe godoc
@@ -61,21 +56,17 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 func (h *UserHandler) GetMe(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	user, err := h.userService.GetUser(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{
-			Error: ErrorDetail{Code: "NOT_FOUND", Message: "User not found"},
-		})
+		response.NotFound(c, "User not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, user.ToResponse())
+	response.OK(c, user.ToResponse())
 }
 
 // GetUser godoc
@@ -91,21 +82,17 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 	userIDStr := c.Param("userId")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid user ID"},
-		})
+		response.BadRequest(c, "Invalid user ID")
 		return
 	}
 
 	user, err := h.userService.GetUser(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{
-			Error: ErrorDetail{Code: "NOT_FOUND", Message: "User not found"},
-		})
+		response.NotFound(c, "User not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, user.ToResponse())
+	response.OK(c, user.ToResponse())
 }
 
 // UpdateUser godoc
@@ -123,38 +110,30 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	userIDStr := c.Param("userId")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid user ID"},
-		})
+		response.BadRequest(c, "Invalid user ID")
 		return
 	}
 
 	// Check if user is updating themselves
 	currentUserID, ok := middleware.GetUserID(c)
 	if !ok || currentUserID != userID {
-		c.JSON(http.StatusForbidden, ErrorResponse{
-			Error: ErrorDetail{Code: "FORBIDDEN", Message: "Cannot update other user"},
-		})
+		response.Forbidden(c, "Cannot update other user")
 		return
 	}
 
 	var req domain.UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	user, err := h.userService.UpdateUser(userID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "UPDATE_FAILED", Message: err.Error()},
-		})
+		response.BadRequestWithDetails(c, "Failed to update user", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, user.ToResponse())
+	response.OK(c, user.ToResponse())
 }
 
 // DeleteMe godoc
@@ -168,20 +147,16 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 func (h *UserHandler) DeleteMe(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Error: ErrorDetail{Code: "UNAUTHORIZED", Message: "User not authenticated"},
-		})
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
 	if err := h.userService.DeleteUser(userID); err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{Code: "DELETE_FAILED", Message: err.Error()},
-		})
+		response.InternalErrorWithDetails(c, "Failed to delete user", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{Message: "User deleted successfully"})
+	response.Success(c, "User deleted successfully")
 }
 
 // RestoreUser godoc
@@ -197,21 +172,17 @@ func (h *UserHandler) RestoreUser(c *gin.Context) {
 	userIDStr := c.Param("userId")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid user ID"},
-		})
+		response.BadRequest(c, "Invalid user ID")
 		return
 	}
 
 	user, err := h.userService.RestoreUser(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{
-			Error: ErrorDetail{Code: "NOT_FOUND", Message: "User not found"},
-		})
+		response.NotFound(c, "User not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, user.ToResponse())
+	response.OK(c, user.ToResponse())
 }
 
 // OAuthLogin godoc
@@ -227,21 +198,17 @@ func (h *UserHandler) RestoreUser(c *gin.Context) {
 func (h *UserHandler) OAuthLogin(c *gin.Context) {
 	var req domain.OAuthLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "VALIDATION_ERROR", Message: err.Error()},
-		})
+		response.ValidationError(c, err.Error())
 		return
 	}
 
 	user, err := h.userService.FindOrCreateOAuthUser(req.Email, req.Name, req.Provider)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{Code: "OAUTH_LOGIN_FAILED", Message: err.Error()},
-		})
+		response.InternalErrorWithDetails(c, "OAuth login failed", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"userId": user.ID.String()})
+	response.OK(c, gin.H{"userId": user.ID.String()})
 }
 
 // UserExists godoc
@@ -255,19 +222,15 @@ func (h *UserHandler) UserExists(c *gin.Context) {
 	userIDStr := c.Param("userId")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Error: ErrorDetail{Code: "INVALID_ID", Message: "Invalid user ID"},
-		})
+		response.BadRequest(c, "Invalid user ID")
 		return
 	}
 
 	exists, err := h.userService.UserExists(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Error: ErrorDetail{Code: "CHECK_FAILED", Message: err.Error()},
-		})
+		response.InternalErrorWithDetails(c, "Failed to check user existence", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"exists": exists})
+	response.OK(c, gin.H{"exists": exists})
 }

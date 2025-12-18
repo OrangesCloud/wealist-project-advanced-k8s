@@ -96,7 +96,7 @@ func (c *userClient) ValidateWorkspaceMember(ctx context.Context, workspaceID, u
 		)
 		return false, fmt.Errorf("failed to call user-service: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		c.logger.Warn("User-service returned non-200 status",

@@ -3,8 +3,6 @@ package router
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	// swaggerFiles "github.com/swaggo/files"
-	// ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
@@ -12,6 +10,7 @@ import (
 	commonmw "github.com/OrangesCloud/wealist-advanced-go-pkg/middleware"
 	"user-service/internal/client"
 	"user-service/internal/handler"
+	"user-service/internal/metrics"
 	"user-service/internal/middleware"
 	"user-service/internal/repository"
 	"user-service/internal/service"
@@ -19,23 +18,30 @@ import (
 
 // Config holds router configuration
 type Config struct {
-	DB         *gorm.DB
-	Logger     *zap.Logger
-	JWTSecret  string
-	BasePath   string
-	S3Client   *client.S3Client
-	AuthClient *client.AuthClient
+	DB             *gorm.DB
+	Logger         *zap.Logger
+	JWTSecret      string
+	BasePath       string
+	S3Client       *client.S3Client
+	TokenValidator middleware.TokenValidator // 공통 모듈의 TokenValidator 인터페이스 사용
+	Metrics        *metrics.Metrics
 }
 
 // Setup sets up the router with all routes
 func Setup(cfg Config) *gin.Engine {
 	r := gin.New()
 
+	// Initialize metrics if not provided
+	m := cfg.Metrics
+	if m == nil {
+		m = metrics.New()
+	}
+
 	// Middleware (using common package)
 	r.Use(commonmw.Recovery(cfg.Logger))
 	r.Use(commonmw.Logger(cfg.Logger))
 	r.Use(commonmw.DefaultCORS())
-	r.Use(commonmw.Metrics())
+	r.Use(metrics.HTTPMiddleware(m))
 
 	// Prometheus metrics endpoint
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
@@ -56,7 +62,9 @@ func Setup(cfg Config) *gin.Engine {
 	attachmentRepo := repository.NewAttachmentRepository(cfg.DB)
 
 	// Initialize services
-	userService := service.NewUserService(userRepo, cfg.Logger)
+	// 사용자 서비스 초기화 (메트릭 포함)
+	userService := service.NewUserService(userRepo, cfg.Logger, m)
+	// 워크스페이스 서비스 초기화 (메트릭 포함)
 	workspaceService := service.NewWorkspaceService(
 		workspaceRepo,
 		memberRepo,
@@ -64,8 +72,10 @@ func Setup(cfg Config) *gin.Engine {
 		profileRepo,
 		userRepo,
 		cfg.Logger,
+		m,
 	)
-	profileService := service.NewProfileService(profileRepo, memberRepo, userRepo, cfg.Logger)
+	// 프로필 서비스 초기화 (메트릭 포함)
+	profileService := service.NewProfileService(profileRepo, memberRepo, userRepo, cfg.Logger, m)
 	attachmentService := service.NewAttachmentService(attachmentRepo, cfg.S3Client, cfg.Logger)
 
 	// Initialize handlers
@@ -78,8 +88,8 @@ func Setup(cfg Config) *gin.Engine {
 
 	// Auth middleware - use auth-service validator if available, otherwise use local JWT
 	var authMiddleware gin.HandlerFunc
-	if cfg.AuthClient != nil {
-		authMiddleware = middleware.AuthWithValidator(cfg.AuthClient)
+	if cfg.TokenValidator != nil {
+		authMiddleware = middleware.AuthWithValidator(cfg.TokenValidator)
 	} else {
 		authMiddleware = middleware.Auth(cfg.JWTSecret)
 	}
