@@ -1,0 +1,168 @@
+# =============================================================================
+# Development Server Environment
+# =============================================================================
+# Development environment with dev.wealist.co.kr domain
+# Uses local registry (localhost:5001) for Kind cluster
+# Namespace: wealist-dev
+
+# -----------------------------------------------------------------------------
+# Global Settings
+# -----------------------------------------------------------------------------
+global:
+  namespace: wealist-dev
+  environment: development
+  domain: dev.wealist.co.kr
+  imageRegistry: localhost:5001
+
+# -----------------------------------------------------------------------------
+# cert-manager Configuration (Disabled - CloudFront handles SSL termination)
+# -----------------------------------------------------------------------------
+certManager:
+  enabled: false
+  # Note: SSL is handled by CloudFront, K8s receives HTTP only
+
+# -----------------------------------------------------------------------------
+# Deployment Settings
+# -----------------------------------------------------------------------------
+replicaCount: 1
+
+image:
+  pullPolicy: Always
+  tag: "latest" # Local registry uses :latest tag
+
+# -----------------------------------------------------------------------------
+# Resources (Development)
+# -----------------------------------------------------------------------------
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# -----------------------------------------------------------------------------
+# Health Check
+# -----------------------------------------------------------------------------
+healthCheck:
+  liveness:
+    initialDelaySeconds: 30
+  readiness:
+    initialDelaySeconds: 10
+
+# -----------------------------------------------------------------------------
+# Security (Standard)
+# -----------------------------------------------------------------------------
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  readOnlyRootFilesystem: false # Spring Boot (Tomcat) needs /tmp write access
+
+# -----------------------------------------------------------------------------
+# Features
+# -----------------------------------------------------------------------------
+autoscaling:
+  enabled: false
+
+serviceAccount:
+  create: true
+
+networkPolicy:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# Shared Configuration
+# -----------------------------------------------------------------------------
+shared:
+  config:
+    ENV: "development"
+    LOG_LEVEL: "debug"
+    DB_AUTO_MIGRATE: "true" # Create tables on startup
+    CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
+    S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/minio"
+    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/svc/livekit"
+    # OAuth2 Redirect URLs
+    # Google redirects here after user authenticates (must match Google Console)
+    OAUTH2_CLIENT_REDIRECT_URI: "https://api.dev.wealist.co.kr/oauth2/callback/google"
+    # auth-service redirects here (frontend) after processing OAuth
+    OAUTH2_REDIRECT_URL_ENV: "https://dev.wealist.co.kr/oauth/callback"
+
+# -----------------------------------------------------------------------------
+# Ingress (HTTP only - CloudFront handles SSL termination)
+# -----------------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  # Frontend is served via S3/CloudFront, not K8s
+  includeFrontend: false
+  annotations:
+    # No cert-manager - CloudFront handles SSL
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # CloudFront with AllViewer policy forwards X-Forwarded-* headers
+  hosts:
+    # Main domain (CloudFront forwards with this Host header)
+    - host: dev.wealist.co.kr
+    # API endpoint
+    - host: api.dev.wealist.co.kr
+    # DDNS hostname for direct access (No-IP)
+    - host: wonnyhome.myddns.me
+  # No TLS - CloudFront handles SSL termination
+  tls: []
+
+# -----------------------------------------------------------------------------
+# Monitoring Stack
+# -----------------------------------------------------------------------------
+# wealist-monitoring 차트 배포 시 사용할 설정
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    service:
+      type: ClusterIP
+      port: 9090
+    persistence:
+      enabled: true
+      storageClass: "standard"
+      size: 10Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    config:
+      scrapeInterval: 15s
+      retentionTime: 7d
+  loki:
+    enabled: true
+    service:
+      type: ClusterIP
+      port: 3100
+    persistence:
+      enabled: true
+      storageClass: "standard"
+      size: 10Gi
+    config:
+      retentionPeriod: 168h # 7 days
+  promtail:
+    enabled: true
+  grafana:
+    enabled: true
+    service:
+      type: NodePort
+      port: 3000
+      nodePort: 30001
+    persistence:
+      enabled: true
+      size: 5Gi
+    admin:
+      user: admin
+      password: admin # TODO: 프로덕션에서는 시크릿으로 관리
