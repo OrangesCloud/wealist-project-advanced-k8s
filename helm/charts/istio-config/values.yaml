@@ -1,0 +1,119 @@
+# Istio Configuration Chart
+# Values are expected under 'istio:' key when using environment files
+
+# Direct values (used when not using environment files)
+enabled: true
+namespace: wealist-kind-local
+
+gateway:
+  enabled: true
+  name: wealist-gateway
+  selector:
+    istio: ingressgateway
+  hosts:
+    - "*"
+  tls:
+    enabled: false
+    credentialName: wealist-tls
+    mode: SIMPLE
+
+virtualService:
+  enabled: true
+  hosts:
+    - "*"
+  routes:
+    auth:
+      prefix: /svc/auth
+      host: auth-service
+      port: 8080
+      timeout: 30s
+    user:
+      prefix: /svc/user
+      host: user-service
+      port: 8081
+      timeout: 30s
+    board:
+      prefix: /svc/board
+      host: board-service
+      port: 8000
+      timeout: 3600s
+    chat:
+      prefix: /svc/chat
+      host: chat-service
+      port: 8001
+      timeout: 3600s
+    noti:
+      prefix: /svc/noti
+      host: noti-service
+      port: 8002
+      timeout: 3600s
+    storage:
+      prefix: /svc/storage
+      host: storage-service
+      port: 8003
+      timeout: 300s
+    video:
+      prefix: /svc/video
+      host: video-service
+      port: 8004
+      timeout: 3600s
+
+mtls:
+  enabled: true
+  mode: PERMISSIVE
+
+destinationRules:
+  enabled: true
+  connectionPool:
+    tcp:
+      maxConnections: 100
+    http:
+      h2UpgradePolicy: UPGRADE
+      http1MaxPendingRequests: 100
+      http2MaxRequests: 1000
+  outlierDetection:
+    consecutive5xxErrors: 5
+    interval: 30s
+    baseEjectionTime: 30s
+    maxEjectionPercent: 50
+
+retryPolicy:
+  attempts: 3
+  perTryTimeout: 2s
+  retryOn: gateway-error,connect-failure,refused-stream
+
+authorizationPolicy:
+  enabled: true
+  denyAll: false
+
+jwtAuth:
+  enabled: false
+  issuer: wealist-auth-service
+  jwksUri: ""
+
+telemetry:
+  tracing:
+    enabled: true
+    samplingPercentage: 100
+    provider: jaeger
+  accessLogging:
+    enabled: true
+    provider: envoy
+
+services:
+  - name: auth-service
+    port: 8080
+  - name: user-service
+    port: 8081
+  - name: board-service
+    port: 8000
+  - name: chat-service
+    port: 8001
+  - name: noti-service
+    port: 8002
+  - name: storage-service
+    port: 8003
+  - name: video-service
+    port: 8004
+  - name: frontend
+    port: 80

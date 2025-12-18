@@ -48,7 +48,7 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 	notificationService := service.NewNotificationService(notificationRepo, redisClient, cfg, logger, m)
 
 	// Initialize handlers
-	validator := middleware.NewAuthServiceValidator(cfg.Auth.ServiceURL, cfg.Auth.SecretKey, logger)
+	validator := middleware.NewAuthServiceValidator(cfg.BaseConfig.Auth.ServiceURL, cfg.BaseConfig.Auth.SecretKey, logger)
 	notificationHandler := handler.NewNotificationHandler(notificationService, sseService, logger)
 
 	// Health check routes (using common package)
@@ -81,7 +81,7 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 
 		// Internal API routes (require API key)
 		internal := api.Group("/internal")
-		internal.Use(middleware.InternalAuthMiddleware(cfg.Auth.InternalAPIKey))
+		internal.Use(middleware.InternalAuthMiddleware(cfg.InternalAuth.InternalAPIKey))
 		{
 			internal.POST("/notifications", notificationHandler.CreateNotification)
 			internal.POST("/notifications/bulk", notificationHandler.CreateBulkNotifications)

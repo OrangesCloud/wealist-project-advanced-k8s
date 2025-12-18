@@ -1,0 +1,31 @@
+{{- if and .Values.enabled .Values.destinationRules.enabled }}
+{{- range .Values.services }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ .name }}-dr
+  namespace: {{ include "istio-config.namespace" $ }}
+  labels:
+    {{- include "istio-config.labels" $ | nindent 4 }}
+spec:
+  host: {{ .name }}
+  trafficPolicy:
+    {{- if $.Values.mtls.enabled }}
+    tls:
+      mode: ISTIO_MUTUAL
+    {{- end }}
+    connectionPool:
+      tcp:
+        maxConnections: {{ $.Values.destinationRules.connectionPool.tcp.maxConnections }}
+      http:
+        h2UpgradePolicy: {{ $.Values.destinationRules.connectionPool.http.h2UpgradePolicy }}
+        http1MaxPendingRequests: {{ $.Values.destinationRules.connectionPool.http.http1MaxPendingRequests }}
+        http2MaxRequests: {{ $.Values.destinationRules.connectionPool.http.http2MaxRequests }}
+    outlierDetection:
+      consecutive5xxErrors: {{ $.Values.destinationRules.outlierDetection.consecutive5xxErrors }}
+      interval: {{ $.Values.destinationRules.outlierDetection.interval }}
+      baseEjectionTime: {{ $.Values.destinationRules.outlierDetection.baseEjectionTime }}
+      maxEjectionPercent: {{ $.Values.destinationRules.outlierDetection.maxEjectionPercent }}
+{{- end }}
+{{- end }}

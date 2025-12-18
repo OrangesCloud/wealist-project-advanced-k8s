@@ -25,7 +25,7 @@ nodes:
         protocol: TCP
       - containerPort: 30080
         hostPort: 8080
-        listenAddress: "0.0.0.0"
+        listenAddress: "0.0.0.0"  # Allow external access
         protocol: TCP
   - role: worker
   - role: worker

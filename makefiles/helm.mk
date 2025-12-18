@@ -37,6 +37,7 @@ helm-lint: ## Lint all Helm charts
 	@echo "Linting all Helm charts..."
 	@helm lint ./helm/charts/wealist-common
 	@helm lint ./helm/charts/wealist-infrastructure
+	@helm lint ./helm/charts/istio-config
 	@helm lint ./helm/charts/cert-manager-config 2>/dev/null || echo "cert-manager-config: run 'helm dependency update' first"
 	@for service in $(HELM_SERVICES); do \
 		echo "Linting $$service..."; \
@@ -174,3 +175,111 @@ helm-staging: ## Deploy to staging
 
 helm-prod: ## Deploy to production
 	@$(MAKE) helm-install-all ENV=prod
+
+##@ Istio Service Mesh
+
+.PHONY: istio-install istio-install-addons istio-install-config
+.PHONY: istio-label-ns istio-restart-pods istio-uninstall istio-status
+
+ISTIO_VERSION ?= 1.20.0
+
+istio-install: ## Install Istio core (base, istiod, gateway)
+	@echo "Installing Istio $(ISTIO_VERSION)..."
+	@echo ""
+	@echo "Step 1: Adding Istio Helm repository..."
+	@helm repo add istio https://istio-release.storage.googleapis.com/charts 2>/dev/null || true
+	@helm repo update
+	@echo ""
+	@echo "Step 2: Installing istio-base (CRDs)..."
+	@helm upgrade --install istio-base istio/base \
+		-n istio-system --create-namespace \
+		--version $(ISTIO_VERSION) --wait
+	@echo ""
+	@echo "Step 3: Installing istiod (control plane)..."
+	@helm upgrade --install istiod istio/istiod \
+		-n istio-system \
+		--version $(ISTIO_VERSION) --wait
+	@echo ""
+	@echo "Step 4: Installing istio-ingressgateway..."
+	@helm upgrade --install istio-ingressgateway istio/gateway \
+		-n istio-system \
+		--version $(ISTIO_VERSION) --wait
+	@echo ""
+	@echo "Istio core installation complete!"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. make istio-label-ns       # Enable sidecar injection for namespace"
+	@echo "  2. make istio-install-config # Install Istio routing configuration"
+	@echo "  3. make istio-restart-pods   # Restart pods to inject sidecars"
+	@echo "  4. make istio-install-addons # Install Kiali, Jaeger (optional)"
+
+istio-label-ns: ## Label namespace for Istio sidecar injection
+	@echo "Labeling namespace $(K8S_NAMESPACE) for Istio injection..."
+	@kubectl label namespace $(K8S_NAMESPACE) istio-injection=enabled --overwrite
+	@echo ""
+	@echo "Namespace labeled! Pods will get Istio sidecar on restart."
+	@echo "Run: make istio-restart-pods"
+
+istio-restart-pods: ## Restart all pods to inject Istio sidecars
+	@echo "Restarting all deployments in $(K8S_NAMESPACE) to inject sidecars..."
+	@kubectl rollout restart deployment -n $(K8S_NAMESPACE)
+	@echo ""
+	@echo "Pods are restarting. Check status with: make status"
+
+istio-install-config: ## Install Istio configuration (Gateway, VirtualService, etc.)
+	@echo "Installing Istio configuration (ENV=$(ENV), NS=$(K8S_NAMESPACE))..."
+	@helm upgrade --install istio-config ./helm/charts/istio-config \
+		-f $(HELM_BASE_VALUES) \
+		-f $(HELM_ENV_VALUES) \
+		-n $(K8S_NAMESPACE) --wait
+	@echo ""
+	@echo "Istio configuration installed!"
+	@echo "Gateway, VirtualService, PeerAuthentication, DestinationRules, AuthorizationPolicy deployed."
+
+istio-install-addons: ## Install Istio addons (Kiali, Jaeger)
+	@echo "Installing Istio observability addons..."
+	@echo ""
+	@echo "Installing Kiali (Service Graph)..."
+	@kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/kiali.yaml
+	@echo ""
+	@echo "Installing Jaeger (Distributed Tracing)..."
+	@kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/jaeger.yaml
+	@echo ""
+	@echo "Installing Prometheus (if not exists)..."
+	@kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/prometheus.yaml 2>/dev/null || true
+	@echo ""
+	@echo "Addons installed!"
+	@echo ""
+	@echo "Access Kiali dashboard: kubectl port-forward svc/kiali -n istio-system 20001:20001"
+	@echo "Access Jaeger dashboard: kubectl port-forward svc/tracing -n istio-system 16686:80"
+
+istio-status: ## Show Istio installation status
+	@echo "=== Istio System Components ==="
+	@kubectl get pods -n istio-system
+	@echo ""
+	@echo "=== Istio Injection Status ($(K8S_NAMESPACE)) ==="
+	@kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.labels.istio-injection}' 2>/dev/null && echo "" || echo "not labeled"
+	@echo ""
+	@echo "=== Pods with Istio Sidecar ($(K8S_NAMESPACE)) ==="
+	@kubectl get pods -n $(K8S_NAMESPACE) -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{" "}{end}{"\n"}{end}' 2>/dev/null | grep -v "^$$" || echo "No pods found"
+
+istio-uninstall: ## Uninstall Istio completely
+	@echo "Uninstalling Istio..."
+	@echo ""
+	@echo "Step 1: Removing Istio configuration..."
+	@helm uninstall istio-config -n $(K8S_NAMESPACE) 2>/dev/null || true
+	@echo ""
+	@echo "Step 2: Removing namespace label..."
+	@kubectl label namespace $(K8S_NAMESPACE) istio-injection- 2>/dev/null || true
+	@echo ""
+	@echo "Step 3: Removing Istio addons..."
+	@kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/kiali.yaml 2>/dev/null || true
+	@kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/jaeger.yaml 2>/dev/null || true
+	@echo ""
+	@echo "Step 4: Removing Istio core..."
+	@helm uninstall istio-ingressgateway -n istio-system 2>/dev/null || true
+	@helm uninstall istiod -n istio-system 2>/dev/null || true
+	@helm uninstall istio-base -n istio-system 2>/dev/null || true
+	@echo ""
+	@echo "Istio uninstalled!"
+	@echo "Note: Restart pods to remove sidecars: make istio-restart-pods"

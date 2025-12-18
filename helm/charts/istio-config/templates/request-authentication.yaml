@@ -1,0 +1,53 @@
+{{- if and .Values.enabled .Values.jwtAuth.enabled }}
+# JWT Authentication at Istio Gateway level
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: jwt-auth
+  namespace: {{ include "istio-config.namespace" . }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      istio-jwt: enabled
+  jwtRules:
+  - issuer: {{ .Values.jwtAuth.issuer | quote }}
+    {{- if .Values.jwtAuth.jwksUri }}
+    jwksUri: {{ .Values.jwtAuth.jwksUri | quote }}
+    {{- end }}
+    forwardOriginalToken: true
+    outputPayloadToHeader: x-jwt-payload
+
+---
+# Require valid JWT for protected services
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: require-jwt
+  namespace: {{ include "istio-config.namespace" . }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      istio-jwt: enabled
+  action: ALLOW
+  rules:
+  # Allow requests with valid JWT
+  - from:
+    - source:
+        requestPrincipals:
+        - "{{ .Values.jwtAuth.issuer }}/*"
+  # Allow public paths without JWT
+  - to:
+    - operation:
+        paths:
+        - "/health/*"
+        - "/actuator/health/*"
+        - "/oauth2/*"
+        - "/login/oauth2/*"
+        - "/api/auth/login"
+        - "/api/auth/register"
+        - "/api/auth/refresh"
+{{- end }}

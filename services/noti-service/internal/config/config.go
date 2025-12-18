@@ -10,15 +10,13 @@ import (
 // Config contains all configuration for noti-service.
 type Config struct {
 	commonconfig.BaseConfig `yaml:",inline"`
-	Auth                    NotiAuthConfig `yaml:"auth"`
-	App                     AppConfig      `yaml:"app"`
+	InternalAuth            InternalAuthConfig `yaml:"internal_auth"`
+	App                     AppConfig          `yaml:"app"`
 }
 
-// NotiAuthConfig extends the base AuthConfig with noti-specific fields.
-type NotiAuthConfig struct {
-	ServiceURL     string `yaml:"service_url"`
+// InternalAuthConfig contains noti-service specific auth fields.
+type InternalAuthConfig struct {
 	InternalAPIKey string `yaml:"internal_api_key"`
-	SecretKey      string `yaml:"secret_key"`
 }
 
 // AppConfig contains notification-specific configuration.
@@ -51,23 +49,9 @@ func Load(path string) (*Config, error) {
 	// Override with environment variables (common config)
 	cfg.BaseConfig.LoadFromEnv()
 
-	// Override Auth with common BaseConfig values if not set
-	if cfg.Auth.ServiceURL == "" {
-		cfg.Auth.ServiceURL = cfg.BaseConfig.Auth.ServiceURL
-	}
-	if cfg.Auth.SecretKey == "" {
-		cfg.Auth.SecretKey = cfg.BaseConfig.Auth.SecretKey
-	}
-
 	// Service-specific environment variables
-	if authURL := os.Getenv("AUTH_SERVICE_URL"); authURL != "" {
-		cfg.Auth.ServiceURL = authURL
-	}
 	if apiKey := os.Getenv("INTERNAL_API_KEY"); apiKey != "" {
-		cfg.Auth.InternalAPIKey = apiKey
-	}
-	if secretKey := os.Getenv("SECRET_KEY"); secretKey != "" {
-		cfg.Auth.SecretKey = secretKey
+		cfg.InternalAuth.InternalAPIKey = apiKey
 	}
 
 	return cfg, nil
