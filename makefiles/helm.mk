@@ -178,12 +178,75 @@ helm-prod: ## Deploy to production
 
 ##@ Istio Service Mesh
 
-.PHONY: istio-install istio-install-addons istio-install-config
-.PHONY: istio-label-ns istio-restart-pods istio-uninstall istio-status
+.PHONY: istio-install istio-install-ambient istio-install-gateway istio-install-addons istio-install-config
+.PHONY: istio-label-ns istio-label-ns-ambient istio-restart-pods istio-uninstall istio-status
 
-ISTIO_VERSION ?= 1.20.0
+ISTIO_VERSION ?= 1.24.0
 
-istio-install: ## Install Istio core (base, istiod, gateway)
+GATEWAY_API_VERSION ?= v1.2.0
+
+istio-install-ambient: ## Install Istio Ambient mode (recommended)
+	@echo "Installing Istio Ambient $(ISTIO_VERSION)..."
+	@echo ""
+	@echo "Ambient mode uses:"
+	@echo "  - ztunnel (DaemonSet): L4 mTLS, basic auth on each node"
+	@echo "  - Waypoint Proxy: L7 features (routing, retries, JWT) per namespace"
+	@echo "  - NO sidecar injection needed"
+	@echo ""
+	@echo "Step 1: Installing Kubernetes Gateway API CRDs $(GATEWAY_API_VERSION)..."
+	@kubectl get crd gateways.gateway.networking.k8s.io >/dev/null 2>&1 || \
+		kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/$(GATEWAY_API_VERSION)/standard-install.yaml
+	@echo ""
+	@echo "Step 2: Adding Istio Helm repository..."
+	@helm repo add istio https://istio-release.storage.googleapis.com/charts 2>/dev/null || true
+	@helm repo update
+	@echo ""
+	@echo "Step 3: Installing istio-base (CRDs)..."
+	@helm upgrade --install istio-base istio/base \
+		-n istio-system --create-namespace \
+		--version $(ISTIO_VERSION) --wait
+	@echo ""
+	@echo "Step 4: Installing istio-cni (Ambient required)..."
+	@helm upgrade --install istio-cni istio/cni \
+		-n istio-system \
+		--version $(ISTIO_VERSION) \
+		--set profile=ambient --wait
+	@echo ""
+	@echo "Step 5: Installing istiod (Ambient profile)..."
+	@helm upgrade --install istiod istio/istiod \
+		-n istio-system \
+		--version $(ISTIO_VERSION) \
+		--set profile=ambient --wait
+	@echo ""
+	@echo "Step 6: Installing ztunnel (L4 secure overlay)..."
+	@helm upgrade --install ztunnel istio/ztunnel \
+		-n istio-system \
+		--version $(ISTIO_VERSION) --wait
+	@echo ""
+	@echo "Istio Ambient core installation complete!"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. make istio-label-ns-ambient  # Enable Ambient for namespace"
+	@echo "  2. make istio-install-config    # Install Gateway, VirtualService, Waypoint"
+	@echo ""
+	@echo "Note: Ambient mode uses Kubernetes Gateway API (Waypoint) instead of"
+	@echo "      legacy istio-ingressgateway. If you need legacy gateway, run:"
+	@echo "      make istio-install-gateway"
+
+istio-install-gateway: ## Install Istio Ingress Gateway (optional, for legacy support)
+	@echo "Installing Istio Ingress Gateway..."
+	@echo ""
+	@echo "Note: For Ambient mode, consider using Kubernetes Gateway API instead."
+	@echo "      This is for legacy sidecar mode or hybrid setups."
+	@echo ""
+	@helm upgrade --install istio-ingressgateway istio/gateway \
+		-n istio-system \
+		--version $(ISTIO_VERSION) \
+		--set service.type=LoadBalancer --wait
+	@echo ""
+	@echo "Istio Ingress Gateway installed!"
+
+istio-install: ## Install Istio Sidecar mode (legacy)
 	@echo "Installing Istio $(ISTIO_VERSION)..."
 	@echo ""
 	@echo "Step 1: Adding Istio Helm repository..."
@@ -213,12 +276,20 @@ istio-install: ## Install Istio core (base, istiod, gateway)
 	@echo "  3. make istio-restart-pods   # Restart pods to inject sidecars"
 	@echo "  4. make istio-install-addons # Install Kiali, Jaeger (optional)"
 
-istio-label-ns: ## Label namespace for Istio sidecar injection
-	@echo "Labeling namespace $(K8S_NAMESPACE) for Istio injection..."
+istio-label-ns: ## Label namespace for Istio sidecar injection (legacy)
+	@echo "Labeling namespace $(K8S_NAMESPACE) for Istio sidecar injection..."
 	@kubectl label namespace $(K8S_NAMESPACE) istio-injection=enabled --overwrite
 	@echo ""
 	@echo "Namespace labeled! Pods will get Istio sidecar on restart."
 	@echo "Run: make istio-restart-pods"
+
+istio-label-ns-ambient: ## Label namespace for Istio Ambient mode
+	@echo "Labeling namespace $(K8S_NAMESPACE) for Istio Ambient mode..."
+	@kubectl label namespace $(K8S_NAMESPACE) istio.io/dataplane-mode=ambient --overwrite
+	@kubectl label namespace $(K8S_NAMESPACE) istio-injection- 2>/dev/null || true
+	@echo ""
+	@echo "Namespace labeled for Ambient mode!"
+	@echo "Pods are automatically enrolled - no restart needed."
 
 istio-restart-pods: ## Restart all pods to inject Istio sidecars
 	@echo "Restarting all deployments in $(K8S_NAMESPACE) to inject sidecars..."
@@ -257,10 +328,17 @@ istio-status: ## Show Istio installation status
 	@echo "=== Istio System Components ==="
 	@kubectl get pods -n istio-system
 	@echo ""
-	@echo "=== Istio Injection Status ($(K8S_NAMESPACE)) ==="
-	@kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.labels.istio-injection}' 2>/dev/null && echo "" || echo "not labeled"
+	@echo "=== Istio Mode Status ($(K8S_NAMESPACE)) ==="
+	@echo -n "Ambient mode: "; kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.labels.istio\.io/dataplane-mode}' 2>/dev/null && echo "" || echo "not enabled"
+	@echo -n "Sidecar injection: "; kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.labels.istio-injection}' 2>/dev/null && echo "" || echo "not enabled"
 	@echo ""
-	@echo "=== Pods with Istio Sidecar ($(K8S_NAMESPACE)) ==="
+	@echo "=== ztunnel Status (Ambient) ==="
+	@kubectl get pods -n istio-system -l app=ztunnel 2>/dev/null || echo "ztunnel not installed"
+	@echo ""
+	@echo "=== Waypoint Proxies ($(K8S_NAMESPACE)) ==="
+	@kubectl get gateway -n $(K8S_NAMESPACE) -l istio.io/waypoint-for 2>/dev/null || echo "No waypoint proxies"
+	@echo ""
+	@echo "=== Pods ($(K8S_NAMESPACE)) ==="
 	@kubectl get pods -n $(K8S_NAMESPACE) -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{" "}{end}{"\n"}{end}' 2>/dev/null | grep -v "^$$" || echo "No pods found"
 
 istio-uninstall: ## Uninstall Istio completely
@@ -269,17 +347,20 @@ istio-uninstall: ## Uninstall Istio completely
 	@echo "Step 1: Removing Istio configuration..."
 	@helm uninstall istio-config -n $(K8S_NAMESPACE) 2>/dev/null || true
 	@echo ""
-	@echo "Step 2: Removing namespace label..."
+	@echo "Step 2: Removing namespace labels..."
 	@kubectl label namespace $(K8S_NAMESPACE) istio-injection- 2>/dev/null || true
+	@kubectl label namespace $(K8S_NAMESPACE) istio.io/dataplane-mode- 2>/dev/null || true
 	@echo ""
 	@echo "Step 3: Removing Istio addons..."
-	@kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/kiali.yaml 2>/dev/null || true
-	@kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/jaeger.yaml 2>/dev/null || true
+	@kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-$(ISTIO_VERSION)/samples/addons/kiali.yaml 2>/dev/null || true
+	@kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-$(ISTIO_VERSION)/samples/addons/jaeger.yaml 2>/dev/null || true
 	@echo ""
-	@echo "Step 4: Removing Istio core..."
+	@echo "Step 4: Removing Istio core (including Ambient components)..."
 	@helm uninstall istio-ingressgateway -n istio-system 2>/dev/null || true
+	@helm uninstall ztunnel -n istio-system 2>/dev/null || true
 	@helm uninstall istiod -n istio-system 2>/dev/null || true
+	@helm uninstall istio-cni -n istio-system 2>/dev/null || true
 	@helm uninstall istio-base -n istio-system 2>/dev/null || true
 	@echo ""
 	@echo "Istio uninstalled!"
-	@echo "Note: Restart pods to remove sidecars: make istio-restart-pods"
+	@echo "Note: For sidecar mode, restart pods to remove sidecars: make istio-restart-pods"

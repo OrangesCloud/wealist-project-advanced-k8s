@@ -172,6 +172,15 @@ telemetry:
     enabled: true
     provider: envoy
 
+# Ambient Mesh Configuration
+# Ambient mode uses ztunnel (L4) + Waypoint Proxy (L7) instead of sidecars
+ambient:
+  enabled: true
+  waypoint:
+    enabled: true  # Deploy Waypoint Proxy for L7 features (routing, retries, JWT)
+    name: wealist-waypoint
+    annotations: {}
+
 services:
   - name: auth-service
     port: 8080

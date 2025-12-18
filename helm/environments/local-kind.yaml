@@ -1,0 +1,39 @@
+# Local Kind Cluster Environment
+# Namespace: wealist-kind-local
+
+# Override namespace for local Kind cluster
+namespace: wealist-kind-local
+
+# Istio configuration for local development
+istio:
+  mode: ambient
+  ambient:
+    waypoint:
+      enabled: true
+      name: wealist-waypoint
+
+# Local development resource limits (more relaxed)
+resources:
+  limits:
+    cpu: "1000m"
+    memory: "1024Mi"
+  requests:
+    cpu: "50m"
+    memory: "64Mi"
+
+# Security context for local development
+securityContext:
+  runAsNonRoot: false
+  capabilities:
+    drop: []
+
+# Image configuration for local registry
+image:
+  registry: localhost:5001
+  pullPolicy: IfNotPresent
+
+# Logging for development
+shared:
+  config:
+    LOG_LEVEL: "debug"
+    LOG_FORMAT: "text"
