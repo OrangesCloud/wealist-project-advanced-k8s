@@ -27,6 +27,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # Copy source code (changes here don't invalidate dependency cache)
 COPY services/video-service/ ./
 
+# Re-add replace directive (COPY overwrites go.mod)
+RUN echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packages/wealist-advanced-go-pkg' >> go.mod
+
 # Verify dependencies and build
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
