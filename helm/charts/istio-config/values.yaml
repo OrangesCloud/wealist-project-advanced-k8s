@@ -60,36 +60,108 @@ virtualService:
 
 mtls:
   enabled: true
-  mode: PERMISSIVE
+  mode: STRICT
 
 destinationRules:
   enabled: true
+  loadBalancer:
+    simple: ROUND_ROBIN  # ROUND_ROBIN, LEAST_CONN, RANDOM, PASSTHROUGH
   connectionPool:
     tcp:
       maxConnections: 100
+      connectTimeout: 10s
     http:
       h2UpgradePolicy: UPGRADE
       http1MaxPendingRequests: 100
       http2MaxRequests: 1000
+      maxRequestsPerConnection: 100
+      maxRetries: 3
   outlierDetection:
     consecutive5xxErrors: 5
-    interval: 30s
+    consecutiveGatewayErrors: 5
+    interval: 10s
     baseEjectionTime: 30s
     maxEjectionPercent: 50
+    minHealthPercent: 30
 
 retryPolicy:
+  enabled: true
   attempts: 3
-  perTryTimeout: 2s
-  retryOn: gateway-error,connect-failure,refused-stream
+  perTryTimeout: 5s
+  retryOn: gateway-error,connect-failure,refused-stream,retriable-4xx,reset
 
 authorizationPolicy:
   enabled: true
-  denyAll: false
+  denyAll: true  # Zero Trust: deny by default, allow explicitly
+  # Service-level authorization rules
+  rules:
+    # Which services each service can call
+    board:
+      allowedCallers:
+        - user-service    # workspace validation
+        - auth-service    # token validation
+      allowedPaths:
+        - /api/*
+        - /health/*
+        - /internal/*
+    chat:
+      allowedCallers:
+        - user-service
+        - auth-service
+        - noti-service    # notification on new message
+      allowedPaths:
+        - /api/*
+        - /health/*
+        - /ws/*
+    noti:
+      allowedCallers:
+        - user-service
+        - auth-service
+        - board-service   # board notifications
+        - chat-service    # chat notifications
+      allowedPaths:
+        - /api/*
+        - /health/*
+        - /internal/*
+        - /sse/*
+    storage:
+      allowedCallers:
+        - user-service
+        - auth-service
+        - board-service   # file attachments
+        - chat-service    # media uploads
+      allowedPaths:
+        - /api/*
+        - /health/*
+    video:
+      allowedCallers:
+        - user-service
+        - auth-service
+      allowedPaths:
+        - /api/*
+        - /health/*
 
 jwtAuth:
+  # Set to true when auth-service exposes JWKS endpoint
+  # Current: Each service validates JWT in middleware
   enabled: false
   issuer: wealist-auth-service
-  jwksUri: ""
+  # JWKS endpoint from auth-service (Spring Boot)
+  # TODO: Configure auth-service to expose JWKS endpoint
+  jwksUri: "http://auth-service.wealist-kind-local.svc.cluster.local:8080/.well-known/jwks.json"
+  # Alternative: local JWKS URI if auth-service supports it
+  # jwksUri: "http://auth-service:8080/.well-known/jwks.json"
+  # Public paths that don't require JWT
+  excludePaths:
+    - /health/*
+    - /actuator/health/*
+    - /oauth2/*
+    - /login/oauth2/*
+    - /api/auth/login
+    - /api/auth/register
+    - /api/auth/refresh
+    - /api/auth/oauth2/*
+    - /  # Frontend static files
 
 telemetry:
   tracing:
