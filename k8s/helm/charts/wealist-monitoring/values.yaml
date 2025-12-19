@@ -186,9 +186,10 @@ grafana:
     serveFromSubPath: "false"
 
 # =============================================================================
-# Ingress - External Access via domain/monitoring/*
+# Monitoring Ingress - External Access via domain/monitoring/*
 # =============================================================================
-ingress:
+# Note: Named 'monitoringIngress' to avoid conflict with infrastructure 'ingress'
+monitoringIngress:
   enabled: false  # Enable in environments with Ingress controller
   className: nginx
   annotations: {}

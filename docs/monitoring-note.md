@@ -117,3 +117,17 @@ helm uninstall wealist-monitoring -n wealist-monitoring
 make helm-uninstall-all ENV=dev
 
 ```
+
+```
+미니 PC 구성:
+
+PostgreSQL 설치 (sudo apt install postgresql)
+Redis 설치 (sudo apt install redis-server)
+PostgreSQL/Redis가 외부 접속 허용하도록 설정 (dev.yaml 주석 참고)
+helm-install-all 하면:
+
+Go 서비스들 → 호스트 PC의 PostgreSQL/Redis에 연결
+postgres-exporter → 호스트 PC의 PostgreSQL 메트릭 수집
+redis-exporter → 호스트 PC의 Redis 메트릭 수집
+Prometheus → 이 Exporter들 + 서비스들 메트릭 수집
+```

@@ -12,26 +12,32 @@ IMAGE_TAG ?= latest
 # DEPRECATED-SOON: local-ubuntu (will be replaced by staging)
 ENV ?= local-kind
 
-# Namespace and Domain mapping based on environment
+# Namespace, Domain, and Protocol mapping based on environment
 ifeq ($(ENV),local-kind)
   K8S_NAMESPACE = wealist-kind-local
   DOMAIN = localhost
+  PROTOCOL = http
 # DEPRECATED-SOON: local-ubuntu will be replaced by staging
 else ifeq ($(ENV),local-ubuntu)
   K8S_NAMESPACE = wealist-dev
   DOMAIN = local.wealist.co.kr
+  PROTOCOL = https
 else ifeq ($(ENV),dev)
   K8S_NAMESPACE = wealist-dev
   DOMAIN = dev.wealist.co.kr
+  PROTOCOL = https
 else ifeq ($(ENV),staging)
   K8S_NAMESPACE = wealist-staging
   DOMAIN = staging.wealist.co.kr
+  PROTOCOL = https
 else ifeq ($(ENV),prod)
   K8S_NAMESPACE = wealist-prod
   DOMAIN = wealist.co.kr
+  PROTOCOL = https
 else
   K8S_NAMESPACE = wealist-kind-local
   DOMAIN = localhost
+  PROTOCOL = http
 endif
 
 # Helm values file paths

@@ -27,5 +27,20 @@ nodes:
         hostPort: 8080
         listenAddress: "0.0.0.0"  # Allow external access
         protocol: TCP
+      # LiveKit WebRTC TCP fallback
+      - containerPort: 7881
+        hostPort: 7881
+        listenAddress: "0.0.0.0"
+        protocol: TCP
+      # LiveKit TURN UDP
+      - containerPort: 3478
+        hostPort: 3478
+        listenAddress: "0.0.0.0"
+        protocol: UDP
+      # LiveKit TURN TCP (UDP 차단 환경용)
+      - containerPort: 3478
+        hostPort: 3478
+        listenAddress: "0.0.0.0"
+        protocol: TCP
   - role: worker
   - role: worker

@@ -1,4 +1,4 @@
-{{- if .Values.ingress.enabled }}
+{{- if .Values.monitoringIngress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -11,14 +11,14 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /$2
-    {{- with .Values.ingress.annotations }}
+    {{- with .Values.monitoringIngress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  ingressClassName: {{ .Values.ingress.className | default "nginx" }}
-  {{- if .Values.ingress.tls }}
+  ingressClassName: {{ .Values.monitoringIngress.className | default "nginx" }}
+  {{- if .Values.monitoringIngress.tls }}
   tls:
-    {{- range .Values.ingress.tls }}
+    {{- range .Values.monitoringIngress.tls }}
     - hosts:
         {{- range .hosts }}
         - {{ . | quote }}
@@ -27,7 +27,7 @@ spec:
     {{- end }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.hosts }}
+    {{- range .Values.monitoringIngress.hosts }}
     - host: {{ .host | quote }}
       http:
         paths:

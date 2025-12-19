@@ -5,6 +5,7 @@ declare global {
   interface Window {
     __ENV__?: {
       API_BASE_URL?: string;
+      API_DOMAIN?: string; // Direct API domain for WebSocket/SSE (bypasses CloudFront)
     };
   }
 }
@@ -346,7 +347,8 @@ const getWebSocketProtocol = (baseUrl?: string): 'wss:' | 'ws:' => {
 export const getChatWebSocketUrl = (chatId: string, token: string): string => {
   const encodedToken = encodeURIComponent(token);
 
-  // K8s ingress 모드
+  // K8s ingress 모드 - CloudFront를 통해 WebSocket 연결
+  // CloudFront → api.dev.wealist.co.kr → ingress → chat-service
   if (isIngressMode) {
     const protocol = getWebSocketProtocol();
     return `${protocol}//${window.location.host}/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
@@ -380,7 +382,8 @@ export const getChatWebSocketUrl = (chatId: string, token: string): string => {
 export const getPresenceWebSocketUrl = (token: string): string => {
   const encodedToken = encodeURIComponent(token);
 
-  // K8s ingress 모드
+  // K8s ingress 모드 - CloudFront를 통해 WebSocket 연결
+  // CloudFront → api.dev.wealist.co.kr → ingress → chat-service
   if (isIngressMode) {
     const protocol = getWebSocketProtocol();
     return `${protocol}//${window.location.host}/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
@@ -415,31 +418,33 @@ export const getPresenceWebSocketUrl = (token: string): string => {
 export const getBoardWebSocketUrl = (projectId: string, token: string): string => {
   const encodedToken = encodeURIComponent(token);
 
-  // K8s ingress 모드
+  // K8s ingress 모드 - CloudFront를 통해 WebSocket 연결
+  // board-service WebSocket 경로: /ws/project/:projectId
+  // CloudFront → api.dev.wealist.co.kr → ingress → board-service
   if (isIngressMode) {
     const protocol = getWebSocketProtocol();
-    return `${protocol}//${window.location.host}/svc/board/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+    return `${protocol}//${window.location.host}/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   // Docker-compose (로컬 개발) - nginx를 통해 WebSocket 프록시
   if (INJECTED_API_BASE_URL?.includes('localhost')) {
-    return `ws://localhost/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+    return `ws://localhost/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
   if (INJECTED_API_BASE_URL) {
     const protocol = getWebSocketProtocol(INJECTED_API_BASE_URL);
     const host = INJECTED_API_BASE_URL.replace(/^https?:\/\//, '');
-    return `${protocol}//${host}/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+    return `${protocol}//${host}/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   // Fallback
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return `ws://localhost/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+    return `ws://localhost/ws/project/${projectId}?token=${encodedToken}`;
   }
 
-  return `wss://api.wealist.co.kr/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+  return `wss://api.wealist.co.kr/ws/project/${projectId}?token=${encodedToken}`;
 };
 
 /**
@@ -450,7 +455,8 @@ export const getNotificationSSEUrl = (token?: string): string => {
   const accessToken = token || localStorage.getItem('accessToken') || '';
   const encodedToken = encodeURIComponent(accessToken);
 
-  // K8s ingress 모드
+  // K8s ingress 모드 - CloudFront를 통해 SSE 연결
+  // CloudFront → api.dev.wealist.co.kr → ingress → noti-service
   if (isIngressMode) {
     return `${window.location.origin}/svc/noti/api/notifications/stream?token=${encodedToken}`;
   }
@@ -482,7 +488,7 @@ export const getOAuthBaseUrl = (): string => {
     return '';
   }
 
-  // Docker-compose (로컬 개발): auth-service 8080 포트
+  // Docker-compose (로컬 개발): auth-service 8080 포트!
   if (INJECTED_API_BASE_URL?.includes('localhost')) {
     return `${INJECTED_API_BASE_URL}:8080`;
   }

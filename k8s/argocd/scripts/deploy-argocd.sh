@@ -1,11 +1,23 @@
 #!/bin/bash
 set -e
 
+# 스크립트가 위치한 디렉토리의 절대 경로 가져오기
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# scripts -> argocd -> k8s -> project-root (3단계 위로)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
 echo "🚀 Starting ArgoCD deployment..."
+echo "📂 Script directory: $SCRIPT_DIR"
+echo "📂 Project root: $PROJECT_ROOT"
+
+# 경로 확인을 위한 디버그 출력
+echo "📋 Checking files:"
+ls -la "$PROJECT_ROOT/k8s/argocd/apps/project.yaml" || echo "❌ project.yaml not found"
+ls -la "$PROJECT_ROOT/k8s/argocd/apps/root-app.yaml" || echo "❌ root-app.yaml not found"
+echo ""
 
 # GitHub 저장소 정보
 REPO_URL="https://github.com/OrangesCloud/wealist-argo-helm.git"
-
 # 1. ArgoCD 설치
 echo "📦 Installing ArgoCD..."
 kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
@@ -51,13 +63,13 @@ echo "✅ Repository access configured successfully!"
 echo "⏳ Waiting for ArgoCD to be fully ready..."
 sleep 30
 
-# 6. AppProject 생성
+# 6. AppProject 생성 (절대 경로 사용)
 echo "🎯 Creating AppProject..."
-kubectl apply -f k8s/argocd/apps/project.yaml
+kubectl apply -f "$PROJECT_ROOT/k8s/argocd/apps/project.yaml"
 
-# 7. Root Application 생성
+# 7. Root Application 생성 (절대 경로 사용)
 echo "🌟 Creating Root Application..."
-kubectl apply -f k8s/argocd/apps/root-app.yaml
+kubectl apply -f "$PROJECT_ROOT/k8s/argocd/apps/root-app.yaml"
 
 # 8. ArgoCD CLI 설정 (선택사항)
 echo "🔧 Setting up ArgoCD CLI access..."

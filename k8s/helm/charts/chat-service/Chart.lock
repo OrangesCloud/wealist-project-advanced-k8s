@@ -1,6 +1,0 @@
-dependencies:
-- name: wealist-common
-  repository: file://../wealist-common
-  version: 1.0.0
-digest: sha256:26f82e71b2173e138345eb671e7e242e6993412b2fcae763db3cda61f26a5930
-generated: "2025-12-15T15:37:03.590811+09:00"

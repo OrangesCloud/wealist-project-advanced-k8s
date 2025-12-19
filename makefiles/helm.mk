@@ -120,14 +120,11 @@ helm-install-monitoring: ## Install monitoring stack (Prometheus, Loki, Grafana)
 	@echo "=============================================="
 	@echo ""
 	@echo "  Access URLs (via Ingress):"
-	@echo "    - Grafana:    https://$(DOMAIN)/monitoring/grafana"
-	@echo "    - Prometheus: https://$(DOMAIN)/monitoring/prometheus"
-	@echo "    - Loki:       https://$(DOMAIN)/monitoring/loki"
+	@echo "    - Grafana:    $(PROTOCOL)://$(DOMAIN)/monitoring/grafana"
+	@echo "    - Prometheus: $(PROTOCOL)://$(DOMAIN)/monitoring/prometheus"
+	@echo "    - Loki:       $(PROTOCOL)://$(DOMAIN)/monitoring/loki"
 	@echo ""
 	@echo "  Grafana Login: admin / admin"
-	@echo ""
-	@echo "  For local development (port-forward):"
-	@echo "    make port-forward-monitoring ENV=$(ENV)"
 	@echo "=============================================="
 
 helm-install-all: helm-deps-build helm-install-cert-manager helm-install-infra ## Install all charts (infra + services + monitoring)
