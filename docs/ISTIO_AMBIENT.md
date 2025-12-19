@@ -239,6 +239,176 @@ make istio-uninstall          # Istio 제거
 
 ---
 
+## JWT 인증 패턴 (ISTIO_JWT_MODE)
+
+### 환경별 JWT 검증 흐름
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Docker Compose (ISTIO_JWT_MODE 미설정 또는 false)            │
+│                                                             │
+│  Client → Go Service → SmartValidator → auth-service        │
+│                        (전체 검증)        ↓                  │
+│                                         JWKS fallback       │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ K8s + Istio (ISTIO_JWT_MODE=true)                           │
+│                                                             │
+│  Client → Istio Waypoint → Go Service → IstioAuthMiddleware │
+│           (JWT 검증)                     (파싱만)            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 환경 변수
+
+| 환경 | ISTIO_JWT_MODE | JWT 검증 주체 |
+|------|----------------|---------------|
+| Docker Compose | 미설정 (false) | Go 서비스 (SmartValidator) |
+| K8s without Istio | `false` | Go 서비스 (SmartValidator) |
+| K8s with Istio | `true` | Istio (RequestAuthentication) |
+
+### Go 서비스 라우터 패턴
+
+```go
+// 모든 Go 서비스의 router.go
+istioJWTMode := os.Getenv("ISTIO_JWT_MODE") == "true"
+
+if istioJWTMode {
+    // K8s + Istio: Istio가 검증, Go는 파싱만
+    parser := middleware.NewJWTParser(cfg.Logger)
+    authMiddleware = middleware.IstioAuthMiddleware(parser)
+    cfg.Logger.Info("Using Istio JWT mode (parse only)")
+} else if cfg.TokenValidator != nil {
+    // Docker Compose: SmartValidator로 전체 검증
+    authMiddleware = middleware.AuthWithValidator(cfg.TokenValidator)
+    cfg.Logger.Info("Using SmartValidator mode (full validation)")
+} else {
+    // Fallback: 로컬 JWT 검증
+    authMiddleware = middleware.Auth(cfg.JWTSecret)
+}
+```
+
+### 공통 패키지 (wealist-advanced-go-pkg/auth)
+
+| 파일 | 용도 |
+|------|------|
+| `parser.go` | `JWTParser` - 검증 없이 JWT 파싱 (Istio 모드용) |
+| `parser.go` | `IstioAuthMiddleware` - Istio 환경용 Gin 미들웨어 |
+| `validator.go` | `SmartValidator` - HTTP + JWKS 검증 (Docker Compose용) |
+| `jwks_validator.go` | `JWKSValidator` - RS256 JWKS 검증 |
+
+### Helm 설정
+
+```yaml
+# helm/environments/base.yaml
+shared:
+  config:
+    JWT_ISSUER: "wealist-auth-service"
+    ISTIO_JWT_MODE: "false"  # 기본값
+
+# helm/environments/local-kind.yaml
+shared:
+  config:
+    ISTIO_JWT_MODE: "true"  # K8s + Istio 환경
+```
+
+### Istio RequestAuthentication
+
+```yaml
+# helm/charts/istio-config/templates/request-authentication.yaml
+apiVersion: security.istio.io/v1
+kind: RequestAuthentication
+metadata:
+  name: jwt-auth
+spec:
+  jwtRules:
+  - issuer: wealist-auth-service
+    jwksUri: "http://auth-service:8080/.well-known/jwks.json"
+    forwardOriginalToken: true  # 원본 토큰 Go 서비스로 전달
+    fromHeaders:
+    - name: Authorization
+      prefix: "Bearer "
+```
+
+---
+
+## 인프라 서비스 Mesh 제외
+
+### PostgreSQL, Redis 제외 (필수)
+
+Ambient 모드에서 데이터베이스 연결 오류 발생 시:
+
+```bash
+# 에러 예시
+failed to connect to database: connection reset by peer
+```
+
+**해결**: 인프라 서비스를 Mesh에서 제외
+
+```bash
+# StatefulSet에 라벨 추가
+kubectl patch statefulset postgres -n <namespace> --type=merge \
+  -p='{"spec":{"template":{"metadata":{"labels":{"istio.io/dataplane-mode":"none"}}}}}'
+
+kubectl patch statefulset redis -n <namespace> --type=merge \
+  -p='{"spec":{"template":{"metadata":{"labels":{"istio.io/dataplane-mode":"none"}}}}}'
+
+# Pod 재시작
+kubectl delete pod postgres-0 redis-0 -n <namespace>
+```
+
+**확인**:
+```bash
+kubectl get pod postgres-0 -n <namespace> \
+  -o jsonpath='{.metadata.labels.istio\.io/dataplane-mode}'
+# 출력: none
+```
+
+### Helm 차트에서 설정 (권장)
+
+```yaml
+# helm/charts/wealist-infrastructure/values.yaml
+postgres:
+  podLabels:
+    istio.io/dataplane-mode: "none"
+
+redis:
+  podLabels:
+    istio.io/dataplane-mode: "none"
+```
+
+---
+
+## Waypoint 사용 설정
+
+### 네임스페이스 레벨 (권장)
+
+```bash
+# 네임스페이스의 모든 서비스가 Waypoint 사용
+kubectl label namespace <namespace> istio.io/use-waypoint=<waypoint-name>
+```
+
+### 서비스 레벨
+
+```bash
+# 특정 서비스만 Waypoint 사용
+kubectl label service <service> istio.io/use-waypoint=<waypoint-name>
+```
+
+### L7 정책이 필요한 경우
+
+Waypoint가 필요한 기능:
+- VirtualService (재시도, 타임아웃, 라우팅)
+- L7 AuthorizationPolicy (path 기반)
+- RequestAuthentication (JWT 검증)
+
+ztunnel만으로 가능한 기능:
+- mTLS
+- L4 AuthorizationPolicy (source/destination 기반)
+
+---
+
 ## 관련 파일 (wealist 프로젝트)
 
 ```
@@ -278,3 +448,4 @@ docs/ISTIO_OBSERVABILITY.md                    # 메트릭, 로깅 가이드
 | 날짜 | 버전 | 내용 |
 |------|------|------|
 | 2025-12-18 | 1.0 | 최초 작성. Istio 1.24.0 기준 |
+| 2025-12-19 | 1.1 | JWT 인증 패턴 (ISTIO_JWT_MODE) 추가, 인프라 Mesh 제외, Waypoint 설정 추가 |

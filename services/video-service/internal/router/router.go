@@ -53,11 +53,23 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 	// 룸 서비스 초기화 (메트릭 포함)
 	roomService := service.NewRoomService(roomRepo, userClient, cfg.LiveKit, redisClient, logger, m)
 
-	// Initialize validator (SmartValidator for RS256 JWKS support)
-	validator := middleware.NewSmartValidator(cfg.Auth.ServiceURL, cfg.Auth.JWTIssuer, logger)
-	logger.Info("SmartValidator initialized",
-		zap.String("auth_service_url", cfg.Auth.ServiceURL),
-		zap.String("jwt_issuer", cfg.Auth.JWTIssuer))
+	// Initialize auth middleware based on ISTIO_JWT_MODE
+	var authMiddleware gin.HandlerFunc
+
+	if cfg.Auth.IstioJWTMode {
+		// K8s + Istio 환경: Istio가 JWT 검증, Go 서비스는 파싱만
+		parser := middleware.NewJWTParser(logger)
+		authMiddleware = middleware.IstioAuthMiddleware(parser)
+		logger.Info("Using Istio JWT mode (parse only)",
+			zap.String("auth_service_url", cfg.Auth.ServiceURL))
+	} else {
+		// Docker Compose / K8s without Istio: SmartValidator로 전체 검증
+		validator := middleware.NewSmartValidator(cfg.Auth.ServiceURL, cfg.Auth.JWTIssuer, logger)
+		authMiddleware = middleware.AuthMiddleware(validator)
+		logger.Info("Using SmartValidator mode (full validation)",
+			zap.String("auth_service_url", cfg.Auth.ServiceURL),
+			zap.String("jwt_issuer", cfg.Auth.JWTIssuer))
+	}
 
 	// Initialize handlers
 	roomHandler := handler.NewRoomHandler(roomService, logger)
@@ -75,7 +87,7 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 
 		// Authenticated routes
 		authenticated := api.Group("")
-		authenticated.Use(middleware.AuthMiddleware(validator))
+		authenticated.Use(authMiddleware)
 		{
 			// Room routes
 			authenticated.POST("/rooms", roomHandler.CreateRoom)

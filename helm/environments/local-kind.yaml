@@ -103,6 +103,8 @@ shared:
     OAUTH2_REDIRECT_URL_ENV: "http://localhost/oauth/callback"
     # Auto-migrate DB schema (local dev only)
     DB_AUTO_MIGRATE: "true"
+    # Istio JWT Mode: Istio가 검증, Go 서비스는 파싱만
+    ISTIO_JWT_MODE: "true"
 
 # -----------------------------------------------------------------------------
 # Ingress (localhost, no TLS)
@@ -152,7 +154,9 @@ istio:
     denyAll: false  # Don't enforce deny-all in local
 
   jwtAuth:
-    enabled: false  # Enable after JWKS endpoint is ready
+    enabled: true
+    issuer: wealist-auth-service
+    jwksUri: "http://auth-service.wealist-kind-local.svc.cluster.local:8080/.well-known/jwks.json"
 
   telemetry:
     tracing:

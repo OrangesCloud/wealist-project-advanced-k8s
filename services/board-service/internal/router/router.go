@@ -2,6 +2,8 @@
 package router
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	swaggerFiles "github.com/swaggo/files"
@@ -116,17 +118,27 @@ func Setup(cfg Config) *gin.Engine {
 		cfg.Logger.Info("Metrics endpoint configured at root path", zap.String("path", "/metrics"))
 	}
 
-	// Initialize SmartValidator for JWT authentication
-	var tokenValidator middleware.TokenValidator
-	if cfg.AuthServiceURL != "" {
-		tokenValidator = middleware.NewSmartValidator(cfg.AuthServiceURL, cfg.JWTIssuer, cfg.Logger)
-		cfg.Logger.Info("SmartValidator initialized",
+	// Initialize auth middleware based on ISTIO_JWT_MODE
+	var authMiddleware gin.HandlerFunc
+	istioJWTMode := os.Getenv("ISTIO_JWT_MODE") == "true"
+
+	if istioJWTMode {
+		// K8s + Istio 환경: Istio가 JWT 검증, Go 서비스는 파싱만
+		parser := middleware.NewJWTParser(cfg.Logger)
+		authMiddleware = middleware.IstioAuthMiddleware(parser)
+		cfg.Logger.Info("Using Istio JWT mode (parse only)",
+			zap.String("auth_service_url", cfg.AuthServiceURL))
+	} else if cfg.AuthServiceURL != "" {
+		// Docker Compose / K8s without Istio: SmartValidator로 전체 검증
+		tokenValidator := middleware.NewSmartValidator(cfg.AuthServiceURL, cfg.JWTIssuer, cfg.Logger)
+		authMiddleware = middleware.AuthWithValidator(tokenValidator)
+		cfg.Logger.Info("Using SmartValidator mode (full validation)",
 			zap.String("auth_service_url", cfg.AuthServiceURL),
 			zap.String("jwt_issuer", cfg.JWTIssuer))
 	}
 
 	// Setup API routes
-	setupRoutes(baseGroup, tokenValidator, projectHandler, boardHandler, participantHandler, commentHandler, fieldOptionHandler, projectMemberHandler, projectJoinRequestHandler, attachmentHandler)
+	setupRoutes(baseGroup, authMiddleware, projectHandler, boardHandler, participantHandler, commentHandler, fieldOptionHandler, projectMemberHandler, projectJoinRequestHandler, attachmentHandler)
 
 	// 🔥 [중요] WebSocket은 baseGroup에 직접 등록 (chat-service와 동일한 패턴)
 	// basePath가 /api/boards일 때: /api/boards/ws/project/:projectId
@@ -138,7 +150,7 @@ func Setup(cfg Config) *gin.Engine {
 // setupRoutes configures all API routes
 func setupRoutes(
 	baseGroup *gin.RouterGroup,
-	tokenValidator middleware.TokenValidator,
+	authMiddleware gin.HandlerFunc,
 	projectHandler *handler.ProjectHandler,
 	boardHandler *handler.BoardHandler,
 	participantHandler *handler.ParticipantHandler,
@@ -150,8 +162,8 @@ func setupRoutes(
 ) {
 	// API group with authentication
 	api := baseGroup.Group("/api")
-	if tokenValidator != nil {
-		api.Use(middleware.AuthWithValidator(tokenValidator))
+	if authMiddleware != nil {
+		api.Use(authMiddleware)
 	}
 	{
 		// Project routes

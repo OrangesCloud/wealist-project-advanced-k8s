@@ -60,7 +60,7 @@ virtualService:
 
 mtls:
   enabled: true
-  mode: STRICT
+  mode: PERMISSIVE  # Allow both mTLS and plain HTTP for DB connections
 
 destinationRules:
   enabled: true

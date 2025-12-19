@@ -56,14 +56,30 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 	chatService := service.NewChatService(chatRepo, messageRepo, userClient, redisClient, logger, m)
 	presenceService := service.NewPresenceService(presenceRepo, redisClient, logger, m)
 
-	// Initialize validator (SmartValidator for RS256 JWKS support)
-	validator := middleware.NewSmartValidator(cfg.Auth.ServiceURL, cfg.Auth.JWTIssuer, logger)
-	logger.Info("SmartValidator initialized",
-		zap.String("auth_service_url", cfg.Auth.ServiceURL),
-		zap.String("jwt_issuer", cfg.Auth.JWTIssuer))
+	// Initialize auth middleware based on ISTIO_JWT_MODE
+	var authMiddleware gin.HandlerFunc
+	var wsValidator middleware.TokenValidator
+
+	if cfg.Auth.IstioJWTMode {
+		// K8s + Istio 환경: Istio가 JWT 검증, Go 서비스는 파싱만
+		parser := middleware.NewJWTParser(logger)
+		authMiddleware = middleware.IstioAuthMiddleware(parser)
+		// WebSocket용 validator는 SmartValidator 사용 (WebSocket은 Istio를 통하지 않을 수 있음)
+		wsValidator = middleware.NewSmartValidator(cfg.Auth.ServiceURL, cfg.Auth.JWTIssuer, logger)
+		logger.Info("Using Istio JWT mode (parse only)",
+			zap.String("auth_service_url", cfg.Auth.ServiceURL))
+	} else {
+		// Docker Compose / K8s without Istio: SmartValidator로 전체 검증
+		validator := middleware.NewSmartValidator(cfg.Auth.ServiceURL, cfg.Auth.JWTIssuer, logger)
+		authMiddleware = middleware.AuthMiddleware(validator)
+		wsValidator = validator
+		logger.Info("Using SmartValidator mode (full validation)",
+			zap.String("auth_service_url", cfg.Auth.ServiceURL),
+			zap.String("jwt_issuer", cfg.Auth.JWTIssuer))
+	}
 
 	// Initialize WebSocket hub
-	wsHub := websocket.NewHub(chatService, presenceService, validator, redisClient, logger)
+	wsHub := websocket.NewHub(chatService, presenceService, wsValidator, redisClient, logger)
 
 	// Initialize handlers
 	chatHandler := handler.NewChatHandler(chatService, presenceService, logger)
@@ -90,7 +106,7 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 
 		// Authenticated routes
 		authenticated := api.Group("")
-		authenticated.Use(middleware.AuthMiddleware(validator))
+		authenticated.Use(authMiddleware)
 		{
 			// Chat routes
 			authenticated.POST("", chatHandler.CreateChat)

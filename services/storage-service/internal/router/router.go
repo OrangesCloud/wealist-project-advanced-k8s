@@ -1,6 +1,8 @@
 package router
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -74,12 +76,23 @@ func Setup(cfg Config) *gin.Engine {
 	// API routes group
 	api := r.Group(cfg.BasePath)
 
-	// Auth middleware
+	// Auth middleware - check ISTIO_JWT_MODE first
 	var authMiddleware gin.HandlerFunc
-	if cfg.TokenValidator != nil {
+	istioJWTMode := os.Getenv("ISTIO_JWT_MODE") == "true"
+
+	if istioJWTMode {
+		// K8s + Istio 환경: Istio가 JWT 검증, Go 서비스는 파싱만
+		parser := middleware.NewJWTParser(cfg.Logger)
+		authMiddleware = middleware.IstioAuthMiddleware(parser)
+		cfg.Logger.Info("Using Istio JWT mode (parse only)")
+	} else if cfg.TokenValidator != nil {
+		// Docker Compose / K8s without Istio: SmartValidator로 전체 검증
 		authMiddleware = middleware.AuthWithValidator(cfg.TokenValidator)
+		cfg.Logger.Info("Using SmartValidator mode (full validation)")
 	} else {
+		// Fallback: 로컬 JWT 검증
 		authMiddleware = middleware.Auth(cfg.JWTSecret)
+		cfg.Logger.Info("Using local JWT validation")
 	}
 
 	// ============================================================
