@@ -484,7 +484,12 @@ export const getOAuthBaseUrl = (): string => {
     if (hostname === 'wealist.co.kr' || hostname === 'www.wealist.co.kr') {
       return 'https://api.wealist.co.kr';
     }
-    // local 환경 (localhost)
+    // Docker 개발 환경 (localhost): nginx 게이트웨이 사용
+    // config.js에서 API_BASE_URL=""로 설정되어 isIngressMode=true가 되지만,
+    // OAuth는 상대 경로가 아닌 절대 경로가 필요함 (localhost:3000 → localhost:80)
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost';
+    }
     return '';
   }
 
