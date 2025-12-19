@@ -92,7 +92,7 @@ for app in "${HELM_APPS[@]}"; do
   fi
 
   # Check for helm path
-  if grep -q "path: helm/charts/" "$app_file"; then
+  if grep -q "path: k8s/helm/charts/" "$app_file"; then
     print_result "${app} uses Helm path" 0
   else
     print_result "${app} uses Helm path" 1

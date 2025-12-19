@@ -35,9 +35,9 @@ else
 endif
 
 # Helm values file paths
-HELM_BASE_VALUES = ./helm/environments/base.yaml
-HELM_ENV_VALUES = ./helm/environments/$(ENV).yaml
-HELM_SECRETS_VALUES = ./helm/environments/$(ENV)-secrets.yaml
+HELM_BASE_VALUES = ./k8s/helm/environments/base.yaml
+HELM_ENV_VALUES = ./k8s/helm/environments/$(ENV).yaml
+HELM_SECRETS_VALUES = ./k8s/helm/environments/$(ENV)-secrets.yaml
 
 # Conditionally add secrets file if it exists
 HELM_SECRETS_FLAG = $(shell test -f $(HELM_SECRETS_VALUES) && echo "-f $(HELM_SECRETS_VALUES)")

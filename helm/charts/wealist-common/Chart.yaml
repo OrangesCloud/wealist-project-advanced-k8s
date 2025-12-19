@@ -1,9 +1,0 @@
-apiVersion: v2
-name: wealist-common
-description: Common library chart for weAlist services
-type: library
-version: 1.0.0
-appVersion: "1.0.0"
-maintainers:
-  - name: weAlist Team
-    email: team@wealist.io
