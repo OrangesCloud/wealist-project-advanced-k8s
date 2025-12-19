@@ -113,6 +113,10 @@ ENV_FILE="docker/env/.env.dev"
 # Docker Compose 파일 경로
 COMPOSE_FILES="-f docker/compose/docker-compose.yml"
 
+# 프로젝트 이름 (promtail 로그 수집 필터와 일치해야 함)
+PROJECT_NAME="wealist"
+COMPOSE_PROJECT="-p $PROJECT_NAME"
+
 # BuildKit 활성화 (cache mount 사용을 위해 필수)
 export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
@@ -142,7 +146,7 @@ case $COMMAND in
         # ./docker/scripts/generate-swagger.sh all 2>/dev/null || echo -e "${YELLOW}⚠️  Swagger 생성 스킵 (swag 미설치 - Docker에서 생성됨)${NC}"
 
         echo -e "${BLUE}🔨 이미지 빌드 및 컨테이너 시작 중...${NC}"
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES up -d --build
+        docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION $COMPOSE_FILES up -d --build
         echo -e "${GREEN}✅ 개발 환경이 시작되었습니다.${NC}"
         echo -e "${BLUE}📊 서비스 접속 정보:${NC}"
         echo "   - Frontend:    http://localhost:3000"
@@ -180,39 +184,39 @@ case $COMMAND in
 
     up-fg)
         echo -e "${BLUE}🚀 개발 환경을 포그라운드로 시작합니다...${NC}"
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES up
+        docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION $COMPOSE_FILES up
         ;;
 
     down)
         echo -e "${YELLOW}⏹️  개발 환경을 중지합니다...${NC}"
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES down
+        docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION $COMPOSE_FILES down
         echo -e "${GREEN}✅ 개발 환경이 중지되었습니다.${NC}"
         ;;
 
     restart)
         echo -e "${YELLOW}🔄 개발 환경을 재시작합니다...${NC}"
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES restart
+        docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION $COMPOSE_FILES restart
         echo -e "${GREEN}✅ 개발 환경이 재시작되었습니다.${NC}"
         ;;
 
     logs)
         SERVICE=${2:-}
         if [ -z "$SERVICE" ]; then
-            docker compose $ENV_FILE_OPTION $COMPOSE_FILES logs -f
+            docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION $COMPOSE_FILES logs -f
         else
-            docker compose $ENV_FILE_OPTION $COMPOSE_FILES logs -f "$SERVICE"
+            docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION $COMPOSE_FILES logs -f "$SERVICE"
         fi
         ;;
 
     build)
         echo -e "${BLUE}🔨 이미지를 다시 빌드합니다...${NC}"
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES build --no-cache
+        docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION $COMPOSE_FILES build --no-cache
         echo -e "${GREEN}✅ 빌드가 완료되었습니다.${NC}"
         ;;
 
     rebuild)
         echo -e "${BLUE}🔨 이미지를 다시 빌드하고 시작합니다...${NC}"
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES up -d --build
+        docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION $COMPOSE_FILES up -d --build
         echo -e "${GREEN}✅ 빌드 및 시작이 완료되었습니다.${NC}"
         ;;
 
@@ -221,7 +225,7 @@ case $COMMAND in
         read -p "계속하시겠습니까? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            docker compose $ENV_FILE_OPTION $COMPOSE_FILES down -v --remove-orphans
+            docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION $COMPOSE_FILES down -v --remove-orphans
             echo -e "${GREEN}✅ 정리가 완료되었습니다.${NC}"
         else
             echo -e "${YELLOW}취소되었습니다.${NC}"
@@ -229,13 +233,13 @@ case $COMMAND in
         ;;
 
     ps)
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES ps
+        docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION $COMPOSE_FILES ps
         ;;
 
     exec)
         SERVICE=${2:-user-service}
         SHELL=${3:-bash}
-        docker compose $ENV_FILE_OPTION $COMPOSE_FILES exec "$SERVICE" "$SHELL"
+        docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION $COMPOSE_FILES exec "$SERVICE" "$SHELL"
         ;;
 
     swagger)

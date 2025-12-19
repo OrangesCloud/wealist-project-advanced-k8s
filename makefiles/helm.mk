@@ -5,7 +5,7 @@
 ##@ Helm Charts (Recommended)
 
 .PHONY: helm-deps-build helm-lint helm-validate
-.PHONY: helm-install-cert-manager helm-install-infra helm-install-services
+.PHONY: helm-install-cert-manager helm-install-infra helm-install-services helm-install-monitoring
 .PHONY: helm-install-all helm-install-all-init helm-upgrade-all helm-uninstall-all
 .PHONY: helm-setup-route53-secret
 .PHONY: helm-local-kind helm-local-ubuntu helm-dev helm-staging helm-prod
@@ -107,9 +107,34 @@ helm-install-services: ## Install all service charts
 	@echo ""
 	@echo "Next: make status"
 
-helm-install-all: helm-deps-build helm-install-cert-manager helm-install-infra ## Install all charts
+helm-install-monitoring: ## Install monitoring stack (Prometheus, Loki, Grafana)
+	@echo "Installing monitoring stack (ENV=$(ENV), NS=$(K8S_NAMESPACE))..."
+	helm install wealist-monitoring ./helm/charts/wealist-monitoring \
+		-f $(HELM_BASE_VALUES) \
+		-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+		--set global.namespace=$(K8S_NAMESPACE) \
+		-n $(K8S_NAMESPACE)
+	@echo ""
+	@echo "=============================================="
+	@echo "  Monitoring Stack Installed Successfully!"
+	@echo "=============================================="
+	@echo ""
+	@echo "  Access URLs (via Ingress):"
+	@echo "    - Grafana:    https://$(DOMAIN)/monitoring/grafana"
+	@echo "    - Prometheus: https://$(DOMAIN)/monitoring/prometheus"
+	@echo "    - Loki:       https://$(DOMAIN)/monitoring/loki"
+	@echo ""
+	@echo "  Grafana Login: admin / admin"
+	@echo ""
+	@echo "  For local development (port-forward):"
+	@echo "    make port-forward-monitoring ENV=$(ENV)"
+	@echo "=============================================="
+
+helm-install-all: helm-deps-build helm-install-cert-manager helm-install-infra ## Install all charts (infra + services + monitoring)
 	@sleep 5
 	@$(MAKE) helm-install-services ENV=$(ENV)
+	@sleep 3
+	@$(MAKE) helm-install-monitoring ENV=$(ENV)
 
 helm-install-all-init: helm-deps-build helm-install-cert-manager helm-install-infra ## Install all with DB migration (first time)
 	@sleep 5
@@ -141,10 +166,17 @@ helm-upgrade-all: helm-deps-build ## Upgrade all charts
 			-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
 			-n $(K8S_NAMESPACE); \
 	done
+	@helm upgrade wealist-monitoring ./helm/charts/wealist-monitoring \
+		-f $(HELM_BASE_VALUES) \
+		-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+		--set global.namespace=$(K8S_NAMESPACE) \
+		-n $(K8S_NAMESPACE) 2>/dev/null || echo "Monitoring not installed, skipping upgrade"
 	@echo "All charts upgraded!"
 
 helm-uninstall-all: ## Uninstall all charts
 	@echo "Uninstalling all charts (ENV=$(ENV), NS=$(K8S_NAMESPACE))..."
+	@# Uninstall monitoring first
+	@helm uninstall wealist-monitoring -n $(K8S_NAMESPACE) 2>/dev/null || true
 	@# Uninstall all services (including frontend if it was installed)
 	@for service in $(SERVICES); do \
 		echo "Uninstalling $$service..."; \
@@ -175,6 +207,42 @@ helm-staging: ## Deploy to staging
 
 helm-prod: ## Deploy to production
 	@$(MAKE) helm-install-all ENV=prod
+
+##@ Port Forwarding (Monitoring)
+
+.PHONY: port-forward-grafana port-forward-prometheus port-forward-loki port-forward-monitoring
+
+port-forward-grafana: ## Port forward Grafana (localhost:3001 -> 3000)
+	@echo "Forwarding Grafana: http://localhost:3001"
+	@echo "Press Ctrl+C to stop"
+	kubectl port-forward svc/grafana -n $(K8S_NAMESPACE) 3001:3000
+
+port-forward-prometheus: ## Port forward Prometheus (localhost:9090 -> 9090)
+	@echo "Forwarding Prometheus: http://localhost:9090"
+	@echo "Press Ctrl+C to stop"
+	kubectl port-forward svc/prometheus -n $(K8S_NAMESPACE) 9090:9090
+
+port-forward-loki: ## Port forward Loki (localhost:3100 -> 3100)
+	@echo "Forwarding Loki: http://localhost:3100"
+	@echo "Press Ctrl+C to stop"
+	kubectl port-forward svc/loki -n $(K8S_NAMESPACE) 3100:3100
+
+port-forward-monitoring: ## Port forward all monitoring services (background)
+	@echo "Starting port forwarding for all monitoring services..."
+	@echo ""
+	@kubectl port-forward svc/grafana -n $(K8S_NAMESPACE) 3001:3000 &
+	@kubectl port-forward svc/prometheus -n $(K8S_NAMESPACE) 9090:9090 &
+	@kubectl port-forward svc/loki -n $(K8S_NAMESPACE) 3100:3100 &
+	@echo ""
+	@echo "=============================================="
+	@echo "  Monitoring Services Port Forwarding Active"
+	@echo "=============================================="
+	@echo "  Grafana:    http://localhost:3001"
+	@echo "  Prometheus: http://localhost:9090"
+	@echo "  Loki:       http://localhost:3100"
+	@echo "=============================================="
+	@echo ""
+	@echo "To stop: pkill -f 'kubectl port-forward'"
 
 ##@ Istio Service Mesh
 

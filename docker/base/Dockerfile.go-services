@@ -34,10 +34,10 @@ RUN for dir in services/*/; do \
     echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packages/wealist-advanced-go-pkg' >> "${dir}go.mod"; \
     done
 
-# Download all dependencies at once
+# Download all dependencies at once (GOTOOLCHAIN=auto로 필요한 Go 버전 자동 다운로드)
 RUN --mount=type=cache,target=/go/pkg/mod \
     for dir in services/*/; do \
-    cd /workspace/${dir} && GOWORK=off go mod download; \
+    cd /workspace/${dir} && GOTOOLCHAIN=auto GOWORK=off go mod download; \
     done
 
 # =============================================================================
@@ -62,39 +62,39 @@ RUN for dir in services/*/; do \
 # go mod tidy for each service
 RUN --mount=type=cache,target=/go/pkg/mod \
     for dir in services/*/; do \
-    cd /workspace/${dir} && GOWORK=off go mod tidy; \
+    cd /workspace/${dir} && GOTOOLCHAIN=auto GOWORK=off go mod tidy; \
     done
 
 # Build all services (shared package 컴파일은 캐시됨)
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     cd /workspace/services/board-service && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o /out/board-api ./cmd/api
+    GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o /out/board-api ./cmd/api
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     cd /workspace/services/chat-service && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o /out/chat-api ./cmd/api
+    GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o /out/chat-api ./cmd/api
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     cd /workspace/services/noti-service && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o /out/noti-api ./cmd/api
+    GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o /out/noti-api ./cmd/api
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     cd /workspace/services/storage-service && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o /out/storage-api ./cmd/api
+    GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o /out/storage-api ./cmd/api
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     cd /workspace/services/user-service && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o /out/user-api ./cmd/api
+    GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o /out/user-api ./cmd/api
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     cd /workspace/services/video-service && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o /out/video-api ./cmd/api
+    GOTOOLCHAIN=auto CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o /out/video-api ./cmd/api
 
 # =============================================================================
 # Runtime Images (각 서비스별)

@@ -1,0 +1,213 @@
+{{- if .Values.grafana.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-json
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+data:
+  services-overview.json: |
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "mappings": [],
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.5}, {"color": "red", "value": 1}]},
+              "unit": "short"
+            }
+          },
+          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 0},
+          "id": 1,
+          "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "up", "legendFormat": "{{ `{{job}}` }}", "refId": "A"}],
+          "title": "Service Status (1=UP, 0=DOWN)",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "auto", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+              "mappings": [],
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+              "unit": "reqps"
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "id": 2,
+          "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
+          "targets": [{"expr": "sum(rate({__name__=~\".+_http_requests_total\"}[5m])) by (job)", "legendFormat": "{{ `{{job}}` }}", "refId": "A"}],
+          "title": "Request Rate (per second)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "auto", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+              "mappings": [],
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+              "unit": "s"
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+          "id": 3,
+          "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
+          "targets": [{"expr": "histogram_quantile(0.95, sum(rate({__name__=~\".+_http_request_duration_seconds_bucket\"}[5m])) by (le, job))", "legendFormat": "{{ `{{job}}` }} p95", "refId": "A"}],
+          "title": "Response Time (p95)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 12},
+          "id": 4,
+          "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false},
+          "targets": [{"expr": "{app=~\".+\"}", "legendFormat": "", "refId": "A"}],
+          "title": "All Service Logs",
+          "type": "logs"
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 38,
+      "tags": ["wealist", "overview", "kubernetes"],
+      "templating": {"list": []},
+      "time": {"from": "now-1h", "to": "now"},
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "weAlist Services Overview (K8s)",
+      "uid": "wealist-k8s-overview",
+      "version": 1
+    }
+
+  log-analysis.json: |
+    {
+      "annotations": {"list": []},
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {"gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}, "id": 100, "title": "에러 현황", "type": "row"},
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 10}, {"color": "red", "value": 50}]}, "unit": "short"}},
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+          "id": 1,
+          "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(count_over_time({app=~\".+\"} |~ \"(?i)error\" [$__range]))", "legendFormat": "", "refId": "A"}],
+          "title": "총 에러 수",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "unit": "short"}},
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
+          "id": 2,
+          "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(count_over_time({app=~\".+\"} |~ \"(?i)panic|fatal\" [$__range]))", "legendFormat": "", "refId": "A"}],
+          "title": "심각한 에러 (Panic/Fatal)",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 50}]}, "unit": "short"}},
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
+          "id": 3,
+          "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(count_over_time({app=~\".+\"} |~ \"(?i)warn\" [$__range]))", "legendFormat": "", "refId": "A"}],
+          "title": "경고 수",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 10}]}, "unit": "short"}},
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+          "id": 4,
+          "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+          "targets": [{"expr": "sum(count_over_time({app=~\".+\"} |~ \"(?i)timeout|connection refused|connection reset\" [$__range]))", "legendFormat": "", "refId": "A"}],
+          "title": "연결 문제",
+          "type": "stat"
+        },
+        {"gridPos": {"h": 1, "w": 24, "x": 0, "y": 5}, "id": 101, "title": "서비스별 에러 분석", "type": "row"},
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "bars", "fillOpacity": 80, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "normal"}, "thresholdsStyle": {"mode": "off"}}, "unit": "short"}},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+          "id": 5,
+          "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "sum by (app) (count_over_time({app=~\".+\"} |~ \"(?i)error\" [5m]))", "legendFormat": "{{ `{{app}}` }}", "refId": "A"}],
+          "title": "서비스별 에러 추이",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "bars", "fillOpacity": 80, "gradientMode": "none", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "normal"}, "thresholdsStyle": {"mode": "off"}}, "unit": "short"}},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+          "id": 6,
+          "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+          "targets": [{"expr": "sum by (app) (count_over_time({app=~\".+\"} |~ \"status.*[45][0-9][0-9]\" [5m]))", "legendFormat": "{{ `{{app}}` }}", "refId": "A"}],
+          "title": "서비스별 HTTP 에러 (4xx/5xx)",
+          "type": "timeseries"
+        },
+        {"gridPos": {"h": 1, "w": 24, "x": 0, "y": 14}, "id": 102, "title": "디버깅", "type": "row"},
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 15},
+          "id": 7,
+          "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true},
+          "targets": [{"expr": "{app=~\"$service\"} |~ \"$search\"", "legendFormat": "", "refId": "A"}],
+          "title": "로그 검색 (키워드, 요청 ID, 사용자 ID 등)",
+          "type": "logs"
+        },
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 25},
+          "id": 8,
+          "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true},
+          "targets": [{"expr": "{app=~\"$service\"} | json | level=~\"error|warn|fatal|panic\" | line_format \"[{{ `{{.level}}` }}] {{ `{{.app}}` }}: {{ `{{.message}}` }}\"", "legendFormat": "", "refId": "A"}],
+          "title": "구조화된 에러/경고 로그 (JSON 파싱)",
+          "type": "logs"
+        },
+        {"gridPos": {"h": 1, "w": 24, "x": 0, "y": 35}, "id": 103, "title": "실시간 로그 스트림", "type": "row"},
+        {
+          "datasource": {"type": "loki", "uid": "loki"},
+          "gridPos": {"h": 12, "w": 24, "x": 0, "y": 36},
+          "id": 9,
+          "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false},
+          "targets": [{"expr": "{app=~\"$service\"}", "legendFormat": "", "refId": "A"}],
+          "title": "전체 로그 (실시간)",
+          "type": "logs"
+        }
+      ],
+      "refresh": "5s",
+      "schemaVersion": 38,
+      "tags": ["wealist", "logs", "debugging", "kubernetes"],
+      "templating": {
+        "list": [
+          {"current": {"selected": true, "text": "All", "value": "$__all"}, "datasource": {"type": "loki", "uid": "loki"}, "definition": "label_values(app)", "hide": 0, "includeAll": true, "label": "서비스", "multi": true, "name": "service", "options": [], "query": "label_values(app)", "refresh": 1, "regex": "", "skipUrlSync": false, "sort": 1, "type": "query"},
+          {"current": {"selected": false, "text": "", "value": ""}, "hide": 0, "label": "검색어", "name": "search", "options": [{"selected": true, "text": "", "value": ""}], "query": "", "skipUrlSync": false, "type": "textbox"}
+        ]
+      },
+      "time": {"from": "now-1h", "to": "now"},
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "로그 분석 & 디버깅 (K8s)",
+      "uid": "log-analysis-k8s",
+      "version": 1
+    }
+{{- end }}

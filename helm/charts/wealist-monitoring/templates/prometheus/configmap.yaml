@@ -1,0 +1,135 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: prometheus
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: monitoring
+data:
+  prometheus.yml: |
+    # =============================================================================
+    # Prometheus Configuration for weAlist (Kubernetes)
+    # =============================================================================
+
+    global:
+      scrape_interval: {{ .Values.prometheus.config.scrapeInterval }}
+      evaluation_interval: {{ .Values.prometheus.config.evaluationInterval }}
+      external_labels:
+        monitor: 'wealist-k8s-monitor'
+
+    scrape_configs:
+      # Prometheus 자체 메트릭
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      # ==========================================================================
+      # Go Services
+      # ==========================================================================
+      {{- if .Values.prometheus.scrapeTargets.userService.enabled }}
+      - job_name: 'user-service'
+        static_configs:
+          - targets: ['{{ .Values.prometheus.scrapeTargets.userService.host }}:{{ .Values.prometheus.scrapeTargets.userService.port }}']
+        metrics_path: '{{ .Values.prometheus.scrapeTargets.userService.path }}'
+      {{- end }}
+
+      {{- if .Values.prometheus.scrapeTargets.boardService.enabled }}
+      - job_name: 'board-service'
+        static_configs:
+          - targets: ['{{ .Values.prometheus.scrapeTargets.boardService.host }}:{{ .Values.prometheus.scrapeTargets.boardService.port }}']
+        metrics_path: '{{ .Values.prometheus.scrapeTargets.boardService.path }}'
+      {{- end }}
+
+      {{- if .Values.prometheus.scrapeTargets.chatService.enabled }}
+      - job_name: 'chat-service'
+        static_configs:
+          - targets: ['{{ .Values.prometheus.scrapeTargets.chatService.host }}:{{ .Values.prometheus.scrapeTargets.chatService.port }}']
+        metrics_path: '{{ .Values.prometheus.scrapeTargets.chatService.path }}'
+      {{- end }}
+
+      {{- if .Values.prometheus.scrapeTargets.notiService.enabled }}
+      - job_name: 'noti-service'
+        static_configs:
+          - targets: ['{{ .Values.prometheus.scrapeTargets.notiService.host }}:{{ .Values.prometheus.scrapeTargets.notiService.port }}']
+        metrics_path: '{{ .Values.prometheus.scrapeTargets.notiService.path }}'
+      {{- end }}
+
+      {{- if .Values.prometheus.scrapeTargets.storageService.enabled }}
+      - job_name: 'storage-service'
+        static_configs:
+          - targets: ['{{ .Values.prometheus.scrapeTargets.storageService.host }}:{{ .Values.prometheus.scrapeTargets.storageService.port }}']
+        metrics_path: '{{ .Values.prometheus.scrapeTargets.storageService.path }}'
+      {{- end }}
+
+      {{- if .Values.prometheus.scrapeTargets.videoService.enabled }}
+      - job_name: 'video-service'
+        static_configs:
+          - targets: ['{{ .Values.prometheus.scrapeTargets.videoService.host }}:{{ .Values.prometheus.scrapeTargets.videoService.port }}']
+        metrics_path: '{{ .Values.prometheus.scrapeTargets.videoService.path }}'
+      {{- end }}
+
+      # ==========================================================================
+      # Spring Boot Service (auth-service)
+      # ==========================================================================
+      {{- if .Values.prometheus.scrapeTargets.authService.enabled }}
+      - job_name: 'auth-service'
+        static_configs:
+          - targets: ['{{ .Values.prometheus.scrapeTargets.authService.host }}:{{ .Values.prometheus.scrapeTargets.authService.port }}']
+        metrics_path: '{{ .Values.prometheus.scrapeTargets.authService.path }}'
+      {{- end }}
+
+      # ==========================================================================
+      # Database Exporters
+      # ==========================================================================
+      {{- if .Values.postgresExporter.enabled }}
+      - job_name: 'postgres-exporter'
+        static_configs:
+          - targets: ['postgres-exporter:{{ .Values.postgresExporter.service.port }}']
+        metrics_path: '/metrics'
+      {{- end }}
+
+      {{- if .Values.redisExporter.enabled }}
+      - job_name: 'redis-exporter'
+        static_configs:
+          - targets: ['redis-exporter:{{ .Values.redisExporter.service.port }}']
+        metrics_path: '/metrics'
+      {{- end }}
+
+      # ==========================================================================
+      # Kubernetes Service Discovery (Pod Annotations)
+      # ==========================================================================
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - {{ .Values.global.namespace }}
+        relabel_configs:
+          # prometheus.io/scrape 어노테이션이 있는 Pod만 스크래핑
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          # prometheus.io/path 어노테이션으로 메트릭 경로 설정
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          # prometheus.io/port 어노테이션으로 포트 설정
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          # Pod 라벨 추가
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+{{- end }}
