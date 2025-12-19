@@ -44,7 +44,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}/frontend
 
 permissions:
-  contents: write  # semantic-release가 package.json, CHANGELOG 수정
+  contents: write # semantic-release가 package.json, CHANGELOG 수정
   packages: write
   id-token: write
 
@@ -67,7 +67,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 전체 히스토리 필요 (커밋 분석용)
+          fetch-depth: 0 # 전체 히스토리 필요 (커밋 분석용)
           persist-credentials: false
 
       - name: Setup pnpm
@@ -249,7 +249,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [semantic-release, build-and-test, docker-build-push]
     if: ${{ !inputs.skip_s3_deploy }}
-    environment: dev
+    environment: develop
 
     defaults:
       run:
