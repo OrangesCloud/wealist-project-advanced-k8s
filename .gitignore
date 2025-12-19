@@ -33,7 +33,10 @@ secret.yaml
 secrets.yaml
 k8s/base/shared/secret-shared.yaml
 services/auth-service/k8s/base/secret.yaml
-
+## 환경변수 제거
+dev.yaml
+local-ubuntu.yaml
+local-kind.yaml
 # Private keys (NEVER commit)
 *.key
 sealed-secrets-*.key
