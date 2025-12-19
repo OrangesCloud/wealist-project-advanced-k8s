@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,14 +13,22 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Logger   LoggerConfig   `yaml:"logger"`
-	JWT      JWTConfig      `yaml:"jwt"`
-	AuthAPI  AuthAPIConfig  `yaml:"auth_api"`
-	UserAPI  UserAPIConfig  `yaml:"user_api"`
-	CORS     CORSConfig     `yaml:"cors"`
-	S3       S3Config       `yaml:"s3"`
+	Server    ServerConfig    `yaml:"server"`
+	Database  DatabaseConfig  `yaml:"database"`
+	Logger    LoggerConfig    `yaml:"logger"`
+	JWT       JWTConfig       `yaml:"jwt"`
+	AuthAPI   AuthAPIConfig   `yaml:"auth_api"`
+	UserAPI   UserAPIConfig   `yaml:"user_api"`
+	CORS      CORSConfig      `yaml:"cors"`
+	S3        S3Config        `yaml:"s3"`
+	RateLimit RateLimitConfig `yaml:"rate_limit"`
+}
+
+// RateLimitConfig holds rate limiting configuration
+type RateLimitConfig struct {
+	Enabled           bool `yaml:"enabled"`
+	RequestsPerMinute int  `yaml:"requests_per_minute"`
+	BurstSize         int  `yaml:"burst_size"`
 }
 
 // ServerConfig holds server configuration
@@ -265,6 +274,24 @@ func (c *Config) overrideFromEnv() {
 	}
 	if s3PublicEndpoint := os.Getenv("S3_PUBLIC_ENDPOINT"); s3PublicEndpoint != "" {
 		c.S3.PublicEndpoint = s3PublicEndpoint
+	}
+
+	// Rate Limit
+	if rateLimitEnabled := os.Getenv("RATE_LIMIT_ENABLED"); rateLimitEnabled != "" {
+		c.RateLimit.Enabled = rateLimitEnabled == "true"
+	}
+	if rpm := os.Getenv("RATE_LIMIT_PER_MINUTE"); rpm != "" {
+		if v, err := strconv.Atoi(rpm); err == nil {
+			c.RateLimit.RequestsPerMinute = v
+		}
+	}
+	if burst := os.Getenv("RATE_LIMIT_BURST"); burst != "" {
+		if v, err := strconv.Atoi(burst); err == nil {
+			c.RateLimit.BurstSize = v
+		}
+	}
+	if c.RateLimit.RequestsPerMinute == 0 {
+		c.RateLimit.RequestsPerMinute = 60
 	}
 }
 

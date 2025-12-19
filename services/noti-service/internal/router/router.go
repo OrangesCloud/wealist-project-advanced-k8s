@@ -21,6 +21,7 @@ import (
 
 	commonhealth "github.com/OrangesCloud/wealist-advanced-go-pkg/health"
 	commonmw "github.com/OrangesCloud/wealist-advanced-go-pkg/middleware"
+	"github.com/OrangesCloud/wealist-advanced-go-pkg/ratelimit"
 )
 
 // Setup configures and returns the Gin router with all routes and middleware.
@@ -39,6 +40,21 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 	r.Use(commonmw.Logger(logger))
 	r.Use(commonmw.DefaultCORS())
 	r.Use(metrics.HTTPMiddleware(m))
+
+	// Rate limiting middleware
+	if cfg.RateLimit.Enabled && redisClient != nil {
+		rlConfig := ratelimit.DefaultConfig().
+			WithRequestsPerMinute(cfg.RateLimit.RequestsPerMinute).
+			WithBurstSize(cfg.RateLimit.BurstSize).
+			WithKeyPrefix("rl:noti:")
+		limiter := ratelimit.NewRedisRateLimiter(redisClient, rlConfig, logger)
+		r.Use(ratelimit.MiddlewareWithLogger(limiter, ratelimit.UserKey, rlConfig, logger))
+		logger.Info("Rate limiting middleware enabled",
+			zap.Int("requests_per_minute", cfg.RateLimit.RequestsPerMinute),
+			zap.Int("burst_size", cfg.RateLimit.BurstSize))
+	} else if cfg.RateLimit.Enabled && redisClient == nil {
+		logger.Warn("Rate limiting enabled but Redis is not available, skipping")
+	}
 
 	// Initialize services
 	// 레포지토리와 SSE 서비스 초기화

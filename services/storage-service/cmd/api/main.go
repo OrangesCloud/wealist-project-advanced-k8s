@@ -124,6 +124,11 @@ func main() {
 			zap.String("jwt_issuer", jwtIssuer))
 	}
 
+	// Initialize Redis for rate limiting
+	if err := database.InitRedis(logger); err != nil {
+		logger.Warn("Failed to initialize Redis, rate limiting will be disabled", zap.Error(err))
+	}
+
 	// Initialize User API client
 	var userClient client.UserClient
 	if cfg.UserAPI.BaseURL != "" {
@@ -137,13 +142,15 @@ func main() {
 
 	// Setup router
 	r := router.Setup(router.Config{
-		DB:             db,
-		Logger:         logger,
-		JWTSecret:      cfg.JWT.Secret,
-		BasePath:       cfg.Server.BasePath,
-		S3Client:       s3Client,
-		TokenValidator: tokenValidator,
-		UserClient:     userClient,
+		DB:              db,
+		Logger:          logger,
+		JWTSecret:       cfg.JWT.Secret,
+		BasePath:        cfg.Server.BasePath,
+		S3Client:        s3Client,
+		TokenValidator:  tokenValidator,
+		UserClient:      userClient,
+		RedisClient:     database.GetRedis(),
+		RateLimitConfig: cfg.RateLimit,
 	})
 
 	// Create HTTP server

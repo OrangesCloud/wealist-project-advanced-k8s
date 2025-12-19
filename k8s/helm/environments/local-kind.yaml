@@ -105,6 +105,10 @@ shared:
     DB_AUTO_MIGRATE: "true"
     # Istio JWT Mode: Istio가 검증, Go 서비스는 파싱만
     ISTIO_JWT_MODE: "true"
+    # Rate Limiting (relaxed for local development)
+    RATE_LIMIT_ENABLED: "true"
+    RATE_LIMIT_PER_MINUTE: "1000"
+    RATE_LIMIT_BURST: "100"
 
 # -----------------------------------------------------------------------------
 # Ingress (localhost, no TLS)

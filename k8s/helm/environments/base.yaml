@@ -161,6 +161,11 @@ shared:
     # Database Migration (default: disabled for safety)
     DB_AUTO_MIGRATE: "false"
 
+    # Rate Limiting (Application Level - Redis based)
+    RATE_LIMIT_ENABLED: "true"
+    RATE_LIMIT_PER_MINUTE: "60"
+    RATE_LIMIT_BURST: "10"
+
   # ---------------------------------------------------------------------------
   # Shared Secrets (stored in K8s Secret, base64 encoded)
   # ---------------------------------------------------------------------------
