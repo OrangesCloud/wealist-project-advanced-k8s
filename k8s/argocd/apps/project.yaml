@@ -1,4 +1,4 @@
-# k8s/argocd/project.yaml
+# k8s/argocd/apps/project.yaml
 # 기본 템플릿만 (실제로는 사용 안 함)
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject

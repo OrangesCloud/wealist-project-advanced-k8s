@@ -10,7 +10,7 @@ IMAGE_TAG ?= latest
 # Environment configuration (used across all commands)
 # Options: local-kind, dev, staging, prod
 # DEPRECATED-SOON: local-ubuntu (will be replaced by staging)
-ENV ?= local-kind
+ENV ?=dev
 
 # Namespace and Domain mapping based on environment
 ifeq ($(ENV),local-kind)

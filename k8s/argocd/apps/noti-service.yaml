@@ -3,16 +3,18 @@ kind: Application
 metadata:
   name: noti-service
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   project: wealist
   source:
     repoURL: https://github.com/OrangesCloud/wealist-argo-helm.git 
-    targetRevision: main
+    targetRevision: dev
     path: k8s/helm/charts/noti-service
     helm:
       valueFiles:
         - values.yaml
-        - ../../environments/local-kind.yaml
+        - ../../environments/dev.yaml
       parameters:
         - name: image.tag
           value: "latest"
@@ -20,7 +22,7 @@ spec:
           value: "localhost:5001"
   destination:
     server: https://kubernetes.default.svc
-    namespace: wealist-kind-local # 여기 수정 다른 브런치면
+    namespace: wealist-dev  # 여기 수정 다른 브런치면
   syncPolicy:
     automated:
       prune: true

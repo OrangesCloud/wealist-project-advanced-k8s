@@ -106,49 +106,11 @@ shared:
 
 # -----------------------------------------------------------------------------
 # Ingress (localhost, no TLS)
-# Will be disabled when Istio is fully enabled
 # -----------------------------------------------------------------------------
 ingress:
-  enabled: true  # Set to false when using Istio Gateway
+  enabled: true
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
   hosts:
     - host: localhost
   tls: []
-
-# -----------------------------------------------------------------------------
-# Istio Service Mesh (local-kind specific)
-# -----------------------------------------------------------------------------
-istio:
-  enabled: true  # Enable Istio config deployment
-  namespace: wealist-kind-local
-
-  gateway:
-    enabled: true
-    name: wealist-gateway
-    hosts:
-      - "localhost"
-      - "*"
-    tls:
-      enabled: false
-
-  mtls:
-    enabled: true
-    mode: PERMISSIVE  # Allow both mTLS and plain HTTP during migration
-
-  destinationRules:
-    enabled: true
-
-  authorizationPolicy:
-    enabled: true
-    denyAll: false  # Don't enforce deny-all in local
-
-  jwtAuth:
-    enabled: false  # Enable after JWKS endpoint is ready
-
-  telemetry:
-    tracing:
-      enabled: true
-      samplingPercentage: 100  # 100% for local debugging
-    accessLogging:
-      enabled: true

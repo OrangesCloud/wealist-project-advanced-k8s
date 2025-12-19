@@ -15,7 +15,7 @@ if [ -z "$SERVICE_NAME" ] || [ -z "$SERVICE_PORT" ]; then
   exit 1
 fi
 
-CHART_DIR="helm/charts/${SERVICE_NAME}"
+CHART_DIR="k8s/helm/charts/${SERVICE_NAME}"
 TEMPLATES_DIR="${CHART_DIR}/templates"
 
 echo "📦 Generating production-ready chart for ${SERVICE_NAME}..."
@@ -378,4 +378,4 @@ echo "🎉 ${SERVICE_NAME} chart generated successfully!"
 echo "📝 Next steps:"
 echo "   - Review and customize ${CHART_DIR}/values.yaml"
 echo "   - Add service-specific configuration"
-echo "   - Run: helm lint ./helm/charts/${SERVICE_NAME}"
+echo "   - Run: helm lint ./k8s/helm/charts/${SERVICE_NAME}"

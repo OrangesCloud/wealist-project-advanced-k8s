@@ -95,7 +95,7 @@ kubectl patch configmap ingress-nginx-controller -n ingress-nginx \
   --type merge -p '{"data":{"allow-snippet-annotations":"true"}}' 2>/dev/null || true
 
 # # 9. 네임스페이스 생성
-# kubectl create namespace wealist-dev 2>/dev/null || true
+kubectl create namespace wealist-dev 2>/dev/null || true
 
 echo ""
 echo "✅ 클러스터 준비 완료!"

@@ -91,6 +91,9 @@ spec:
                 name: {{ include "wealist-common.fullname" . }}-config
             - secretRef:
                 name: wealist-shared-secret
+            - secretRef:
+                name: wealist-argocd-secret
+                optional: true
           {{- if .Values.envFrom }}
             {{- toYaml .Values.envFrom | nindent 12 }}
           {{- end }}

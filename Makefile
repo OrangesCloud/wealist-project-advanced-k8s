@@ -21,6 +21,7 @@ include makefiles/kind.mk
 include makefiles/services.mk
 include makefiles/helm.mk
 include makefiles/branch-based.mk
+include makefiles/argo.mk
 
 ##@ General
 

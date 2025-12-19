@@ -27,7 +27,7 @@ configs/config.yaml
 # Kubernetes Secrets
 # ============================================
 # Plain text secrets (NEVER commit)
-*-secret.yaml
+
 *-secrets.yaml
 secret.yaml
 secrets.yaml
