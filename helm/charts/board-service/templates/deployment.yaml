@@ -1,1 +1,0 @@
-{{- include "wealist-common.deployment" . }}

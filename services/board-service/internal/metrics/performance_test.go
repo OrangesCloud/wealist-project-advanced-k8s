@@ -100,75 +100,9 @@ func TestPerformance_MetricsEndpointResponseTime(t *testing.T) {
 		t.Skip("Skipping performance test in short mode")
 	}
 
-	// Create a new registry with metrics
+	// Create a new registry with metrics using factory method
 	registry := prometheus.NewRegistry()
-	testMetrics := &Metrics{
-		HTTPRequestsTotal: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Namespace: namespace,
-				Name:      "http_requests_total",
-				Help:      "Total number of HTTP requests",
-			},
-			[]string{"method", "endpoint", "status"},
-		),
-		HTTPRequestDuration: prometheus.NewHistogramVec(
-			prometheus.HistogramOpts{
-				Namespace: namespace,
-				Name:      "http_request_duration_seconds",
-				Help:      "HTTP request duration in seconds",
-				Buckets:   prometheus.DefBuckets,
-			},
-			[]string{"method", "endpoint"},
-		),
-		DBConnectionsOpen: prometheus.NewGauge(
-			prometheus.GaugeOpts{
-				Namespace: namespace,
-				Name:      "db_connections_open",
-				Help:      "Current number of open database connections",
-			},
-		),
-		DBQueryDuration: prometheus.NewHistogramVec(
-			prometheus.HistogramOpts{
-				Namespace: namespace,
-				Name:      "db_query_duration_seconds",
-				Help:      "Database query duration in seconds",
-			},
-			[]string{"operation", "table"},
-		),
-		ExternalAPIRequestsTotal: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Namespace: namespace,
-				Name:      "external_api_requests_total",
-				Help:      "Total number of external API requests",
-			},
-			[]string{"endpoint", "method", "status"},
-		),
-		ProjectsTotal: prometheus.NewGauge(
-			prometheus.GaugeOpts{
-				Namespace: namespace,
-				Name:      "projects_total",
-				Help:      "Total number of active projects",
-			},
-		),
-		BoardsTotal: prometheus.NewGauge(
-			prometheus.GaugeOpts{
-				Namespace: namespace,
-				Name:      "boards_total",
-				Help:      "Total number of boards",
-			},
-		),
-	}
-
-	// Register metrics
-	registry.MustRegister(
-		testMetrics.HTTPRequestsTotal,
-		testMetrics.HTTPRequestDuration,
-		testMetrics.DBConnectionsOpen,
-		testMetrics.DBQueryDuration,
-		testMetrics.ExternalAPIRequestsTotal,
-		testMetrics.ProjectsTotal,
-		testMetrics.BoardsTotal,
-	)
+	testMetrics := NewWithRegistry(registry, nil)
 
 	// Populate metrics with realistic data
 	// Simulate 1000 HTTP requests across different endpoints

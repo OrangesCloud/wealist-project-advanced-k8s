@@ -1,3 +1,5 @@
+// Package health는 K8s 헬스체크 엔드포인트를 제공합니다.
+// 이 파일은 Kubernetes liveness/readiness probe를 위한 핸들러를 포함합니다.
 package health
 
 import (
@@ -9,15 +11,15 @@ import (
 	"gorm.io/gorm"
 )
 
-// HealthChecker provides standardized health check endpoints for Kubernetes
+// HealthChecker는 K8s 표준 헬스체크 엔드포인트를 제공하는 구조체입니다.
 type HealthChecker struct {
-	db    *gorm.DB
-	redis *redis.Client
+	db    *gorm.DB       // 데이터베이스 연결 (nil 가능)
+	redis *redis.Client  // Redis 연결 (nil 가능, 선택적)
 }
 
-// NewHealthChecker creates a new HealthChecker instance
-// db: Required database connection (can be nil if no DB)
-// redis: Optional Redis connection (can be nil)
+// NewHealthChecker는 새 HealthChecker 인스턴스를 생성합니다.
+// db: 데이터베이스 연결 (nil 가능 - DB가 없는 서비스용)
+// redis: Redis 연결 (nil 가능 - Redis가 없는 서비스용)
 func NewHealthChecker(db *gorm.DB, redis *redis.Client) *HealthChecker {
 	return &HealthChecker{
 		db:    db,
@@ -25,15 +27,21 @@ func NewHealthChecker(db *gorm.DB, redis *redis.Client) *HealthChecker {
 	}
 }
 
-// RegisterRoutes registers health check endpoints at root level and under basePath
-// This ensures health checks work both for direct pod access and through ingress
+// RegisterRoutes는 헬스체크 엔드포인트를 루트 레벨과 basePath 아래에 등록합니다.
+// Pod 직접 접근과 Ingress를 통한 접근 모두에서 헬스체크가 동작하도록 합니다.
+//
+// 등록되는 엔드포인트:
+//   - /health/live: liveness probe
+//   - /health/ready: readiness probe
+//   - /health: readiness probe (하위 호환성)
+//   - {basePath}/health/live, {basePath}/health/ready, {basePath}/health (basePath가 있는 경우)
 func (h *HealthChecker) RegisterRoutes(router gin.IRouter, basePath string) {
-	// Root level endpoints (for K8s probes on base deployment)
+	// 루트 레벨 엔드포인트 (K8s probe의 기본 경로)
 	router.GET("/health/live", h.Liveness)
 	router.GET("/health/ready", h.Readiness)
-	router.GET("/health", h.Readiness) // Backwards compatibility
+	router.GET("/health", h.Readiness) // 하위 호환성
 
-	// Under basePath (for ingress routing with SERVER_BASE_PATH)
+	// basePath 아래 엔드포인트 (Ingress 라우팅용)
 	if basePath != "" {
 		group := router.Group(basePath)
 		group.GET("/health/live", h.Liveness)
@@ -42,18 +50,18 @@ func (h *HealthChecker) RegisterRoutes(router gin.IRouter, basePath string) {
 	}
 }
 
-// Liveness checks if the application process is running
-// This is for Kubernetes liveness probe - does NOT check dependencies
-// Returns 200 if process is alive (should always return 200)
+// Liveness는 애플리케이션 프로세스가 실행 중인지 확인합니다.
+// K8s liveness probe용 - 의존성(DB, Redis)은 확인하지 않습니다.
+// 프로세스가 살아있으면 200을 반환합니다 (항상 200을 반환해야 함).
 func (h *HealthChecker) Liveness(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"status": "alive",
 	})
 }
 
-// Readiness checks if the service is ready to accept traffic
-// This is for Kubernetes readiness probe - checks DB and Redis connections
-// Returns 200 if ready, 503 if not ready
+// Readiness는 서비스가 트래픽을 받을 준비가 되었는지 확인합니다.
+// K8s readiness probe용 - DB와 Redis 연결을 확인합니다.
+// 준비되면 200, 준비 안됨이면 503을 반환합니다.
 func (h *HealthChecker) Readiness(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
@@ -61,7 +69,7 @@ func (h *HealthChecker) Readiness(c *gin.Context) {
 	checks := gin.H{}
 	isReady := true
 
-	// Check database connection
+	// 데이터베이스 연결 확인
 	if h.db != nil {
 		sqlDB, err := h.db.DB()
 		if err != nil {
@@ -77,7 +85,7 @@ func (h *HealthChecker) Readiness(c *gin.Context) {
 		checks["database"] = "not_configured"
 	}
 
-	// Check Redis connection (optional)
+	// Redis 연결 확인 (선택적)
 	if h.redis != nil {
 		if err := h.redis.Ping(ctx).Err(); err != nil {
 			checks["redis"] = "disconnected"
@@ -89,6 +97,7 @@ func (h *HealthChecker) Readiness(c *gin.Context) {
 		checks["redis"] = "not_configured"
 	}
 
+	// 결과 반환
 	if isReady {
 		c.JSON(200, gin.H{
 			"status": "ready",

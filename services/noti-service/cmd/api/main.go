@@ -54,7 +54,7 @@ func main() {
 
 	// Initialize logger
 	logger := initLogger(cfg.Server.Env, cfg.Server.LogLevel)
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	logger.Info("Starting notification service",
 		zap.String("env", cfg.Server.Env),
@@ -68,7 +68,7 @@ func main() {
 	}
 
 	sqlDB, _ := db.DB()
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	// Initialize Redis
 	var redisClient *redis.Client
@@ -90,7 +90,7 @@ func main() {
 				zap.String("host", cfg.Redis.Host),
 				zap.Int("port", cfg.Redis.Port),
 			)
-			defer redisClient.Close()
+			defer func() { _ = redisClient.Close() }()
 		}
 	}
 

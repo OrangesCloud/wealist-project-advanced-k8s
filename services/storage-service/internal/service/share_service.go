@@ -13,6 +13,7 @@ import (
 
 	"storage-service/internal/domain"
 	"storage-service/internal/repository"
+	"storage-service/internal/response"
 )
 
 // ShareService handles share business logic
@@ -48,14 +49,15 @@ func generateShareLink() (string, error) {
 }
 
 // CreateShare creates a new share for a file or folder
+// 파일 또는 폴더에 대한 공유 생성
 func (s *ShareService) CreateShare(ctx context.Context, req domain.CreateShareRequest, userID uuid.UUID) (*domain.ShareResponse, error) {
-	// Validate entity exists
+	// 엔티티 존재 여부 확인
 	var entityName string
 	if req.EntityType == domain.ShareTypeFile {
 		file, err := s.fileRepo.FindByID(ctx, req.EntityID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errors.New("file not found")
+				return nil, response.NewNotFoundError("file not found", req.EntityID.String())
 			}
 			return nil, err
 		}
@@ -64,23 +66,23 @@ func (s *ShareService) CreateShare(ctx context.Context, req domain.CreateShareRe
 		folder, err := s.folderRepo.FindByID(ctx, req.EntityID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errors.New("folder not found")
+				return nil, response.NewNotFoundError("folder not found", req.EntityID.String())
 			}
 			return nil, err
 		}
 		entityName = folder.Name
 	} else {
-		return nil, errors.New("invalid entity type")
+		return nil, response.NewValidationError("invalid entity type", string(req.EntityType))
 	}
 
-	// Generate share link if public
+	// 공개 링크 생성
 	var shareLink *string
 	var linkExpiresAt *time.Time
 
 	if req.IsPublic {
 		link, err := generateShareLink()
 		if err != nil {
-			return nil, errors.New("failed to generate share link")
+			return nil, response.NewInternalError("failed to generate share link", err.Error())
 		}
 		shareLink = &link
 
@@ -93,11 +95,11 @@ func (s *ShareService) CreateShare(ctx context.Context, req domain.CreateShareRe
 	now := time.Now()
 
 	if req.EntityType == domain.ShareTypeFile {
-		// Check if share already exists
+		// 이미 공유된 파일인지 확인
 		if req.SharedWithID != nil {
 			existing, err := s.shareRepo.FindFileShareByFileAndUser(ctx, req.EntityID, *req.SharedWithID)
 			if err == nil && existing != nil {
-				return nil, errors.New("file is already shared with this user")
+				return nil, response.NewAlreadyExistsError("file is already shared with this user", "")
 			}
 		}
 
@@ -141,17 +143,17 @@ func (s *ShareService) CreateShare(ctx context.Context, req domain.CreateShareRe
 		}, nil
 	}
 
-	// Folder share
+	// 폴더 공유
 	includeChildren := true
 	if req.IncludeChildren != nil {
 		includeChildren = *req.IncludeChildren
 	}
 
-	// Check if share already exists
+	// 이미 공유된 폴더인지 확인
 	if req.SharedWithID != nil {
 		existing, err := s.shareRepo.FindFolderShareByFolderAndUser(ctx, req.EntityID, *req.SharedWithID)
 		if err == nil && existing != nil {
-			return nil, errors.New("folder is already shared with this user")
+			return nil, response.NewAlreadyExistsError("folder is already shared with this user", "")
 		}
 	}
 
@@ -198,11 +200,12 @@ func (s *ShareService) CreateShare(ctx context.Context, req domain.CreateShareRe
 }
 
 // GetFileShares gets all shares for a file
+// 파일에 대한 모든 공유 목록 조회
 func (s *ShareService) GetFileShares(ctx context.Context, fileID uuid.UUID) ([]domain.ShareResponse, error) {
 	file, err := s.fileRepo.FindByID(ctx, fileID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("file not found")
+			return nil, response.NewNotFoundError("file not found", fileID.String())
 		}
 		return nil, err
 	}
@@ -235,11 +238,12 @@ func (s *ShareService) GetFileShares(ctx context.Context, fileID uuid.UUID) ([]d
 }
 
 // GetFolderShares gets all shares for a folder
+// 폴더에 대한 모든 공유 목록 조회
 func (s *ShareService) GetFolderShares(ctx context.Context, folderID uuid.UUID) ([]domain.ShareResponse, error) {
 	folder, err := s.folderRepo.FindByID(ctx, folderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("folder not found")
+			return nil, response.NewNotFoundError("folder not found", folderID.String())
 		}
 		return nil, err
 	}
@@ -316,12 +320,14 @@ func (s *ShareService) GetSharedWithMe(ctx context.Context, userID uuid.UUID) ([
 }
 
 // GetShareByLink gets a share by its public link
+// 공개 링크로 공유 정보 조회
 func (s *ShareService) GetShareByLink(ctx context.Context, shareLink string) (*domain.ShareResponse, error) {
-	// Try file share first
+	// 파일 공유 먼저 확인
 	fileShare, err := s.shareRepo.FindFileShareByLink(ctx, shareLink)
 	if err == nil {
+		// 만료 확인
 		if fileShare.IsExpired() {
-			return nil, errors.New("share link has expired")
+			return nil, response.NewForbiddenError("share link has expired", "")
 		}
 		return &domain.ShareResponse{
 			ID:            fileShare.ID,
@@ -336,11 +342,12 @@ func (s *ShareService) GetShareByLink(ctx context.Context, shareLink string) (*d
 		}, nil
 	}
 
-	// Try folder share
+	// 폴더 공유 확인
 	folderShare, err := s.shareRepo.FindFolderShareByLink(ctx, shareLink)
 	if err == nil {
+		// 만료 확인
 		if folderShare.IsExpired() {
-			return nil, errors.New("share link has expired")
+			return nil, response.NewForbiddenError("share link has expired", "")
 		}
 		return &domain.ShareResponse{
 			ID:              folderShare.ID,
@@ -356,22 +363,24 @@ func (s *ShareService) GetShareByLink(ctx context.Context, shareLink string) (*d
 		}, nil
 	}
 
-	return nil, errors.New("share link not found")
+	return nil, response.NewNotFoundError("share link not found", shareLink)
 }
 
 // UpdateShare updates a share's permission
+// 공유 권한 수정
 func (s *ShareService) UpdateShare(ctx context.Context, shareID uuid.UUID, entityType domain.ShareType, req domain.UpdateShareRequest, userID uuid.UUID) error {
 	if entityType == domain.ShareTypeFile {
 		share, err := s.shareRepo.FindFileShareByID(ctx, shareID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("share not found")
+				return response.NewNotFoundError("share not found", shareID.String())
 			}
 			return err
 		}
 
+		// 공유를 생성한 사용자만 수정 가능
 		if share.SharedByID != userID {
-			return errors.New("not authorized to update this share")
+			return response.NewForbiddenError("not authorized to update this share", "")
 		}
 
 		if req.Permission != nil {
@@ -393,13 +402,14 @@ func (s *ShareService) UpdateShare(ctx context.Context, shareID uuid.UUID, entit
 	share, err := s.shareRepo.FindFolderShareByID(ctx, shareID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("share not found")
+			return response.NewNotFoundError("share not found", shareID.String())
 		}
 		return err
 	}
 
+	// 공유를 생성한 사용자만 수정 가능
 	if share.SharedByID != userID {
-		return errors.New("not authorized to update this share")
+		return response.NewForbiddenError("not authorized to update this share", "")
 	}
 
 	if req.Permission != nil {
@@ -419,18 +429,20 @@ func (s *ShareService) UpdateShare(ctx context.Context, shareID uuid.UUID, entit
 }
 
 // DeleteShare deletes a share
+// 공유 삭제
 func (s *ShareService) DeleteShare(ctx context.Context, shareID uuid.UUID, entityType domain.ShareType, userID uuid.UUID) error {
 	if entityType == domain.ShareTypeFile {
 		share, err := s.shareRepo.FindFileShareByID(ctx, shareID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("share not found")
+				return response.NewNotFoundError("share not found", shareID.String())
 			}
 			return err
 		}
 
+		// 공유를 생성한 사용자만 삭제 가능
 		if share.SharedByID != userID {
-			return errors.New("not authorized to delete this share")
+			return response.NewForbiddenError("not authorized to delete this share", "")
 		}
 
 		return s.shareRepo.DeleteFileShare(ctx, shareID)
@@ -439,13 +451,14 @@ func (s *ShareService) DeleteShare(ctx context.Context, shareID uuid.UUID, entit
 	share, err := s.shareRepo.FindFolderShareByID(ctx, shareID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("share not found")
+			return response.NewNotFoundError("share not found", shareID.String())
 		}
 		return err
 	}
 
+	// 공유를 생성한 사용자만 삭제 가능
 	if share.SharedByID != userID {
-		return errors.New("not authorized to delete this share")
+		return response.NewForbiddenError("not authorized to delete this share", "")
 	}
 
 	return s.shareRepo.DeleteFolderShare(ctx, shareID)

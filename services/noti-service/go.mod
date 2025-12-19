@@ -1,6 +1,6 @@
 module noti-service
 
-go 1.24
+go 1.23
 
 require (
 	github.com/OrangesCloud/wealist-advanced-go-pkg v0.4.0

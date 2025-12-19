@@ -4,6 +4,7 @@ import (
 	"video-service/internal/client"
 	"video-service/internal/config"
 	"video-service/internal/handler"
+	"video-service/internal/metrics"
 	"video-service/internal/middleware"
 	"video-service/internal/repository"
 	"video-service/internal/service"
@@ -25,11 +26,14 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 
 	r := gin.New()
 
+	// Initialize metrics
+	m := metrics.New()
+
 	// Middleware (using common package)
 	r.Use(commonmw.Recovery(logger))
 	r.Use(commonmw.Logger(logger))
 	r.Use(commonmw.DefaultCORS())
-	r.Use(commonmw.Metrics())
+	r.Use(metrics.HTTPMiddleware(m))
 
 	// Initialize repositories
 	roomRepo := repository.NewRoomRepository(db)
@@ -46,7 +50,8 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 	}
 
 	// Initialize services
-	roomService := service.NewRoomService(roomRepo, userClient, cfg.LiveKit, redisClient, logger)
+	// 룸 서비스 초기화 (메트릭 포함)
+	roomService := service.NewRoomService(roomRepo, userClient, cfg.LiveKit, redisClient, logger, m)
 
 	// Initialize validator
 	validator := middleware.NewAuthServiceValidator(cfg.Auth.ServiceURL, cfg.Auth.SecretKey, logger)

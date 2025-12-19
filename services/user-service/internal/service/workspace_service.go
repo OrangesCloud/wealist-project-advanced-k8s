@@ -1,18 +1,24 @@
+// Package service는 user-service의 비즈니스 로직을 구현합니다.
+//
+// 이 파일은 워크스페이스 CRUD 관련 비즈니스 로직을 포함합니다.
+// 멤버 관리 및 참여 요청은 workspace_member_service.go에서 처리합니다.
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 
 	"user-service/internal/domain"
+	"user-service/internal/metrics"
 	"user-service/internal/repository"
+	"user-service/internal/response"
 )
 
-// WorkspaceService handles workspace business logic
+// WorkspaceService는 워크스페이스 비즈니스 로직을 처리합니다.
+// 워크스페이스 생성, 조회, 수정, 삭제 등의 비즈니스 로직을 처리합니다.
+// 메트릭과 로깅을 통해 모니터링을 지원합니다.
 type WorkspaceService struct {
 	workspaceRepo *repository.WorkspaceRepository
 	memberRepo    *repository.WorkspaceMemberRepository
@@ -20,9 +26,11 @@ type WorkspaceService struct {
 	profileRepo   *repository.UserProfileRepository
 	userRepo      *repository.UserRepository
 	logger        *zap.Logger
+	metrics       *metrics.Metrics // 메트릭 수집을 위한 필드
 }
 
-// NewWorkspaceService creates a new WorkspaceService
+// NewWorkspaceService는 새 WorkspaceService를 생성합니다.
+// metrics 파라미터가 nil인 경우에도 안전하게 동작합니다.
 func NewWorkspaceService(
 	workspaceRepo *repository.WorkspaceRepository,
 	memberRepo *repository.WorkspaceMemberRepository,
@@ -30,6 +38,7 @@ func NewWorkspaceService(
 	profileRepo *repository.UserProfileRepository,
 	userRepo *repository.UserRepository,
 	logger *zap.Logger,
+	m *metrics.Metrics,
 ) *WorkspaceService {
 	return &WorkspaceService{
 		workspaceRepo: workspaceRepo,
@@ -38,24 +47,27 @@ func NewWorkspaceService(
 		profileRepo:   profileRepo,
 		userRepo:      userRepo,
 		logger:        logger,
+		metrics:       m,
 	}
 }
 
-// CreateWorkspace creates a new workspace
+// CreateWorkspace는 새 워크스페이스를 생성합니다.
+// 사용자 존재 여부를 확인하고, 워크스페이스 생성 후 소유자를 멤버로 추가합니다.
 func (s *WorkspaceService) CreateWorkspace(ownerID uuid.UUID, req domain.CreateWorkspaceRequest) (*domain.Workspace, error) {
-	// 💡 Check if user exists before creating workspace
-	// This prevents FK constraint violation if user sync failed during OAuth login
+	// 💡 워크스페이스 생성 전 사용자 존재 확인
+	// OAuth 로그인 시 사용자 동기화 실패를 방지합니다.
 	exists, err := s.userRepo.Exists(ownerID)
 	if err != nil {
-		s.logger.Error("Failed to check user existence", zap.Error(err))
-		return nil, errors.New("failed to verify user, please try logging in again")
+		s.logger.Error("사용자 존재 확인 실패", zap.Error(err))
+		return nil, response.NewInternalError("Failed to verify user", "please try logging in again")
 	}
 	if !exists {
-		s.logger.Warn("User not found in database, OAuth sync may have failed", zap.String("userId", ownerID.String()))
-		return nil, errors.New("user not found, please log out and log in again to sync your account")
+		s.logger.Warn("사용자 DB에 없음, OAuth 동기화 실패 가능성",
+			zap.String("user_id", ownerID.String()))
+		return nil, response.NewNotFoundError("User not found", "please log out and log in again to sync your account")
 	}
 
-	// Default values: all true
+	// 기본값 설정: 모두 true
 	isPublic := true
 	if req.IsPublic != nil {
 		isPublic = *req.IsPublic
@@ -78,11 +90,16 @@ func (s *WorkspaceService) CreateWorkspace(ownerID uuid.UUID, req domain.CreateW
 	}
 
 	if err := s.workspaceRepo.Create(workspace); err != nil {
-		s.logger.Error("Failed to create workspace", zap.Error(err))
+		s.logger.Error("워크스페이스 생성 실패", zap.Error(err))
 		return nil, err
 	}
 
-	// Add owner as a member
+	// 메트릭 기록: 워크스페이스 생성 성공
+	if s.metrics != nil {
+		s.metrics.RecordWorkspaceCreated()
+	}
+
+	// 소유자를 멤버로 추가
 	member := &domain.WorkspaceMember{
 		ID:          uuid.New(),
 		WorkspaceID: workspace.ID,
@@ -94,14 +111,14 @@ func (s *WorkspaceService) CreateWorkspace(ownerID uuid.UUID, req domain.CreateW
 		UpdatedAt:   time.Now(),
 	}
 	if err := s.memberRepo.Create(member); err != nil {
-		s.logger.Error("Failed to create workspace member", zap.Error(err))
-		// Should we rollback workspace creation?
+		s.logger.Error("워크스페이스 멤버 생성 실패", zap.Error(err))
+		// TODO: 워크스페이스 생성 롤백 필요?
 	}
 
-	// Create profile for owner
+	// 소유자 프로필 생성
 	user, err := s.userRepo.FindByID(ownerID)
 	if err == nil {
-		// Use user's name as default nickname, fallback to email if name is empty
+		// 기본 닉네임: 사용자 이름, 없으면 이메일
 		defaultNickName := user.Name
 		if defaultNickName == "" {
 			defaultNickName = user.Email
@@ -116,49 +133,53 @@ func (s *WorkspaceService) CreateWorkspace(ownerID uuid.UUID, req domain.CreateW
 			UpdatedAt:   time.Now(),
 		}
 		if err := s.profileRepo.Create(profile); err != nil {
-			s.logger.Error("Failed to create profile for owner", zap.Error(err))
+			s.logger.Error("소유자 프로필 생성 실패", zap.Error(err))
 		}
 	}
 
-	s.logger.Info("Workspace created", zap.String("workspaceId", workspace.ID.String()))
+	s.logger.Info("워크스페이스 생성 완료",
+		zap.String("workspace_id", workspace.ID.String()),
+		zap.String("owner_id", ownerID.String()),
+	)
 	return workspace, nil
 }
 
-// GetWorkspace gets a workspace by ID
+// GetWorkspace는 ID로 워크스페이스를 조회합니다.
 func (s *WorkspaceService) GetWorkspace(id uuid.UUID) (*domain.Workspace, error) {
 	return s.workspaceRepo.FindByID(id)
 }
 
-// GetWorkspaceWithOwner gets a workspace with owner
+// GetWorkspaceWithOwner는 소유자 정보를 포함한 워크스페이스를 조회합니다.
 func (s *WorkspaceService) GetWorkspaceWithOwner(id uuid.UUID) (*domain.Workspace, error) {
 	return s.workspaceRepo.FindByIDWithOwner(id)
 }
 
-// GetUserWorkspaces gets all workspaces for a user
+// GetUserWorkspaces는 사용자가 속한 모든 워크스페이스를 조회합니다.
 func (s *WorkspaceService) GetUserWorkspaces(userID uuid.UUID) ([]domain.WorkspaceMember, error) {
 	return s.memberRepo.FindByUser(userID)
 }
 
-// GetWorkspacesByOwner gets workspaces by owner
+// GetWorkspacesByOwner는 소유자의 워크스페이스 목록을 조회합니다.
 func (s *WorkspaceService) GetWorkspacesByOwner(ownerID uuid.UUID) ([]domain.Workspace, error) {
 	return s.workspaceRepo.FindByOwnerID(ownerID)
 }
 
-// SearchPublicWorkspaces searches public workspaces by name
+// SearchPublicWorkspaces는 이름으로 공개 워크스페이스를 검색합니다.
 func (s *WorkspaceService) SearchPublicWorkspaces(name string) ([]domain.Workspace, error) {
 	return s.workspaceRepo.FindPublicByName(name)
 }
 
-// UpdateWorkspace updates a workspace
+// UpdateWorkspace는 워크스페이스를 업데이트합니다.
+// 소유자만 업데이트할 수 있습니다.
 func (s *WorkspaceService) UpdateWorkspace(id uuid.UUID, userID uuid.UUID, req domain.UpdateWorkspaceRequest) (*domain.Workspace, error) {
 	workspace, err := s.workspaceRepo.FindByID(id)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if user is owner
+	// 소유자 확인
 	if workspace.OwnerID != userID {
-		return nil, errors.New("only owner can update workspace")
+		return nil, response.NewForbiddenError("Only owner can update workspace", "")
 	}
 
 	if req.WorkspaceName != nil {
@@ -175,24 +196,27 @@ func (s *WorkspaceService) UpdateWorkspace(id uuid.UUID, userID uuid.UUID, req d
 	}
 
 	if err := s.workspaceRepo.Update(workspace); err != nil {
-		s.logger.Error("Failed to update workspace", zap.Error(err))
+		s.logger.Error("워크스페이스 업데이트 실패", zap.Error(err))
 		return nil, err
 	}
 
-	s.logger.Info("Workspace updated", zap.String("workspaceId", workspace.ID.String()))
+	s.logger.Info("워크스페이스 업데이트 완료",
+		zap.String("workspace_id", workspace.ID.String()),
+	)
 	return workspace, nil
 }
 
-// UpdateWorkspaceSettings updates workspace settings
+// UpdateWorkspaceSettings는 워크스페이스 설정을 업데이트합니다.
+// 소유자만 설정을 변경할 수 있습니다.
 func (s *WorkspaceService) UpdateWorkspaceSettings(id uuid.UUID, userID uuid.UUID, req domain.UpdateWorkspaceSettingsRequest) (*domain.Workspace, error) {
 	workspace, err := s.workspaceRepo.FindByID(id)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if user is owner
+	// 소유자 확인
 	if workspace.OwnerID != userID {
-		return nil, errors.New("only owner can update workspace settings")
+		return nil, response.NewForbiddenError("Only owner can update workspace settings", "")
 	}
 
 	if req.WorkspaceName != nil {
@@ -212,407 +236,50 @@ func (s *WorkspaceService) UpdateWorkspaceSettings(id uuid.UUID, userID uuid.UUI
 	}
 
 	if err := s.workspaceRepo.Update(workspace); err != nil {
-		s.logger.Error("Failed to update workspace settings", zap.Error(err))
+		s.logger.Error("워크스페이스 설정 업데이트 실패", zap.Error(err))
 		return nil, err
 	}
 
-	s.logger.Info("Workspace settings updated", zap.String("workspaceId", workspace.ID.String()))
+	s.logger.Info("워크스페이스 설정 업데이트 완료",
+		zap.String("workspace_id", workspace.ID.String()),
+	)
 	return workspace, nil
 }
 
-// DeleteWorkspace soft deletes a workspace
+// DeleteWorkspace는 워크스페이스를 소프트 삭제합니다.
+// 소유자만 삭제할 수 있습니다.
 func (s *WorkspaceService) DeleteWorkspace(id uuid.UUID, userID uuid.UUID) error {
 	workspace, err := s.workspaceRepo.FindByID(id)
 	if err != nil {
 		return err
 	}
 
-	// Check if user is owner
+	// 소유자 확인
 	if workspace.OwnerID != userID {
-		return errors.New("only owner can delete workspace")
+		return response.NewForbiddenError("Only owner can delete workspace", "")
 	}
 
 	if err := s.workspaceRepo.SoftDelete(id); err != nil {
-		s.logger.Error("Failed to delete workspace", zap.Error(err))
+		s.logger.Error("워크스페이스 삭제 실패", zap.Error(err))
 		return err
 	}
 
-	s.logger.Info("Workspace deleted", zap.String("workspaceId", id.String()))
+	s.logger.Info("워크스페이스 삭제 완료",
+		zap.String("workspace_id", id.String()),
+	)
 	return nil
 }
 
-// SetDefaultWorkspace sets a workspace as default for user
+// SetDefaultWorkspace는 사용자의 기본 워크스페이스를 설정합니다.
 func (s *WorkspaceService) SetDefaultWorkspace(userID, workspaceID uuid.UUID) error {
-	// Check if user is a member
+	// 멤버 확인
 	isMember, err := s.memberRepo.IsMember(workspaceID, userID)
 	if err != nil {
 		return err
 	}
 	if !isMember {
-		return errors.New("user is not a member of this workspace")
+		return response.NewForbiddenError("User is not a member of this workspace", "")
 	}
 
 	return s.memberRepo.SetDefault(userID, workspaceID)
-}
-
-// GetMembers gets all members of a workspace
-func (s *WorkspaceService) GetMembers(workspaceID uuid.UUID) ([]domain.WorkspaceMember, error) {
-	return s.memberRepo.FindByWorkspace(workspaceID)
-}
-
-// GetMembersWithProfiles gets all members of a workspace with profile info
-func (s *WorkspaceService) GetMembersWithProfiles(workspaceID uuid.UUID) ([]domain.WorkspaceMemberResponse, error) {
-	members, err := s.memberRepo.FindByWorkspace(workspaceID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get all profiles for this workspace
-	profiles, err := s.profileRepo.FindByWorkspace(workspaceID)
-	if err != nil {
-		s.logger.Warn("Failed to fetch profiles for workspace", zap.Error(err))
-		// Continue without profiles
-	}
-
-	// Create a map of userID -> profile
-	profileMap := make(map[uuid.UUID]*domain.UserProfile)
-	for i := range profiles {
-		profileMap[profiles[i].UserID] = &profiles[i]
-	}
-
-	// Build responses with profile info
-	responses := make([]domain.WorkspaceMemberResponse, len(members))
-	for i, m := range members {
-		resp := m.ToResponse()
-
-		// Add profile info if available
-		if profile, ok := profileMap[m.UserID]; ok {
-			resp.NickName = profile.NickName
-			resp.UserEmail = profile.Email
-			if profile.ProfileImageURL != nil {
-				resp.ProfileImageUrl = *profile.ProfileImageURL
-			}
-		}
-
-		responses[i] = resp
-	}
-
-	return responses, nil
-}
-
-// InviteMember invites a user to a workspace
-func (s *WorkspaceService) InviteMember(workspaceID, inviterID uuid.UUID, req domain.InviteMemberRequest) (*domain.WorkspaceMember, error) {
-	// Check if inviter has permission (OWNER or ADMIN)
-	role, err := s.memberRepo.GetRole(workspaceID, inviterID)
-	if err != nil {
-		return nil, errors.New("inviter is not a member of this workspace")
-	}
-	if role != domain.RoleOwner && role != domain.RoleAdmin {
-		return nil, errors.New("only owner or admin can invite members")
-	}
-
-	// Find user by email
-	user, err := s.userRepo.FindByEmail(req.Email)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("user not found")
-		}
-		return nil, err
-	}
-
-	// Check if already a member
-	isMember, err := s.memberRepo.IsMember(workspaceID, user.ID)
-	if err != nil {
-		return nil, err
-	}
-	if isMember {
-		return nil, errors.New("user is already a member of this workspace")
-	}
-
-	// Create member
-	roleName := domain.RoleMember
-	if req.RoleName != "" {
-		roleName = req.RoleName
-	}
-
-	member := &domain.WorkspaceMember{
-		ID:          uuid.New(),
-		WorkspaceID: workspaceID,
-		UserID:      user.ID,
-		RoleName:    roleName,
-		IsActive:    true,
-		JoinedAt:    time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	if err := s.memberRepo.Create(member); err != nil {
-		s.logger.Error("Failed to create member", zap.Error(err))
-		return nil, err
-	}
-
-	// Create profile for new member
-	// Use user's name as default nickname, fallback to email if name is empty
-	memberNickName := user.Name
-	if memberNickName == "" {
-		memberNickName = user.Email
-	}
-	profile := &domain.UserProfile{
-		ID:          uuid.New(),
-		UserID:      user.ID,
-		WorkspaceID: workspaceID,
-		NickName:    memberNickName,
-		Email:       user.Email,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-	if err := s.profileRepo.Create(profile); err != nil {
-		s.logger.Error("Failed to create profile for member", zap.Error(err))
-	}
-
-	member.User = user
-	s.logger.Info("Member invited", zap.String("workspaceId", workspaceID.String()), zap.String("userId", user.ID.String()))
-	return member, nil
-}
-
-// UpdateMemberRole updates a member's role
-func (s *WorkspaceService) UpdateMemberRole(workspaceID, memberID, updaterID uuid.UUID, req domain.UpdateMemberRoleRequest) (*domain.WorkspaceMember, error) {
-	// Check if updater is owner
-	role, err := s.memberRepo.GetRole(workspaceID, updaterID)
-	if err != nil {
-		return nil, errors.New("updater is not a member of this workspace")
-	}
-	if role != domain.RoleOwner {
-		return nil, errors.New("only owner can update member roles")
-	}
-
-	member, err := s.memberRepo.FindByID(memberID)
-	if err != nil {
-		return nil, err
-	}
-
-	if member.WorkspaceID != workspaceID {
-		return nil, errors.New("member not found in this workspace")
-	}
-
-	// Cannot change owner's role
-	if member.RoleName == domain.RoleOwner {
-		return nil, errors.New("cannot change owner's role")
-	}
-
-	member.RoleName = req.RoleName
-	member.UpdatedAt = time.Now()
-
-	if err := s.memberRepo.Update(member); err != nil {
-		s.logger.Error("Failed to update member role", zap.Error(err))
-		return nil, err
-	}
-
-	s.logger.Info("Member role updated", zap.String("memberId", memberID.String()))
-	return member, nil
-}
-
-// RemoveMember removes a member from a workspace
-func (s *WorkspaceService) RemoveMember(workspaceID, memberID, removerID uuid.UUID) error {
-	// Check if remover has permission
-	role, err := s.memberRepo.GetRole(workspaceID, removerID)
-	if err != nil {
-		return errors.New("remover is not a member of this workspace")
-	}
-	if role != domain.RoleOwner && role != domain.RoleAdmin {
-		return errors.New("only owner or admin can remove members")
-	}
-
-	member, err := s.memberRepo.FindByID(memberID)
-	if err != nil {
-		return err
-	}
-
-	if member.WorkspaceID != workspaceID {
-		return errors.New("member not found in this workspace")
-	}
-
-	// Cannot remove owner
-	if member.RoleName == domain.RoleOwner {
-		return errors.New("cannot remove owner")
-	}
-
-	// Admin can only remove regular members
-	if role == domain.RoleAdmin && member.RoleName == domain.RoleAdmin {
-		return errors.New("admin cannot remove other admins")
-	}
-
-	if err := s.memberRepo.Delete(memberID); err != nil {
-		s.logger.Error("Failed to remove member", zap.Error(err))
-		return err
-	}
-
-	s.logger.Info("Member removed", zap.String("memberId", memberID.String()))
-	return nil
-}
-
-// IsMember checks if user is a member of workspace
-func (s *WorkspaceService) IsMember(workspaceID, userID uuid.UUID) (bool, error) {
-	return s.memberRepo.IsMember(workspaceID, userID)
-}
-
-// ValidateMemberAccess validates if user has access to workspace
-func (s *WorkspaceService) ValidateMemberAccess(workspaceID, userID uuid.UUID) (bool, error) {
-	return s.memberRepo.IsMember(workspaceID, userID)
-}
-
-// CreateJoinRequest creates a join request
-func (s *WorkspaceService) CreateJoinRequest(workspaceID, userID uuid.UUID) (*domain.WorkspaceJoinRequest, error) {
-	// Check if workspace exists and is public
-	workspace, err := s.workspaceRepo.FindByID(workspaceID)
-	if err != nil {
-		return nil, err
-	}
-	if !workspace.IsPublic {
-		return nil, errors.New("workspace is not public")
-	}
-
-	// Check if already a member
-	isMember, err := s.memberRepo.IsMember(workspaceID, userID)
-	if err != nil {
-		return nil, err
-	}
-	if isMember {
-		return nil, errors.New("already a member of this workspace")
-	}
-
-	// Check if already has pending request
-	hasPending, err := s.joinReqRepo.HasPendingRequest(workspaceID, userID)
-	if err != nil {
-		return nil, err
-	}
-	if hasPending {
-		return nil, errors.New("already has a pending join request")
-	}
-
-	request := &domain.WorkspaceJoinRequest{
-		ID:          uuid.New(),
-		WorkspaceID: workspaceID,
-		UserID:      userID,
-		Status:      domain.JoinStatusPending,
-		RequestedAt: time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	if err := s.joinReqRepo.Create(request); err != nil {
-		s.logger.Error("Failed to create join request", zap.Error(err))
-		return nil, err
-	}
-
-	// If no approval needed, approve immediately
-	if !workspace.NeedApproved {
-		return s.ProcessJoinRequest(workspaceID, request.ID, workspace.OwnerID, domain.ProcessJoinRequestRequest{
-			Status: domain.JoinStatusApproved,
-		})
-	}
-
-	s.logger.Info("Join request created", zap.String("requestId", request.ID.String()))
-	return request, nil
-}
-
-// GetJoinRequests gets join requests for a workspace
-func (s *WorkspaceService) GetJoinRequests(workspaceID, userID uuid.UUID) ([]domain.WorkspaceJoinRequest, error) {
-	// Check if user has permission
-	role, err := s.memberRepo.GetRole(workspaceID, userID)
-	if err != nil {
-		return nil, errors.New("user is not a member of this workspace")
-	}
-	if role != domain.RoleOwner && role != domain.RoleAdmin {
-		return nil, errors.New("only owner or admin can view join requests")
-	}
-
-	return s.joinReqRepo.FindByWorkspace(workspaceID)
-}
-
-// GetPendingJoinRequests gets pending join requests for a workspace
-func (s *WorkspaceService) GetPendingJoinRequests(workspaceID, userID uuid.UUID) ([]domain.WorkspaceJoinRequest, error) {
-	// Check if user has permission
-	role, err := s.memberRepo.GetRole(workspaceID, userID)
-	if err != nil {
-		return nil, errors.New("user is not a member of this workspace")
-	}
-	if role != domain.RoleOwner && role != domain.RoleAdmin {
-		return nil, errors.New("only owner or admin can view join requests")
-	}
-
-	return s.joinReqRepo.FindPendingByWorkspace(workspaceID)
-}
-
-// ProcessJoinRequest processes a join request (approve/reject)
-func (s *WorkspaceService) ProcessJoinRequest(workspaceID, requestID, processorID uuid.UUID, req domain.ProcessJoinRequestRequest) (*domain.WorkspaceJoinRequest, error) {
-	// Check if processor has permission
-	role, err := s.memberRepo.GetRole(workspaceID, processorID)
-	if err != nil {
-		return nil, errors.New("processor is not a member of this workspace")
-	}
-	if role != domain.RoleOwner && role != domain.RoleAdmin {
-		return nil, errors.New("only owner or admin can process join requests")
-	}
-
-	request, err := s.joinReqRepo.FindByID(requestID)
-	if err != nil {
-		return nil, err
-	}
-
-	if request.WorkspaceID != workspaceID {
-		return nil, errors.New("join request not found for this workspace")
-	}
-
-	if request.Status != domain.JoinStatusPending {
-		return nil, errors.New("join request is not pending")
-	}
-
-	request.Status = req.Status
-	request.UpdatedAt = time.Now()
-
-	if err := s.joinReqRepo.Update(request); err != nil {
-		s.logger.Error("Failed to update join request", zap.Error(err))
-		return nil, err
-	}
-
-	// If approved, add as member
-	if req.Status == domain.JoinStatusApproved {
-		member := &domain.WorkspaceMember{
-			ID:          uuid.New(),
-			WorkspaceID: workspaceID,
-			UserID:      request.UserID,
-			RoleName:    domain.RoleMember,
-			IsActive:    true,
-			JoinedAt:    time.Now(),
-			UpdatedAt:   time.Now(),
-		}
-		if err := s.memberRepo.Create(member); err != nil {
-			s.logger.Error("Failed to create member from join request", zap.Error(err))
-			return nil, err
-		}
-
-		// Create profile for new member
-		user, err := s.userRepo.FindByID(request.UserID)
-		if err == nil {
-			// Use user's name as default nickname, fallback to email if name is empty
-			approvedNickName := user.Name
-			if approvedNickName == "" {
-				approvedNickName = user.Email
-			}
-			profile := &domain.UserProfile{
-				ID:          uuid.New(),
-				UserID:      request.UserID,
-				WorkspaceID: workspaceID,
-				NickName:    approvedNickName,
-				Email:       user.Email,
-				CreatedAt:   time.Now(),
-				UpdatedAt:   time.Now(),
-			}
-			if err := s.profileRepo.Create(profile); err != nil {
-				s.logger.Error("Failed to create profile for member", zap.Error(err))
-			}
-		}
-	}
-
-	s.logger.Info("Join request processed", zap.String("requestId", requestID.String()), zap.String("status", string(req.Status)))
-	return request, nil
 }

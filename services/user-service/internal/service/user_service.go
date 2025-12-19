@@ -9,32 +9,40 @@ import (
 	"gorm.io/gorm"
 
 	"user-service/internal/domain"
+	"user-service/internal/metrics"
 	"user-service/internal/repository"
+	"user-service/internal/response"
 )
 
 // UserService handles user business logic
+// 사용자 생성, 조회, 수정, 삭제 등의 비즈니스 로직을 처리합니다.
+// 메트릭과 로깅을 통해 모니터링을 지원합니다.
 type UserService struct {
 	userRepo *repository.UserRepository
 	logger   *zap.Logger
+	metrics  *metrics.Metrics // 메트릭 수집을 위한 필드
 }
 
 // NewUserService creates a new UserService
-func NewUserService(userRepo *repository.UserRepository, logger *zap.Logger) *UserService {
+// metrics 파라미터가 nil인 경우에도 안전하게 동작합니다.
+func NewUserService(userRepo *repository.UserRepository, logger *zap.Logger, m *metrics.Metrics) *UserService {
 	return &UserService{
 		userRepo: userRepo,
 		logger:   logger,
+		metrics:  m,
 	}
 }
 
 // CreateUser creates a new user
+// 이메일이 이미 존재하면 AlreadyExistsError를 반환합니다.
 func (s *UserService) CreateUser(req domain.CreateUserRequest) (*domain.User, error) {
-	// Check if user already exists
+	// 이미 존재하는 사용자인지 확인
 	existingUser, err := s.userRepo.FindByEmail(req.Email)
 	if err == nil && existingUser != nil {
-		return nil, errors.New("user with this email already exists")
+		return nil, response.NewAlreadyExistsError("User with this email already exists", req.Email)
 	}
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
+		return nil, response.NewInternalError("Failed to check existing user", err.Error())
 	}
 
 	provider := "google"
@@ -55,6 +63,11 @@ func (s *UserService) CreateUser(req domain.CreateUserRequest) (*domain.User, er
 	if err := s.userRepo.Create(user); err != nil {
 		s.logger.Error("Failed to create user", zap.Error(err))
 		return nil, err
+	}
+
+	// 메트릭 기록: 사용자 생성 성공
+	if s.metrics != nil {
+		s.metrics.RecordUserCreated()
 	}
 
 	s.logger.Info("User created", zap.String("userId", user.ID.String()))
@@ -200,6 +213,11 @@ func (s *UserService) FindOrCreateOAuthUser(email, name, provider string) (*doma
 	if err := s.userRepo.Create(newUser); err != nil {
 		s.logger.Error("Failed to create OAuth user", zap.Error(err))
 		return nil, err
+	}
+
+	// 메트릭 기록: OAuth 사용자 생성 성공
+	if s.metrics != nil {
+		s.metrics.RecordUserCreated()
 	}
 
 	s.logger.Info("OAuth user created", zap.String("userId", newUser.ID.String()), zap.String("email", email))

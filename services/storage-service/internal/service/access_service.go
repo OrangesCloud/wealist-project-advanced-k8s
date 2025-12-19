@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -10,6 +9,7 @@ import (
 	"storage-service/internal/client"
 	"storage-service/internal/domain"
 	"storage-service/internal/repository"
+	"storage-service/internal/response"
 )
 
 // AccessService handles all access control logic for storage resources
@@ -70,11 +70,11 @@ func (s *accessService) ValidateWorkspaceAccess(ctx context.Context, workspaceID
 			zap.String("workspace_id", workspaceID.String()),
 			zap.String("user_id", userID.String()),
 		)
-		return ErrNotWorkspaceMember
+		return response.ErrNotWorkspaceMember
 	}
 
 	if !isValid {
-		return ErrNotWorkspaceMember
+		return response.ErrNotWorkspaceMember
 	}
 
 	return nil
@@ -95,22 +95,22 @@ func (s *accessService) ValidateProjectAccess(ctx context.Context, projectID, us
 	// Get user's permission for this project
 	perm, err := s.projectRepo.GetUserPermission(ctx, projectID, userID)
 	if err != nil {
-		return ErrAccessDenied
+		return response.ErrAccessDenied
 	}
 
 	// Check if permission is sufficient
 	switch requiredPermission {
 	case domain.ProjectPermissionViewer:
 		if !perm.CanView() {
-			return ErrInsufficientPermission
+			return response.ErrInsufficientPermission
 		}
 	case domain.ProjectPermissionEditor:
 		if !perm.CanEdit() {
-			return ErrInsufficientPermission
+			return response.ErrInsufficientPermission
 		}
 	case domain.ProjectPermissionOwner:
 		if !perm.CanManage() {
-			return ErrInsufficientPermission
+			return response.ErrInsufficientPermission
 		}
 	}
 
@@ -179,8 +179,9 @@ func (s *accessService) ValidateResourceAccess(ctx context.Context, workspaceID 
 		if err != nil {
 			return err
 		}
+		// 프로젝트가 해당 워크스페이스에 속하는지 확인
 		if project.WorkspaceID != workspaceID {
-			return errors.New("project does not belong to this workspace")
+			return response.NewForbiddenError("project does not belong to this workspace", "")
 		}
 
 		return s.ValidateProjectAccess(ctx, *projectID, userID, token, requiredPermission)

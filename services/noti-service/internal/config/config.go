@@ -2,60 +2,37 @@ package config
 
 import (
 	"os"
-	"strconv"
 
+	commonconfig "github.com/OrangesCloud/wealist-advanced-go-pkg/config"
 	"gopkg.in/yaml.v3"
 )
 
+// Config contains all configuration for noti-service.
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Redis    RedisConfig    `yaml:"redis"`
-	Auth     AuthConfig     `yaml:"auth"`
-	App      AppConfig      `yaml:"app"`
+	commonconfig.BaseConfig `yaml:",inline"`
+	InternalAuth            InternalAuthConfig `yaml:"internal_auth"`
+	App                     AppConfig          `yaml:"app"`
 }
 
-type ServerConfig struct {
-	Port     int    `yaml:"port"`
-	Env      string `yaml:"env"`
-	LogLevel string `yaml:"log_level"`
-}
-
-type DatabaseConfig struct {
-	URL         string `yaml:"url"`
-	AutoMigrate bool   `yaml:"auto_migrate"`
-}
-
-type RedisConfig struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	Password string `yaml:"password"`
-	DB       int    `yaml:"db"`
-}
-
-type AuthConfig struct {
-	ServiceURL     string `yaml:"service_url"`
+// InternalAuthConfig contains noti-service specific auth fields.
+type InternalAuthConfig struct {
 	InternalAPIKey string `yaml:"internal_api_key"`
-	SecretKey      string `yaml:"secret_key"`
 }
 
+// AppConfig contains notification-specific configuration.
 type AppConfig struct {
 	CacheUnreadTTL int `yaml:"cache_unread_ttl"` // seconds
 	CleanupDays    int `yaml:"cleanup_days"`
 }
 
+// Load reads configuration from yaml file and environment variables.
 func Load(path string) (*Config, error) {
+	// Start with defaults
+	base := commonconfig.DefaultBaseConfig()
+	base.Server.Port = 8002
+
 	cfg := &Config{
-		Server: ServerConfig{
-			Port:     8002,
-			Env:      "dev",
-			LogLevel: "debug",
-		},
-		Redis: RedisConfig{
-			Host: "localhost",
-			Port: 6379,
-			DB:   0,
-		},
+		BaseConfig: base,
 		App: AppConfig{
 			CacheUnreadTTL: 300, // 5 minutes
 			CleanupDays:    30,
@@ -69,46 +46,12 @@ func Load(path string) (*Config, error) {
 		}
 	}
 
-	// Override with environment variables
-	if port := os.Getenv("PORT"); port != "" {
-		if p, err := strconv.Atoi(port); err == nil {
-			cfg.Server.Port = p
-		}
-	}
-	if env := os.Getenv("ENV"); env != "" {
-		cfg.Server.Env = env
-	}
-	if env := os.Getenv("NODE_ENV"); env != "" {
-		cfg.Server.Env = env
-	}
-	if logLevel := os.Getenv("LOG_LEVEL"); logLevel != "" {
-		cfg.Server.LogLevel = logLevel
-	}
-	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
-		cfg.Database.URL = dbURL
-	}
-	if autoMigrate := os.Getenv("DB_AUTO_MIGRATE"); autoMigrate != "" {
-		cfg.Database.AutoMigrate = autoMigrate == "true"
-	}
-	if redisHost := os.Getenv("REDIS_HOST"); redisHost != "" {
-		cfg.Redis.Host = redisHost
-	}
-	if redisPort := os.Getenv("REDIS_PORT"); redisPort != "" {
-		if p, err := strconv.Atoi(redisPort); err == nil {
-			cfg.Redis.Port = p
-		}
-	}
-	if redisPassword := os.Getenv("REDIS_PASSWORD"); redisPassword != "" {
-		cfg.Redis.Password = redisPassword
-	}
-	if authURL := os.Getenv("AUTH_SERVICE_URL"); authURL != "" {
-		cfg.Auth.ServiceURL = authURL
-	}
+	// Override with environment variables (common config)
+	cfg.BaseConfig.LoadFromEnv()
+
+	// Service-specific environment variables
 	if apiKey := os.Getenv("INTERNAL_API_KEY"); apiKey != "" {
-		cfg.Auth.InternalAPIKey = apiKey
-	}
-	if secretKey := os.Getenv("SECRET_KEY"); secretKey != "" {
-		cfg.Auth.SecretKey = secretKey
+		cfg.InternalAuth.InternalAPIKey = apiKey
 	}
 
 	return cfg, nil

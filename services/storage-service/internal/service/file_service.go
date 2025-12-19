@@ -14,7 +14,9 @@ import (
 
 	"storage-service/internal/client"
 	"storage-service/internal/domain"
+	"storage-service/internal/metrics"
 	"storage-service/internal/repository"
+	"storage-service/internal/response"
 )
 
 // Allowed file extensions
@@ -30,25 +32,31 @@ var (
 const MaxFileSize = 100 * 1024 * 1024
 
 // FileService handles file business logic
+// 파일 업로드, 다운로드, 삭제 등의 비즈니스 로직을 처리합니다.
+// 메트릭과 로깅을 통해 모니터링을 지원합니다.
 type FileService struct {
 	fileRepo   *repository.FileRepository
 	folderRepo *repository.FolderRepository
 	s3Client   *client.S3Client
 	logger     *zap.Logger
+	metrics    *metrics.Metrics // 메트릭 수집을 위한 필드
 }
 
 // NewFileService creates a new FileService
+// metrics 파라미터가 nil인 경우에도 안전하게 동작합니다.
 func NewFileService(
 	fileRepo *repository.FileRepository,
 	folderRepo *repository.FolderRepository,
 	s3Client *client.S3Client,
 	logger *zap.Logger,
+	m *metrics.Metrics,
 ) *FileService {
 	return &FileService{
 		fileRepo:   fileRepo,
 		folderRepo: folderRepo,
 		s3Client:   s3Client,
 		logger:     logger,
+		metrics:    m,
 	}
 }
 
@@ -81,17 +89,18 @@ func (s *FileService) GenerateUploadURL(ctx context.Context, req domain.Generate
 		return nil, fmt.Errorf("file type not allowed: %s", ext)
 	}
 
-	// Validate folder if provided
+	// 폴더 검증 (폴더 ID가 제공된 경우)
 	if req.FolderID != nil {
 		folder, err := s.folderRepo.FindByID(ctx, *req.FolderID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errors.New("folder not found")
+				return nil, response.NewNotFoundError("folder not found", req.FolderID.String())
 			}
 			return nil, fmt.Errorf("failed to find folder: %w", err)
 		}
+		// 다른 워크스페이스의 폴더 차단
 		if folder.WorkspaceID != req.WorkspaceID {
-			return nil, errors.New("folder belongs to different workspace")
+			return nil, response.NewForbiddenError("folder belongs to different workspace", "")
 		}
 	}
 
@@ -142,21 +151,24 @@ func (s *FileService) GenerateUploadURL(ctx context.Context, req domain.Generate
 }
 
 // ConfirmUpload confirms that file upload is complete
+// 파일 업로드 확정: 상태를 UPLOADING에서 ACTIVE로 변경
 func (s *FileService) ConfirmUpload(ctx context.Context, fileID, userID uuid.UUID) (*domain.File, error) {
 	file, err := s.fileRepo.FindByID(ctx, fileID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("file not found")
+			return nil, response.NewNotFoundError("file not found", fileID.String())
 		}
 		return nil, fmt.Errorf("failed to find file: %w", err)
 	}
 
+	// 업로드한 사용자만 확정 가능
 	if file.UploadedBy != userID {
-		return nil, errors.New("not authorized to confirm this upload")
+		return nil, response.NewForbiddenError("not authorized to confirm this upload", "")
 	}
 
+	// UPLOADING 상태에서만 확정 가능
 	if file.Status != domain.FileStatusUploading {
-		return nil, errors.New("file is not in uploading state")
+		return nil, response.NewConflictError("file is not in uploading state", string(file.Status))
 	}
 
 	// Generate unique name if necessary
@@ -173,20 +185,27 @@ func (s *FileService) ConfirmUpload(ctx context.Context, fileID, userID uuid.UUI
 		return nil, fmt.Errorf("failed to update file status: %w", err)
 	}
 
+	// 메트릭 기록: 파일 업로드 성공
+	if s.metrics != nil {
+		s.metrics.RecordFileUpload()
+	}
+
 	s.logger.Info("File upload confirmed",
 		zap.String("fileId", file.ID.String()),
 		zap.String("userId", userID.String()),
+		zap.Int64("fileSize", file.FileSize),
 	)
 
 	return file, nil
 }
 
 // GetFile gets a file by ID
+// 파일 ID로 파일 조회
 func (s *FileService) GetFile(ctx context.Context, fileID uuid.UUID) (*domain.File, error) {
 	file, err := s.fileRepo.FindByID(ctx, fileID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("file not found")
+			return nil, response.NewNotFoundError("file not found", fileID.String())
 		}
 		return nil, fmt.Errorf("failed to get file: %w", err)
 	}
@@ -237,52 +256,54 @@ func (s *FileService) GetFolderFiles(ctx context.Context, workspaceID uuid.UUID,
 }
 
 // UpdateFile updates a file
+// 파일 수정: 이름 변경, 폴더 이동
 func (s *FileService) UpdateFile(ctx context.Context, fileID uuid.UUID, req domain.UpdateFileRequest, userID uuid.UUID) (*domain.File, error) {
 	file, err := s.fileRepo.FindByID(ctx, fileID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("file not found")
+			return nil, response.NewNotFoundError("file not found", fileID.String())
 		}
 		return nil, fmt.Errorf("failed to get file: %w", err)
 	}
 
-	// Update name if provided
+	// 이름 변경
 	if req.Name != nil && *req.Name != file.Name {
 		name := strings.TrimSpace(*req.Name)
 		if name == "" {
-			return nil, errors.New("file name cannot be empty")
+			return nil, response.NewValidationError("file name cannot be empty", "")
 		}
 
-		// Keep the extension
+		// 확장자 유지
 		oldExt := filepath.Ext(file.Name)
 		newExt := filepath.Ext(name)
 		if newExt == "" {
 			name = name + oldExt
 		}
 
-		// Check for duplicate name
+		// 중복 이름 확인
 		exists, err := s.fileRepo.ExistsByNameInFolder(ctx, file.WorkspaceID, file.FolderID, name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check duplicate name: %w", err)
 		}
 		if exists {
-			return nil, errors.New("file with this name already exists")
+			return nil, response.NewAlreadyExistsError("file with this name already exists", name)
 		}
 
 		file.Name = name
 	}
 
-	// Move file if folder changed
+	// 폴더 이동
 	if req.FolderID != nil {
 		if *req.FolderID == uuid.Nil {
 			file.FolderID = nil
 		} else {
 			folder, err := s.folderRepo.FindByID(ctx, *req.FolderID)
 			if err != nil {
-				return nil, errors.New("destination folder not found")
+				return nil, response.NewNotFoundError("destination folder not found", req.FolderID.String())
 			}
+			// 다른 워크스페이스로 이동 불가
 			if folder.WorkspaceID != file.WorkspaceID {
-				return nil, errors.New("cannot move file to different workspace")
+				return nil, response.NewForbiddenError("cannot move file to different workspace", "")
 			}
 			file.FolderID = &folder.ID
 		}
@@ -303,39 +324,56 @@ func (s *FileService) UpdateFile(ctx context.Context, fileID uuid.UUID, req doma
 }
 
 // DeleteFile soft deletes a file (move to trash)
+// 파일 삭제 (휴지통으로 이동): 소프트 삭제 성공 시 메트릭을 기록합니다.
 func (s *FileService) DeleteFile(ctx context.Context, fileID uuid.UUID, userID uuid.UUID) error {
 	file, err := s.fileRepo.FindByID(ctx, fileID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("file not found")
+			return response.NewNotFoundError("file not found", fileID.String())
 		}
+		s.logger.Error("Failed to find file for deletion",
+			zap.String("fileId", fileID.String()),
+			zap.Error(err),
+		)
 		return fmt.Errorf("failed to get file: %w", err)
 	}
 
 	if err := s.fileRepo.SoftDelete(ctx, fileID); err != nil {
+		s.logger.Error("Failed to soft delete file",
+			zap.String("fileId", fileID.String()),
+			zap.Error(err),
+		)
 		return fmt.Errorf("failed to delete file: %w", err)
+	}
+
+	// 메트릭 기록: 파일 삭제 성공
+	if s.metrics != nil {
+		s.metrics.RecordFileDelete()
 	}
 
 	s.logger.Info("File deleted (moved to trash)",
 		zap.String("fileId", file.ID.String()),
 		zap.String("userId", userID.String()),
+		zap.String("fileName", file.Name),
 	)
 
 	return nil
 }
 
 // RestoreFile restores a deleted file
+// 삭제된 파일 복원
 func (s *FileService) RestoreFile(ctx context.Context, fileID uuid.UUID, userID uuid.UUID) error {
 	file, err := s.fileRepo.FindByIDWithDeleted(ctx, fileID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("file not found")
+			return response.NewNotFoundError("file not found", fileID.String())
 		}
 		return fmt.Errorf("failed to get file: %w", err)
 	}
 
+	// 삭제 상태 확인
 	if file.DeletedAt == nil && file.Status != domain.FileStatusDeleted {
-		return errors.New("file is not deleted")
+		return response.NewConflictError("file is not deleted", fileID.String())
 	}
 
 	if err := s.fileRepo.Restore(ctx, fileID); err != nil {
@@ -351,11 +389,12 @@ func (s *FileService) RestoreFile(ctx context.Context, fileID uuid.UUID, userID 
 }
 
 // PermanentDeleteFile permanently deletes a file
+// 파일 영구 삭제: S3와 DB에서 완전 삭제
 func (s *FileService) PermanentDeleteFile(ctx context.Context, fileID uuid.UUID, userID uuid.UUID) error {
 	file, err := s.fileRepo.FindByIDWithDeleted(ctx, fileID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("file not found")
+			return response.NewNotFoundError("file not found", fileID.String())
 		}
 		return fmt.Errorf("failed to get file: %w", err)
 	}
@@ -464,19 +503,34 @@ func (s *FileService) CleanupOrphanedUploads(ctx context.Context) error {
 }
 
 // GenerateDownloadURL generates a presigned URL for file download
+// 다운로드 URL 생성: 다운로드 URL 생성 시 메트릭을 기록합니다.
 func (s *FileService) GenerateDownloadURL(ctx context.Context, fileID uuid.UUID) (string, error) {
 	file, err := s.fileRepo.FindByID(ctx, fileID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", errors.New("file not found")
+			return "", response.NewNotFoundError("file not found", fileID.String())
 		}
 		return "", fmt.Errorf("failed to get file: %w", err)
 	}
 
 	url, err := s.s3Client.GenerateDownloadURL(ctx, file.FileKey, file.OriginalName)
 	if err != nil {
+		s.logger.Error("Failed to generate download URL",
+			zap.String("fileId", fileID.String()),
+			zap.Error(err),
+		)
 		return "", fmt.Errorf("failed to generate download URL: %w", err)
 	}
+
+	// 메트릭 기록: 파일 다운로드 요청
+	if s.metrics != nil {
+		s.metrics.RecordFileDownload()
+	}
+
+	s.logger.Info("Download URL generated",
+		zap.String("fileId", fileID.String()),
+		zap.String("fileName", file.Name),
+	)
 
 	return url, nil
 }

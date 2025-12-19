@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: board-service
+  namespace: argocd
+spec:
+  project: wealist
+  source:
+    repoURL: https://github.com/OrangesCloud/wealist-argo-helm.git 
+    targetRevision: main
+    path: k8s/helm/charts/board-service
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../environments/local-kind.yaml
+      parameters:
+        - name: image.tag
+          value: "latest"
+        - name: global.imageRegistry
+          value: "localhost:5001"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wealist-kind-local
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

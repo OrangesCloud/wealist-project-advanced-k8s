@@ -96,7 +96,7 @@ func (s *SSEService) subscribeToUserChannel(ctx context.Context, client *SSEClie
 
 	channel := fmt.Sprintf("notifications:user:%s", client.UserID.String())
 	pubsub := s.redis.Subscribe(ctx, channel)
-	defer pubsub.Close()
+	defer func() { _ = pubsub.Close() }()
 
 	ch := pubsub.Channel()
 
@@ -145,7 +145,7 @@ func (s *SSEService) sendEvent(client *SSEClient, event string, data interface{}
 	case <-client.Done:
 		return
 	default:
-		fmt.Fprintf(client.Writer, "event: %s\ndata: %s\n\n", event, string(jsonData))
+		_, _ = fmt.Fprintf(client.Writer, "event: %s\ndata: %s\n\n", event, string(jsonData))
 		client.Flusher.Flush()
 	}
 }
@@ -155,7 +155,7 @@ func (s *SSEService) sendPing(client *SSEClient) {
 	case <-client.Done:
 		return
 	default:
-		fmt.Fprintf(client.Writer, ":ping\n\n")
+		_, _ = fmt.Fprintf(client.Writer, ":ping\n\n")
 		client.Flusher.Flush()
 	}
 }

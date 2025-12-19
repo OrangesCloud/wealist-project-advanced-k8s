@@ -20,6 +20,7 @@ include makefiles/docker.mk
 include makefiles/kind.mk
 include makefiles/services.mk
 include makefiles/helm.mk
+include makefiles/branch-based.mk
 
 ##@ General
 
