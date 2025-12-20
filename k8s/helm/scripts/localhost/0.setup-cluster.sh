@@ -150,6 +150,12 @@ kubectl patch service istio-ingressgateway-istio -n istio-system --type='json' -
   }
 ]' || echo "INFO: Service 이미 NodePort로 설정됨"
 
+# 10. 애플리케이션 네임스페이스 생성 (Ambient 모드 라벨 포함)
+echo "📦 wealist-localhost 네임스페이스 생성 (Ambient 모드)..."
+kubectl create namespace wealist-localhost 2>/dev/null || true
+kubectl label namespace wealist-localhost istio.io/dataplane-mode=ambient --overwrite
+echo "✅ 네임스페이스에 Ambient 모드 라벨 적용 완료"
+
 echo ""
 echo "=============================================="
 echo "  ✅ localhost 클러스터 준비 완료!"
