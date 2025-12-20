@@ -51,8 +51,7 @@ else
     echo "⏭ redis:7-alpine - 외부 DB 사용으로 스킵"
 fi
 
-# Docker Hub - 비디오/실시간 통신 서비스
-load "coturn/coturn:4.6" "coturn" "4.6"
+# Docker Hub - LiveKit (실시간 통신)
 load "livekit/livekit-server:v1.5" "livekit" "v1.5"
 
 echo ""

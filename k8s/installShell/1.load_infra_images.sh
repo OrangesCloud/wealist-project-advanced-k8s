@@ -38,8 +38,7 @@ load() {
 load "public.ecr.aws/docker/library/postgres:15-alpine" "postgres" "15-alpine"
 load "public.ecr.aws/docker/library/redis:7-alpine" "redis" "7-alpine"
 
-# Docker Hub
-load "coturn/coturn:4.6" "coturn" "4.6"
+# Docker Hub - LiveKit (실시간 통신)
 load "livekit/livekit-server:v1.5" "livekit" "v1.5"
 
 echo "완료!"

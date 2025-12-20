@@ -44,10 +44,9 @@ echo "--- 데이터베이스 이미지 ---"
 load "public.ecr.aws/docker/library/postgres:15-alpine" "postgres" "15-alpine"
 load "public.ecr.aws/docker/library/redis:7-alpine" "redis" "7-alpine"
 
-# Docker Hub - 비디오/실시간 통신 서비스
+# Docker Hub - LiveKit (실시간 통신)
 echo ""
-echo "--- 비디오/실시간 통신 이미지 ---"
-load "coturn/coturn:4.6" "coturn" "4.6"
+echo "--- 실시간 통신 이미지 ---"
 load "livekit/livekit-server:v1.5" "livekit" "v1.5"
 
 echo ""
