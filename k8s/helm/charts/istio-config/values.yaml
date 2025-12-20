@@ -170,7 +170,7 @@ retryPolicy:
 
 authorizationPolicy:
   enabled: true
-  denyAll: true  # Zero Trust: deny by default, allow explicitly
+  denyAll: false  # 기본값: 허용 (localhost), dev/staging/prod에서 true로 설정
   # Service-level authorization rules
   rules:
     # Which services each service can call
