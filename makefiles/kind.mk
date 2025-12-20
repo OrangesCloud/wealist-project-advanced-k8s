@@ -4,12 +4,25 @@
 
 ##@ Kubernetes (Kind)
 
-.PHONY: kind-setup kind-setup-db kind-load-images kind-load-images-mono kind-delete kind-recover
+.PHONY: kind-setup kind-setup-simple kind-setup-db kind-load-images kind-load-images-mono kind-delete kind-recover
 .PHONY: _setup-db-macos _setup-db-debian
 
-kind-setup: kind-setup-db ## Create cluster + registry (with local DB setup)
-	@echo "=== Step 2: Creating Kind cluster with local registry ==="
-	./docker/scripts/dev/0.setup-cluster.sh
+kind-setup: ## Create cluster + Istio Ambient + Gateway API (recommended)
+	@echo "=== Creating Kind cluster with Istio Ambient + Gateway API ==="
+	./k8s/installShell/0.setup-cluster.sh
+	@echo ""
+	@echo "Cluster ready! Next: make kind-load-images"
+
+kind-setup-simple: ## Create cluster + nginx ingress (no Istio, for simple testing)
+	@echo "=== Creating Kind cluster with nginx ingress (simple mode) ==="
+	./k8s/installShell/0.setup-cluster-simple.sh
+	@echo ""
+	@echo "Cluster ready! Next: make kind-load-images"
+
+# (legacy) kind-setup-local-db - use kind-setup + ENV=local-ubuntu instead
+kind-setup-local-db: kind-setup-db
+	@echo "=== Creating Kind cluster with Istio Ambient + Gateway API (local DB) ==="
+	./k8s/installShell/0.setup-cluster.sh
 	@echo ""
 	@echo "Cluster ready! Next: make kind-load-images"
 

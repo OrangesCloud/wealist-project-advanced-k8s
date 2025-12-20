@@ -409,15 +409,76 @@ ztunnel만으로 가능한 기능:
 
 ---
 
+## 라우팅: VirtualService vs HTTPRoute
+
+### Kubernetes Gateway API (HTTPRoute) - 권장
+
+Istio 1.24+ 에서는 Kubernetes Gateway API를 권장합니다.
+Kind 클러스터 설정 스크립트(`0.setup-cluster.sh`)가 자동으로 Gateway를 생성합니다.
+
+```yaml
+# HTTPRoute 예시 (helm/charts/istio-config/templates/httproute.yaml)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: user-route
+  namespace: wealist-kind-local
+spec:
+  parentRefs:
+  - name: istio-ingressgateway
+    namespace: istio-system
+  hostnames:
+  - "localhost"
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /svc/user
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: user-service
+      port: 8081
+```
+
+### 접속 방법
+
+```bash
+# Kind 클러스터에서 Istio Gateway 접속
+# Gateway NodePort: 30080 → localhost:8080
+
+curl http://localhost:8080/svc/user/health/live
+curl http://localhost:8080/svc/board/api/boards
+```
+
+### VirtualService (Legacy)
+
+기존 Istio VirtualService도 지원하지만, 새 프로젝트에서는 HTTPRoute 권장.
+
+```yaml
+# VirtualService는 helm/charts/istio-config/values.yaml에서
+# virtualService.enabled: false (비활성화)
+# httpRoute.enabled: true (활성화)
+```
+
+---
+
 ## 관련 파일 (wealist 프로젝트)
 
 ```
-makefiles/helm.mk                              # Istio 설치 명령어
-helm/charts/istio-config/                      # Istio 설정 차트
+k8s/installShell/
+└── 0.setup-cluster.sh                         # Kind + Istio + Gateway API 설정
+
+k8s/helm/charts/istio-config/                  # Istio 설정 차트
 ├── templates/
-│   ├── waypoint.yaml                          # Waypoint Proxy
-│   ├── gateway.yaml                           # Gateway (Ingress)
-│   ├── virtualservice.yaml                    # 라우팅 규칙
+│   ├── waypoint.yaml                          # Waypoint Proxy (L7)
+│   ├── httproute.yaml                         # HTTPRoute (K8s Gateway API, 권장)
+│   ├── gateway.yaml                           # Istio Gateway (Legacy, 비활성화)
+│   ├── virtualservice.yaml                    # VirtualService (Legacy, 비활성화)
 │   ├── destination-rules.yaml                 # 로드밸런싱, 서킷브레이커
 │   ├── peer-authentication.yaml               # mTLS 설정
 │   ├── authorization-policy.yaml              # 접근 제어
@@ -425,7 +486,7 @@ helm/charts/istio-config/                      # Istio 설정 차트
 │   └── telemetry.yaml                         # 메트릭, 로깅
 └── values.yaml                                # 설정값
 
-helm/environments/
+k8s/helm/environments/
 ├── base.yaml                                  # 공통 설정
 └── local-kind.yaml                            # Kind 환경 설정
 
@@ -449,3 +510,4 @@ docs/ISTIO_OBSERVABILITY.md                    # 메트릭, 로깅 가이드
 |------|------|------|
 | 2025-12-18 | 1.0 | 최초 작성. Istio 1.24.0 기준 |
 | 2025-12-19 | 1.1 | JWT 인증 패턴 (ISTIO_JWT_MODE) 추가, 인프라 Mesh 제외, Waypoint 설정 추가 |
+| 2025-12-19 | 1.2 | nginx → Istio Gateway API 전환, HTTPRoute 도입, Kind 설정 스크립트에 Istio 통합 |

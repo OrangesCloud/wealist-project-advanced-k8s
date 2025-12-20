@@ -192,8 +192,8 @@ helm-uninstall-all: ## Uninstall all charts
 helm-local-kind: ## Deploy to local Kind cluster
 	@$(MAKE) helm-install-all ENV=local-kind
 
-# DEPRECATED-SOON: local-ubuntu will be replaced by staging
-helm-local-ubuntu: ## Deploy to local Ubuntu (DEPRECATED-SOON: use staging instead)
+# (legacy) helm-local-ubuntu - use helm-staging or helm-dev instead
+helm-local-ubuntu:
 	@$(MAKE) helm-install-all ENV=local-ubuntu
 
 helm-dev: ## Deploy to dev server
@@ -311,7 +311,8 @@ istio-install-gateway: ## Install Istio Ingress Gateway (optional, for legacy su
 	@echo ""
 	@echo "Istio Ingress Gateway installed!"
 
-istio-install: ## Install Istio Sidecar mode (legacy)
+# (legacy) istio-install - sidecar mode, use istio-install-ambient instead
+istio-install:
 	@echo "Installing Istio $(ISTIO_VERSION)..."
 	@echo ""
 	@echo "Step 1: Adding Istio Helm repository..."
@@ -341,7 +342,8 @@ istio-install: ## Install Istio Sidecar mode (legacy)
 	@echo "  3. make istio-restart-pods   # Restart pods to inject sidecars"
 	@echo "  4. make istio-install-addons # Install Kiali, Jaeger (optional)"
 
-istio-label-ns: ## Label namespace for Istio sidecar injection (legacy)
+# (legacy) istio-label-ns - sidecar mode, use istio-label-ns-ambient instead
+istio-label-ns:
 	@echo "Labeling namespace $(K8S_NAMESPACE) for Istio sidecar injection..."
 	@kubectl label namespace $(K8S_NAMESPACE) istio-injection=enabled --overwrite
 	@echo ""

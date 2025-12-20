@@ -1,0 +1,305 @@
+{{- if and .Values.enabled .Values.httpRoute.enabled }}
+{{- $namespace := include "istio-config.namespace" . }}
+{{- $gatewayNamespace := .Values.httpRoute.gatewayRef.namespace | default "istio-system" }}
+{{- $gatewayName := .Values.httpRoute.gatewayRef.name | default "istio-ingressgateway" }}
+
+# =============================================================================
+# HTTPRoute - Kubernetes Gateway API routing (replaces VirtualService)
+# =============================================================================
+# Reference: https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRoute
+
+# OAuth2 Routes (must be first for /oauth2, /login/oauth2 paths)
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: oauth-routes
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+  - name: {{ $gatewayName }}
+    namespace: {{ $gatewayNamespace }}
+  hostnames:
+  {{- range .Values.httpRoute.hosts }}
+  - {{ . | quote }}
+  {{- end }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /oauth2
+    - path:
+        type: PathPrefix
+        value: /login/oauth2
+    backendRefs:
+    - name: {{ .Values.httpRoute.routes.auth.host }}
+      port: {{ .Values.httpRoute.routes.auth.port }}
+    timeouts:
+      request: {{ .Values.httpRoute.routes.auth.timeout | default "30s" }}
+
+# Auth Service Route (/svc/auth -> auth-service)
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: auth-route
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+  - name: {{ $gatewayName }}
+    namespace: {{ $gatewayNamespace }}
+  hostnames:
+  {{- range .Values.httpRoute.hosts }}
+  - {{ . | quote }}
+  {{- end }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .Values.httpRoute.routes.auth.prefix }}
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: {{ .Values.httpRoute.routes.auth.host }}
+      port: {{ .Values.httpRoute.routes.auth.port }}
+    timeouts:
+      request: {{ .Values.httpRoute.routes.auth.timeout | default "30s" }}
+
+# User Service Route (/svc/user -> user-service)
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: user-route
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+  - name: {{ $gatewayName }}
+    namespace: {{ $gatewayNamespace }}
+  hostnames:
+  {{- range .Values.httpRoute.hosts }}
+  - {{ . | quote }}
+  {{- end }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .Values.httpRoute.routes.user.prefix }}
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: {{ .Values.httpRoute.routes.user.host }}
+      port: {{ .Values.httpRoute.routes.user.port }}
+    timeouts:
+      request: {{ .Values.httpRoute.routes.user.timeout | default "30s" }}
+
+# Board Service Route (/svc/board -> board-service)
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: board-route
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+  - name: {{ $gatewayName }}
+    namespace: {{ $gatewayNamespace }}
+  hostnames:
+  {{- range .Values.httpRoute.hosts }}
+  - {{ . | quote }}
+  {{- end }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .Values.httpRoute.routes.board.prefix }}
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: {{ .Values.httpRoute.routes.board.host }}
+      port: {{ .Values.httpRoute.routes.board.port }}
+    timeouts:
+      request: {{ .Values.httpRoute.routes.board.timeout | default "3600s" }}
+
+# Chat Service Route (/svc/chat -> chat-service)
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: chat-route
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+  - name: {{ $gatewayName }}
+    namespace: {{ $gatewayNamespace }}
+  hostnames:
+  {{- range .Values.httpRoute.hosts }}
+  - {{ . | quote }}
+  {{- end }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .Values.httpRoute.routes.chat.prefix }}
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: {{ .Values.httpRoute.routes.chat.host }}
+      port: {{ .Values.httpRoute.routes.chat.port }}
+    timeouts:
+      request: {{ .Values.httpRoute.routes.chat.timeout | default "3600s" }}
+
+# Noti Service Route (/svc/noti -> noti-service)
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: noti-route
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+  - name: {{ $gatewayName }}
+    namespace: {{ $gatewayNamespace }}
+  hostnames:
+  {{- range .Values.httpRoute.hosts }}
+  - {{ . | quote }}
+  {{- end }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .Values.httpRoute.routes.noti.prefix }}
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: {{ .Values.httpRoute.routes.noti.host }}
+      port: {{ .Values.httpRoute.routes.noti.port }}
+    timeouts:
+      request: {{ .Values.httpRoute.routes.noti.timeout | default "3600s" }}
+
+# Storage Service Route (/svc/storage -> storage-service)
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: storage-route
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+  - name: {{ $gatewayName }}
+    namespace: {{ $gatewayNamespace }}
+  hostnames:
+  {{- range .Values.httpRoute.hosts }}
+  - {{ . | quote }}
+  {{- end }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .Values.httpRoute.routes.storage.prefix }}
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: {{ .Values.httpRoute.routes.storage.host }}
+      port: {{ .Values.httpRoute.routes.storage.port }}
+    timeouts:
+      request: {{ .Values.httpRoute.routes.storage.timeout | default "300s" }}
+
+# Video Service Route (/svc/video -> video-service)
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: video-route
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+  - name: {{ $gatewayName }}
+    namespace: {{ $gatewayNamespace }}
+  hostnames:
+  {{- range .Values.httpRoute.hosts }}
+  - {{ . | quote }}
+  {{- end }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .Values.httpRoute.routes.video.prefix }}
+    filters:
+    - type: URLRewrite
+      urlRewrite:
+        path:
+          type: ReplacePrefixMatch
+          replacePrefixMatch: /
+    backendRefs:
+    - name: {{ .Values.httpRoute.routes.video.host }}
+      port: {{ .Values.httpRoute.routes.video.port }}
+    timeouts:
+      request: {{ .Values.httpRoute.routes.video.timeout | default "3600s" }}
+
+# Frontend Route (catch-all, must have lowest priority)
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: frontend-route
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+  - name: {{ $gatewayName }}
+    namespace: {{ $gatewayNamespace }}
+  hostnames:
+  {{- range .Values.httpRoute.hosts }}
+  - {{ . | quote }}
+  {{- end }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: frontend
+      port: 80
+{{- end }}

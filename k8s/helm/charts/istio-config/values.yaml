@@ -5,8 +5,13 @@
 enabled: true
 namespace: wealist-kind-local
 
+# =============================================================================
+# Gateway Configuration (Istio's own Gateway API - DEPRECATED)
+# =============================================================================
+# NOTE: This is the old Istio Gateway (networking.istio.io/v1beta1)
+# For Kind clusters, we use Kubernetes Gateway API instead (created by setup script)
 gateway:
-  enabled: true
+  enabled: false  # Disabled - using K8s Gateway API in istio-system
   name: wealist-gateway
   selector:
     istio: ingressgateway
@@ -17,10 +22,65 @@ gateway:
     credentialName: wealist-tls
     mode: SIMPLE
 
+# =============================================================================
+# VirtualService Configuration (Istio's own routing - DEPRECATED)
+# =============================================================================
+# NOTE: This is the old Istio VirtualService (networking.istio.io/v1beta1)
+# For Kind clusters, we use HTTPRoute instead (Kubernetes Gateway API)
 virtualService:
-  enabled: true
+  enabled: false  # Disabled - using HTTPRoute
   hosts:
     - "*"
+  routes:
+    auth:
+      prefix: /svc/auth
+      host: auth-service
+      port: 8080
+      timeout: 30s
+    user:
+      prefix: /svc/user
+      host: user-service
+      port: 8081
+      timeout: 30s
+    board:
+      prefix: /svc/board
+      host: board-service
+      port: 8000
+      timeout: 3600s
+    chat:
+      prefix: /svc/chat
+      host: chat-service
+      port: 8001
+      timeout: 3600s
+    noti:
+      prefix: /svc/noti
+      host: noti-service
+      port: 8002
+      timeout: 3600s
+    storage:
+      prefix: /svc/storage
+      host: storage-service
+      port: 8003
+      timeout: 300s
+    video:
+      prefix: /svc/video
+      host: video-service
+      port: 8004
+      timeout: 3600s
+
+# =============================================================================
+# HTTPRoute Configuration (Kubernetes Gateway API - RECOMMENDED)
+# =============================================================================
+# Reference: https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRoute
+# This is the future standard for Kubernetes ingress routing
+httpRoute:
+  enabled: true
+  # Reference to the Gateway in istio-system (created by Kind setup script)
+  gatewayRef:
+    name: istio-ingressgateway
+    namespace: istio-system
+  hosts:
+    - "localhost"
   routes:
     auth:
       prefix: /svc/auth
