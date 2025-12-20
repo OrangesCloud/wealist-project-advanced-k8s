@@ -1,12 +1,20 @@
 #!/bin/bash
 # 인프라 이미지를 로컬 레지스트리에 푸시
 # 이미 로컬 레지스트리에 있으면 스킵
+#
+# 환경 변수:
+#   SKIP_DB=true  - PostgreSQL/Redis 이미지 스킵 (외부 DB 사용 시)
 
 set -e
 
 LOCAL_REG="localhost:5001"
 
 echo "=== 인프라 이미지 → 로컬 레지스트리 ==="
+
+if [ "${SKIP_DB}" = "true" ]; then
+    echo "※ SKIP_DB=true: PostgreSQL/Redis 이미지 로드 건너뜀"
+    echo ""
+fi
 
 # 레지스트리 확인
 if ! curl -s "http://${LOCAL_REG}/v2/" > /dev/null 2>&1; then
@@ -34,12 +42,18 @@ load() {
     docker push "${LOCAL_REG}/${name}:${tag}"
 }
 
-# AWS ECR Public (무료)
-load "public.ecr.aws/docker/library/postgres:15-alpine" "postgres" "15-alpine"
-load "public.ecr.aws/docker/library/redis:7-alpine" "redis" "7-alpine"
+# AWS ECR Public (무료) - DB 이미지
+if [ "${SKIP_DB}" != "true" ]; then
+    load "public.ecr.aws/docker/library/postgres:15-alpine" "postgres" "15-alpine"
+    load "public.ecr.aws/docker/library/redis:7-alpine" "redis" "7-alpine"
+else
+    echo "⏭ postgres:15-alpine - 외부 DB 사용으로 스킵"
+    echo "⏭ redis:7-alpine - 외부 DB 사용으로 스킵"
+fi
 
-# Docker Hub
+# Docker Hub - 비디오/실시간 통신 서비스
 load "coturn/coturn:4.6" "coturn" "4.6"
 load "livekit/livekit-server:v1.5" "livekit" "v1.5"
 
+echo ""
 echo "완료!"

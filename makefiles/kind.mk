@@ -4,8 +4,94 @@
 
 ##@ Kubernetes (Kind)
 
-.PHONY: kind-setup kind-setup-simple kind-setup-db kind-check-db kind-load-images kind-load-images-mono kind-delete kind-recover
+.PHONY: kind-setup kind-setup-simple kind-setup-db kind-check-db kind-check-db-setup kind-load-images kind-load-images-ex-db kind-load-images-mono kind-delete kind-recover
 .PHONY: _setup-db-macos _setup-db-debian _check-db-installed
+
+# =============================================================================
+# 통합 설정 명령어 (권장)
+# =============================================================================
+
+kind-check-db-setup: ## 🚀 통합 설정: DB 확인 → 클러스터 생성 → 이미지 로드 (DB 제외)
+	@echo "=============================================="
+	@echo "  weAlist Kind 클러스터 통합 설정"
+	@echo "=============================================="
+	@echo ""
+	@echo "이 명령어는 다음을 순서대로 실행합니다:"
+	@echo "  1. PostgreSQL/Redis 설치 상태 확인 [Y/N]"
+	@echo "  2. Kind 클러스터 생성 + Nginx Ingress"
+	@echo "  3. 서비스 이미지 로드 (DB 이미지 제외)"
+	@echo ""
+	@echo "----------------------------------------------"
+	@echo ""
+	@# 1단계: DB 확인 및 설치
+	@POSTGRES_OK=false; \
+	REDIS_OK=false; \
+	if command -v psql >/dev/null 2>&1; then \
+		echo "✅ PostgreSQL: 설치됨"; \
+		if pg_isready >/dev/null 2>&1 || systemctl is-active postgresql >/dev/null 2>&1 2>&1; then \
+			echo "   └─ 상태: 실행 중"; \
+			POSTGRES_OK=true; \
+		else \
+			echo "   └─ 상태: 설치되었으나 실행 중이 아님"; \
+		fi; \
+	else \
+		echo "❌ PostgreSQL: 미설치"; \
+	fi; \
+	echo ""; \
+	if command -v redis-cli >/dev/null 2>&1; then \
+		echo "✅ Redis: 설치됨"; \
+		if redis-cli ping >/dev/null 2>&1; then \
+			echo "   └─ 상태: 실행 중"; \
+			REDIS_OK=true; \
+		else \
+			echo "   └─ 상태: 설치되었으나 실행 중이 아님"; \
+		fi; \
+	else \
+		echo "❌ Redis: 미설치"; \
+	fi; \
+	echo ""; \
+	if [ "$$POSTGRES_OK" = "false" ] || [ "$$REDIS_OK" = "false" ]; then \
+		echo "⚠️  일부 DB가 설치되지 않았거나 실행 중이 아닙니다."; \
+		echo ""; \
+		echo "DB 설치 및 설정을 진행하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			$(MAKE) kind-setup-db; \
+		else \
+			echo ""; \
+			echo "⚠️  DB 없이 진행합니다. 서비스 실행 시 오류가 발생할 수 있습니다."; \
+		fi; \
+	else \
+		echo "✅ 모든 DB가 정상적으로 실행 중입니다!"; \
+	fi
+	@echo ""
+	@echo "----------------------------------------------"
+	@echo "  2단계: Kind 클러스터 생성"
+	@echo "----------------------------------------------"
+	@$(MAKE) kind-setup
+	@echo ""
+	@echo "----------------------------------------------"
+	@echo "  3단계: 서비스 이미지 로드 (DB 제외)"
+	@echo "----------------------------------------------"
+	@$(MAKE) kind-load-images-ex-db
+	@echo ""
+	@echo "=============================================="
+	@echo "  🎉 통합 설정 완료!"
+	@echo "=============================================="
+	@echo ""
+	@echo "  다음 단계:"
+	@echo "    1. secrets 파일 생성 (최초 1회):"
+	@echo "       cp k8s/helm/environments/secrets.example.yaml \\"
+	@echo "          k8s/helm/environments/dev-secrets.yaml"
+	@echo ""
+	@echo "    2. dev-secrets.yaml 편집 후 배포:"
+	@echo "       make helm-install-all ENV=dev"
+	@echo ""
+	@echo "=============================================="
+
+# =============================================================================
+# 개별 설정 명령어
+# =============================================================================
 
 kind-setup: ## 클러스터 생성 + Nginx Ingress (권장)
 	@echo "=== Kind 클러스터 + Nginx Ingress 생성 ==="
@@ -183,6 +269,22 @@ kind-load-images: ## 모든 이미지 빌드/풀 (인프라 + 백엔드 서비�
 	SKIP_FRONTEND=true ./docker/scripts/dev/2.build_services_and_load.sh
 	@echo ""
 	@echo "모든 이미지 로드 완료!"
+	@echo ""
+	@echo "다음: make helm-install-all ENV=dev"
+
+kind-load-images-ex-db: ## 서비스 이미지만 로드 (PostgreSQL/Redis 제외 - 외부 DB 사용 시)
+	@echo "=== 서비스 이미지 로드 (DB 이미지 제외) ==="
+	@echo ""
+	@echo "※ 외부 DB(호스트 PC의 PostgreSQL/Redis)를 사용하므로"
+	@echo "  DB 이미지는 로드하지 않습니다."
+	@echo ""
+	@echo "--- 인프라 이미지 로드 중 (DB 제외) ---"
+	SKIP_DB=true ./docker/scripts/dev/1.load_infra_images.sh
+	@echo ""
+	@echo "--- 백엔드 서비스 이미지 빌드 중 ---"
+	SKIP_FRONTEND=true ./docker/scripts/dev/2.build_services_and_load.sh
+	@echo ""
+	@echo "서비스 이미지 로드 완료! (DB 제외)"
 	@echo ""
 	@echo "다음: make helm-install-all ENV=dev"
 
