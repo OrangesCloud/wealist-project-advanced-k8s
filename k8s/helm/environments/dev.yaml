@@ -28,7 +28,7 @@ certManager:
 # Deployment Settings
 # -----------------------------------------------------------------------------
 auth-service:
-  replicaCount: 1
+  replicaCount: 2
 board-service:
   replicaCount: 1
 
