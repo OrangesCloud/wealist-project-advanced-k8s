@@ -10,8 +10,8 @@
 global:
   namespace: wealist-dev
   environment: develop
-  domain: localhost
-  imageRegistry: localhost:5001
+  # domain: localhost
+  # imageRegistry: localhost:5001
 
 # -----------------------------------------------------------------------------
 # Default Deployment Settings
