@@ -147,9 +147,106 @@ fi
 echo ""
 
 # ============================================
-# 8. SealedSecret 적용
+# 8. GitHub 인증 정보 수집
 # ============================================
-echo -e "${YELLOW}🔐 Step 8: Applying SealedSecret...${NC}"
+echo -e "${YELLOW}🔑 Step 8: Collecting GitHub credentials...${NC}"
+echo ""
+echo "Enter GitHub credentials (for repository access AND container registry):"
+echo ""
+read -p "Enter your GitHub username: " GITHUB_USERNAME
+echo -n "Enter your GitHub Personal Access Token (with repo and read:packages permissions): "
+read -s GITHUB_TOKEN
+echo ""
+echo ""
+
+# 입력값 검증
+if [ -z "$GITHUB_USERNAME" ] || [ -z "$GITHUB_TOKEN" ]; then
+    echo -e "${RED}❌ GitHub credentials are required${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Credentials collected${NC}"
+echo ""
+
+# ============================================
+# 9. GHCR (GitHub Container Registry) 설정
+# ============================================
+echo -e "${YELLOW}🐳 Step 9: Setting up GitHub Container Registry access...${NC}"
+
+# wealist-dev 네임스페이스에 GHCR secret 생성
+kubectl create secret docker-registry ghcr-secret \
+  --docker-server=ghcr.io \
+  --docker-username="$GITHUB_USERNAME" \
+  --docker-password="$GITHUB_TOKEN" \
+  --docker-email="$GITHUB_USERNAME@users.noreply.github.com" \
+  --namespace=wealist-dev \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# default ServiceAccount에 imagePullSecrets 추가
+kubectl patch serviceaccount default \
+  -p '{"imagePullSecrets": [{"name": "ghcr-secret"}]}' \
+  -n wealist-dev
+
+# 모든 서비스 ServiceAccount에 imagePullSecrets 추가
+SERVICE_ACCOUNTS=("auth-service" "board-service" "chat-service" "noti-service" "storage-service" "user-service" "video-service")
+for sa in "${SERVICE_ACCOUNTS[@]}"; do
+  # ServiceAccount가 존재하는지 확인 후 패치
+  if kubectl get serviceaccount "$sa" -n wealist-dev &>/dev/null; then
+    echo "  Patching ServiceAccount: $sa"
+    kubectl patch serviceaccount "$sa" \
+      -p '{"imagePullSecrets": [{"name": "ghcr-secret"}]}' \
+      -n wealist-dev
+  else
+    echo "  ServiceAccount not found (will be created by Helm): $sa"
+  fi
+done
+
+echo -e "${GREEN}✅ GHCR access configured${NC}"
+echo "   📦 Secret created: ghcr-secret"
+echo "   🔗 Linked to default ServiceAccount"
+echo ""
+
+# GHCR 접근 테스트 (선택사항)
+echo -e "${YELLOW}🧪 Testing GHCR access...${NC}"
+TEST_POD=$(cat <<EOFTEST
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ghcr-test
+  namespace: wealist-dev
+spec:
+  restartPolicy: Never
+  containers:
+  - name: test
+    image: ghcr.io/orangescloud/auth-service:latest
+    command: ['echo', 'GHCR access test successful']
+  imagePullSecrets:
+  - name: ghcr-secret
+EOFTEST
+)
+
+echo "$TEST_POD" | kubectl apply -f - 2>/dev/null || true
+sleep 5
+
+# 테스트 결과 확인
+if kubectl get pod ghcr-test -n wealist-dev &>/dev/null; then
+    POD_STATUS=$(kubectl get pod ghcr-test -n wealist-dev -o jsonpath='{.status.phase}')
+    if [ "$POD_STATUS" = "Succeeded" ] || [ "$POD_STATUS" = "Running" ]; then
+        echo -e "${GREEN}✅ GHCR access test successful${NC}"
+    else
+        echo -e "${YELLOW}⚠️  GHCR test inconclusive (Status: $POD_STATUS)${NC}"
+        echo "   Check with: kubectl describe pod ghcr-test -n wealist-dev"
+    fi
+    kubectl delete pod ghcr-test -n wealist-dev 2>/dev/null || true
+else
+    echo -e "${YELLOW}⚠️  GHCR test pod not found${NC}"
+fi
+echo ""
+
+# ============================================
+# 10. SealedSecret 적용
+# ============================================
+echo -e "${YELLOW}🔐 Step 10: Applying SealedSecret...${NC}"
 SEALED_SECRET_FILE="$ARGOCD_DIR/sealed-secrets/wealist-argocd-secret.yaml"
 
 if [ -f "$SEALED_SECRET_FILE" ]; then
@@ -189,14 +286,9 @@ fi
 echo ""
 
 # ============================================
-# 9. GitHub 저장소 인증
+# 11. GitHub 저장소 인증
 # ============================================
-echo -e "${YELLOW}🔑 Step 9: Setting up GitHub repository access...${NC}"
-echo ""
-read -p "Enter your GitHub username: " GITHUB_USERNAME
-echo -n "Enter your GitHub Personal Access Token: "
-read -s GITHUB_TOKEN
-echo ""
+echo -e "${YELLOW}🔗 Step 11: Setting up GitHub repository access...${NC}"
 
 kubectl create secret generic wealist-repo -n argocd \
   --from-literal=type=git \
@@ -212,17 +304,17 @@ echo -e "${GREEN}✅ Repository configured${NC}"
 echo ""
 
 # ============================================
-# 10. ArgoCD 추가 대기
+# 12. ArgoCD 추가 대기
 # ============================================
-echo -e "${YELLOW}⏳ Step 10: Final preparations...${NC}"
+echo -e "${YELLOW}⏳ Step 12: Final preparations...${NC}"
 sleep 10
 echo -e "${GREEN}✅ Ready${NC}"
 echo ""
 
 # ============================================
-# 11. AppProject 생성
+# 13. AppProject 생성
 # ============================================
-echo -e "${YELLOW}🎯 Step 11: Creating AppProject...${NC}"
+echo -e "${YELLOW}🎯 Step 13: Creating AppProject...${NC}"
 PROJECT_FILE="$ARGOCD_DIR/apps/project.yaml"
 
 if [ -f "$PROJECT_FILE" ]; then
@@ -257,9 +349,9 @@ fi
 echo ""
 
 # ============================================
-# 12. Root Application 생성 (App of Apps)
+# 14. Root Application 생성 (App of Apps)
 # ============================================
-echo -e "${YELLOW}🌟 Step 12: Creating Root Application (App of Apps)...${NC}"
+echo -e "${YELLOW}🌟 Step 14: Creating Root Application (App of Apps)...${NC}"
 ROOT_APP_FILE="$ARGOCD_DIR/apps/root-app.yaml"
 
 if [ -f "$ROOT_APP_FILE" ]; then
@@ -299,21 +391,62 @@ fi
 echo ""
 
 # ============================================
-# 13. 새 키 백업
+# 15. 새 키 백업
 # ============================================
 if [ "$USE_EXISTING_KEY" = false ]; then
-    echo -e "${YELLOW}💾 Step 13: Backing up new keys...${NC}"
+    echo -e "${YELLOW}💾 Step 15: Backing up new keys...${NC}"
     NEW_KEY_FILE="$SCRIPT_DIR/sealed-secrets-new-$(date +%Y%m%d-%H%M%S).key"
     kubectl get secret -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-key -o yaml > "$NEW_KEY_FILE"
     echo -e "${GREEN}✅ New key backed up: $NEW_KEY_FILE${NC}"
     echo -e "${RED}⚠️  IMPORTANT: Store this file securely!${NC}"
 else
-    echo -e "${YELLOW}⏭️  Step 13: Using existing key${NC}"
+    echo -e "${YELLOW}⏭️  Step 15: Using existing key${NC}"
 fi
 echo ""
 
 # ============================================
-# 14. 최종 정보
+# 16. 추가 네임스페이스에 GHCR Secret 복사 (선택사항)
+# ============================================
+echo -e "${YELLOW}📋 Step 16: Setting up GHCR access for additional namespaces...${NC}"
+
+# 추가 네임스페이스 목록 (필요에 따라 수정)
+ADDITIONAL_NAMESPACES=("wealist-prod" "wealist-staging")
+
+for namespace in "${ADDITIONAL_NAMESPACES[@]}"; do
+    if kubectl get namespace "$namespace" &>/dev/null; then
+        echo "  Setting up GHCR for namespace: $namespace"
+        
+        # GHCR secret 생성
+        kubectl create secret docker-registry ghcr-secret \
+          --docker-server=ghcr.io \
+          --docker-username="$GITHUB_USERNAME" \
+          --docker-password="$GITHUB_TOKEN" \
+          --docker-email="$GITHUB_USERNAME@users.noreply.github.com" \
+          --namespace="$namespace" \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        # default ServiceAccount에 연결
+        kubectl patch serviceaccount default \
+          -p '{"imagePullSecrets": [{"name": "ghcr-secret"}]}' \
+          -n "$namespace"
+        
+        # 모든 서비스 ServiceAccount에 연결
+        for sa in "${SERVICE_ACCOUNTS[@]}"; do
+          if kubectl get serviceaccount "$sa" -n "$namespace" &>/dev/null; then
+            echo "    Patching ServiceAccount: $sa"
+            kubectl patch serviceaccount "$sa" \
+              -p '{"imagePullSecrets": [{"name": "ghcr-secret"}]}' \
+              -n "$namespace"
+          fi
+        done
+        
+        echo -e "${GREEN}  ✅ $namespace configured${NC}"
+    fi
+done
+echo ""
+
+# ============================================
+# 17. 최종 정보
 # ============================================
 ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d 2>/dev/null || echo "Password not found")
 
@@ -336,9 +469,20 @@ else
     echo "   Backup:     $NEW_KEY_FILE"
 fi
 echo ""
-echo "🔍 Verification:"
+echo "🐳 Container Registry:"
+echo "   Registry:   ghcr.io (GitHub Container Registry)"
+echo "   Username:   $GITHUB_USERNAME"
+echo "   Secret:     ghcr-secret (wealist-dev)"
+echo "   Status:     ✅ Configured"
+echo ""
+echo "🔍 Verification Commands:"
 echo "   kubectl get applications -n argocd"
 echo "   kubectl get pods -n wealist-dev"
+echo "   kubectl get secret ghcr-secret -n wealist-dev"
+echo "   kubectl describe sa default -n wealist-dev"
+echo ""
+echo "🧪 Test Container Registry:"
+echo "   kubectl run test-ghcr --image=ghcr.io/orangescloud/auth-service:latest -n wealist-dev"
 echo ""
 echo "📊 Application Status:"
 kubectl get applications -n argocd 2>/dev/null || echo "   No applications found"

@@ -13,6 +13,9 @@ global:
   environment: development
   domain: dev.wealist.co.kr
   # imageRegistry: ghcr.io
+  # GitHub Container Registry 인증을 위한 imagePullSecrets
+  imagePullSecrets:
+    - ghcr-secret
 
 # -----------------------------------------------------------------------------
 # cert-manager Configuration (Disabled - CloudFront handles SSL termination)
