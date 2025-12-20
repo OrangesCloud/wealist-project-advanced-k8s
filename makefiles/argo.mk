@@ -46,7 +46,7 @@ help: ## 도움말 표시
 	@echo "  SEALED_SECRETS_KEY=$(SEALED_SECRETS_KEY)"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-all-simple: cluster-up helm-install-infra bootstrap deploy ## 전체 프로세스 (클러스터 → Helm Infra → Bootstrap → 배포)
+all-simple: cluster-up bootstrap deploy ## 전체 프로세스 (클러스터 → Helm Infra → Bootstrap → 배포)
 	@echo ""
 	@echo -e "$(GREEN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
 	@echo -e "$(GREEN)✅ 전체 배포 완료!$(NC)"
