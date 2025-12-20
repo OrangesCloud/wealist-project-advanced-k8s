@@ -247,9 +247,31 @@ endif
 	@echo "=============================================="
 
 # -----------------------------------------------------------------------------
-# helm-install-all: secrets 체크 → 의존성 → 인프라 → 서비스 → 모니터링
+# Istio Gateway hostPort 설정 (Kind localhost 환경용)
 # -----------------------------------------------------------------------------
-helm-install-all: helm-check-secrets helm-check-db helm-deps-build helm-install-cert-manager helm-install-infra ## 전체 차트 설치 (인프라 + 서비스 + 모니터링)
+helm-setup-istio-gateway: ## Istio Gateway hostPort 80 설정 (localhost:80 접근용)
+ifeq ($(ENV),localhost)
+	@echo "Istio Gateway hostPort 80 설정 중..."
+	@if kubectl get deployment istio-ingressgateway -n istio-system &>/dev/null; then \
+		./k8s/helm/scripts/localhost/3.setup_istio_gateway.sh; \
+	else \
+		echo "SKIP: istio-ingressgateway 없음 (0.setup-cluster.sh 먼저 실행)"; \
+	fi
+else ifeq ($(ENV),dev)
+	@echo "Istio Gateway hostPort 80 설정 중..."
+	@if kubectl get deployment istio-ingressgateway -n istio-system &>/dev/null; then \
+		./k8s/helm/scripts/localhost/3.setup_istio_gateway.sh; \
+	else \
+		echo "SKIP: istio-ingressgateway 없음 (0.setup-cluster.sh 먼저 실행)"; \
+	fi
+else
+	@echo "SKIP: Istio Gateway 설정 (localhost/dev 환경만 적용)"
+endif
+
+# -----------------------------------------------------------------------------
+# helm-install-all: secrets 체크 → 의존성 → 인프라 → Istio Gateway → 서비스 → 모니터링
+# -----------------------------------------------------------------------------
+helm-install-all: helm-check-secrets helm-check-db helm-deps-build helm-install-cert-manager helm-install-infra helm-setup-istio-gateway ## 전체 차트 설치 (인프라 + 서비스 + 모니터링)
 	@sleep 5
 	@$(MAKE) helm-install-services ENV=$(ENV)
 	@sleep 3
