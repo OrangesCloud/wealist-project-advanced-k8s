@@ -43,25 +43,24 @@ const getIngressServicePrefix = (path: string): string => {
 };
 
 const getApiBaseUrl = (path: string): string => {
-  // 1. K8s ingress 모드: 서비스 prefix만 반환 (axios가 path를 붙임)
+  // K8s ingress 모드: 서비스 prefix만 반환 (axios가 path를 붙임)
   // 예: getApiBaseUrl('/api/users') → '/svc/user'
   //     axios.get('/api/workspaces/all') → '/svc/user/api/workspaces/all'
   if (isIngressMode) {
     const hostname = window.location.hostname;
-    // Docker 개발 환경 (localhost): nginx 게이트웨이 사용
-    // config.js에서 API_BASE_URL=""로 설정되어 isIngressMode=true가 되지만,
-    // API는 상대 경로가 아닌 절대 경로가 필요함 (localhost:3000 → localhost:80)
+    // Kind 로컬 개발 환경 (localhost): Istio HTTPRoute 사용
+    // /svc/{service}/* 경로로 라우팅
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       const localBaseUrl = 'http://localhost';
-      if (path?.includes('/api/auth')) return `${localBaseUrl}/api/auth`;
-      if (path?.includes('/api/users')) return localBaseUrl;
-      if (path?.includes('/api/workspaces')) return localBaseUrl;
-      if (path?.includes('/api/profiles')) return localBaseUrl;
-      if (path?.includes('/api/boards')) return `${localBaseUrl}/api/boards/api`;
-      if (path?.includes('/api/chats')) return `${localBaseUrl}${path}`;
-      if (path?.includes('/api/notifications')) return localBaseUrl;
-      if (path?.includes('/api/storage')) return `${localBaseUrl}/api/storage/api`;
-      if (path?.includes('/api/video')) return localBaseUrl;
+      if (path?.includes('/api/auth')) return `${localBaseUrl}/svc/auth`;
+      if (path?.includes('/api/users')) return `${localBaseUrl}/svc/user`;
+      if (path?.includes('/api/workspaces')) return `${localBaseUrl}/svc/user`;
+      if (path?.includes('/api/profiles')) return `${localBaseUrl}/svc/user`;
+      if (path?.includes('/api/boards')) return `${localBaseUrl}/svc/board`;
+      if (path?.includes('/api/chats')) return `${localBaseUrl}/svc/chat`;
+      if (path?.includes('/api/notifications')) return `${localBaseUrl}/svc/noti`;
+      if (path?.includes('/api/storage')) return `${localBaseUrl}/svc/storage`;
+      if (path?.includes('/api/video')) return `${localBaseUrl}/svc/video`;
       return localBaseUrl;
     }
     return getIngressServicePrefix(path);
@@ -371,9 +370,9 @@ export const getChatWebSocketUrl = (chatId: string, token: string): string => {
     return `${protocol}//${window.location.host}/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
-  // Docker-compose (로컬 개발) - nginx를 통해 WebSocket 프록시
+  // Kind 로컬 개발 - Istio HTTPRoute를 통해 WebSocket 프록시
   if (INJECTED_API_BASE_URL?.includes('localhost')) {
-    return `ws://localhost/api/chats/ws/${chatId}?token=${encodedToken}`;
+    return `ws://localhost/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
@@ -386,7 +385,7 @@ export const getChatWebSocketUrl = (chatId: string, token: string): string => {
   // Fallback
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return `ws://localhost/api/chats/ws/${chatId}?token=${encodedToken}`;
+    return `ws://localhost/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
   return `wss://api.wealist.co.kr/api/chats/ws/${chatId}?token=${encodedToken}`;
@@ -406,9 +405,9 @@ export const getPresenceWebSocketUrl = (token: string): string => {
     return `${protocol}//${window.location.host}/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
   }
 
-  // Docker-compose (로컬 개발) - nginx를 통해 WebSocket 프록시
+  // Kind 로컬 개발 - Istio HTTPRoute를 통해 WebSocket 프록시
   if (INJECTED_API_BASE_URL?.includes('localhost')) {
-    return `ws://localhost/api/chats/ws/presence?token=${encodedToken}`;
+    return `ws://localhost/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
@@ -421,7 +420,7 @@ export const getPresenceWebSocketUrl = (token: string): string => {
   // Fallback
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return `ws://localhost/api/chats/ws/presence?token=${encodedToken}`;
+    return `ws://localhost/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
   }
 
   return `wss://api.wealist.co.kr/api/chats/ws/presence?token=${encodedToken}`;
@@ -443,9 +442,9 @@ export const getBoardWebSocketUrl = (projectId: string, token: string): string =
     return `${protocol}//${window.location.host}/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
-  // Docker-compose (로컬 개발) - nginx를 통해 WebSocket 프록시
+  // Kind 로컬 개발 - Istio HTTPRoute를 통해 WebSocket 프록시
   if (INJECTED_API_BASE_URL?.includes('localhost')) {
-    return `ws://localhost/ws/project/${projectId}?token=${encodedToken}`;
+    return `ws://localhost/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
@@ -458,7 +457,7 @@ export const getBoardWebSocketUrl = (projectId: string, token: string): string =
   // Fallback
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return `ws://localhost/ws/project/${projectId}?token=${encodedToken}`;
+    return `ws://localhost/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   return `wss://api.wealist.co.kr/ws/project/${projectId}?token=${encodedToken}`;
@@ -478,9 +477,9 @@ export const getNotificationSSEUrl = (token?: string): string => {
     return `${window.location.origin}/svc/noti/api/notifications/stream?token=${encodedToken}`;
   }
 
-  // Docker-compose (로컬 개발) - nginx를 통해 SSE 프록시
+  // Kind 로컬 개발 - Istio HTTPRoute를 통해 SSE 프록시
   if (INJECTED_API_BASE_URL?.includes('localhost')) {
-    return `http://localhost/api/notifications/stream?token=${encodedToken}`;
+    return `http://localhost/svc/noti/api/notifications/stream?token=${encodedToken}`;
   }
 
   // 운영 환경 또는 Fallback
@@ -501,11 +500,10 @@ export const getOAuthBaseUrl = (): string => {
     if (hostname === 'wealist.co.kr' || hostname === 'www.wealist.co.kr') {
       return 'https://api.wealist.co.kr';
     }
-    // Docker 개발 환경 (localhost): nginx 게이트웨이 사용
-    // config.js에서 API_BASE_URL=""로 설정되어 isIngressMode=true가 되지만,
-    // OAuth는 상대 경로가 아닌 절대 경로가 필요함 (localhost:3000 → localhost:80)
+    // Kind 개발 환경 (localhost): Istio HTTPRoute 사용
+    // /svc/auth 경로로 auth-service에 접근
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost';
+      return 'http://localhost/svc/auth';
     }
     return '';
   }
