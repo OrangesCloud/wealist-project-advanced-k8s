@@ -14,6 +14,7 @@ spec:
     helm:
       valueFiles:
         - values.yaml
+        - ../../environments/base.yaml
         - ../../environments/dev.yaml
       parameters:
         - name: image.tag
