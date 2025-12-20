@@ -132,4 +132,96 @@ data:
           - source_labels: [__meta_kubernetes_pod_name]
             action: replace
             target_label: pod
+
+      # ==========================================================================
+      # Istio 메트릭 수집 (Ambient 모드)
+      # ==========================================================================
+
+      # istiod 컨트롤 플레인 메트릭
+      - job_name: 'istiod'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - istio-system
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: istiod
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            action: keep
+            regex: "15014"
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      # ztunnel 메트릭 (Ambient 모드 L4 프록시)
+      - job_name: 'ztunnel'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - istio-system
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: ztunnel
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            action: keep
+            regex: "15020"
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      # Istio 메시 메트릭 (서비스간 트래픽)
+      # Ambient 모드에서는 ztunnel이 메트릭을 노출
+      - job_name: 'istio-mesh'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - {{ .Values.global.namespace }}
+        relabel_configs:
+          # Istio 프록시가 있는 Pod (Ambient 모드에서는 ztunnel 통해 수집)
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: ".*-envoy-prom"
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+
+      # Waypoint 프록시 메트릭 (L7 기능 사용 시)
+      - job_name: 'istio-waypoint'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - {{ .Values.global.namespace }}
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_gateway_networking_k8s_io_gateway_name]
+            action: keep
+            regex: .+
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            action: keep
+            regex: "15020"
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
 {{- end }}

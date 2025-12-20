@@ -125,7 +125,7 @@
       "gridPos": {"h": 6, "w": 24, "x": 0, "y": 30},
       "id": 5,
       "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false},
-      "targets": [{"expr": "{compose_service=~\"$service.*\"} |~ \"(?i)error|fail|exception|panic\"", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "{app=~\"$service.*\"} |~ \"(?i)error|fail|exception|panic\"", "legendFormat": "", "refId": "A"}],
       "title": "에러 로그",
       "type": "logs"
     },
@@ -134,7 +134,7 @@
       "gridPos": {"h": 6, "w": 24, "x": 0, "y": 36},
       "id": 6,
       "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false},
-      "targets": [{"expr": "{compose_service=~\"$service.*\"} |~ \"$search\"", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "{app=~\"$service.*\"} |~ \"$search\"", "legendFormat": "", "refId": "A"}],
       "title": "로그 검색",
       "type": "logs"
     },

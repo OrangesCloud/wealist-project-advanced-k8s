@@ -176,7 +176,7 @@
       },
       "targets": [
         {
-          "expr": "{compose_service=~\".+\"} |= ``",
+          "expr": "{app=~\".+\"} |= ``",
           "legendFormat": "",
           "refId": "A"
         }

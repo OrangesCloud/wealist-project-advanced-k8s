@@ -233,7 +233,7 @@
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 39},
       "id": 14,
       "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false},
-      "targets": [{"expr": "{compose_service=~\".+\"} |~ \"(?i)error|fail|panic|fatal\"", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "{app=~\".+\"} |~ \"(?i)error|fail|panic|fatal\"", "legendFormat": "", "refId": "A"}],
       "title": "에러 로그 (실시간)",
       "type": "logs"
     }

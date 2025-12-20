@@ -176,7 +176,7 @@
       "gridPos": {"h": 10, "w": 24, "x": 0, "y": 24},
       "id": 10,
       "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false},
-      "targets": [{"expr": "{compose_service=~\"$service.*\"}", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "{app=~\"$service.*\"}", "legendFormat": "", "refId": "A"}],
       "title": "최근 로그",
       "type": "logs"
     }

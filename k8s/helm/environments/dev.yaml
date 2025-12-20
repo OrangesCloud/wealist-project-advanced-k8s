@@ -1,0 +1,223 @@
+# =============================================================================
+# 개발 환경 설정 (ENV=dev)
+# =============================================================================
+# 도메인: localhost (Kind 클러스터)
+# 네임스페이스: wealist-dev
+# 특징: 호스트 PC의 PostgreSQL/Redis 사용 (클러스터 재시작 시 데이터 유지)
+#
+# 사전 요구사항:
+#   1. PostgreSQL 설치: brew install postgresql / apt install postgresql
+#   2. Redis 설치: brew install redis / apt install redis-server
+#   3. make kind-setup-db 실행하여 DB 설정 완료
+
+# -----------------------------------------------------------------------------
+# 전역 설정
+# -----------------------------------------------------------------------------
+global:
+  namespace: wealist-dev
+  environment: development
+  domain: localhost
+  imageRegistry: localhost:5001
+
+# -----------------------------------------------------------------------------
+# cert-manager (localhost에서는 비활성화)
+# -----------------------------------------------------------------------------
+certManager:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# 배포 설정
+# -----------------------------------------------------------------------------
+image:
+  pullPolicy: Always
+  tag: "latest"
+
+# -----------------------------------------------------------------------------
+# 보안 컨텍스트 (로컬 개발용 - 완화된 설정)
+# -----------------------------------------------------------------------------
+podSecurityContext:
+  runAsNonRoot: false
+
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: false
+  runAsUser: 0  # nginx(프론트엔드)가 chown 실행에 필요
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop: []  # 로컬 개발에서는 엄격한 권한 제한 불필요
+
+# -----------------------------------------------------------------------------
+# 기능 설정 (로컬 개발용 - 비활성화)
+# -----------------------------------------------------------------------------
+autoscaling:
+  enabled: false
+
+serviceAccount:
+  create: false
+
+networkPolicy:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# 데이터베이스 설정 (호스트 PC의 외부 DB 사용)
+# -----------------------------------------------------------------------------
+# Kind 클러스터는 Docker 브릿지 네트워크(172.18.0.0/16) 사용
+# 172.18.0.1은 Kind Pod가 호스트 머신에 접근하는 게이트웨이 IP
+#
+# PostgreSQL 설정 필요:
+#   - pg_hba.conf: host all all 172.18.0.0/16 trust
+#   - postgresql.conf: listen_addresses = '*'
+#
+# Redis 설정 필요:
+#   - redis.conf: bind 0.0.0.0, protected-mode no
+
+postgres:
+  enabled: false  # 클러스터 내부 PostgreSQL StatefulSet 비활성화
+  external:
+    enabled: true
+    host: "172.18.0.1"  # Kind 브릿지 게이트웨이 (호스트 머신)
+    port: 5432
+
+redis:
+  enabled: false  # 클러스터 내부 Redis StatefulSet 비활성화
+  external:
+    enabled: true
+    host: "172.18.0.1"  # Kind 브릿지 게이트웨이 (호스트 머신)
+    port: 6379
+
+# -----------------------------------------------------------------------------
+# 공유 설정
+# -----------------------------------------------------------------------------
+shared:
+  config:
+    ENV: "development"
+    LOG_LEVEL: "debug"
+    CORS_ORIGINS: "*"
+    S3_PUBLIC_ENDPOINT: "http://localhost/minio"
+    LIVEKIT_WS_URL: "ws://localhost/svc/livekit"
+
+    # OAuth2 리다이렉트 URL (localhost, TLS 없음)
+    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost/login/oauth2/code/google"
+    OAUTH2_REDIRECT_URL_ENV: "http://localhost/oauth/callback"
+
+    # DB 자동 마이그레이션 (외부 DB에 기존 데이터가 있으므로 비활성화)
+    DB_AUTO_MIGRATE: "false"
+
+    # 외부 데이터베이스 연결 설정 (호스트 PC의 PostgreSQL/Redis)
+    DB_HOST: "postgres"       # K8s 서비스명 (172.18.0.1로 라우팅됨)
+    DB_PORT: "5432"
+    DB_USER: "postgres"
+    DB_SSLMODE: "disable"
+    REDIS_HOST: "redis"       # K8s 서비스명 (172.18.0.1로 라우팅됨)
+    REDIS_PORT: "6379"
+
+  # 시크릿 (dev 환경용)
+  secrets:
+    DB_PASSWORD: "postgres"
+    REDIS_PASSWORD: ""
+
+# -----------------------------------------------------------------------------
+# Ingress 설정 (localhost, TLS 없음)
+# -----------------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # /svc/* 경로에서 prefix 제거
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  hosts:
+    - host: localhost
+  tls: []
+
+# -----------------------------------------------------------------------------
+# Istio 서비스 메시 설정
+# -----------------------------------------------------------------------------
+istio:
+  enabled: true  # Istio 설정 배포 활성화
+  namespace: wealist-dev
+
+  gateway:
+    enabled: true
+    name: wealist-gateway
+    hosts:
+      - "localhost"
+      - "*"
+    tls:
+      enabled: false
+
+  mtls:
+    enabled: true
+    mode: PERMISSIVE  # mTLS와 일반 HTTP 모두 허용 (마이그레이션 중)
+
+  destinationRules:
+    enabled: true
+
+  authorizationPolicy:
+    enabled: true
+    denyAll: false  # 로컬에서는 deny-all 비활성화
+
+  jwtAuth:
+    enabled: false  # JWKS 엔드포인트 준비 후 활성화
+
+  telemetry:
+    tracing:
+      enabled: true
+      samplingPercentage: 100  # 로컬 디버깅용 100% 샘플링
+    accessLogging:
+      enabled: true
+
+# =============================================================================
+# 모니터링 스택 설정 (wealist-monitoring 차트 값)
+# =============================================================================
+
+# Prometheus - 메트릭 수집
+prometheus:
+  enabled: true
+  config:
+    # Ingress 접근용 외부 URL
+    externalUrl: "http://localhost/monitoring/prometheus"
+
+# Grafana - 시각화 대시보드
+grafana:
+  enabled: true
+  service:
+    type: ClusterIP
+    port: 3000
+  config:
+    allowSignUp: false
+    # localhost 접속용 (sub-path 사용)
+    rootUrl: "http://localhost/monitoring/grafana"
+    serveFromSubPath: "true"
+
+# 모니터링 Ingress - localhost/monitoring/* 접근
+monitoringIngress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  hosts:
+    - host: localhost
+  tls: []
+
+# -----------------------------------------------------------------------------
+# 데이터베이스 Exporter (PostgreSQL/Redis 메트릭 수집)
+# -----------------------------------------------------------------------------
+postgresExporter:
+  enabled: true
+  config:
+    host: "172.18.0.1"  # 외부 DB (호스트 머신)
+    port: 5432
+    user: "postgres"
+    database: "postgres"
+    sslmode: "disable"
+
+redisExporter:
+  enabled: true
+  config:
+    host: "172.18.0.1"  # 외부 DB (호스트 머신)
+    port: 6379

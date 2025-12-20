@@ -18,7 +18,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(count_over_time({compose_service=~\".+\"} |~ \"(?i)error\" [$__range]))", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "sum(count_over_time({app=~\".+\"} |~ \"(?i)error\" [$__range]))", "legendFormat": "", "refId": "A"}],
       "title": "총 에러 수",
       "type": "stat"
     },
@@ -28,7 +28,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
       "id": 2,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(count_over_time({compose_service=~\".+\"} |~ \"(?i)panic|fatal\" [$__range]))", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "sum(count_over_time({app=~\".+\"} |~ \"(?i)panic|fatal\" [$__range]))", "legendFormat": "", "refId": "A"}],
       "title": "심각한 에러 (Panic/Fatal)",
       "type": "stat"
     },
@@ -38,7 +38,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
       "id": 3,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(count_over_time({compose_service=~\".+\"} |~ \"(?i)warn\" [$__range]))", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "sum(count_over_time({app=~\".+\"} |~ \"(?i)warn\" [$__range]))", "legendFormat": "", "refId": "A"}],
       "title": "경고 수",
       "type": "stat"
     },
@@ -48,7 +48,7 @@
       "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
       "id": 4,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(count_over_time({compose_service=~\".+\"} |~ \"(?i)timeout|connection refused|connection reset\" [$__range]))", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "sum(count_over_time({app=~\".+\"} |~ \"(?i)timeout|connection refused|connection reset\" [$__range]))", "legendFormat": "", "refId": "A"}],
       "title": "연결 문제",
       "type": "stat"
     },
@@ -66,7 +66,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
       "id": 5,
       "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"expr": "sum by (compose_service) (count_over_time({compose_service=~\".+\"} |~ \"(?i)error\" [5m]))", "legendFormat": "{{compose_service}}", "refId": "A"}],
+      "targets": [{"expr": "sum by (app) (count_over_time({app=~\".+\"} |~ \"(?i)error\" [5m]))", "legendFormat": "{{app}}", "refId": "A"}],
       "title": "서비스별 에러 추이",
       "type": "timeseries"
     },
@@ -78,7 +78,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
       "id": 6,
       "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"expr": "sum by (compose_service) (count_over_time({compose_service=~\".+\"} |~ \"status.*[45][0-9][0-9]\" [5m]))", "legendFormat": "{{compose_service}}", "refId": "A"}],
+      "targets": [{"expr": "sum by (app) (count_over_time({app=~\".+\"} |~ \"status.*[45][0-9][0-9]\" [5m]))", "legendFormat": "{{app}}", "refId": "A"}],
       "title": "서비스별 HTTP 에러 (4xx/5xx)",
       "type": "timeseries"
     },
@@ -93,7 +93,7 @@
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 15},
       "id": 7,
       "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true},
-      "targets": [{"expr": "{compose_service=~\"$service\"} |~ \"status.*(500|502|503|504)\" | line_format \"{{.compose_service}}: {{._line}}\"", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "{app=~\"$service\"} |~ \"status.*(500|502|503|504)\" | line_format \"{{.app}}: {{._line}}\"", "legendFormat": "", "refId": "A"}],
       "title": "5xx 에러 로그 (문제 API 찾기)",
       "type": "logs"
     },
@@ -102,7 +102,7 @@
       "gridPos": {"h": 8, "w": 24, "x": 0, "y": 23},
       "id": 8,
       "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true},
-      "targets": [{"expr": "{compose_service=~\"$service\"} |~ \"(?i)slow|timeout|took [0-9]+s\" | line_format \"{{.compose_service}}: {{._line}}\"", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "{app=~\"$service\"} |~ \"(?i)slow|timeout|took [0-9]+s\" | line_format \"{{.app}}: {{._line}}\"", "legendFormat": "", "refId": "A"}],
       "title": "느린 요청/타임아웃 로그",
       "type": "logs"
     },
@@ -117,7 +117,7 @@
       "gridPos": {"h": 10, "w": 24, "x": 0, "y": 32},
       "id": 9,
       "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true},
-      "targets": [{"expr": "{compose_service=~\"$service\"} |~ \"$search\" | line_format \"{{.compose_service}}: {{._line}}\"", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "{app=~\"$service\"} |~ \"$search\" | line_format \"{{.app}}: {{._line}}\"", "legendFormat": "", "refId": "A"}],
       "title": "로그 검색 (키워드, 요청 ID, 사용자 ID 등)",
       "type": "logs"
     },
@@ -126,7 +126,7 @@
       "gridPos": {"h": 10, "w": 24, "x": 0, "y": 42},
       "id": 10,
       "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true},
-      "targets": [{"expr": "{compose_service=~\"$service\"} | json | level=~\"error|warn|fatal|panic\" | line_format \"[{{.level}}] {{.compose_service}}: {{.message}}\"", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "{app=~\"$service\"} | json | level=~\"error|warn|fatal|panic\" | line_format \"[{{.level}}] {{.app}}: {{.message}}\"", "legendFormat": "", "refId": "A"}],
       "title": "구조화된 에러/경고 로그 (JSON 파싱)",
       "type": "logs"
     },
@@ -141,7 +141,7 @@
       "gridPos": {"h": 12, "w": 24, "x": 0, "y": 53},
       "id": 11,
       "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false},
-      "targets": [{"expr": "{compose_service=~\"$service\"}", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "{app=~\"$service\"}", "legendFormat": "", "refId": "A"}],
       "title": "전체 로그 (실시간)",
       "type": "logs"
     }
@@ -154,14 +154,14 @@
       {
         "current": {"selected": true, "text": "All", "value": "$__all"},
         "datasource": {"type": "loki", "uid": "loki"},
-        "definition": "label_values(compose_service)",
+        "definition": "label_values(app)",
         "hide": 0,
         "includeAll": true,
         "label": "서비스",
         "multi": true,
         "name": "service",
         "options": [],
-        "query": "label_values(compose_service)",
+        "query": "label_values(app)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
