@@ -11,19 +11,40 @@
 # 통합 설정 명령어 (권장)
 # =============================================================================
 
-kind-check-db-setup: ## 🚀 통합 설정: DB 확인 → 클러스터 생성 → 이미지 로드 (DB 제외)
+kind-check-db-setup: ## 🚀 통합 설정: Secrets → DB 확인 → 클러스터 생성 → 이미지 로드 (DB 제외)
 	@echo "=============================================="
 	@echo "  weAlist Kind 클러스터 통합 설정"
 	@echo "=============================================="
 	@echo ""
 	@echo "이 명령어는 다음을 순서대로 실행합니다:"
+	@echo "  0. Secrets 파일 확인/생성"
 	@echo "  1. PostgreSQL/Redis 설치 상태 확인 [Y/N]"
 	@echo "  2. Kind 클러스터 생성 + Nginx Ingress"
 	@echo "  3. 서비스 이미지 로드 (DB 이미지 제외)"
 	@echo ""
 	@echo "----------------------------------------------"
+	@echo "  0단계: Secrets 파일 확인"
+	@echo "----------------------------------------------"
 	@echo ""
-	@# 1단계: DB 확인 및 설치
+	@if [ ! -f "./k8s/helm/environments/dev-secrets.yaml" ]; then \
+		echo "⚠️  dev-secrets.yaml 파일이 없습니다."; \
+		echo "   secrets.example.yaml에서 자동 생성합니다..."; \
+		echo ""; \
+		cp ./k8s/helm/environments/secrets.example.yaml ./k8s/helm/environments/dev-secrets.yaml; \
+		echo "✅ dev-secrets.yaml 생성 완료!"; \
+		echo ""; \
+		echo "📝 주의: 배포 전 아래 파일을 편집하여 실제 값을 입력하세요:"; \
+		echo "   k8s/helm/environments/dev-secrets.yaml"; \
+		echo ""; \
+	else \
+		echo "✅ dev-secrets.yaml 파일 존재 확인"; \
+	fi
+	@echo ""
+	@echo "----------------------------------------------"
+	@echo "  1단계: DB 설치 상태 확인"
+	@echo "----------------------------------------------"
+	@echo ""
+	@# DB 확인 및 설치
 	@POSTGRES_OK=false; \
 	REDIS_OK=false; \
 	if command -v psql >/dev/null 2>&1; then \
@@ -80,11 +101,10 @@ kind-check-db-setup: ## 🚀 통합 설정: DB 확인 → 클러스터 생성 �
 	@echo "=============================================="
 	@echo ""
 	@echo "  다음 단계:"
-	@echo "    1. secrets 파일 생성 (최초 1회):"
-	@echo "       cp k8s/helm/environments/secrets.example.yaml \\"
-	@echo "          k8s/helm/environments/dev-secrets.yaml"
+	@echo "    1. dev-secrets.yaml 편집 (API 키, 비밀번호 등 입력):"
+	@echo "       vi k8s/helm/environments/dev-secrets.yaml"
 	@echo ""
-	@echo "    2. dev-secrets.yaml 편집 후 배포:"
+	@echo "    2. Helm 배포:"
 	@echo "       make helm-install-all ENV=dev"
 	@echo ""
 	@echo "=============================================="
