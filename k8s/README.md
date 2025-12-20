@@ -80,6 +80,7 @@ ArgoCD가 GitHub 저장소에 접근하기 위한 토큰이 필요합니다.
    - ✅ `read:org` - 조직 정보 읽기
    - ✅ `repo` - 저장소 전체 접근
    - ✅ `workflow` - GitHub Actions 워크플로우 접근
+   - ✅ 'write:package - 이미지 패키지 읽기 권한
 5. 생성된 토큰 값을 복사 (한 번만 표시됩니다!)
 
 ### 3. 배포 실행
@@ -94,6 +95,24 @@ make all-simple
 
 ✅ Dev 환경 배포 완료!
 
+
+### postgre 설정을 하기 위해
+```
+#k8s/helm/charts/wealist-infrastructure/templates/postgres/secret.yaml 밑에꺼를 생성해야됨
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "wealist-infrastructure.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+type: Opaque
+data:
+  POSTGRES_PASSWORD: {{ .Values.postgres.config.superuserPassword | b64enc | quote }}
+{{- end }}
+```
 ---
 
 ## 💡 주요 참고사항
