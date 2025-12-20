@@ -312,10 +312,10 @@ kind-load-images: ## 모든 이미지 빌드/풀 (인프라 + 백엔드 서비�
 	@echo "=== 모든 이미지 로드 ==="
 	@echo ""
 	@echo "--- 인프라 이미지 로드 중 ---"
-	./docker/scripts/dev/1.load_infra_images.sh
+	./k8s/helm/scripts/dev/1.load_infra_images.sh
 	@echo ""
 	@echo "--- 백엔드 서비스 이미지 빌드 중 ---"
-	SKIP_FRONTEND=true ./docker/scripts/dev/2.build_services_and_load.sh
+	SKIP_FRONTEND=true ./k8s/helm/scripts/dev/2.build_services_and_load.sh
 	@echo ""
 	@echo "모든 이미지 로드 완료!"
 	@echo ""
@@ -328,10 +328,10 @@ kind-load-images-ex-db: ## 서비스 이미지만 로드 (PostgreSQL/Redis 제�
 	@echo "  DB 이미지는 로드하지 않습니다."
 	@echo ""
 	@echo "--- 인프라 이미지 로드 중 (DB 제외) ---"
-	SKIP_DB=true ./docker/scripts/dev/1.load_infra_images.sh
+	SKIP_DB=true ./k8s/helm/scripts/dev/1.load_infra_images.sh
 	@echo ""
 	@echo "--- 백엔드 서비스 이미지 빌드 중 ---"
-	SKIP_FRONTEND=true ./docker/scripts/dev/2.build_services_and_load.sh
+	SKIP_FRONTEND=true ./k8s/helm/scripts/dev/2.build_services_and_load.sh
 	@echo ""
 	@echo "서비스 이미지 로드 완료! (DB 제외)"
 	@echo ""
@@ -341,7 +341,7 @@ kind-load-images-mono: ## Go 서비스를 모노레포 패턴으로 빌드 (더 
 	@echo "=== 모노레포 빌드로 이미지 로드 (BuildKit 캐시) ==="
 	@echo ""
 	@echo "--- 인프라 이미지 로드 중 ---"
-	./docker/scripts/dev/1.load_infra_images.sh
+	./k8s/helm/scripts/dev/1.load_infra_images.sh
 	@echo ""
 	@echo "--- Go 서비스 빌드 중 (모노레포 패턴) ---"
 	./docker/scripts/dev-mono.sh build

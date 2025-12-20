@@ -32,9 +32,9 @@ if ! curl -s "http://${LOCAL_REG}/v2/" > /dev/null 2>&1; then
     exit 1
 fi
 
-# 프로젝트 루트로 이동 (스크립트는 docker/scripts/dev/ 에 위치)
+# 프로젝트 루트로 이동 (스크립트는 k8s/helm/scripts/dev/ 에 위치)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 cd "$PROJECT_ROOT"
 echo "Working directory: $PROJECT_ROOT"
 echo ""
