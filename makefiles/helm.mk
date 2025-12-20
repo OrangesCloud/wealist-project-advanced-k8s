@@ -7,7 +7,7 @@
 .PHONY: helm-deps-build helm-lint helm-validate
 .PHONY: helm-install-cert-manager helm-install-infra helm-install-services helm-install-monitoring
 .PHONY: helm-install-all helm-install-all-init helm-upgrade-all helm-uninstall-all
-.PHONY: helm-setup-route53-secret helm-check-secrets
+.PHONY: helm-setup-route53-secret helm-check-secrets helm-check-db
 .PHONY: helm-local-kind helm-local-ubuntu helm-dev helm-staging helm-prod
 
 # Helm으로 배포할 서비스 목록 (백엔드만)
@@ -75,6 +75,58 @@ helm-check-secrets: ## 환경별 secrets 파일 존재 여부 확인
 		fi; \
 	else \
 		echo "ℹ️  $(ENV) 환경은 시크릿 파일이 선택사항입니다."; \
+	fi
+
+# -----------------------------------------------------------------------------
+# DB 연결 체크 (외부 DB 사용 시 필수)
+# -----------------------------------------------------------------------------
+helm-check-db: ## PostgreSQL/Redis 실행 상태 확인 (외부 DB 사용 환경)
+	@echo "=============================================="
+	@echo "  데이터베이스 연결 확인 중"
+	@echo "=============================================="
+	@echo ""
+	@POSTGRES_OK=false; \
+	REDIS_OK=false; \
+	if command -v psql >/dev/null 2>&1; then \
+		if pg_isready >/dev/null 2>&1 || (command -v systemctl >/dev/null 2>&1 && systemctl is-active postgresql >/dev/null 2>&1); then \
+			echo "✅ PostgreSQL: 실행 중"; \
+			POSTGRES_OK=true; \
+		else \
+			echo "❌ PostgreSQL: 설치되었으나 실행 중이 아님"; \
+		fi; \
+	else \
+		echo "❌ PostgreSQL: 미설치"; \
+	fi; \
+	if command -v redis-cli >/dev/null 2>&1; then \
+		if redis-cli ping >/dev/null 2>&1; then \
+			echo "✅ Redis: 실행 중"; \
+			REDIS_OK=true; \
+		else \
+			echo "❌ Redis: 설치되었으나 실행 중이 아님"; \
+		fi; \
+	else \
+		echo "❌ Redis: 미설치"; \
+	fi; \
+	echo ""; \
+	if [ "$$POSTGRES_OK" = "false" ] || [ "$$REDIS_OK" = "false" ]; then \
+		echo "============================================"; \
+		echo "❌ 오류: 데이터베이스가 준비되지 않았습니다!"; \
+		echo "============================================"; \
+		echo ""; \
+		echo "외부 DB 사용 환경에서는 PostgreSQL과 Redis가"; \
+		echo "호스트 PC에서 실행 중이어야 합니다."; \
+		echo ""; \
+		echo "해결 방법:"; \
+		echo "  1. DB 설치 및 시작:"; \
+		echo "     make kind-setup-db"; \
+		echo ""; \
+		echo "  2. 또는 수동으로 시작:"; \
+		echo "     (macOS)  brew services start postgresql redis"; \
+		echo "     (Ubuntu) sudo systemctl start postgresql redis"; \
+		echo ""; \
+		exit 1; \
+	else \
+		echo "✅ 모든 데이터베이스 연결 확인 완료!"; \
 	fi
 
 helm-setup-route53-secret: ## Route53 인증 시크릿 설정 (cert-manager용)
@@ -197,7 +249,7 @@ endif
 # -----------------------------------------------------------------------------
 # helm-install-all: secrets 체크 → 의존성 → 인프라 → 서비스 → 모니터링
 # -----------------------------------------------------------------------------
-helm-install-all: helm-check-secrets helm-deps-build helm-install-cert-manager helm-install-infra ## 전체 차트 설치 (인프라 + 서비스 + 모니터링)
+helm-install-all: helm-check-secrets helm-check-db helm-deps-build helm-install-cert-manager helm-install-infra ## 전체 차트 설치 (인프라 + 서비스 + 모니터링)
 	@sleep 5
 	@$(MAKE) helm-install-services ENV=$(ENV)
 	@sleep 3
