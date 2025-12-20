@@ -28,30 +28,24 @@ kind-check-db-setup: ## 🚀 통합 설정: Secrets → DB 확인 → 클러스�
 	@echo "----------------------------------------------"
 	@echo ""
 	@if ! command -v istioctl >/dev/null 2>&1; then \
-		echo "❌ istioctl: 미설치"; \
-		echo ""; \
-		echo "istioctl을 자동 설치하시겠습니까? [Y/n]"; \
-		read -r answer; \
-		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
-			echo ""; \
-			echo "istioctl 설치 중..."; \
-			curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.24.0 sh -; \
-			echo ""; \
-			echo "✅ istioctl 설치 완료!"; \
-			echo ""; \
-			echo "⚠️  PATH에 istioctl을 추가하세요:"; \
-			echo "   export PATH=\$$PWD/istio-1.24.0/bin:\$$PATH"; \
-			echo ""; \
-			echo "PATH 추가 후 다시 실행해주세요:"; \
-			echo "   make kind-check-db-setup"; \
-			exit 1; \
+		if [ -f "./istio-1.24.0/bin/istioctl" ]; then \
+			echo "✅ istioctl: 로컬 설치됨 (./istio-1.24.0/bin/istioctl)"; \
 		else \
+			echo "❌ istioctl: 미설치"; \
 			echo ""; \
-			echo "istioctl 없이는 진행할 수 없습니다."; \
-			echo "수동 설치:"; \
-			echo "   curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.24.0 sh -"; \
-			echo "   export PATH=\$$PWD/istio-1.24.0/bin:\$$PATH"; \
-			exit 1; \
+			echo "istioctl을 자동 설치하시겠습니까? [Y/n]"; \
+			read -r answer; \
+			if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+				echo ""; \
+				echo "istioctl 설치 중..."; \
+				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.24.0 sh -; \
+				echo ""; \
+				echo "✅ istioctl 설치 완료!"; \
+			else \
+				echo ""; \
+				echo "istioctl 없이는 진행할 수 없습니다."; \
+				exit 1; \
+			fi; \
 		fi; \
 	else \
 		echo "✅ istioctl: $$(istioctl version --short 2>/dev/null || echo '설치됨')"; \

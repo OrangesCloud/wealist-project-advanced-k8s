@@ -93,17 +93,29 @@ echo "✅ Gateway API CRDs 설치 완료"
 # 8. Istio Ambient 모드 설치
 echo "⏳ Istio Ambient 모드 설치 중..."
 
-# istioctl 설치 확인
-if ! command -v istioctl &> /dev/null; then
+# istioctl 설치 확인 및 경로 설정
+ISTIOCTL=""
+if command -v istioctl &> /dev/null; then
+    ISTIOCTL="istioctl"
+    echo "✅ istioctl 발견: $(which istioctl)"
+elif [ -f "./istio-${ISTIO_VERSION}/bin/istioctl" ]; then
+    ISTIOCTL="./istio-${ISTIO_VERSION}/bin/istioctl"
+    echo "✅ 로컬 istioctl 사용: ${ISTIOCTL}"
+elif [ -f "../istio-${ISTIO_VERSION}/bin/istioctl" ]; then
+    ISTIOCTL="../istio-${ISTIO_VERSION}/bin/istioctl"
+    echo "✅ 로컬 istioctl 사용: ${ISTIOCTL}"
+elif [ -f "../../istio-${ISTIO_VERSION}/bin/istioctl" ]; then
+    ISTIOCTL="../../istio-${ISTIO_VERSION}/bin/istioctl"
+    echo "✅ 로컬 istioctl 사용: ${ISTIOCTL}"
+else
     echo "⚠️  istioctl이 설치되어 있지 않습니다."
     echo "   다음 명령어로 설치하세요:"
     echo "   curl -L https://istio.io/downloadIstio | ISTIO_VERSION=${ISTIO_VERSION} sh -"
-    echo "   export PATH=\$PWD/istio-${ISTIO_VERSION}/bin:\$PATH"
     exit 1
 fi
 
 # Istio Ambient 프로필 설치
-istioctl install --set profile=ambient --skip-confirmation
+${ISTIOCTL} install --set profile=ambient --skip-confirmation
 
 echo "⏳ Istio 컴포넌트 준비 대기 중..."
 kubectl wait --namespace istio-system \
