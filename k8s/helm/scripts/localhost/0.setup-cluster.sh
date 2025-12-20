@@ -135,27 +135,37 @@ kubectl wait --namespace istio-system \
   --timeout=120s || echo "WARNING: Istio gateway not ready yet"
 
 # 9. Istio Gateway를 hostPort 80으로 설정 (localhost:80 접근)
+# Gateway API가 생성하는 deployment 이름: <gateway-name>-istio
 echo "⚙️ Istio Gateway hostPort 80 설정 중..."
-kubectl patch deployment istio-ingressgateway -n istio-system --type='json' -p='[
-  {
-    "op": "replace",
-    "path": "/spec/template/spec/containers/0/ports",
-    "value": [
-      {"containerPort": 80, "hostPort": 80, "protocol": "TCP", "name": "http"},
-      {"containerPort": 443, "hostPort": 443, "protocol": "TCP", "name": "https"}
-    ]
-  },
-  {
-    "op": "add",
-    "path": "/spec/template/spec/nodeSelector",
-    "value": {"ingress-ready": "true"}
-  }
-]' 2>/dev/null || echo "Gateway deployment patch skipped"
+GATEWAY_DEPLOY=$(kubectl get deployment -n istio-system -l gateway.networking.k8s.io/gateway-name=istio-ingressgateway -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
 
-# Gateway Pod 재시작 대기
-echo "⏳ Gateway Pod 재시작 대기 중..."
-sleep 3
-kubectl rollout status deployment/istio-ingressgateway -n istio-system --timeout=120s || true
+if [ -n "$GATEWAY_DEPLOY" ]; then
+  echo "   Gateway Deployment: $GATEWAY_DEPLOY"
+  kubectl patch deployment "$GATEWAY_DEPLOY" -n istio-system --type='json' -p='[
+    {
+      "op": "replace",
+      "path": "/spec/template/spec/containers/0/ports",
+      "value": [
+        {"containerPort": 80, "hostPort": 80, "protocol": "TCP", "name": "http"},
+        {"containerPort": 443, "hostPort": 443, "protocol": "TCP", "name": "https"},
+        {"containerPort": 15020, "protocol": "TCP", "name": "metrics"},
+        {"containerPort": 15021, "protocol": "TCP", "name": "status-port"}
+      ]
+    },
+    {
+      "op": "add",
+      "path": "/spec/template/spec/nodeSelector",
+      "value": {"ingress-ready": "true"}
+    }
+  ]'
+
+  # Gateway Pod 재시작 대기
+  echo "⏳ Gateway Pod 재시작 대기 중..."
+  sleep 3
+  kubectl rollout status deployment/"$GATEWAY_DEPLOY" -n istio-system --timeout=120s || true
+else
+  echo "⚠️ Gateway deployment를 찾을 수 없습니다. 수동 패치 필요."
+fi
 
 echo ""
 echo "=============================================="
