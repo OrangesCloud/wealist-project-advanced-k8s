@@ -9,12 +9,19 @@ set -e
 
 LOCAL_REG="localhost:5001"
 
-echo "=== 인프라 이미지 → 로컬 레지스트리 ==="
-
+echo "=== 인프라 이미지 → 로컬 레지스트리 (dev 환경) ==="
+echo ""
 if [ "${SKIP_DB}" = "true" ]; then
-    echo "※ SKIP_DB=true: PostgreSQL/Redis 이미지 로드 건너뜀"
-    echo ""
+    echo "※ 로드할 이미지 (SKIP_DB=true):"
+    echo "  - LiveKit Server v1.5"
+    echo "  (PostgreSQL/Redis는 호스트 PC 사용)"
+else
+    echo "※ 로드할 이미지:"
+    echo "  - PostgreSQL 15 (alpine)"
+    echo "  - Redis 7 (alpine)"
+    echo "  - LiveKit Server v1.5"
 fi
+echo ""
 
 # 레지스트리 확인
 if ! curl -s "http://${LOCAL_REG}/v2/" > /dev/null 2>&1; then

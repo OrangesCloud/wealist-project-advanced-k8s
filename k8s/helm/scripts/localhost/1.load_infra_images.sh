@@ -10,7 +10,10 @@ LOCAL_REG="localhost:5001"
 
 echo "=== 인프라 이미지 → 로컬 레지스트리 (localhost 환경) ==="
 echo ""
-echo "※ 모든 인프라 이미지를 로드합니다 (DB 포함)"
+echo "※ 로드할 이미지:"
+echo "  - PostgreSQL 15 (alpine)"
+echo "  - Redis 7 (alpine)"
+echo "  - LiveKit Server v1.5"
 echo ""
 
 # 레지스트리 확인
