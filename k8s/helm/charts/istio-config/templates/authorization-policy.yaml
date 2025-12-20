@@ -2,6 +2,13 @@
 {{- $namespace := include "istio-config.namespace" . }}
 
 {{- if .Values.authorizationPolicy.denyAll }}
+# =============================================================================
+# Zero Trust Mode (denyAll: true)
+# =============================================================================
+# - 기본 정책: 모든 트래픽 거부
+# - 명시적 ALLOW 정책만 허용
+# - dev/staging/prod 환경에서 사용
+
 # Default deny all policy - Zero Trust baseline
 ---
 apiVersion: security.istio.io/v1beta1
@@ -13,11 +20,6 @@ metadata:
     {{- include "istio-config.labels" . | nindent 4 }}
 spec:
   {}  # Empty spec = deny all
-{{- end }}
-
-# ============================================================================
-# L4 Policies (ztunnel level) - Allow mesh traffic flow
-# ============================================================================
 
 # Allow traffic from Istio Ingress Gateway to all services
 ---
@@ -71,11 +73,46 @@ spec:
     - operation:
         paths: ["/health/*", "/actuator/health/*", "/healthz", "/ready", "/live"]
 
+# Allow internal mesh traffic (service-to-service within namespace)
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-mesh-internal
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        namespaces:
+        - "{{ $namespace }}"
+
+# Allow Prometheus scraping
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals:
+        - "cluster.local/ns/{{ $namespace }}/sa/prometheus"
+  - to:
+    - operation:
+        paths: ["/metrics", "/actuator/prometheus"]
+
 {{- if and .Values.serviceAuthorization .Values.serviceAuthorization.enabled }}
 # ============================================================================
 # L7 Policies (Waypoint level via targetRef) - Fine-grained service-to-service control
-# These policies target the Service and are enforced at the Waypoint proxy,
-# where the original caller identity is preserved through HBONE protocol.
 # ============================================================================
 {{- range $serviceName, $serviceConfig := .Values.serviceAuthorization.rules }}
 {{- if $serviceConfig.allowedCallers }}
@@ -110,5 +147,16 @@ spec:
         {{- end }}
 {{- end }}
 {{- end }}
+{{- end }}
+
+{{- else }}
+# =============================================================================
+# Permissive Mode (denyAll: false)
+# =============================================================================
+# - 기본 정책: 모든 트래픽 허용
+# - AuthorizationPolicy 생성하지 않음
+# - localhost 개발 환경에서 사용
+# =============================================================================
+# No AuthorizationPolicy created - all traffic allowed by default
 {{- end }}
 {{- end }}
