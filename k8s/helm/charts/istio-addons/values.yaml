@@ -7,7 +7,7 @@ namespace: istio-system
 # Docker Hub rate limit 회피를 위해 GHCR 미러 사용 가능
 # 기본값: Docker Hub 직접 사용
 # dev 환경: GHCR 미러 사용 (ghcr.io/orangescloud/base/*)
-imageRegistry: "" # "" = Docker Hub, "ghcr.io/orangescloud/base" = GHCR 미러
+imageRegistry: ""  # "" = Docker Hub, "ghcr.io/orangescloud/base" = GHCR 미러
 
 # Kiali - Service Mesh Dashboard
 kiali:
@@ -19,7 +19,7 @@ kiali:
     type: ClusterIP
     port: 20001
   auth:
-    strategy: anonymous # anonymous, token, openid
+    strategy: anonymous  # anonymous, token, openid
   prometheus:
     url: "http://prometheus:9090"
   grafana:
@@ -32,7 +32,7 @@ kiali:
 # Jaeger - Distributed Tracing
 jaeger:
   enabled: true
-  allInOne: true # For dev/test. Set false for production
+  allInOne: true  # For dev/test. Set false for production
   image:
     repository: jaegertracing/all-in-one
     tag: "1.52"
@@ -44,7 +44,7 @@ jaeger:
     zipkin:
       port: 9411
   storage:
-    type: memory # memory, elasticsearch, cassandra
+    type: memory  # memory, elasticsearch, cassandra
     # For production, use:
     # type: elasticsearch
     # elasticsearch:

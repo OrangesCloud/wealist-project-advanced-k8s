@@ -300,12 +300,32 @@ istio:
 # Prometheus - 메트릭 수집
 prometheus:
   enabled: true
+  image:
+    repository: localhost:5001/prometheus
+    tag: "v2.48.0"
   config:
     externalUrl: "http://localhost:8080/monitoring/prometheus"
+
+# Loki - 로그 수집
+loki:
+  enabled: true
+  image:
+    repository: localhost:5001/loki
+    tag: "2.9.2"
+
+# Promtail - 로그 수집 에이전트
+promtail:
+  enabled: true
+  image:
+    repository: localhost:5001/promtail
+    tag: "2.9.2"
 
 # Grafana - 시각화 대시보드
 grafana:
   enabled: true
+  image:
+    repository: localhost:5001/grafana
+    tag: "10.2.2"
   service:
     type: ClusterIP
     port: 3000
@@ -324,6 +344,9 @@ monitoringIngress:
 # -----------------------------------------------------------------------------
 postgresExporter:
   enabled: true
+  image:
+    repository: localhost:5001/postgres-exporter
+    tag: "v0.15.0"
   config:
     host: "postgres"  # 내부 서비스명
     port: 5432
@@ -333,6 +356,9 @@ postgresExporter:
 
 redisExporter:
   enabled: true
+  image:
+    repository: localhost:5001/redis-exporter
+    tag: "v1.55.0"
   config:
     host: "redis"  # 내부 서비스명
     port: 6379

@@ -205,6 +205,7 @@ load_to_kind() {
 GHCR_BASE="ghcr.io/orangescloud/base"
 
 # 이미지 로드 (GHCR 우선, Docker Hub fallback)
+# fallback 시 GHCR 이름으로 태그하여 Helm values와 일치시킴
 load_image_with_fallback() {
     local ghcr_image=$1
     local dockerhub_image=$2
@@ -222,7 +223,20 @@ load_image_with_fallback() {
 
     # Docker Hub fallback
     echo "   ⚠️  GHCR 실패, Docker Hub fallback: ${dockerhub_image}"
-    load_to_kind "${dockerhub_image}"
+
+    # Docker Hub에서 pull
+    if ! docker pull --platform "${PLATFORM}" "${dockerhub_image}"; then
+        echo "   ❌ Docker Hub pull 실패: ${dockerhub_image}"
+        return 1
+    fi
+
+    # GHCR 이름으로 태그 (Helm values와 일치)
+    # ghcr.io/orangescloud/base/prometheus-v2.48.0 → :latest 태그
+    echo "   🏷️  Tagging: ${dockerhub_image} → ${ghcr_image}:latest"
+    docker tag "${dockerhub_image}" "${ghcr_image}:latest"
+
+    # 태그된 이미지를 Kind에 로드
+    load_to_kind "${ghcr_image}:latest"
 }
 
 # MinIO - S3 호환 스토리지
@@ -236,6 +250,48 @@ load_image_with_fallback \
     "${GHCR_BASE}/livekit-server-latest" \
     "livekit/livekit-server:latest" \
     "LiveKit"
+
+# =============================================================================
+# 모니터링 이미지 (GHCR 미러 우선, Docker Hub fallback)
+# =============================================================================
+echo ""
+echo "--- 모니터링 이미지 로드 ---"
+
+# Prometheus - 메트릭 수집
+load_image_with_fallback \
+    "${GHCR_BASE}/prometheus-v2.48.0" \
+    "prom/prometheus:v2.48.0" \
+    "Prometheus"
+
+# Grafana - 시각화
+load_image_with_fallback \
+    "${GHCR_BASE}/grafana-10.2.2" \
+    "grafana/grafana:10.2.2" \
+    "Grafana"
+
+# Loki - 로그 수집
+load_image_with_fallback \
+    "${GHCR_BASE}/loki-2.9.2" \
+    "grafana/loki:2.9.2" \
+    "Loki"
+
+# Promtail - 로그 수집 에이전트
+load_image_with_fallback \
+    "${GHCR_BASE}/promtail-2.9.2" \
+    "grafana/promtail:2.9.2" \
+    "Promtail"
+
+# PostgreSQL Exporter - DB 메트릭
+load_image_with_fallback \
+    "${GHCR_BASE}/postgres-exporter-v0.15.0" \
+    "prometheuscommunity/postgres-exporter:v0.15.0" \
+    "PostgreSQL Exporter"
+
+# Redis Exporter - 캐시 메트릭
+load_image_with_fallback \
+    "${GHCR_BASE}/redis_exporter-v1.55.0" \
+    "oliver006/redis_exporter:v1.55.0" \
+    "Redis Exporter"
 
 echo ""
 echo "✅ 인프라 이미지 로드 완료!"

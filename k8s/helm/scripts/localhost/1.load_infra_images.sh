@@ -100,5 +100,47 @@ load_with_fallback \
     "livekit/livekit-server:latest" \
     "livekit" "latest"
 
+# =============================================================================
+# 모니터링 이미지 (GHCR 미러 우선, Docker Hub fallback)
+# =============================================================================
+echo ""
+echo "--- 모니터링 이미지 ---"
+
+# Prometheus
+load_with_fallback \
+    "${GHCR_BASE}/prometheus-v2.48.0" \
+    "prom/prometheus:v2.48.0" \
+    "prometheus" "v2.48.0"
+
+# Grafana
+load_with_fallback \
+    "${GHCR_BASE}/grafana-10.2.2" \
+    "grafana/grafana:10.2.2" \
+    "grafana" "10.2.2"
+
+# Loki
+load_with_fallback \
+    "${GHCR_BASE}/loki-2.9.2" \
+    "grafana/loki:2.9.2" \
+    "loki" "2.9.2"
+
+# Promtail
+load_with_fallback \
+    "${GHCR_BASE}/promtail-2.9.2" \
+    "grafana/promtail:2.9.2" \
+    "promtail" "2.9.2"
+
+# PostgreSQL Exporter
+load_with_fallback \
+    "${GHCR_BASE}/postgres-exporter-v0.15.0" \
+    "prometheuscommunity/postgres-exporter:v0.15.0" \
+    "postgres-exporter" "v0.15.0"
+
+# Redis Exporter
+load_with_fallback \
+    "${GHCR_BASE}/redis_exporter-v1.55.0" \
+    "oliver006/redis_exporter:v1.55.0" \
+    "redis-exporter" "v1.55.0"
+
 echo ""
 echo "✅ 인프라 이미지 로드 완료!"
