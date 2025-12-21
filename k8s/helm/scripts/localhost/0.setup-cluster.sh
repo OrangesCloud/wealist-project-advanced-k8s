@@ -108,6 +108,14 @@ kubectl wait --namespace istio-system \
 
 echo "✅ Istio Ambient 설치 완료"
 
+# 7-1. Istio 관측성 애드온 설치 (Kiali, Jaeger)
+echo "⏳ Istio 관측성 애드온 설치 중 (Kiali, Jaeger)..."
+kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/addons/kiali.yaml 2>/dev/null || \
+    kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/kiali.yaml
+kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/addons/jaeger.yaml 2>/dev/null || \
+    kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/jaeger.yaml
+echo "✅ Kiali, Jaeger 설치 완료"
+
 # 8. Istio Ingress Gateway 설치 (외부 트래픽용)
 echo "⏳ Istio Ingress Gateway 설치 중..."
 kubectl apply -f - <<EOF
@@ -181,6 +189,12 @@ echo "=============================================="
 echo ""
 echo "📦 로컬 레지스트리: localhost:${REG_PORT}"
 echo "🌐 Istio Gateway: localhost:8080 (NodePort 30080)"
+echo ""
+echo "📊 Istio 관측성 도구:"
+echo "   - Kiali:  kubectl port-forward svc/kiali -n istio-system 20001:20001"
+echo "             http://localhost:20001"
+echo "   - Jaeger: kubectl port-forward svc/tracing -n istio-system 16686:80"
+echo "             http://localhost:16686"
 echo ""
 echo "📝 다음 단계:"
 echo "   1. 이미지 로드:"

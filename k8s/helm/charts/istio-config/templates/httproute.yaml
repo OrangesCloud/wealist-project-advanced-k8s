@@ -150,6 +150,30 @@ spec:
       backendRefs:
         - name: {{ .Values.istio.httpRoute.monitoring.loki.host }}
           port: {{ .Values.istio.httpRoute.monitoring.loki.port }}
+
+    # Kiali - Istio Service Mesh 시각화 (istio-system 네임스페이스)
+    {{- if .Values.istio.httpRoute.monitoring.kiali.enabled }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.istio.httpRoute.monitoring.kiali.prefix }}
+      backendRefs:
+        - name: {{ .Values.istio.httpRoute.monitoring.kiali.host }}
+          namespace: {{ .Values.istio.httpRoute.monitoring.kiali.namespace }}
+          port: {{ .Values.istio.httpRoute.monitoring.kiali.port }}
+    {{- end }}
+
+    # Jaeger - 분산 추적 (istio-system 네임스페이스)
+    {{- if .Values.istio.httpRoute.monitoring.jaeger.enabled }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.istio.httpRoute.monitoring.jaeger.prefix }}
+      backendRefs:
+        - name: {{ .Values.istio.httpRoute.monitoring.jaeger.host }}
+          namespace: {{ .Values.istio.httpRoute.monitoring.jaeger.namespace }}
+          port: {{ .Values.istio.httpRoute.monitoring.jaeger.port }}
+    {{- end }}
     {{- end }}
 
     # ==========================================================================

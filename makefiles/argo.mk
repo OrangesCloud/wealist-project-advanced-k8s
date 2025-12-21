@@ -144,6 +144,51 @@ bootstrap-without-key: ## 키 없이 Bootstrap (새 키 생성)
 	@chmod +x k8s/argocd/scripts/deploy-argocd.sh
 	@./k8s/argocd/scripts/deploy-argocd.sh
 
+argo-install-simple: ## ArgoCD만 간단 설치 (Sealed Secrets 없이)
+	@echo "ArgoCD 설치 중..."
+	@kubectl create namespace argocd 2>/dev/null || true
+	@kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+	@echo "ArgoCD 설치 완료, Pod 준비 대기 중..."
+	@kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd || echo "WARNING: ArgoCD server not ready yet"
+	@echo ""
+	@echo "=============================================="
+	@echo "  ✅ ArgoCD 설치 완료!"
+	@echo "=============================================="
+	@echo ""
+	@echo "  포트 포워딩:"
+	@echo "    kubectl port-forward svc/argocd-server -n argocd 8079:443"
+	@echo ""
+	@echo "  로그인 정보:"
+	@echo "    URL: https://localhost:8079"
+	@echo "    User: admin"
+	@echo "    Password: $$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo '(아직 생성 안됨)')"
+	@echo ""
+	@echo "  Git 레포 연결:"
+	@echo "    make argo-add-repo"
+	@echo "=============================================="
+
+argo-add-repo: ## Git 레포지토리 ArgoCD에 등록
+	@echo "Git 레포지토리를 ArgoCD에 등록합니다."
+	@echo ""
+	@echo "GitHub Personal Access Token이 필요합니다."
+	@echo "Token 생성: https://github.com/settings/tokens (repo 권한 필요)"
+	@echo ""
+	@read -p "GitHub Username: " gh_user; \
+	read -p "GitHub Token: " gh_token; \
+	read -p "Repository URL (예: https://github.com/org/repo.git): " repo_url; \
+	kubectl -n argocd create secret generic repo-creds \
+		--from-literal=url=$$repo_url \
+		--from-literal=username=$$gh_user \
+		--from-literal=password=$$gh_token \
+		--dry-run=client -o yaml | kubectl apply -f -; \
+	echo ""; \
+	echo "✅ Git 레포 등록 완료: $$repo_url"
+
+argo-ui: ## ArgoCD UI 포트 포워딩
+	@echo "ArgoCD UI 포트 포워딩: https://localhost:8079"
+	@echo "종료하려면 Ctrl+C"
+	@kubectl port-forward svc/argocd-server -n argocd 8079:443
+
 # ============================================
 # 배포
 # ============================================

@@ -162,9 +162,9 @@ istio:
     # Frontend Pod 라우팅 (비활성화 - CDN 사용)
     frontend:
       enabled: false
-    # Monitoring routes (비활성화 - 별도 접근)
+    # Monitoring routes (활성화 - dev.wealist.co.kr/monitoring/*)
     monitoring:
-      enabled: false
+      enabled: true
 
   # mTLS - 서비스 간 암호화
   mtls:
@@ -233,26 +233,39 @@ istio:
       enabled: true
 
 # =============================================================================
-# 모니터링 스택 설정 (별도 관리 - EKS에서는 CloudWatch/Datadog 등 사용)
+# 모니터링 스택 설정
 # =============================================================================
 
-# Prometheus - 메트릭 수집 (dev에서는 비활성화, AWS CloudWatch 사용)
+# Prometheus - 메트릭 수집
 prometheus:
-  enabled: false
+  enabled: true
 
-# Grafana - 시각화 대시보드 (dev에서는 비활성화, AWS CloudWatch 사용)
+# Loki - 로그 수집
+loki:
+  enabled: true
+
+# Grafana - 시각화 대시보드
 grafana:
-  enabled: false
+  enabled: true
 
-# 모니터링 Ingress
+# 모니터링 Ingress (Istio HTTPRoute로 처리)
 monitoringIngress:
   enabled: false
 
 # -----------------------------------------------------------------------------
-# 데이터베이스 Exporter (외부 DB 사용으로 비활성화)
+# 데이터베이스 Exporter (외부 DB 메트릭 수집)
 # -----------------------------------------------------------------------------
+# DB 호스트 설정:
+#   - Mac/WSL (Docker Desktop): host.docker.internal
+#   - Native Linux: 172.18.0.1 (Kind bridge gateway)
 postgresExporter:
-  enabled: false  # AWS RDS 메트릭은 CloudWatch에서 수집
+  enabled: true
+  config:
+    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
+    port: 5432
 
 redisExporter:
-  enabled: false  # AWS ElastiCache 메트릭은 CloudWatch에서 수집
+  enabled: true
+  config:
+    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
+    port: 6379

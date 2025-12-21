@@ -79,17 +79,26 @@ helm-check-secrets: ## secrets.yaml 파일 존재 여부 확인
 	fi
 
 # -----------------------------------------------------------------------------
-# DB 연결 체크 (외부 DB 사용 시 필수)
+# DB 연결 체크 (외부 DB 사용 시 필수, localhost는 내부 Pod 사용으로 스킵)
 # -----------------------------------------------------------------------------
 helm-check-db: ## PostgreSQL/Redis 실행 상태 확인 (외부 DB 사용 환경)
+ifeq ($(ENV),localhost)
 	@echo "=============================================="
-	@echo "  데이터베이스 연결 확인 중"
+	@echo "  데이터베이스 확인 (localhost)"
+	@echo "=============================================="
+	@echo ""
+	@echo "ℹ️  localhost 환경은 내부 PostgreSQL/Redis Pod를 사용합니다."
+	@echo "   외부 DB 체크를 건너뜁니다."
+	@echo ""
+else
+	@echo "=============================================="
+	@echo "  데이터베이스 연결 확인 중 ($(ENV))"
 	@echo "=============================================="
 	@echo ""
 	@POSTGRES_OK=false; \
 	REDIS_OK=false; \
 	if command -v psql >/dev/null 2>&1; then \
-		if pg_isready >/dev/null 2>&1 || (command -v systemctl >/dev/null 2>&1 && systemctl is-active postgresql >/dev/null 2>&1); then \
+		if pg_isready >/dev/null 2>&1 || (command -v systemctl >/dev/null 2>&1 && systemctl is-active postgresql >/dev/null 2>&1) || (command -v brew >/dev/null 2>&1 && brew services list 2>/dev/null | grep -q "postgresql.*started"); then \
 			echo "✅ PostgreSQL: 실행 중"; \
 			POSTGRES_OK=true; \
 		else \
@@ -114,8 +123,7 @@ helm-check-db: ## PostgreSQL/Redis 실행 상태 확인 (외부 DB 사용 환경
 		echo "❌ 오류: 데이터베이스가 준비되지 않았습니다!"; \
 		echo "============================================"; \
 		echo ""; \
-		echo "외부 DB 사용 환경에서는 PostgreSQL과 Redis가"; \
-		echo "호스트 PC에서 실행 중이어야 합니다."; \
+		echo "$(ENV) 환경은 호스트 PC의 PostgreSQL/Redis를 사용합니다."; \
 		echo ""; \
 		echo "해결 방법:"; \
 		echo "  1. DB 설치 및 시작:"; \
@@ -129,6 +137,7 @@ helm-check-db: ## PostgreSQL/Redis 실행 상태 확인 (외부 DB 사용 환경
 	else \
 		echo "✅ 모든 데이터베이스 연결 확인 완료!"; \
 	fi
+endif
 
 helm-setup-route53-secret: ## Route53 인증 시크릿 설정 (cert-manager용)
 	@echo "Route53 인증 시크릿 설정 중..."
@@ -252,12 +261,16 @@ endif
 	@echo "  모니터링 스택 설치 성공!"
 	@echo "=============================================="
 	@echo ""
-	@echo "  접속 URL (Ingress 경유):"
+	@echo "  📊 모니터링 URL (Ingress 경유):"
 	@echo "    - Grafana:    $(PROTOCOL)://$(DOMAIN)/monitoring/grafana"
 	@echo "    - Prometheus: $(PROTOCOL)://$(DOMAIN)/monitoring/prometheus"
 	@echo "    - Loki:       $(PROTOCOL)://$(DOMAIN)/monitoring/loki"
 	@echo ""
-	@echo "  Grafana 로그인: admin / admin"
+	@echo "  🌐 Istio 관측성 (setup 시 자동 설치됨):"
+	@echo "    - Kiali:      $(PROTOCOL)://$(DOMAIN)/monitoring/kiali"
+	@echo "    - Jaeger:     $(PROTOCOL)://$(DOMAIN)/monitoring/jaeger"
+	@echo ""
+	@echo "  🔐 Grafana 로그인: admin / admin"
 	@echo "=============================================="
 
 helm-install-istio-config: ## Istio 설정 설치 (HTTPRoute, DestinationRules 등)

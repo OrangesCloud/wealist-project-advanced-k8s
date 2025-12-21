@@ -30,6 +30,19 @@ istio:
         prefix: /monitoring/loki
         host: loki
         port: 3100
+      # Istio Observability (istio-system 네임스페이스, setup 시 자동 설치됨)
+      kiali:
+        enabled: true
+        prefix: /monitoring/kiali
+        host: kiali
+        port: 20001
+        namespace: istio-system
+      jaeger:
+        enabled: true
+        prefix: /monitoring/jaeger
+        host: tracing
+        port: 80
+        namespace: istio-system
 
   mtls:
     enabled: true

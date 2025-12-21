@@ -168,9 +168,27 @@ redeploy-all: ## Restart all deployments (pick up new secrets)
 	kubectl rollout restart deployment -n $(K8S_NAMESPACE)
 	@echo "All deployments restarted"
 
-status: ## Show pods status
+status: ## Show pods status (use ENV=dev for dev environment)
 	@echo "=== Kubernetes Pods (ENV=$(ENV), NS=$(K8S_NAMESPACE)) ==="
-	@kubectl get pods -n $(K8S_NAMESPACE) 2>/dev/null || echo "Namespace not found"
+	@kubectl get pods -n $(K8S_NAMESPACE) 2>/dev/null || echo "Namespace $(K8S_NAMESPACE) not found"
+	@echo ""
+	@echo "💡 다른 환경: make status ENV=dev / make status ENV=localhost"
+
+status-dev: ## Show dev environment pods
+	@$(MAKE) status ENV=dev
+
+status-localhost: ## Show localhost environment pods
+	@$(MAKE) status ENV=localhost
+
+status-all: ## Show all wealist namespaces
+	@echo "=== All wealist namespaces ==="
+	@for ns in wealist-localhost wealist-dev wealist-staging wealist-prod; do \
+		if kubectl get namespace $$ns >/dev/null 2>&1; then \
+			echo ""; \
+			echo "📦 $$ns:"; \
+			kubectl get pods -n $$ns 2>/dev/null | head -10 || echo "  (no pods)"; \
+		fi; \
+	done
 
 clean: ## Clean up
 	./docker/scripts/clean.sh
