@@ -4,7 +4,7 @@
 
 ##@ Development (Docker Compose)
 
-.PHONY: dev-up dev-down dev-logs
+.PHONY: dev-up dev-down dev-restart dev-logs dev-build dev-clean
 
 dev-up: ## Start all services
 	./docker/scripts/dev.sh up
@@ -12,8 +12,33 @@ dev-up: ## Start all services
 dev-down: ## Stop all services
 	./docker/scripts/dev.sh down
 
+dev-restart: ## Restart all services
+	./docker/scripts/dev.sh restart
+
 dev-logs: ## View logs
 	./docker/scripts/dev.sh logs
+
+dev-build: ## Rebuild all Docker images
+	./docker/scripts/dev.sh build
+
+dev-clean: ## Stop and remove all containers, volumes (destructive)
+	./docker/scripts/dev.sh clean
+
+##@ Monorepo Build (BuildKit Cache - Fast)
+
+.PHONY: dev-mono-up dev-mono-down dev-mono-build dev-mono-build-parallel
+
+dev-mono-up: ## Start with monorepo build (shared package 1회 컴파일)
+	./docker/scripts/dev-mono.sh up
+
+dev-mono-down: ## Stop monorepo dev environment
+	./docker/scripts/dev-mono.sh down
+
+dev-mono-build: ## Build Go services only (sequential, uses BuildKit cache)
+	./docker/scripts/dev-mono.sh build
+
+dev-mono-build-parallel: ## Build Go services in parallel (faster)
+	./docker/scripts/dev-mono.sh build-parallel
 
 ##@ SonarQube (Code Quality)
 

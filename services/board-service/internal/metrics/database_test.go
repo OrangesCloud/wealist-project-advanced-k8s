@@ -7,6 +7,8 @@ import (
 	"testing"
 	"testing/quick"
 	"time"
+
+	commonmetrics "github.com/OrangesCloud/wealist-advanced-go-pkg/metrics"
 )
 
 var (
@@ -47,9 +49,9 @@ func TestNormalizeOperation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := normalizeOperation(tt.operation)
+			got := commonmetrics.NormalizeOperation(tt.operation)
 			if got != tt.want {
-				t.Errorf("normalizeOperation(%q) = %q, want %q", tt.operation, got, tt.want)
+				t.Errorf("NormalizeOperation(%q) = %q, want %q", tt.operation, got, tt.want)
 			}
 		})
 	}
@@ -196,12 +198,12 @@ func TestRecordDBQuery(t *testing.T) {
 
 // Property 7: Operation type 정규화
 // Feature: board-service-prometheus-metrics, Property 7: Operation type normalization
-// For any operation string, normalizeOperation should convert it to lowercase
+// For any operation string, NormalizeOperation should convert it to lowercase
 // Validates: Requirements 4.5
 func TestProperty_OperationTypeNormalization(t *testing.T) {
-	// Property: For any string, normalizeOperation should return lowercase version
+	// Property: For any string, NormalizeOperation should return lowercase version
 	property := func(operation string) bool {
-		result := normalizeOperation(operation)
+		result := commonmetrics.NormalizeOperation(operation)
 
 		// The result should be lowercase
 		if len(operation) > 0 {

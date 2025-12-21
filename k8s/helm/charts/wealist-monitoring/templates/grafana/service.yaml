@@ -1,0 +1,21 @@
+{{- if .Values.grafana.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+spec:
+  type: NodePort
+  ports:
+    - port: {{ .Values.grafana.service.port }}
+      targetPort: http
+      nodePort: {{ .Values.grafana.service.nodePort }}
+      protocol: TCP
+      name: http
+  selector:
+    app: grafana
+{{- end }}

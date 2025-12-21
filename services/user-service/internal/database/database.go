@@ -53,21 +53,21 @@ func AutoMigrate(db *gorm.DB) error {
 	)
 }
 
-// NewAsync creates a database connection asynchronously with retries
-func NewAsync(cfg Config, retryInterval time.Duration) {
-	go func() {
-		for {
-			db, err := New(cfg)
-			if err == nil {
-				// Run migrations
-				if err := AutoMigrate(db); err != nil {
-					fmt.Printf("Warning: Failed to run migrations: %v\n", err)
-				}
-				fmt.Println("Database connected successfully (async)")
-				return
-			}
-			fmt.Printf("Failed to connect to database, retrying in %v: %v\n", retryInterval, err)
-			time.Sleep(retryInterval)
+// NewWithRetry creates a database connection with retries (blocking)
+// Returns the connected DB instance or error after maxRetries
+func NewWithRetry(cfg Config, retryInterval time.Duration, maxRetries int) (*gorm.DB, error) {
+	var db *gorm.DB
+	var err error
+
+	for i := 0; i < maxRetries; i++ {
+		db, err = New(cfg)
+		if err == nil {
+			fmt.Printf("Database connected successfully (attempt %d/%d)\n", i+1, maxRetries)
+			return db, nil
 		}
-	}()
+		fmt.Printf("Failed to connect to database (attempt %d/%d), retrying in %v: %v\n", i+1, maxRetries, retryInterval, err)
+		time.Sleep(retryInterval)
+	}
+
+	return nil, fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, err)
 }

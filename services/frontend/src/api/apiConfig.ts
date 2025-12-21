@@ -5,6 +5,7 @@ declare global {
   interface Window {
     __ENV__?: {
       API_BASE_URL?: string;
+      API_DOMAIN?: string; // Direct API domain for WebSocket/SSE (bypasses CloudFront)
     };
   }
 }
@@ -15,12 +16,14 @@ declare global {
 // - Production: 빌드 시 주입된 URL 사용
 
 // K8s ingress 모드 감지: 명시적으로 빈 문자열이 설정된 경우
-const isIngressMode = window.__ENV__?.API_BASE_URL === '';
+// ⚠️ 함수로 변경하여 런타임에 체크 (config.js가 로드된 후 호출되도록)
+const getIsIngressModeInternal = (): boolean => window.__ENV__?.API_BASE_URL === '';
 
 // ingress 모드가 아닐 때만 폴백 적용
-const INJECTED_API_BASE_URL = isIngressMode
-  ? ''
-  : window.__ENV__?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL;
+const getInjectedApiBaseUrl = (): string | undefined => {
+  const isIngress = getIsIngressModeInternal();
+  return isIngress ? '' : window.__ENV__?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL;
+};
 
 // ============================================================================
 // 💡 [핵심 수정]: Context Path를 환경에 따라 조건부로 붙입니다.
@@ -28,47 +31,70 @@ const INJECTED_API_BASE_URL = isIngressMode
 
 // K8s ingress용 서비스 prefix 매핑
 // ingress가 /svc/{service}/* 로 라우팅하고, rewrite로 prefix 제거
+// ⚠️ 프론트엔드 호출이 이미 /api를 포함하면 baseURL에서 제외
 const getIngressServicePrefix = (path: string): string => {
-  if (path?.includes('/api/auth')) return '/svc/auth/api/auth';
-  if (path?.includes('/api/users')) return '/svc/user';
-  if (path?.includes('/api/workspaces')) return '/svc/user';
-  if (path?.includes('/api/profiles')) return '/svc/user';
-  if (path?.includes('/api/boards')) return '/svc/board/api';
-  if (path?.includes('/api/chats')) return `/svc/chat${path}`;
-  if (path?.includes('/api/notifications')) return '/svc/noti';
-  if (path?.includes('/api/storage')) return '/svc/storage/api';
-  if (path?.includes('/api/video')) return '/svc/video';
+  if (path?.includes('/api/auth')) return '/svc/auth';            // auth: 프론트가 /api/auth 포함
+  if (path?.includes('/api/users')) return '/svc/user';           // user: 프론트가 /api/users 포함
+  if (path?.includes('/api/workspaces')) return '/svc/user';      // user: 프론트가 /api/workspaces 포함
+  if (path?.includes('/api/profiles')) return '/svc/user';        // user: 프론트가 /api/profiles 포함
+  if (path?.includes('/api/boards')) return '/svc/board/api';      // board: 프론트가 /projects 호출
+  if (path?.includes('/api/chats')) return '/svc/chat/api/chats'; // chat: 프론트가 /my만 호출 (basePath 필요)
+  if (path?.includes('/api/notifications')) return '/svc/noti';   // noti: 프론트가 /api/notifications 포함
+  if (path?.includes('/api/storage')) return '/svc/storage';      // storage: 프론트가 /api/storage 포함
+  if (path?.includes('/api/video')) return '/svc/video';          // video: 프론트가 /api/video 포함
   return ''; // 매칭 안 되면 prefix 없이
 };
 
 const getApiBaseUrl = (path: string): string => {
-  // 1. K8s ingress 모드: 서비스 prefix만 반환 (axios가 path를 붙임)
+  const isIngressMode = getIsIngressModeInternal();
+  const injectedApiBaseUrl = getInjectedApiBaseUrl();
+
+  // K8s ingress 모드: 서비스 prefix만 반환 (axios가 path를 붙임)
   // 예: getApiBaseUrl('/api/users') → '/svc/user'
   //     axios.get('/api/workspaces/all') → '/svc/user/api/workspaces/all'
   if (isIngressMode) {
+    const hostname = window.location.hostname;
+    // Kind 로컬 개발 환경 (localhost): Istio NodePort 사용
+    // /svc/{service}/* 경로로 라우팅 (포트 8080)
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      const localBaseUrl = 'http://localhost:8080';
+      // HTTPRoute가 /svc/{service}/ → / 로 리라이트하므로,
+      // 백엔드 basePath를 포함해야 올바른 경로로 도달
+      // ⚠️ 단, 프론트엔드 호출이 이미 /api를 포함하면 baseURL에서 제외
+      if (path?.includes('/api/auth')) return `${localBaseUrl}/svc/auth`;           // auth: Java, 프론트가 /api/auth 포함
+      if (path?.includes('/api/users')) return `${localBaseUrl}/svc/user`;          // user: 프론트가 /api/users 포함
+      if (path?.includes('/api/workspaces')) return `${localBaseUrl}/svc/user`;     // user: 프론트가 /api/workspaces 포함
+      if (path?.includes('/api/profiles')) return `${localBaseUrl}/svc/user`;       // user: 프론트가 /api/profiles 포함
+      if (path?.includes('/api/boards')) return `${localBaseUrl}/svc/board/api`;  // board: 프론트가 /projects 호출, 백엔드는 /api/projects
+      if (path?.includes('/api/chats')) return `${localBaseUrl}/svc/chat/api/chats`; // chat: 프론트가 /my만 호출 (basePath 필요)
+      if (path?.includes('/api/notifications')) return `${localBaseUrl}/svc/noti`;  // noti: 프론트가 /api/notifications 포함
+      if (path?.includes('/api/storage')) return `${localBaseUrl}/svc/storage`;     // storage: 프론트가 /api/storage 포함
+      if (path?.includes('/api/video')) return `${localBaseUrl}/svc/video`;         // video: 프론트가 /api/video 포함
+      return localBaseUrl;
+    }
     return getIngressServicePrefix(path);
   }
 
   // 2. 환경 변수 주입 확인 (Docker-compose 등)
-  if (INJECTED_API_BASE_URL) {
+  if (injectedApiBaseUrl) {
     // 쉘 스크립트에서 VITE_API_BASE_URL='http://localhost'가 주입된 경우
-    const isLocalDevelopment = INJECTED_API_BASE_URL.includes('localhost');
+    const isLocalDevelopment = injectedApiBaseUrl.includes('localhost');
 
     if (isLocalDevelopment) {
       // 🔥 로컬 개발: nginx를 통해 각 서비스로 라우팅 (포트 80)
       // nginx가 /api/* 경로를 각 백엔드 서비스로 프록시
-      if (path?.includes('/api/auth')) return `${INJECTED_API_BASE_URL}/api/auth`; // → nginx → auth-service
-      if (path?.includes('/api/users')) return `${INJECTED_API_BASE_URL}`; // → nginx → user-service
-      if (path?.includes('/api/workspaces')) return `${INJECTED_API_BASE_URL}`; // → nginx → user-service
-      if (path?.includes('/api/profiles')) return `${INJECTED_API_BASE_URL}`; // → nginx → user-service
-      if (path?.includes('/api/boards')) return `${INJECTED_API_BASE_URL}/api/boards/api`; // → nginx → board-service
-      if (path?.includes('/api/chats')) return `${INJECTED_API_BASE_URL}${path}`; // → nginx → chat-service
-      if (path?.includes('/api/notifications')) return `${INJECTED_API_BASE_URL}`; // → nginx → noti-service
-      if (path?.includes('/api/storage')) return `${INJECTED_API_BASE_URL}/api/storage/api`; // → nginx → storage-service
-      if (path?.includes('/api/video')) return `${INJECTED_API_BASE_URL}`; // → nginx → video-service
+      if (path?.includes('/api/auth')) return `${injectedApiBaseUrl}/api/auth`; // → nginx → auth-service
+      if (path?.includes('/api/users')) return `${injectedApiBaseUrl}`; // → nginx → user-service
+      if (path?.includes('/api/workspaces')) return `${injectedApiBaseUrl}`; // → nginx → user-service
+      if (path?.includes('/api/profiles')) return `${injectedApiBaseUrl}`; // → nginx → user-service
+      if (path?.includes('/api/boards')) return `${injectedApiBaseUrl}/api/boards/api`; // → nginx → board-service
+      if (path?.includes('/api/chats')) return `${injectedApiBaseUrl}${path}`; // → nginx → chat-service
+      if (path?.includes('/api/notifications')) return `${injectedApiBaseUrl}`; // → nginx → noti-service
+      if (path?.includes('/api/storage')) return `${injectedApiBaseUrl}/api/storage/api`; // → nginx → storage-service
+      if (path?.includes('/api/video')) return `${injectedApiBaseUrl}`; // → nginx → video-service
     }
 
-    return `${INJECTED_API_BASE_URL}${path}`;
+    return `${injectedApiBaseUrl}${path}`;
   }
 
   // 환경 변수가 없을 경우 (Fallback, CI/CD 실패 대비)
@@ -324,9 +350,10 @@ export const getAuthHeaders = (token: string) => ({
 /**
  * 환경 감지 헬퍼 (export for external use)
  */
-export const getIsIngressMode = (): boolean => isIngressMode;
+export const getIsIngressMode = (): boolean => getIsIngressModeInternal();
 export const getIsLocalDevelopment = (): boolean => {
-  return INJECTED_API_BASE_URL?.includes('localhost') ?? false;
+  const injectedApiBaseUrl = getInjectedApiBaseUrl();
+  return injectedApiBaseUrl?.includes('localhost') ?? false;
 };
 
 /**
@@ -345,29 +372,32 @@ const getWebSocketProtocol = (baseUrl?: string): 'wss:' | 'ws:' => {
  */
 export const getChatWebSocketUrl = (chatId: string, token: string): string => {
   const encodedToken = encodeURIComponent(token);
+  const isIngressMode = getIsIngressModeInternal();
+  const injectedApiBaseUrl = getInjectedApiBaseUrl();
 
-  // K8s ingress 모드
+  // K8s ingress 모드 - CloudFront를 통해 WebSocket 연결
+  // CloudFront → api.dev.wealist.co.kr → ingress → chat-service
   if (isIngressMode) {
     const protocol = getWebSocketProtocol();
     return `${protocol}//${window.location.host}/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
-  // Docker-compose (로컬 개발) - nginx를 통해 WebSocket 프록시
-  if (INJECTED_API_BASE_URL?.includes('localhost')) {
-    return `ws://localhost/api/chats/ws/${chatId}?token=${encodedToken}`;
+  // Kind 로컬 개발 - Istio NodePort를 통해 WebSocket 프록시
+  if (injectedApiBaseUrl?.includes('localhost')) {
+    return `ws://localhost:8080/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
-  if (INJECTED_API_BASE_URL) {
-    const protocol = getWebSocketProtocol(INJECTED_API_BASE_URL);
-    const host = INJECTED_API_BASE_URL.replace(/^https?:\/\//, '');
+  if (injectedApiBaseUrl) {
+    const protocol = getWebSocketProtocol(injectedApiBaseUrl);
+    const host = injectedApiBaseUrl.replace(/^https?:\/\//, '');
     return `${protocol}//${host}/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
   // Fallback
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return `ws://localhost/api/chats/ws/${chatId}?token=${encodedToken}`;
+    return `ws://localhost:8080/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
   return `wss://api.wealist.co.kr/api/chats/ws/${chatId}?token=${encodedToken}`;
@@ -379,29 +409,32 @@ export const getChatWebSocketUrl = (chatId: string, token: string): string => {
  */
 export const getPresenceWebSocketUrl = (token: string): string => {
   const encodedToken = encodeURIComponent(token);
+  const isIngressMode = getIsIngressModeInternal();
+  const injectedApiBaseUrl = getInjectedApiBaseUrl();
 
-  // K8s ingress 모드
+  // K8s ingress 모드 - CloudFront를 통해 WebSocket 연결
+  // CloudFront → api.dev.wealist.co.kr → ingress → chat-service
   if (isIngressMode) {
     const protocol = getWebSocketProtocol();
     return `${protocol}//${window.location.host}/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
   }
 
-  // Docker-compose (로컬 개발) - nginx를 통해 WebSocket 프록시
-  if (INJECTED_API_BASE_URL?.includes('localhost')) {
-    return `ws://localhost/api/chats/ws/presence?token=${encodedToken}`;
+  // Kind 로컬 개발 - Istio NodePort를 통해 WebSocket 프록시
+  if (injectedApiBaseUrl?.includes('localhost')) {
+    return `ws://localhost:8080/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
-  if (INJECTED_API_BASE_URL) {
-    const protocol = getWebSocketProtocol(INJECTED_API_BASE_URL);
-    const host = INJECTED_API_BASE_URL.replace(/^https?:\/\//, '');
+  if (injectedApiBaseUrl) {
+    const protocol = getWebSocketProtocol(injectedApiBaseUrl);
+    const host = injectedApiBaseUrl.replace(/^https?:\/\//, '');
     return `${protocol}//${host}/api/chats/ws/presence?token=${encodedToken}`;
   }
 
   // Fallback
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return `ws://localhost/api/chats/ws/presence?token=${encodedToken}`;
+    return `ws://localhost:8080/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
   }
 
   return `wss://api.wealist.co.kr/api/chats/ws/presence?token=${encodedToken}`;
@@ -414,32 +447,36 @@ export const getPresenceWebSocketUrl = (token: string): string => {
  */
 export const getBoardWebSocketUrl = (projectId: string, token: string): string => {
   const encodedToken = encodeURIComponent(token);
+  const isIngressMode = getIsIngressModeInternal();
+  const injectedApiBaseUrl = getInjectedApiBaseUrl();
 
-  // K8s ingress 모드
+  // K8s ingress 모드 - CloudFront를 통해 WebSocket 연결
+  // board-service WebSocket 경로: /ws/project/:projectId
+  // CloudFront → api.dev.wealist.co.kr → ingress → board-service
   if (isIngressMode) {
     const protocol = getWebSocketProtocol();
-    return `${protocol}//${window.location.host}/svc/board/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+    return `${protocol}//${window.location.host}/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
-  // Docker-compose (로컬 개발) - nginx를 통해 WebSocket 프록시
-  if (INJECTED_API_BASE_URL?.includes('localhost')) {
-    return `ws://localhost/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+  // Kind 로컬 개발 - Istio NodePort를 통해 WebSocket 프록시
+  if (injectedApiBaseUrl?.includes('localhost')) {
+    return `ws://localhost:8080/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
-  if (INJECTED_API_BASE_URL) {
-    const protocol = getWebSocketProtocol(INJECTED_API_BASE_URL);
-    const host = INJECTED_API_BASE_URL.replace(/^https?:\/\//, '');
-    return `${protocol}//${host}/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+  if (injectedApiBaseUrl) {
+    const protocol = getWebSocketProtocol(injectedApiBaseUrl);
+    const host = injectedApiBaseUrl.replace(/^https?:\/\//, '');
+    return `${protocol}//${host}/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   // Fallback
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return `ws://localhost/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+    return `ws://localhost:8080/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
-  return `wss://api.wealist.co.kr/api/boards/ws/project/${projectId}?token=${encodedToken}`;
+  return `wss://api.wealist.co.kr/ws/project/${projectId}?token=${encodedToken}`;
 };
 
 /**
@@ -449,15 +486,18 @@ export const getBoardWebSocketUrl = (projectId: string, token: string): string =
 export const getNotificationSSEUrl = (token?: string): string => {
   const accessToken = token || localStorage.getItem('accessToken') || '';
   const encodedToken = encodeURIComponent(accessToken);
+  const isIngressMode = getIsIngressModeInternal();
+  const injectedApiBaseUrl = getInjectedApiBaseUrl();
 
-  // K8s ingress 모드
+  // K8s ingress 모드 - CloudFront를 통해 SSE 연결
+  // CloudFront → api.dev.wealist.co.kr → ingress → noti-service
   if (isIngressMode) {
     return `${window.location.origin}/svc/noti/api/notifications/stream?token=${encodedToken}`;
   }
 
-  // Docker-compose (로컬 개발) - nginx를 통해 SSE 프록시
-  if (INJECTED_API_BASE_URL?.includes('localhost')) {
-    return `http://localhost/api/notifications/stream?token=${encodedToken}`;
+  // Kind 로컬 개발 - Istio NodePort를 통해 SSE 프록시
+  if (injectedApiBaseUrl?.includes('localhost')) {
+    return `http://localhost:8080/svc/noti/api/notifications/stream?token=${encodedToken}`;
   }
 
   // 운영 환경 또는 Fallback
@@ -466,21 +506,38 @@ export const getNotificationSSEUrl = (token?: string): string => {
 
 /**
  * OAuth2 Base URL 생성 (Google 로그인 등)
+ * OAuth2는 세션 쿠키 도메인 일치를 위해 api.* 도메인에서 시작해야 함
  */
 export const getOAuthBaseUrl = (): string => {
-  // K8s ingress 모드: 상대 경로 사용 (같은 도메인)
+  const isIngressMode = getIsIngressModeInternal();
+  const injectedApiBaseUrl = getInjectedApiBaseUrl();
+
+  // K8s ingress 모드: api.* 도메인 사용 (OAuth2 콜백과 도메인 일치 필요)
   if (isIngressMode) {
+    const hostname = window.location.hostname;
+    if (hostname === 'dev.wealist.co.kr') {
+      return 'https://api.dev.wealist.co.kr';
+    }
+    if (hostname === 'wealist.co.kr' || hostname === 'www.wealist.co.kr') {
+      return 'https://api.wealist.co.kr';
+    }
+    // Kind 개발 환경 (localhost): Istio NodePort 사용
+    // /svc/auth 경로로 auth-service에 접근 (포트 8080)
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:8080/svc/auth';
+    }
     return '';
   }
 
-  // Docker-compose (로컬 개발): auth-service 8080 포트
-  if (INJECTED_API_BASE_URL?.includes('localhost')) {
-    return `${INJECTED_API_BASE_URL}:8080`;
+  // Docker-compose (로컬 개발): nginx 게이트웨이 사용 (포트 80)
+  // nginx가 /oauth2/* 경로를 auth-service:8080으로 프록시함
+  if (injectedApiBaseUrl?.includes('localhost')) {
+    return injectedApiBaseUrl;  // http://localhost (nginx gateway)
   }
 
   // 운영 환경
-  if (INJECTED_API_BASE_URL) {
-    return `${INJECTED_API_BASE_URL}/api/users`;
+  if (injectedApiBaseUrl) {
+    return `${injectedApiBaseUrl}/api/users`;
   }
 
   // Fallback

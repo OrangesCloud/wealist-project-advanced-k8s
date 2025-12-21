@@ -1,0 +1,295 @@
+# =============================================================================
+# Development Server Environment
+# =============================================================================
+# Development environment with dev.wealist.co.kr domain
+# Uses GHCR (GitHub Container Registry) + ArgoCD for deployment
+# Namespace: wealist-dev
+
+# -----------------------------------------------------------------------------
+# Global Settings
+# -----------------------------------------------------------------------------
+global:
+  namespace: wealist-dev
+  environment: development
+  domain: dev.wealist.co.kr
+  imageRegistry: ghcr.io/orangescloud
+  # GitHub Container Registry 인증을 위한 imagePullSecrets
+  imagePullSecrets:
+    - ghcr-secret
+
+# -----------------------------------------------------------------------------
+# cert-manager Configuration (Disabled - CloudFront handles SSL termination)
+# -----------------------------------------------------------------------------
+certManager:
+  enabled: false
+  # Note: SSL is handled by CloudFront, K8s receives HTTP only
+
+# -----------------------------------------------------------------------------
+# Deployment Settings
+# -----------------------------------------------------------------------------
+auth-service:
+  replicaCount: 2
+board-service:
+  replicaCount: 2
+
+image:
+  pullPolicy: Always
+  tag: "latest"  # Local registry uses :latest tag
+
+# -----------------------------------------------------------------------------
+# Resources (Development)
+# -----------------------------------------------------------------------------
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# -----------------------------------------------------------------------------
+# Health Check
+# -----------------------------------------------------------------------------
+healthCheck:
+  liveness:
+    initialDelaySeconds: 30
+  readiness:
+    initialDelaySeconds: 10
+
+# -----------------------------------------------------------------------------
+# Security (Standard)
+# -----------------------------------------------------------------------------
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  readOnlyRootFilesystem: false  # Spring Boot (Tomcat) needs /tmp write access
+
+# -----------------------------------------------------------------------------
+# Features
+# -----------------------------------------------------------------------------
+autoscaling:
+  enabled: false
+
+serviceAccount:
+  create: true
+
+networkPolicy:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# Shared Configuration
+# -----------------------------------------------------------------------------
+shared:
+  config:
+    ENV: "development"
+    LOG_LEVEL: "debug"
+    DB_AUTO_MIGRATE: "true"  # Create tables on startup
+    CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
+    # S3/MinIO Configuration
+    S3_ENDPOINT: "http://minio:9000"
+    S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/minio"
+    S3_BUCKET: "wealist-files"
+    S3_REGION: "ap-northeast-2"
+    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/svc/livekit"
+    # OAuth2 Redirect URLs
+    # Google redirects here after user authenticates (must match Google Console)
+    OAUTH2_CLIENT_REDIRECT_URI: "https://api.dev.wealist.co.kr/oauth2/callback/google"
+    # auth-service redirects here (frontend) after processing OAuth
+    OAUTH2_REDIRECT_URL_ENV: "https://dev.wealist.co.kr/oauth/callback"
+
+# -----------------------------------------------------------------------------
+# Ingress (nginx - 비활성화, Istio Gateway 사용)
+# -----------------------------------------------------------------------------
+ingress:
+  enabled: false  # Istio HTTPRoute 사용
+
+# -----------------------------------------------------------------------------
+# 데이터베이스 설정 (외부 DB 사용 - AWS RDS/ElastiCache)
+# -----------------------------------------------------------------------------
+postgres:
+  enabled: false   # 내부 PostgreSQL 비활성화
+  external:
+    enabled: true  # 외부 DB (AWS RDS 등) 사용
+    # host/port는 secrets.yaml에서 설정
+
+redis:
+  enabled: false   # 내부 Redis 비활성화
+  external:
+    enabled: true  # 외부 Redis (AWS ElastiCache 등) 사용
+    # host/port는 secrets.yaml에서 설정
+
+# -----------------------------------------------------------------------------
+# 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)
+# -----------------------------------------------------------------------------
+# dev.wealist.co.kr → CloudFront → S3 (정적 파일)
+# api.dev.wealist.co.kr → CloudFront → ALB → EKS (API)
+frontend:
+  enabled: false  # Frontend pod 비활성화 (CDN 사용)
+
+# -----------------------------------------------------------------------------
+# Istio 서비스 메시 설정
+# -----------------------------------------------------------------------------
+istio:
+  enabled: true
+  namespace: wealist-dev
+
+  gateway:
+    enabled: false  # setup-cluster.sh에서 이미 생성됨
+    name: wealist-gateway
+    hosts:
+      - "dev.wealist.co.kr"
+      - "api.dev.wealist.co.kr"
+      - "*"
+    tls:
+      enabled: false
+
+  # HTTPRoute 설정 (Kubernetes Gateway API)
+  httpRoute:
+    enabled: true
+    gatewayRef:
+      name: istio-ingressgateway
+      namespace: istio-system
+    hosts:
+      - "dev.wealist.co.kr"
+      - "api.dev.wealist.co.kr"
+    # Frontend Pod 라우팅 (비활성화 - CDN 사용)
+    frontend:
+      enabled: false
+    # Monitoring routes (활성화 - dev.wealist.co.kr/monitoring/*)
+    monitoring:
+      enabled: true
+
+  # mTLS - 서비스 간 암호화
+  mtls:
+    enabled: true
+    mode: STRICT  # dev 환경: mTLS 강제 (보안 강화)
+
+  # Database mTLS 설정 (외부 DB 사용 - 해당 없음)
+  database:
+    postgres:
+      disableMtls: false  # 내부 postgres pod 없음
+    redis:
+      disableMtls: false  # 내부 redis pod 없음
+
+  # 트래픽 제어 - Circuit Breaker, Connection Pool
+  destinationRules:
+    enabled: true
+    loadBalancer:
+      simple: ROUND_ROBIN
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 10s
+      http:
+        h2UpgradePolicy: DO_NOT_UPGRADE
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 100
+        maxRetries: 3
+    # Circuit Breaker - 장애 서비스 격리
+    outlierDetection:
+      consecutive5xxErrors: 5
+      consecutiveGatewayErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+
+  # 서비스 간 통신 제어
+  # dev: Zero Trust 정책 적용
+  authorizationPolicy:
+    enabled: true
+    denyAll: true  # dev: 기본 거부 (Zero Trust)
+
+  # 서비스별 호출 권한 (L7 정책)
+  serviceAuthorization:
+    enabled: true  # dev: 활성화 (보안 강화)
+
+  # JWT 인증
+  # dev: Istio에서 JWT 검증
+  jwtAuth:
+    enabled: false  # 서비스에서 직접 처리 (추후 활성화 가능)
+
+  # Ambient 모드 (Sidecar-less)
+  ambient:
+    enabled: true
+    waypoint:
+      enabled: true
+      name: wealist-waypoint
+
+  # 텔레메트리 - 트레이싱, 로깅
+  telemetry:
+    tracing:
+      enabled: true
+      samplingPercentage: 50  # dev 환경 50%
+    accessLogging:
+      enabled: true
+
+# =============================================================================
+# 모니터링 스택 설정 (GHCR 미러 이미지 사용)
+# =============================================================================
+# Docker Hub rate limit 회피를 위해 GHCR에 미러링된 이미지 사용
+# 미러링: ./scripts/mirror-base-images.sh
+
+# Prometheus - 메트릭 수집
+prometheus:
+  enabled: true
+  image:
+    repository: ghcr.io/orangescloud/base/prometheus-v2.48.0
+    tag: "latest"
+
+# Loki - 로그 수집
+loki:
+  enabled: true
+  image:
+    repository: ghcr.io/orangescloud/base/loki-2.9.2
+    tag: "latest"
+
+# Promtail - 로그 수집 에이전트
+promtail:
+  enabled: true
+  image:
+    repository: ghcr.io/orangescloud/base/promtail-2.9.2
+    tag: "latest"
+
+# Grafana - 시각화 대시보드
+grafana:
+  enabled: true
+  image:
+    repository: ghcr.io/orangescloud/base/grafana-10.2.2
+    tag: "latest"
+
+# 모니터링 Ingress (Istio HTTPRoute로 처리)
+monitoringIngress:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# 데이터베이스 Exporter (외부 DB 메트릭 수집)
+# -----------------------------------------------------------------------------
+# DB 호스트 설정:
+#   - Mac/WSL (Docker Desktop): host.docker.internal
+#   - Native Linux: 172.18.0.1 (Kind bridge gateway)
+postgresExporter:
+  enabled: true
+  image:
+    repository: ghcr.io/orangescloud/base/postgres-exporter-v0.15.0
+    tag: "latest"
+  config:
+    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
+    port: 5432
+
+redisExporter:
+  enabled: true
+  image:
+    repository: ghcr.io/orangescloud/base/redis_exporter-v1.55.0
+    tag: "latest"
+  config:
+    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
+    port: 6379

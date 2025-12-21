@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: wealist-prod
-  labels:
-    app.kubernetes.io/name: wealist
-    app.kubernetes.io/env: production

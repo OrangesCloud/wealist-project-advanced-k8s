@@ -1,125 +1,60 @@
-// Package middleware provides HTTP middleware for the application.
+// Package middleware는 HTTP 미들웨어를 제공합니다.
 package middleware
 
 import (
-	"net/http"
-	"strings"
-
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
+
+	commonauth "github.com/OrangesCloud/wealist-advanced-go-pkg/auth"
 )
 
-// Auth returns a middleware that validates JWT tokens
+// TokenValidator는 JWT 토큰 검증을 위한 인터페이스입니다.
+type TokenValidator = commonauth.TokenValidator
+
+// SmartValidator는 auth-service HTTP 검증과 JWKS fallback을 지원합니다.
+type SmartValidator = commonauth.SmartValidator
+
+// JWTParser는 공통 모듈의 JWTParser 타입 별칭입니다.
+// Istio JWT 모드에서 사용: 검증 없이 파싱만 수행합니다.
+type JWTParser = commonauth.JWTParser
+
+// NewSmartValidator는 새 SmartValidator를 생성합니다.
+// authServiceURL: auth-service URL (예: http://auth-service:8080)
+// issuer: JWT issuer (예: wealist-auth-service)
+func NewSmartValidator(authServiceURL, issuer string, logger *zap.Logger) *SmartValidator {
+	return commonauth.NewSmartValidator(authServiceURL, issuer, logger)
+}
+
+// NewJWTParser는 새 JWTParser를 생성합니다.
+// Istio JWT 모드에서 사용: Istio가 검증을 완료했다고 가정하고 파싱만 수행합니다.
+func NewJWTParser(logger *zap.Logger) *JWTParser {
+	return commonauth.NewJWTParser(logger)
+}
+
+// IstioAuthMiddleware는 Istio JWT 모드용 미들웨어입니다.
+// Istio가 JWT를 검증한 후 Go 서비스는 파싱만 수행합니다.
+func IstioAuthMiddleware(parser *JWTParser) gin.HandlerFunc {
+	return commonauth.IstioAuthMiddleware(parser)
+}
+
+// AuthWithValidator는 TokenValidator를 사용하여 JWT 토큰을 검증하는 미들웨어입니다.
+func AuthWithValidator(validator TokenValidator) gin.HandlerFunc {
+	return commonauth.AuthMiddlewareWithValidator(validator)
+}
+
+// Auth는 JWT 토큰을 검증하는 미들웨어를 반환합니다.
+// Deprecated: SmartValidator를 사용하는 AuthWithValidator 사용 권장
 func Auth(jwtSecret string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Get Authorization header
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": gin.H{
-					"code":    "UNAUTHORIZED",
-					"message": "Authorization header is required",
-				},
-				"message": "인증이 필요합니다",
-			})
-			c.Abort()
-			return
-		}
+	return commonauth.JWTMiddleware(jwtSecret)
+}
 
-		// Extract token from "Bearer <token>"
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": gin.H{
-					"code":    "UNAUTHORIZED",
-					"message": "Invalid authorization header format",
-				},
-				"message": "잘못된 인증 헤더 형식입니다",
-			})
-			c.Abort()
-			return
-		}
+// GetUserID는 컨텍스트에서 사용자 ID를 추출합니다.
+func GetUserID(c *gin.Context) (uuid.UUID, bool) {
+	return commonauth.GetUserID(c)
+}
 
-		tokenString := parts[1]
-
-		// Parse and validate token
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			// Validate signing method
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return []byte(jwtSecret), nil
-		})
-
-		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": gin.H{
-					"code":    "UNAUTHORIZED",
-					"message": "Invalid or expired token",
-				},
-				"message": "유효하지 않거나 만료된 토큰입니다",
-			})
-			c.Abort()
-			return
-		}
-
-		// Extract user ID from claims
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": gin.H{
-					"code":    "UNAUTHORIZED",
-					"message": "Invalid token claims",
-				},
-				"message": "유효하지 않은 토큰 정보입니다",
-			})
-			c.Abort()
-			return
-		}
-
-		// Extract user ID from claims (support multiple claim formats)
-		var userIDStr string
-
-		// Try "user_id" first (our format)
-		if uid, ok := claims["user_id"].(string); ok {
-			userIDStr = uid
-		} else if sub, ok := claims["sub"].(string); ok {
-			// Try "sub" (Google OAuth format)
-			userIDStr = sub
-		} else if uid, ok := claims["uid"].(string); ok {
-			// Try "uid" (alternative format)
-			userIDStr = uid
-		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": gin.H{
-					"code":    "UNAUTHORIZED",
-					"message": "User ID not found in token",
-				},
-				"message": "토큰에서 사용자 ID를 찾을 수 없습니다",
-			})
-			c.Abort()
-			return
-		}
-
-		// Parse user ID as UUID
-		userID, err := uuid.Parse(userIDStr)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": gin.H{
-					"code":    "UNAUTHORIZED",
-					"message": "Invalid user ID format",
-				},
-				"message": "유효하지 않은 사용자 ID 형식입니다",
-			})
-			c.Abort()
-			return
-		}
-
-		// Store user ID and JWT token in context for downstream use
-		c.Set("user_id", userID)
-		c.Set("jwtToken", tokenString)
-
-		c.Next()
-	}
+// GetJWTToken은 컨텍스트에서 JWT 토큰을 추출합니다.
+func GetJWTToken(c *gin.Context) (string, bool) {
+	return commonauth.GetJWTToken(c)
 }

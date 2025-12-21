@@ -35,10 +35,11 @@ import (
 
 	_ "user-service/docs" // Swagger docs import
 
-	"user-service/internal/client"
 	"user-service/internal/config"
 	"user-service/internal/database"
+	"user-service/internal/middleware"
 	"user-service/internal/router"
+	"user-service/internal/client"
 )
 
 func main() {
@@ -68,7 +69,7 @@ func main() {
 		zap.String("base_path", cfg.Server.BasePath),
 	)
 
-	// Initialize database
+	// Initialize database with retry (wait for DB to be ready)
 	dbConfig := database.Config{
 		DSN:             cfg.Database.GetDSN(),
 		MaxOpenConns:    cfg.Database.MaxOpenConns,
@@ -76,25 +77,24 @@ func main() {
 		ConnMaxLifetime: cfg.Database.ConnMaxLifetime,
 	}
 
-	db, err := database.New(dbConfig)
+	// Retry up to 30 times (5s interval = ~2.5 minutes total wait)
+	db, err := database.NewWithRetry(dbConfig, 5*time.Second, 30)
 	if err != nil {
-		logger.Warn("Failed to connect to database on startup, will retry in background",
+		logger.Fatal("Failed to connect to database after retries",
 			zap.Error(err))
-		database.NewAsync(dbConfig, 5*time.Second)
-	} else {
-		logger.Info("Database connected successfully")
+	}
+	logger.Info("Database connected successfully")
 
-		// Run auto migration (conditional based on DB_AUTO_MIGRATE env)
-		if cfg.Database.AutoMigrate {
-			logger.Info("Running database migrations (DB_AUTO_MIGRATE=true)")
-			if err := database.AutoMigrate(db); err != nil {
-				logger.Warn("Failed to run database migrations", zap.Error(err))
-			} else {
-				logger.Info("Database migrations completed")
-			}
+	// Run auto migration (conditional based on DB_AUTO_MIGRATE env)
+	if cfg.Database.AutoMigrate {
+		logger.Info("Running database migrations (DB_AUTO_MIGRATE=true)")
+		if err := database.AutoMigrate(db); err != nil {
+			logger.Warn("Failed to run database migrations", zap.Error(err))
 		} else {
-			logger.Info("Database auto-migration disabled (DB_AUTO_MIGRATE=false)")
+			logger.Info("Database migrations completed")
 		}
+	} else {
+		logger.Info("Database auto-migration disabled (DB_AUTO_MIGRATE=false)")
 	}
 
 	// Initialize S3 client
@@ -113,21 +113,34 @@ func main() {
 		logger.Warn("S3 configuration incomplete, profile image uploads disabled")
 	}
 
-	// Initialize Auth client
-	var authClient *client.AuthClient
+	// Initialize Redis for rate limiting
+	if err := database.InitRedis(logger); err != nil {
+		logger.Warn("Failed to initialize Redis, rate limiting will be disabled", zap.Error(err))
+	}
+
+	// Initialize Auth validator (SmartValidator for RS256 JWKS support)
+	var tokenValidator middleware.TokenValidator
 	if cfg.AuthAPI.BaseURL != "" {
-		authClient = client.NewAuthClient(cfg.AuthAPI.BaseURL, cfg.AuthAPI.Timeout, logger)
-		logger.Info("Auth client initialized", zap.String("auth_api_url", cfg.AuthAPI.BaseURL))
+		jwtIssuer := os.Getenv("JWT_ISSUER")
+		if jwtIssuer == "" {
+			jwtIssuer = "wealist-auth-service"
+		}
+		tokenValidator = middleware.NewSmartValidator(cfg.AuthAPI.BaseURL, jwtIssuer, logger)
+		logger.Info("SmartValidator initialized",
+			zap.String("auth_api_url", cfg.AuthAPI.BaseURL),
+			zap.String("jwt_issuer", jwtIssuer))
 	}
 
 	// Setup router
 	r := router.Setup(router.Config{
-		DB:         db,
-		Logger:     logger,
-		JWTSecret:  cfg.JWT.Secret,
-		BasePath:   cfg.Server.BasePath,
-		S3Client:   s3Client,
-		AuthClient: authClient,
+		DB:              db,
+		Logger:          logger,
+		JWTSecret:       cfg.JWT.Secret,
+		BasePath:        cfg.Server.BasePath,
+		S3Client:        s3Client,
+		TokenValidator:  tokenValidator,
+		RedisClient:     database.GetRedis(),
+		RateLimitConfig: cfg.RateLimit,
 	})
 
 	// Create HTTP server

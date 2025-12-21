@@ -2,18 +2,21 @@
 package router
 
 import (
-	"context"
-	"time"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	commonhealth "github.com/OrangesCloud/wealist-advanced-go-pkg/health"
 	commonmw "github.com/OrangesCloud/wealist-advanced-go-pkg/middleware"
+	"github.com/OrangesCloud/wealist-advanced-go-pkg/ratelimit"
 	"project-board-api/internal/client"
+	"project-board-api/internal/config"
 	"project-board-api/internal/converter"
 	"project-board-api/internal/database"
 	"project-board-api/internal/handler"
@@ -26,12 +29,16 @@ import (
 type Config struct {
 	DB                 *gorm.DB
 	Logger             *zap.Logger
-	JWTSecret          string
+	JWTSecret          string // Deprecated: Use AuthServiceURL + JWTIssuer instead
+	AuthServiceURL     string // auth-service URL for SmartValidator
+	JWTIssuer          string // JWT issuer for JWKS validation
 	UserClient         client.UserClient
 	BasePath           string
 	UserServiceBaseURL string
 	Metrics            *metrics.Metrics
 	S3Client           *client.S3Client
+	RedisClient        *redis.Client
+	RateLimitConfig    config.RateLimitConfig
 }
 
 // Setup initializes the router with all dependencies and routes.
@@ -50,6 +57,21 @@ func Setup(cfg Config) *gin.Engine {
 	if cfg.Metrics != nil {
 		router.Use(middleware.Metrics(cfg.Metrics))
 		cfg.Logger.Info("Metrics middleware enabled")
+	}
+
+	// Add rate limiting middleware if enabled and Redis is available
+	if cfg.RateLimitConfig.Enabled && cfg.RedisClient != nil {
+		rlConfig := ratelimit.DefaultConfig().
+			WithRequestsPerMinute(cfg.RateLimitConfig.RequestsPerMinute).
+			WithBurstSize(cfg.RateLimitConfig.BurstSize).
+			WithKeyPrefix("rl:board:")
+		limiter := ratelimit.NewRedisRateLimiter(cfg.RedisClient, rlConfig, cfg.Logger)
+		router.Use(ratelimit.MiddlewareWithLogger(limiter, ratelimit.UserKey, rlConfig, cfg.Logger))
+		cfg.Logger.Info("Rate limiting middleware enabled",
+			zap.Int("requests_per_minute", cfg.RateLimitConfig.RequestsPerMinute),
+			zap.Int("burst_size", cfg.RateLimitConfig.BurstSize))
+	} else if cfg.RateLimitConfig.Enabled && cfg.RedisClient == nil {
+		cfg.Logger.Warn("Rate limiting enabled but Redis is not available, skipping")
 	}
 
 	// Initialize repositories
@@ -95,13 +117,9 @@ func Setup(cfg Config) *gin.Engine {
 		cfg.Logger.Info("No base path configured, using root path")
 	}
 
-	// Health check endpoints
-	// Liveness probe - 앱 프로세스만 확인 (DB/Redis 무관)
-	baseGroup.GET("/health/live", livenessHandler())
-	// Readiness probe - DB, Redis 연결 확인
-	baseGroup.GET("/health/ready", readinessHandler(cfg.DB))
-	// 기존 /health 엔드포인트 유지 (하위 호환성)
-	baseGroup.GET("/health", readinessHandler(cfg.DB))
+	// Health check endpoints using common package
+	healthChecker := commonhealth.NewHealthChecker(cfg.DB, database.GetRedis())
+	healthChecker.RegisterRoutes(router, cfg.BasePath)
 
 	// Swagger documentation endpoint
 	baseGroup.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -120,8 +138,27 @@ func Setup(cfg Config) *gin.Engine {
 		cfg.Logger.Info("Metrics endpoint configured at root path", zap.String("path", "/metrics"))
 	}
 
+	// Initialize auth middleware based on ISTIO_JWT_MODE
+	var authMiddleware gin.HandlerFunc
+	istioJWTMode := os.Getenv("ISTIO_JWT_MODE") == "true"
+
+	if istioJWTMode {
+		// K8s + Istio 환경: Istio가 JWT 검증, Go 서비스는 파싱만
+		parser := middleware.NewJWTParser(cfg.Logger)
+		authMiddleware = middleware.IstioAuthMiddleware(parser)
+		cfg.Logger.Info("Using Istio JWT mode (parse only)",
+			zap.String("auth_service_url", cfg.AuthServiceURL))
+	} else if cfg.AuthServiceURL != "" {
+		// Docker Compose / K8s without Istio: SmartValidator로 전체 검증
+		tokenValidator := middleware.NewSmartValidator(cfg.AuthServiceURL, cfg.JWTIssuer, cfg.Logger)
+		authMiddleware = middleware.AuthWithValidator(tokenValidator)
+		cfg.Logger.Info("Using SmartValidator mode (full validation)",
+			zap.String("auth_service_url", cfg.AuthServiceURL),
+			zap.String("jwt_issuer", cfg.JWTIssuer))
+	}
+
 	// Setup API routes
-	setupRoutes(baseGroup, cfg.JWTSecret, projectHandler, boardHandler, participantHandler, commentHandler, fieldOptionHandler, projectMemberHandler, projectJoinRequestHandler, attachmentHandler)
+	setupRoutes(baseGroup, authMiddleware, projectHandler, boardHandler, participantHandler, commentHandler, fieldOptionHandler, projectMemberHandler, projectJoinRequestHandler, attachmentHandler)
 
 	// 🔥 [중요] WebSocket은 baseGroup에 직접 등록 (chat-service와 동일한 패턴)
 	// basePath가 /api/boards일 때: /api/boards/ws/project/:projectId
@@ -130,80 +167,10 @@ func Setup(cfg Config) *gin.Engine {
 	return router
 }
 
-// livenessHandler returns a handler for the liveness probe
-// This only checks if the application process is running (no DB/Redis check)
-// Used by Kubernetes to determine if the pod should be restarted
-func livenessHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status": "alive",
-		})
-	}
-}
-
-// readinessHandler returns a handler for the readiness probe
-// This checks database and Redis connections
-// Used by Kubernetes to determine if the pod should receive traffic
-func readinessHandler(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		checks := gin.H{}
-		isReady := true
-
-		// Check database connection
-		sqlDB, err := db.DB()
-		if err != nil {
-			c.JSON(503, gin.H{
-				"status":   "not_ready",
-				"database": "error",
-				"error":    err.Error(),
-			})
-			return
-		}
-
-		if err := sqlDB.Ping(); err != nil {
-			c.JSON(503, gin.H{
-				"status":   "not_ready",
-				"database": "disconnected",
-				"error":    err.Error(),
-			})
-			return
-		}
-		checks["database"] = "connected"
-
-		// Check Redis connection
-		redisClient := database.GetRedis()
-		if redisClient != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-
-			if err := redisClient.Ping(ctx).Err(); err != nil {
-				checks["redis"] = "disconnected"
-				isReady = false
-			} else {
-				checks["redis"] = "connected"
-			}
-		} else {
-			checks["redis"] = "not_configured"
-		}
-
-		if isReady {
-			c.JSON(200, gin.H{
-				"status": "ready",
-				"checks": checks,
-			})
-		} else {
-			c.JSON(503, gin.H{
-				"status": "not_ready",
-				"checks": checks,
-			})
-		}
-	}
-}
-
 // setupRoutes configures all API routes
 func setupRoutes(
 	baseGroup *gin.RouterGroup,
-	jwtSecret string,
+	authMiddleware gin.HandlerFunc,
 	projectHandler *handler.ProjectHandler,
 	boardHandler *handler.BoardHandler,
 	participantHandler *handler.ParticipantHandler,
@@ -215,7 +182,9 @@ func setupRoutes(
 ) {
 	// API group with authentication
 	api := baseGroup.Group("/api")
-	api.Use(middleware.Auth(jwtSecret))
+	if authMiddleware != nil {
+		api.Use(authMiddleware)
+	}
 	{
 		// Project routes
 		projects := api.Group("/projects")

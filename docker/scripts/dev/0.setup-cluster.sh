@@ -45,12 +45,15 @@ nodes:
     extraPortMappings:
       - containerPort: 80
         hostPort: 80
+        listenAddress: "0.0.0.0"  # Allow external access
         protocol: TCP
       - containerPort: 443
         hostPort: 443
+        listenAddress: "0.0.0.0"  # Allow external access
         protocol: TCP
       - containerPort: 30080
         hostPort: 8080
+        listenAddress: "0.0.0.0"  # Allow external access
         protocol: TCP
   - role: worker
   - role: worker
@@ -89,10 +92,21 @@ kubectl wait --namespace ingress-nginx \
   --selector=app.kubernetes.io/component=controller \
   --timeout=120s || echo "WARNING: Ingress controller not ready yet"
 
-# 8. Nginx Ingress Controller 설정 (snippet 허용)
+# 8. Nginx Ingress Controller 설정 (snippet 허용 + hostNetwork)
 echo "⚙️ Ingress Controller 설정 중..."
 kubectl patch configmap ingress-nginx-controller -n ingress-nginx \
   --type merge -p '{"data":{"allow-snippet-annotations":"true"}}' 2>/dev/null || true
+
+# hostNetwork 활성화 + control-plane 노드에서만 실행 (Kind 포트 매핑과 연결)
+kubectl patch deployment ingress-nginx-controller -n ingress-nginx \
+  --type='json' -p='[
+    {"op": "add", "path": "/spec/template/spec/hostNetwork", "value": true},
+    {"op": "replace", "path": "/spec/template/spec/dnsPolicy", "value": "ClusterFirstWithHostNet"},
+    {"op": "add", "path": "/spec/template/spec/nodeSelector", "value": {"ingress-ready": "true"}}
+  ]' 2>/dev/null || true
+
+echo "⏳ Ingress Controller 재시작 대기..."
+kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=60s || true
 
 # 9. 네임스페이스 생성
 kubectl create namespace wealist-dev 2>/dev/null || true

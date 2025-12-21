@@ -13,6 +13,7 @@ import (
 
 	"storage-service/internal/domain"
 	"storage-service/internal/repository"
+	"storage-service/internal/response"
 )
 
 // FolderService handles folder business logic
@@ -36,13 +37,14 @@ func NewFolderService(
 }
 
 // CreateFolder creates a new folder
+// 폴더 생성: 이름 검증, 부모 폴더 확인, 경로 생성
 func (s *FolderService) CreateFolder(ctx context.Context, req domain.CreateFolderRequest, userID uuid.UUID) (*domain.Folder, error) {
-	// Validate folder name
+	// 폴더명 검증
 	if strings.TrimSpace(req.Name) == "" {
-		return nil, errors.New("folder name cannot be empty")
+		return nil, response.NewValidationError("folder name cannot be empty", "")
 	}
 
-	// Build path
+	// 경로 생성
 	var path string
 	if req.ParentID == nil {
 		path = "/" + req.Name
@@ -50,12 +52,13 @@ func (s *FolderService) CreateFolder(ctx context.Context, req domain.CreateFolde
 		parent, err := s.folderRepo.FindByID(ctx, *req.ParentID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errors.New("parent folder not found")
+				return nil, response.NewNotFoundError("parent folder not found", "")
 			}
 			return nil, fmt.Errorf("failed to find parent folder: %w", err)
 		}
+		// 부모 폴더가 다른 워크스페이스에 속한 경우 차단
 		if parent.WorkspaceID != req.WorkspaceID {
-			return nil, errors.New("parent folder belongs to different workspace")
+			return nil, response.NewForbiddenError("parent folder belongs to different workspace", "")
 		}
 		path = parent.Path + "/" + req.Name
 	}
@@ -107,11 +110,12 @@ func (s *FolderService) CreateFolder(ctx context.Context, req domain.CreateFolde
 }
 
 // GetFolder gets a folder by ID
+// 폴더 ID로 폴더 조회
 func (s *FolderService) GetFolder(ctx context.Context, folderID uuid.UUID) (*domain.Folder, error) {
 	folder, err := s.folderRepo.FindByID(ctx, folderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("folder not found")
+			return nil, response.NewNotFoundError("folder not found", folderID.String())
 		}
 		return nil, fmt.Errorf("failed to get folder: %w", err)
 	}
@@ -119,12 +123,13 @@ func (s *FolderService) GetFolder(ctx context.Context, folderID uuid.UUID) (*dom
 }
 
 // GetFolderContents gets folder with its children and files
+// 폴더 내용 조회: 하위 폴더 및 파일 목록 포함
 func (s *FolderService) GetFolderContents(ctx context.Context, workspaceID uuid.UUID, folderID *uuid.UUID) (*domain.FolderResponse, error) {
-	var response domain.FolderResponse
+	var folderResp domain.FolderResponse
 
 	if folderID == nil {
 		// Root folder
-		response = domain.FolderResponse{
+		folderResp = domain.FolderResponse{
 			ID:          uuid.Nil,
 			WorkspaceID: workspaceID,
 			Name:        "Root",
@@ -136,41 +141,41 @@ func (s *FolderService) GetFolderContents(ctx context.Context, workspaceID uuid.
 		folder, err := s.folderRepo.FindByID(ctx, *folderID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errors.New("folder not found")
+				return nil, response.NewNotFoundError("folder not found", folderID.String())
 			}
 			return nil, fmt.Errorf("failed to get folder: %w", err)
 		}
-		response = folder.ToResponse()
+		folderResp = folder.ToResponse()
 	}
 
-	// Get child folders
+	// 하위 폴더 조회
 	childFolders, err := s.folderRepo.FindByParentID(ctx, workspaceID, folderID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get child folders: %w", err)
 	}
 	for _, child := range childFolders {
 		childResp := child.ToResponse()
-		// Get counts for each child
+		// 각 하위 폴더의 카운트 정보
 		childResp.FolderCount, _ = s.folderRepo.CountByParentID(ctx, child.ID)
 		childResp.FileCount, _ = s.fileRepo.CountByFolderID(ctx, child.ID)
 		childResp.TotalSize, _ = s.fileRepo.SumSizeByFolderID(ctx, child.ID)
-		response.Children = append(response.Children, childResp)
+		folderResp.Children = append(folderResp.Children, childResp)
 	}
 
-	// Get files in folder
+	// 폴더 내 파일 조회
 	files, err := s.fileRepo.FindByFolderID(ctx, workspaceID, folderID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get files: %w", err)
 	}
 	for _, file := range files {
-		response.Files = append(response.Files, file.ToResponse(file.FileKey)) // FileKey passed for URL generation in handler
+		folderResp.Files = append(folderResp.Files, file.ToResponse(file.FileKey))
 	}
 
-	// Set counts
-	response.FolderCount = int64(len(childFolders))
-	response.FileCount = int64(len(files))
+	// 카운트 설정
+	folderResp.FolderCount = int64(len(childFolders))
+	folderResp.FileCount = int64(len(files))
 
-	return &response, nil
+	return &folderResp, nil
 }
 
 // GetWorkspaceFolders gets all folders in a workspace
@@ -184,35 +189,36 @@ func (s *FolderService) GetRootFolders(ctx context.Context, workspaceID uuid.UUI
 }
 
 // UpdateFolder updates a folder
+// 폴더 수정: 이름 변경, 색상 변경, 이동
 func (s *FolderService) UpdateFolder(ctx context.Context, folderID uuid.UUID, req domain.UpdateFolderRequest, userID uuid.UUID) (*domain.Folder, error) {
 	folder, err := s.folderRepo.FindByID(ctx, folderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("folder not found")
+			return nil, response.NewNotFoundError("folder not found", folderID.String())
 		}
 		return nil, fmt.Errorf("failed to get folder: %w", err)
 	}
 
 	oldPath := folder.Path
 
-	// Update name if provided
+	// 이름 변경
 	if req.Name != nil && *req.Name != folder.Name {
 		name := strings.TrimSpace(*req.Name)
 		if name == "" {
-			return nil, errors.New("folder name cannot be empty")
+			return nil, response.NewValidationError("folder name cannot be empty", "")
 		}
 
-		// Check for duplicate name
+		// 중복 이름 확인
 		exists, err := s.folderRepo.ExistsByNameInParent(ctx, folder.WorkspaceID, folder.ParentID, name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check duplicate name: %w", err)
 		}
 		if exists {
-			return nil, errors.New("folder with this name already exists")
+			return nil, response.NewAlreadyExistsError("folder with this name already exists", name)
 		}
 
 		folder.Name = name
-		// Update path
+		// 경로 업데이트
 		if folder.ParentID == nil {
 			folder.Path = "/" + name
 		} else {
@@ -221,25 +227,26 @@ func (s *FolderService) UpdateFolder(ctx context.Context, folderID uuid.UUID, re
 		}
 	}
 
-	// Update color if provided
+	// 색상 변경
 	if req.Color != nil {
 		folder.Color = req.Color
 	}
 
-	// Move folder if parent changed
+	// 폴더 이동
 	if req.ParentID != nil && (folder.ParentID == nil || *req.ParentID != *folder.ParentID) {
-		// Validate new parent
+		// 새 부모 폴더 검증
 		if *req.ParentID != uuid.Nil {
 			newParent, err := s.folderRepo.FindByID(ctx, *req.ParentID)
 			if err != nil {
-				return nil, errors.New("new parent folder not found")
+				return nil, response.NewNotFoundError("new parent folder not found", req.ParentID.String())
 			}
+			// 다른 워크스페이스로 이동 불가
 			if newParent.WorkspaceID != folder.WorkspaceID {
-				return nil, errors.New("cannot move folder to different workspace")
+				return nil, response.NewForbiddenError("cannot move folder to different workspace", "")
 			}
-			// Prevent moving to self or descendant
+			// 자신 또는 하위 폴더로 이동 불가
 			if strings.HasPrefix(newParent.Path, folder.Path+"/") || newParent.ID == folder.ID {
-				return nil, errors.New("cannot move folder into itself or its descendants")
+				return nil, response.NewBadRequestError("cannot move folder into itself or its descendants", "")
 			}
 			folder.ParentID = &newParent.ID
 			folder.Path = newParent.Path + "/" + folder.Name
@@ -271,11 +278,12 @@ func (s *FolderService) UpdateFolder(ctx context.Context, folderID uuid.UUID, re
 }
 
 // DeleteFolder soft deletes a folder (move to trash)
+// 폴더 삭제 (휴지통으로 이동): 하위 폴더 및 파일도 함께 삭제
 func (s *FolderService) DeleteFolder(ctx context.Context, folderID uuid.UUID, userID uuid.UUID) error {
 	folder, err := s.folderRepo.FindByID(ctx, folderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("folder not found")
+			return response.NewNotFoundError("folder not found", folderID.String())
 		}
 		return fmt.Errorf("failed to get folder: %w", err)
 	}
@@ -299,17 +307,19 @@ func (s *FolderService) DeleteFolder(ctx context.Context, folderID uuid.UUID, us
 }
 
 // RestoreFolder restores a deleted folder
+// 삭제된 폴더 복원
 func (s *FolderService) RestoreFolder(ctx context.Context, folderID uuid.UUID, userID uuid.UUID) error {
 	folder, err := s.folderRepo.FindByIDWithDeleted(ctx, folderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("folder not found")
+			return response.NewNotFoundError("folder not found", folderID.String())
 		}
 		return fmt.Errorf("failed to get folder: %w", err)
 	}
 
+	// 삭제 상태 확인
 	if folder.DeletedAt == nil {
-		return errors.New("folder is not deleted")
+		return response.NewConflictError("folder is not deleted", folderID.String())
 	}
 
 	if err := s.folderRepo.Restore(ctx, folderID); err != nil {
@@ -325,11 +335,12 @@ func (s *FolderService) RestoreFolder(ctx context.Context, folderID uuid.UUID, u
 }
 
 // PermanentDeleteFolder permanently deletes a folder
+// 폴더 영구 삭제
 func (s *FolderService) PermanentDeleteFolder(ctx context.Context, folderID uuid.UUID, userID uuid.UUID) error {
 	folder, err := s.folderRepo.FindByIDWithDeleted(ctx, folderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("folder not found")
+			return response.NewNotFoundError("folder not found", folderID.String())
 		}
 		return fmt.Errorf("failed to get folder: %w", err)
 	}

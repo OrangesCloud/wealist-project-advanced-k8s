@@ -1,0 +1,88 @@
+# Istio Addons Configuration
+namespace: istio-system
+
+# =============================================================================
+# 이미지 레지스트리 설정
+# =============================================================================
+# Docker Hub rate limit 회피를 위해 GHCR 미러 사용 가능
+# 기본값: Docker Hub 직접 사용
+# dev 환경: GHCR 미러 사용 (ghcr.io/orangescloud/base/*)
+imageRegistry: ""  # "" = Docker Hub, "ghcr.io/orangescloud/base" = GHCR 미러
+
+# Kiali - Service Mesh Dashboard
+kiali:
+  enabled: true
+  image:
+    repository: quay.io/kiali/kiali
+    tag: v1.77
+  service:
+    type: ClusterIP
+    port: 20001
+  auth:
+    strategy: anonymous  # anonymous, token, openid
+  prometheus:
+    url: "http://prometheus:9090"
+  grafana:
+    enabled: true
+    url: "http://grafana:3000"
+  tracing:
+    enabled: true
+    url: "http://jaeger-query:16686"
+
+# Jaeger - Distributed Tracing
+jaeger:
+  enabled: true
+  allInOne: true  # For dev/test. Set false for production
+  image:
+    repository: jaegertracing/all-in-one
+    tag: "1.52"
+  service:
+    collector:
+      port: 14268
+    query:
+      port: 16686
+    zipkin:
+      port: 9411
+  storage:
+    type: memory  # memory, elasticsearch, cassandra
+    # For production, use:
+    # type: elasticsearch
+    # elasticsearch:
+    #   host: elasticsearch
+    #   port: 9200
+
+# Prometheus - Metrics (Istio telemetry)
+prometheus:
+  enabled: true
+  image:
+    repository: prom/prometheus
+    tag: v2.48.0
+  service:
+    port: 9090
+  retention: 6h
+  scrapeInterval: 15s
+
+# Grafana - Visualization
+grafana:
+  enabled: true
+  image:
+    repository: grafana/grafana
+    tag: "10.2.2"
+  service:
+    type: ClusterIP
+    port: 3000
+  adminUser: admin
+  adminPassword: admin
+  dashboards:
+    istio: true
+
+# =============================================================================
+# ReferenceGrant - Cross-namespace routing
+# =============================================================================
+# HTTPRoute가 다른 네임스페이스에서 istio-system의 Kiali, Jaeger를 참조할 때 필요
+referenceGrant:
+  enabled: true
+  # HTTPRoute를 허용할 네임스페이스 목록
+  allowedNamespaces:
+    - wealist-localhost
+    - wealist-dev

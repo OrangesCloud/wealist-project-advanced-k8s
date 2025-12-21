@@ -1,3 +1,7 @@
+// Package repository provides data access layer for noti-service.
+//
+// This package implements the NotificationRepository for managing
+// notifications in the PostgreSQL database using GORM.
 package repository
 
 import (
@@ -8,22 +12,27 @@ import (
 	"gorm.io/gorm"
 )
 
+// NotificationRepository handles notification data persistence.
 type NotificationRepository struct {
 	db *gorm.DB
 }
 
+// NewNotificationRepository creates a new NotificationRepository with the given GORM database.
 func NewNotificationRepository(db *gorm.DB) *NotificationRepository {
 	return &NotificationRepository{db: db}
 }
 
+// Create inserts a new notification into the database.
 func (r *NotificationRepository) Create(notification *domain.Notification) error {
 	return r.db.Create(notification).Error
 }
 
+// CreateBatch inserts multiple notifications in a single transaction.
 func (r *NotificationRepository) CreateBatch(notifications []domain.Notification) error {
 	return r.db.Create(&notifications).Error
 }
 
+// GetByID retrieves a notification by its ID.
 func (r *NotificationRepository) GetByID(id uuid.UUID) (*domain.Notification, error) {
 	var notification domain.Notification
 	err := r.db.First(&notification, "id = ?", id).Error
@@ -33,6 +42,7 @@ func (r *NotificationRepository) GetByID(id uuid.UUID) (*domain.Notification, er
 	return &notification, nil
 }
 
+// GetByIDAndUserID retrieves a notification ensuring it belongs to the specified user.
 func (r *NotificationRepository) GetByIDAndUserID(id, userID uuid.UUID) (*domain.Notification, error) {
 	var notification domain.Notification
 	err := r.db.First(&notification, "id = ? AND target_user_id = ?", id, userID).Error
@@ -42,6 +52,7 @@ func (r *NotificationRepository) GetByIDAndUserID(id, userID uuid.UUID) (*domain
 	return &notification, nil
 }
 
+// GetByUserAndWorkspace returns paginated notifications for a user in a workspace.
 func (r *NotificationRepository) GetByUserAndWorkspace(userID, workspaceID uuid.UUID, page, limit int, unreadOnly bool) ([]domain.Notification, int64, error) {
 	var notifications []domain.Notification
 	var total int64
@@ -70,6 +81,7 @@ func (r *NotificationRepository) GetByUserAndWorkspace(userID, workspaceID uuid.
 	return notifications, total, nil
 }
 
+// GetUnreadCount returns the count of unread notifications for a user in a workspace.
 func (r *NotificationRepository) GetUnreadCount(userID, workspaceID uuid.UUID) (int64, error) {
 	var count int64
 	err := r.db.Model(&domain.Notification{}).
@@ -78,6 +90,7 @@ func (r *NotificationRepository) GetUnreadCount(userID, workspaceID uuid.UUID) (
 	return count, err
 }
 
+// MarkAsRead marks a notification as read and returns the updated notification.
 func (r *NotificationRepository) MarkAsRead(id, userID uuid.UUID) (*domain.Notification, error) {
 	now := time.Now()
 	result := r.db.Model(&domain.Notification{}).
@@ -98,6 +111,7 @@ func (r *NotificationRepository) MarkAsRead(id, userID uuid.UUID) (*domain.Notif
 	return r.GetByID(id)
 }
 
+// MarkAllAsRead marks all unread notifications as read for a user in a workspace.
 func (r *NotificationRepository) MarkAllAsRead(userID, workspaceID uuid.UUID) (int64, error) {
 	now := time.Now()
 	result := r.db.Model(&domain.Notification{}).
@@ -110,6 +124,7 @@ func (r *NotificationRepository) MarkAllAsRead(userID, workspaceID uuid.UUID) (i
 	return result.RowsAffected, result.Error
 }
 
+// Delete removes a notification and returns whether it was deleted and if it was unread.
 func (r *NotificationRepository) Delete(id, userID uuid.UUID) (bool, bool, error) {
 	// Get notification first to check if it was unread
 	var notification domain.Notification
@@ -130,6 +145,7 @@ func (r *NotificationRepository) Delete(id, userID uuid.UUID) (bool, bool, error
 	return true, wasUnread, nil
 }
 
+// CleanupOld removes read notifications older than the specified number of days.
 func (r *NotificationRepository) CleanupOld(daysOld int) (int64, error) {
 	cutoff := time.Now().AddDate(0, 0, -daysOld)
 	result := r.db.Where("is_read = ? AND created_at < ?", true, cutoff).

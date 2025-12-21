@@ -39,7 +39,6 @@ import (
 
 	_ "noti-service/docs" // Swagger docs import
 
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -54,7 +53,7 @@ func main() {
 
 	// Initialize logger
 	logger := initLogger(cfg.Server.Env, cfg.Server.LogLevel)
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	logger.Info("Starting notification service",
 		zap.String("env", cfg.Server.Env),
@@ -68,30 +67,15 @@ func main() {
 	}
 
 	sqlDB, _ := db.DB()
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
-	// Initialize Redis
-	var redisClient *redis.Client
-	if cfg.Redis.Host != "" {
-		redisClient = redis.NewClient(&redis.Options{
-			Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
-			Password: cfg.Redis.Password,
-			DB:       cfg.Redis.DB,
-		})
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		if err := redisClient.Ping(ctx).Err(); err != nil {
-			logger.Warn("Failed to connect to Redis", zap.Error(err))
-			redisClient = nil
-		} else {
-			logger.Info("Connected to Redis",
-				zap.String("host", cfg.Redis.Host),
-				zap.Int("port", cfg.Redis.Port),
-			)
-			defer redisClient.Close()
-		}
+	// Initialize Redis for SSE and rate limiting
+	if err := database.InitRedis(logger); err != nil {
+		logger.Warn("Failed to initialize Redis, SSE and rate limiting will be disabled", zap.Error(err))
+	}
+	redisClient := database.GetRedis()
+	if redisClient != nil {
+		defer func() { _ = redisClient.Close() }()
 	}
 
 	// Setup router

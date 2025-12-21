@@ -14,11 +14,12 @@ import (
 
 	"github.com/robfig/cron/v3"
 
+	commonlogger "github.com/OrangesCloud/wealist-advanced-go-pkg/logger"
+
 	"project-board-api/internal/client"
 	"project-board-api/internal/config"
 	"project-board-api/internal/database"
 	"project-board-api/internal/job"
-	"project-board-api/internal/logger"
 	"project-board-api/internal/metrics"
 	"project-board-api/internal/repository"
 	"project-board-api/internal/router"
@@ -77,8 +78,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize logger
-	log, err := logger.New(cfg.Logger.Level, cfg.Logger.OutputPath)
+	// Initialize logger (using common logger package)
+	log, err := commonlogger.New(cfg.Logger.Level, cfg.Logger.OutputPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 		os.Exit(1)
@@ -130,7 +131,7 @@ func main() {
 
 	// Initialize and start business metrics collector
 	businessCollector := metrics.NewBusinessMetricsCollector(db, m, log.Logger)
-	businessCollector.Start()
+	periodicCollector := businessCollector.StartPeriodicCollection()
 	log.Info("Business metrics collector started")
 
 	// Run GORM auto-migration with retry logic (conditional based on DB_AUTO_MIGRATE env)
@@ -219,13 +220,17 @@ func main() {
 
 	// Setup router with dependency injection
 	routerConfig := router.Config{
-		DB:         db,
-		Logger:     log.Logger,
-		JWTSecret:  cfg.JWT.Secret,
-		UserClient: userClient,
-		BasePath:   cfg.Server.BasePath,
-		Metrics:    m,
-		S3Client:   s3Client,
+		DB:              db,
+		Logger:          log.Logger,
+		JWTSecret:       cfg.JWT.Secret, // Deprecated: kept for backward compatibility
+		AuthServiceURL:  cfg.AuthAPI.BaseURL,
+		JWTIssuer:       cfg.AuthAPI.JWTIssuer,
+		UserClient:      userClient,
+		BasePath:        cfg.Server.BasePath,
+		Metrics:         m,
+		S3Client:        s3Client,
+		RedisClient:     database.GetRedis(),
+		RateLimitConfig: cfg.RateLimit,
 	}
 
 	r := router.Setup(routerConfig)
@@ -277,7 +282,7 @@ func main() {
 
 	// Stop business metrics collector
 	log.Info("Stopping business metrics collector")
-	businessCollector.Stop()
+	periodicCollector.Stop()
 	log.Info("Business metrics collector stopped")
 
 	// Stop cron scheduler

@@ -1,8 +1,13 @@
+// Package router configures HTTP routing for noti-service.
+//
+// This package sets up the Gin router with all middleware, handlers,
+// and route definitions for the notification API.
 package router
 
 import (
 	"noti-service/internal/config"
 	"noti-service/internal/handler"
+	"noti-service/internal/metrics"
 	"noti-service/internal/middleware"
 	"noti-service/internal/repository"
 	"noti-service/internal/service"
@@ -11,15 +16,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
-	// swaggerFiles "github.com/swaggo/files"
-	// ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	commonhealth "github.com/OrangesCloud/wealist-advanced-go-pkg/health"
 	commonmw "github.com/OrangesCloud/wealist-advanced-go-pkg/middleware"
+	"github.com/OrangesCloud/wealist-advanced-go-pkg/ratelimit"
 )
 
+// Setup configures and returns the Gin router with all routes and middleware.
 func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *zap.Logger) *gin.Engine {
 	if cfg.Server.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -27,18 +32,59 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 
 	r := gin.New()
 
+	// Initialize metrics
+	m := metrics.New()
+
 	// Middleware (using common package)
 	r.Use(commonmw.Recovery(logger))
 	r.Use(commonmw.Logger(logger))
 	r.Use(commonmw.DefaultCORS())
+	r.Use(metrics.HTTPMiddleware(m))
+
+	// Rate limiting middleware
+	if cfg.RateLimit.Enabled && redisClient != nil {
+		rlConfig := ratelimit.DefaultConfig().
+			WithRequestsPerMinute(cfg.RateLimit.RequestsPerMinute).
+			WithBurstSize(cfg.RateLimit.BurstSize).
+			WithKeyPrefix("rl:noti:")
+		limiter := ratelimit.NewRedisRateLimiter(redisClient, rlConfig, logger)
+		r.Use(ratelimit.MiddlewareWithLogger(limiter, ratelimit.UserKey, rlConfig, logger))
+		logger.Info("Rate limiting middleware enabled",
+			zap.Int("requests_per_minute", cfg.RateLimit.RequestsPerMinute),
+			zap.Int("burst_size", cfg.RateLimit.BurstSize))
+	} else if cfg.RateLimit.Enabled && redisClient == nil {
+		logger.Warn("Rate limiting enabled but Redis is not available, skipping")
+	}
 
 	// Initialize services
+	// 레포지토리와 SSE 서비스 초기화
 	notificationRepo := repository.NewNotificationRepository(db)
 	sseService := sse.NewSSEService(redisClient, logger)
-	notificationService := service.NewNotificationService(notificationRepo, redisClient, cfg, logger)
+	// 알림 서비스 초기화 (메트릭 포함)
+	notificationService := service.NewNotificationService(notificationRepo, redisClient, cfg, logger, m)
 
-	// Initialize handlers
-	validator := middleware.NewAuthServiceValidator(cfg.Auth.ServiceURL, cfg.Auth.SecretKey, logger)
+	// Initialize auth middleware based on ISTIO_JWT_MODE
+	var authMiddleware gin.HandlerFunc
+	var sseValidator middleware.TokenValidator
+
+	if cfg.BaseConfig.Auth.IstioJWTMode {
+		// K8s + Istio 환경: Istio가 JWT 검증, Go 서비스는 파싱만
+		parser := middleware.NewJWTParser(logger)
+		authMiddleware = middleware.IstioAuthMiddleware(parser)
+		// SSE용 validator는 SmartValidator 사용 (SSE는 query param으로 토큰 전달)
+		sseValidator = middleware.NewSmartValidator(cfg.BaseConfig.Auth.ServiceURL, cfg.BaseConfig.Auth.JWTIssuer, logger)
+		logger.Info("Using Istio JWT mode (parse only)",
+			zap.String("auth_service_url", cfg.BaseConfig.Auth.ServiceURL))
+	} else {
+		// Docker Compose / K8s without Istio: SmartValidator로 전체 검증
+		validator := middleware.NewSmartValidator(cfg.BaseConfig.Auth.ServiceURL, cfg.BaseConfig.Auth.JWTIssuer, logger)
+		authMiddleware = middleware.AuthMiddleware(validator)
+		sseValidator = validator
+		logger.Info("Using SmartValidator mode (full validation)",
+			zap.String("auth_service_url", cfg.BaseConfig.Auth.ServiceURL),
+			zap.String("jwt_issuer", cfg.BaseConfig.Auth.JWTIssuer))
+	}
+
 	notificationHandler := handler.NewNotificationHandler(notificationService, sseService, logger)
 
 	// Health check routes (using common package)
@@ -55,11 +101,12 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 	api := r.Group("/api")
 	{
 		// SSE stream endpoint (uses query param token because EventSource doesn't support headers)
-		api.GET("/notifications/stream", middleware.SSEAuthMiddleware(validator), notificationHandler.StreamNotifications)
+		// SSE는 Istio를 통하지 않을 수 있으므로 SmartValidator 사용
+		api.GET("/notifications/stream", middleware.SSEAuthMiddleware(sseValidator), notificationHandler.StreamNotifications)
 
 		// Notification routes (require auth via Authorization header)
 		notifications := api.Group("/notifications")
-		notifications.Use(middleware.AuthMiddleware(validator))
+		notifications.Use(authMiddleware)
 		notifications.Use(middleware.WorkspaceMiddleware())
 		{
 			notifications.GET("", middleware.RequireWorkspace(), notificationHandler.GetNotifications)
@@ -71,7 +118,7 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 
 		// Internal API routes (require API key)
 		internal := api.Group("/internal")
-		internal.Use(middleware.InternalAuthMiddleware(cfg.Auth.InternalAPIKey))
+		internal.Use(middleware.InternalAuthMiddleware(cfg.InternalAuth.InternalAPIKey))
 		{
 			internal.POST("/notifications", notificationHandler.CreateNotification)
 			internal.POST("/notifications/bulk", notificationHandler.CreateBulkNotifications)

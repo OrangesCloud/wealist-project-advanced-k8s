@@ -1,0 +1,113 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" version="29.2.7">
+  <diagram name="K8s Workloads v6" id="k8s-workloads-v6">
+    <mxGraphModel dx="1127" dy="1187" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=24;fontStyle=1;fontColor=#232F3E;" value="EKS Cluster - Workloads (Inner View)" vertex="1">
+          <mxGeometry height="40" width="450" x="25" y="12" as="geometry" />
+        </mxCell>
+        <mxCell id="eks-cluster" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#ED7100;strokeWidth=2;dashed=1;dashPattern=8 4;verticalAlign=top;align=left;spacingLeft=50;fontSize=16;fontStyle=1;fontColor=#ED7100;" value="EKS Cluster" vertex="1">
+          <mxGeometry height="610" width="1160" x="20" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="eks-icon" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.eks;html=1;fillColor=#ED7100;strokeColor=#FFFFFF;" value="" vertex="1">
+          <mxGeometry height="38" width="38" x="28" y="63" as="geometry" />
+        </mxCell>
+        <mxCell id="control-plane" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#326CE5;strokeWidth=2;verticalAlign=top;align=center;fontSize=13;fontStyle=1;fontColor=#326CE5;spacingTop=5;" value="Control Plane" vertex="1">
+          <mxGeometry height="70" width="200" x="100" y="122" as="geometry" />
+        </mxCell>
+        <mxCell id="cp-items" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#326CE5;" value="etcd | api-server | scheduler" vertex="1">
+          <mxGeometry height="25" width="180" x="110" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="alb" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.application_load_balancer;html=1;fillColor=#8C4FFF;strokeColor=#FFFFFF;" value="" vertex="1">
+          <mxGeometry height="50" width="50" x="575" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="alb-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=12;fontColor=#8C4FFF;fontStyle=1;" value="ALB" vertex="1">
+          <mxGeometry height="20" width="50" x="575" y="147" as="geometry" />
+        </mxCell>
+        <mxCell id="observability" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=top;align=center;fontSize=13;fontStyle=1;fontColor=#232F3E;spacingTop=5;" value="Observability" vertex="1">
+          <mxGeometry height="100" width="200" x="900" y="122" as="geometry" />
+        </mxCell>
+        <mxCell id="obs-prom-icon" parent="1" style="shape=image;html=1;verticalAlign=middle;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;imageAspect=0;aspect=fixed;image=https://raw.githubusercontent.com/cncf/artwork/master/projects/prometheus/icon/color/prometheus-icon-color.svg;fillColor=#E6522C;" value="" vertex="1">
+          <mxGeometry height="40" width="40" x="920" y="152" as="geometry" />
+        </mxCell>
+        <mxCell id="obs-prom-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=10;fontColor=#E6522C;fontStyle=1;" value="Prometheus" vertex="1">
+          <mxGeometry height="16" width="60" x="910" y="194" as="geometry" />
+        </mxCell>
+        <mxCell id="obs-graf-icon" parent="1" style="shape=image;html=1;verticalAlign=middle;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;imageAspect=0;aspect=fixed;image=https://raw.githubusercontent.com/grafana/grafana/main/public/img/grafana_icon.svg;fillColor=#F46800;" value="" vertex="1">
+          <mxGeometry height="40" width="40" x="980" y="152" as="geometry" />
+        </mxCell>
+        <mxCell id="obs-graf-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=10;fontColor=#F46800;fontStyle=1;" value="Grafana" vertex="1">
+          <mxGeometry height="16" width="50" x="975" y="194" as="geometry" />
+        </mxCell>
+        <mxCell id="obs-loki-icon" parent="1" style="shape=image;html=1;verticalAlign=middle;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;imageAspect=0;aspect=fixed;image=https://raw.githubusercontent.com/grafana/loki/main/docs/sources/logo.png;fillColor=#F2C12E;" value="" vertex="1">
+          <mxGeometry height="40" width="40" x="1040" y="152" as="geometry" />
+        </mxCell>
+        <mxCell id="obs-loki-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=10;fontColor=#C9A227;fontStyle=1;" value="Loki" vertex="1">
+          <mxGeometry height="16" width="40" x="1040" y="194" as="geometry" />
+        </mxCell>
+        <mxCell id="istio-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#466BB0;strokeColor=none;verticalAlign=middle;align=center;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" value="Istio Ingress Gateway" vertex="1">
+          <mxGeometry height="45" width="200" x="500" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="wealist-ns" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#326CE5;strokeWidth=2;dashed=1;dashPattern=8 4;verticalAlign=top;align=left;spacingLeft=15;fontSize=16;fontStyle=1;fontColor=#326CE5;" value="wealist namespace" vertex="1">
+          <mxGeometry height="370" width="1000" x="100" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E4D8C;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;spacingLeft=20;" value="&lt;b style=&quot;font-size:16px&quot;&gt;auth-service :8080&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;Spring Boot · 2-5&lt;/span&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="145" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-auth-icon" parent="1" style="shape=mxgraph.kubernetes.svc;html=1;fillColor=#FFFFFF;strokeColor=#1E4D8C;" value="" vertex="1">
+          <mxGeometry height="20" width="20" x="150" y="355" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-user" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;spacingLeft=20;" value="&lt;b style=&quot;font-size:16px&quot;&gt;user-service :8081&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;Go+Gin · 2-5&lt;/span&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="365" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-user-icon" parent="1" style="shape=mxgraph.kubernetes.svc;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;" value="" vertex="1">
+          <mxGeometry height="20" width="20" x="370" y="355" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-board" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;spacingLeft=20;" value="&lt;b style=&quot;font-size:16px&quot;&gt;board-service :8000&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;Go+Gin · 2-5&lt;/span&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="585" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-board-icon" parent="1" style="shape=mxgraph.kubernetes.svc;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;" value="" vertex="1">
+          <mxGeometry height="20" width="20" x="590" y="355" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-chat" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;spacingLeft=20;" value="&lt;b style=&quot;font-size:16px&quot;&gt;chat-service :8001&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;Go+WebSocket · 2-5&lt;/span&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="805" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-chat-icon" parent="1" style="shape=mxgraph.kubernetes.svc;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;" value="" vertex="1">
+          <mxGeometry height="20" width="20" x="810" y="355" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-noti" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;spacingLeft=20;" value="&lt;b style=&quot;font-size:16px&quot;&gt;noti-service :8002&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;Go+SSE · 2-5&lt;/span&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="255" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-noti-icon" parent="1" style="shape=mxgraph.kubernetes.svc;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;" value="" vertex="1">
+          <mxGeometry height="20" width="20" x="260" y="515" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-storage" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;spacingLeft=20;" value="&lt;b style=&quot;font-size:16px&quot;&gt;storage-service :8003&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;Go+S3 · 2-5&lt;/span&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="500" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-storage-icon" parent="1" style="shape=mxgraph.kubernetes.svc;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;" value="" vertex="1">
+          <mxGeometry height="20" width="20" x="505" y="515" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-video" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;spacingLeft=20;" value="&lt;b style=&quot;font-size:16px&quot;&gt;video-service :8004&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;Go+LiveKit · 2-5&lt;/span&gt;" vertex="1">
+          <mxGeometry height="80" width="200" x="745" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-video-icon" parent="1" style="shape=mxgraph.kubernetes.svc;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;" value="" vertex="1">
+          <mxGeometry height="20" width="20" x="750" y="515" as="geometry" />
+        </mxCell>
+        <mxCell id="conn-alb-istio" edge="1" parent="1" source="alb" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#8C4FFF;strokeWidth=2;endArrow=classic;endFill=1;" target="istio-box" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="conn-istio-ns" edge="1" parent="1" source="istio-box" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#466BB0;strokeWidth=2;endArrow=classic;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="wealist-ns" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="conn-obs-ns" edge="1" parent="1" source="observability" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#E6522C;strokeWidth=1.5;dashed=1;endArrow=classic;endFill=1;startArrow=classic;startFill=1;" target="wealist-ns" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1060" y="280" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

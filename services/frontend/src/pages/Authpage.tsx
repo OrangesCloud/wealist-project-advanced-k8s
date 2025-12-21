@@ -2,10 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { getGoogleAuthUrl } from '../api/apiConfig';
-
-// ⚠️ 백엔드 OAuth2 인증 시작 엔드포인트 (apiConfig에서 중앙 관리)
-const GOOGLE_AUTH_URL = getGoogleAuthUrl();
-console.log('GOOGLE_AUTH_URL:', GOOGLE_AUTH_URL);
 const AuthPage: React.FC = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -37,7 +33,10 @@ const AuthPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      window.location.href = GOOGLE_AUTH_URL;
+      // ⚠️ getGoogleAuthUrl()을 클릭 시점에 호출해야 window.__ENV__가 확실히 로드됨
+      const googleAuthUrl = getGoogleAuthUrl();
+      console.log('GOOGLE_AUTH_URL:', googleAuthUrl);
+      window.location.href = googleAuthUrl;
     } catch (e) {
       setIsLoading(false);
       setError('인증 요청 URL 접근 중 오류가 발생했습니다.');

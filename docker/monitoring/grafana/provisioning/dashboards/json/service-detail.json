@@ -41,7 +41,7 @@
       "gridPos": {"h": 4, "w": 5, "x": 4, "y": 1},
       "id": 2,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(rate(http_requests_total{job=\"$service\"}[5m]))", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "sum(rate({__name__=~\".+_http_requests_total\", job=\"$service\"}[5m]))", "legendFormat": "", "refId": "A"}],
       "title": "RPS (초당 요청)",
       "type": "stat"
     },
@@ -53,7 +53,7 @@
       "gridPos": {"h": 4, "w": 5, "x": 9, "y": 1},
       "id": 3,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(rate(http_requests_total{job=\"$service\", status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"$service\"}[5m])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "sum(rate({__name__=~\".+_http_requests_total\", job=\"$service\", status=~\"5..\"}[5m])) / sum(rate({__name__=~\".+_http_requests_total\", job=\"$service\"}[5m])) or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "에러율 (5xx)",
       "type": "stat"
     },
@@ -65,7 +65,7 @@
       "gridPos": {"h": 4, "w": 5, "x": 14, "y": 1},
       "id": 4,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"$service\"}[5m])) by (le))", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate({__name__=~\".+_http_request_duration_seconds_bucket\", job=\"$service\"}[5m])) by (le))", "legendFormat": "", "refId": "A"}],
       "title": "응답시간 (p95)",
       "type": "stat"
     },
@@ -77,7 +77,7 @@
       "gridPos": {"h": 4, "w": 5, "x": 19, "y": 1},
       "id": 5,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "http_requests_in_flight{job=\"$service\"}", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "{__name__=~\".+_http_requests_in_flight\", job=\"$service\"}", "legendFormat": "", "refId": "A"}],
       "title": "처리 중 요청",
       "type": "stat"
     },
@@ -100,9 +100,9 @@
       "id": 6,
       "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "sum(rate(http_requests_total{job=\"$service\", status=~\"2..\"}[5m]))", "legendFormat": "2xx (성공)", "refId": "A"},
-        {"expr": "sum(rate(http_requests_total{job=\"$service\", status=~\"4..\"}[5m]))", "legendFormat": "4xx (클라이언트 에러)", "refId": "B"},
-        {"expr": "sum(rate(http_requests_total{job=\"$service\", status=~\"5..\"}[5m]))", "legendFormat": "5xx (서버 에러)", "refId": "C"}
+        {"expr": "sum(rate({__name__=~\".+_http_requests_total\", job=\"$service\", status=~\"2..\"}[5m]))", "legendFormat": "2xx (성공)", "refId": "A"},
+        {"expr": "sum(rate({__name__=~\".+_http_requests_total\", job=\"$service\", status=~\"4..\"}[5m]))", "legendFormat": "4xx (클라이언트 에러)", "refId": "B"},
+        {"expr": "sum(rate({__name__=~\".+_http_requests_total\", job=\"$service\", status=~\"5..\"}[5m]))", "legendFormat": "5xx (서버 에러)", "refId": "C"}
       ],
       "title": "HTTP 상태코드별 요청",
       "type": "timeseries"
@@ -120,9 +120,9 @@
       "id": 7,
       "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=\"$service\"}[5m])) by (le))", "legendFormat": "p50 (중앙값)", "refId": "A"},
-        {"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"$service\"}[5m])) by (le))", "legendFormat": "p95", "refId": "B"},
-        {"expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"$service\"}[5m])) by (le))", "legendFormat": "p99", "refId": "C"}
+        {"expr": "histogram_quantile(0.50, sum(rate({__name__=~\".+_http_request_duration_seconds_bucket\", job=\"$service\"}[5m])) by (le))", "legendFormat": "p50 (중앙값)", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, sum(rate({__name__=~\".+_http_request_duration_seconds_bucket\", job=\"$service\"}[5m])) by (le))", "legendFormat": "p95", "refId": "B"},
+        {"expr": "histogram_quantile(0.99, sum(rate({__name__=~\".+_http_request_duration_seconds_bucket\", job=\"$service\"}[5m])) by (le))", "legendFormat": "p99", "refId": "C"}
       ],
       "title": "응답 시간 분포",
       "type": "timeseries"
@@ -145,7 +145,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 15},
       "id": 8,
       "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"expr": "topk(10, sum(rate(http_requests_total{job=\"$service\"}[5m])) by (path))", "legendFormat": "{{path}}", "refId": "A"}],
+      "targets": [{"expr": "topk(10, sum(rate({__name__=~\".+_http_requests_total\", job=\"$service\"}[5m])) by (endpoint))", "legendFormat": "{{endpoint}}", "refId": "A"}],
       "title": "엔드포인트별 요청량 (Top 10)",
       "type": "timeseries"
     },
@@ -161,7 +161,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 15},
       "id": 9,
       "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"expr": "topk(10, histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"$service\"}[5m])) by (le, path)))", "legendFormat": "{{path}}", "refId": "A"}],
+      "targets": [{"expr": "topk(10, histogram_quantile(0.95, sum(rate({__name__=~\".+_http_request_duration_seconds_bucket\", job=\"$service\"}[5m])) by (le, endpoint)))", "legendFormat": "{{endpoint}}", "refId": "A"}],
       "title": "느린 엔드포인트 (p95, Top 10)",
       "type": "timeseries"
     },

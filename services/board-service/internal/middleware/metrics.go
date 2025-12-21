@@ -1,33 +1,14 @@
 package middleware
 
 import (
-	"time"
-
 	"github.com/gin-gonic/gin"
+
+	commonmiddleware "github.com/OrangesCloud/wealist-advanced-go-pkg/middleware"
 	"project-board-api/internal/metrics"
 )
 
-// Metrics returns a middleware that records HTTP metrics
+// Metrics는 HTTP 메트릭을 기록하는 미들웨어를 반환합니다.
 func Metrics(m *metrics.Metrics) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Skip metrics and health endpoints
-		if metrics.ShouldSkipEndpoint(c.Request.URL.Path) {
-			c.Next()
-			return
-		}
-
-		start := time.Now()
-
-		// Process request
-		c.Next()
-
-		// Record metrics
-		duration := time.Since(start)
-		m.RecordHTTPRequest(
-			c.Request.Method,
-			c.FullPath(), // Use route pattern, not actual path
-			c.Writer.Status(),
-			duration,
-		)
-	}
+	// board-service의 basePath는 "/api/boards"
+	return commonmiddleware.MetricsMiddleware(m.Metrics, "/api/boards")
 }

@@ -3,6 +3,7 @@ package websocket
 import (
 	"chat-service/internal/domain"
 	"chat-service/internal/middleware"
+	"chat-service/internal/response"
 	"chat-service/internal/service"
 	"context"
 	"encoding/json"
@@ -94,14 +95,14 @@ func (h *Hub) HandleChatWebSocket(c *gin.Context) {
 	// Get token from query param
 	token := c.Query("token")
 	if token == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token required"})
+		response.Unauthorized(c, "Token required")
 		return
 	}
 
 	// Validate token
 	userID, err := h.validator.ValidateToken(c.Request.Context(), token)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		response.Unauthorized(c, "Invalid token")
 		return
 	}
 
@@ -109,21 +110,21 @@ func (h *Hub) HandleChatWebSocket(c *gin.Context) {
 	chatIDStr := c.Param("chatId")
 	chatID, err := uuid.Parse(chatIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chat ID"})
+		response.BadRequest(c, "Invalid chat ID")
 		return
 	}
 
 	// Verify user is in chat
 	inChat, err := h.chatService.IsUserInChat(c.Request.Context(), chatID, userID)
 	if err != nil || !inChat {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Not a participant"})
+		response.Forbidden(c, "Not a participant")
 		return
 	}
 
 	// Get chat for workspace ID
 	chat, err := h.chatService.GetChatByID(c.Request.Context(), chatID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Chat not found"})
+		response.NotFound(c, "Chat not found")
 		return
 	}
 
@@ -395,14 +396,14 @@ func (h *Hub) HandlePresenceWebSocket(c *gin.Context) {
 	// Get token from query param
 	token := c.Query("token")
 	if token == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token required"})
+		response.Unauthorized(c, "Token required")
 		return
 	}
 
 	// Validate token
 	userID, err := h.validator.ValidateToken(c.Request.Context(), token)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		response.Unauthorized(c, "Invalid token")
 		return
 	}
 

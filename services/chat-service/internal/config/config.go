@@ -3,66 +3,39 @@ package config
 import (
 	"os"
 	"strconv"
-	"time"
 
+	commonconfig "github.com/OrangesCloud/wealist-advanced-go-pkg/config"
 	"gopkg.in/yaml.v3"
 )
 
+// RateLimitConfig holds rate limiting configuration
+type RateLimitConfig struct {
+	Enabled           bool `yaml:"enabled"`
+	RequestsPerMinute int  `yaml:"requests_per_minute"`
+	BurstSize         int  `yaml:"burst_size"`
+}
+
+// Config contains all configuration for chat-service.
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Redis    RedisConfig    `yaml:"redis"`
-	Auth     AuthConfig     `yaml:"auth"`
-	UserAPI  UserAPIConfig  `yaml:"user_api"`
-	Services ServicesConfig `yaml:"services"`
+	commonconfig.BaseConfig `yaml:",inline"`
+	Services                ServicesConfig  `yaml:"services"`
+	RateLimit               RateLimitConfig `yaml:"rate_limit"`
 }
 
-type ServerConfig struct {
-	Port     int    `yaml:"port"`
-	BasePath string `yaml:"base_path"`
-	Env      string `yaml:"env"`
-	LogLevel string `yaml:"log_level"`
-}
-
-type DatabaseConfig struct {
-	URL         string `yaml:"url"`
-	AutoMigrate bool   `yaml:"auto_migrate"`
-}
-
-type RedisConfig struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	Password string `yaml:"password"`
-	DB       int    `yaml:"db"`
-}
-
-type AuthConfig struct {
-	ServiceURL string `yaml:"service_url"`
-	SecretKey  string `yaml:"secret_key"`
-}
-
+// ServicesConfig contains service URLs configuration.
 type ServicesConfig struct {
 	UserServiceURL string `yaml:"user_service_url"`
 }
 
-type UserAPIConfig struct {
-	BaseURL string        `yaml:"base_url"`
-	Timeout time.Duration `yaml:"timeout"`
-}
-
+// Load reads configuration from yaml file and environment variables.
 func Load(path string) (*Config, error) {
+	// Start with defaults
+	base := commonconfig.DefaultBaseConfig()
+	base.Server.Port = 8001
+	base.Server.BasePath = "/api/chats"
+
 	cfg := &Config{
-		Server: ServerConfig{
-			Port:     8001,
-			BasePath: "/api/chats",
-			Env:      "dev",
-			LogLevel: "debug",
-		},
-		Redis: RedisConfig{
-			Host: "localhost",
-			Port: 6379,
-			DB:   0,
-		},
+		BaseConfig: base,
 	}
 
 	// Load from yaml file if exists
@@ -72,58 +45,30 @@ func Load(path string) (*Config, error) {
 		}
 	}
 
-	// Override with environment variables
-	if port := os.Getenv("PORT"); port != "" {
-		if p, err := strconv.Atoi(port); err == nil {
-			cfg.Server.Port = p
-		}
-	}
-	if basePath := os.Getenv("SERVER_BASE_PATH"); basePath != "" {
-		cfg.Server.BasePath = basePath
-	}
-	if env := os.Getenv("ENV"); env != "" {
-		cfg.Server.Env = env
-	}
-	if env := os.Getenv("NODE_ENV"); env != "" {
-		cfg.Server.Env = env
-	}
-	if logLevel := os.Getenv("LOG_LEVEL"); logLevel != "" {
-		cfg.Server.LogLevel = logLevel
-	}
-	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
-		cfg.Database.URL = dbURL
-	}
-	if autoMigrate := os.Getenv("DB_AUTO_MIGRATE"); autoMigrate != "" {
-		cfg.Database.AutoMigrate = autoMigrate == "true"
-	}
-	if redisHost := os.Getenv("REDIS_HOST"); redisHost != "" {
-		cfg.Redis.Host = redisHost
-	}
-	if redisPort := os.Getenv("REDIS_PORT"); redisPort != "" {
-		if p, err := strconv.Atoi(redisPort); err == nil {
-			cfg.Redis.Port = p
-		}
-	}
-	if redisPassword := os.Getenv("REDIS_PASSWORD"); redisPassword != "" {
-		cfg.Redis.Password = redisPassword
-	}
-	if authURL := os.Getenv("AUTH_SERVICE_URL"); authURL != "" {
-		cfg.Auth.ServiceURL = authURL
-	}
-	if secretKey := os.Getenv("SECRET_KEY"); secretKey != "" {
-		cfg.Auth.SecretKey = secretKey
-	}
+	// Override with environment variables (common config)
+	cfg.BaseConfig.LoadFromEnv()
+
+	// Service-specific environment variables
 	if userURL := os.Getenv("USER_SERVICE_URL"); userURL != "" {
 		cfg.Services.UserServiceURL = userURL
-		cfg.UserAPI.BaseURL = userURL
 	}
-	if timeout := os.Getenv("USER_API_TIMEOUT"); timeout != "" {
-		if d, err := time.ParseDuration(timeout); err == nil {
-			cfg.UserAPI.Timeout = d
+
+	// Rate Limit environment variables
+	if rateLimitEnabled := os.Getenv("RATE_LIMIT_ENABLED"); rateLimitEnabled != "" {
+		cfg.RateLimit.Enabled = rateLimitEnabled == "true"
+	}
+	if rpm := os.Getenv("RATE_LIMIT_PER_MINUTE"); rpm != "" {
+		if v, err := strconv.Atoi(rpm); err == nil {
+			cfg.RateLimit.RequestsPerMinute = v
 		}
 	}
-	if cfg.UserAPI.Timeout == 0 {
-		cfg.UserAPI.Timeout = 5 * time.Second
+	if burst := os.Getenv("RATE_LIMIT_BURST"); burst != "" {
+		if v, err := strconv.Atoi(burst); err == nil {
+			cfg.RateLimit.BurstSize = v
+		}
+	}
+	if cfg.RateLimit.RequestsPerMinute == 0 {
+		cfg.RateLimit.RequestsPerMinute = 60
 	}
 
 	return cfg, nil

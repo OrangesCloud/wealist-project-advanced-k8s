@@ -4,9 +4,49 @@ weAlist의 네트워크 및 보안 아키텍처입니다.
 
 ---
 
-## VPC Architecture
+## Traffic Flow
 
-![VPC Architecture](../images/wealist_vpc.png)
+![Traffic Flow](../images/wealist_vpc_security_aws-Traffic%20Flow.png)
+
+### Traffic Flow Reference
+
+| # | 구간 | Protocol | Port | Source |
+|---|------|----------|------|--------|
+| ① | Internet → CDN | HTTPS | 443 | 0.0.0.0/0 |
+| ② | CDN → ALB | HTTP/S | 80, 443 | CloudFront IPs |
+| ③ | ALB → EKS | HTTP | 8000-8081 | ALB-SG |
+| ④ | EKS → RDS | TCP | 5432 | EKS-SG |
+| ⑤ | EKS → Redis | TCP | 6379 | EKS-SG |
+
+> **Note**: NAT Gateway는 EKS에서 외부 API 호출 시 outbound 전용 경로 (점선)
+
+---
+
+## Security Groups
+
+![Security Groups](../images/wealist_vpc_security_aws-Security%20Groups.png)
+
+### Security Group Rules
+
+| SG | Inbound | Source |
+|----|---------|--------|
+| ALB-SG | 80, 443 | 0.0.0.0/0 |
+| EKS-SG | 8000-8081 | ALB-SG |
+| RDS-SG | 5432 | EKS-SG |
+| Redis-SG | 6379 | EKS-SG |
+
+### Service Ports (EKS-SG)
+
+| Service | Port | Description |
+|---------|------|-------------|
+| auth-service | 8080 | JWT, OAuth2 |
+| user-service | 8081 | Users, Workspaces |
+| board-service | 8000 | Projects, Boards |
+| chat-service | 8001 | Real-time messaging |
+| noti-service | 8002 | Push notifications |
+| storage-service | 8003 | File storage |
+| video-service | 8004 | Video calls |
+| frontend | 3000 | Web UI |
 
 ---
 
@@ -43,17 +83,6 @@ EKS Pods (Private Subnet - App)
     ▼
 RDS/ElastiCache (Private Subnet - DB)
 ```
-
----
-
-## Security Groups
-
-| Security Group | Inbound | Outbound |
-|----------------|---------|----------|
-| **ALB** | 80, 443 from 0.0.0.0/0 | All to VPC |
-| **EKS Nodes** | All from ALB SG | All |
-| **RDS** | 5432 from EKS SG | None |
-| **Redis** | 6379 from EKS SG | None |
 
 ---
 

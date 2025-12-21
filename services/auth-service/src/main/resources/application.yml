@@ -29,7 +29,7 @@ spring:
             scope:
               - email
               - profile
-            redirect-uri: ${OAUTH2_CLIENT_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
+            redirect-uri: ${OAUTH2_CLIENT_REDIRECT_URI:http://localhost:8080/oauth2/callback/google}
             authorization-grant-type: authorization_code
             client-name: Google
         provider:
@@ -49,6 +49,8 @@ springdoc:
 
 server:
   port: ${AUTH_SERVICE_PORT:8080}
+  # Trust X-Forwarded-* headers from reverse proxy (CloudFront/nginx)
+  forward-headers-strategy: native
   error:
     whitelabel.enabled: false
     include-exception: true
@@ -56,7 +58,17 @@ server:
     context-path: ""
 
 jwt:
-  secret: ${JWT_SECRET}
+  # RSA 키 설정 (RS256 알고리즘)
+  rsa:
+    # PEM 형식 공개키 (선택적 - 없으면 자동 생성)
+    public-key: ${JWT_RSA_PUBLIC_KEY:}
+    # PEM 형식 개인키 (선택적 - 없으면 자동 생성)
+    private-key: ${JWT_RSA_PRIVATE_KEY:}
+    # 키 ID (JWKS kid 필드)
+    key-id: ${JWT_RSA_KEY_ID:wealist-auth-key-1}
+  # JWT issuer (토큰 발급자)
+  issuer: ${JWT_ISSUER:wealist-auth-service}
+  # 토큰 만료 시간
   access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:1800000}
   refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:604800000}
 

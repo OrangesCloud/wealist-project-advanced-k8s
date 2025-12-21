@@ -4,6 +4,8 @@ import (
 	"testing"
 	"testing/quick"
 	"time"
+
+	commonmetrics "github.com/OrangesCloud/wealist-advanced-go-pkg/metrics"
 )
 
 func TestCategorizeStatus(t *testing.T) {
@@ -48,9 +50,9 @@ func TestCategorizeStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := categorizeStatus(tt.statusCode)
+			got := commonmetrics.CategorizeStatus(tt.statusCode)
 			if got != tt.want {
-				t.Errorf("categorizeStatus(%d) = %v, want %v", tt.statusCode, got, tt.want)
+				t.Errorf("CategorizeStatus(%d) = %v, want %v", tt.statusCode, got, tt.want)
 			}
 		})
 	}
@@ -126,12 +128,12 @@ func TestRecordHTTPRequest(t *testing.T) {
 
 // Property 3: HTTP status code 분류
 // Feature: board-service-prometheus-metrics, Property 3: HTTP status code classification
-// For any HTTP status code, categorizeStatus should correctly classify it as 2xx, 3xx, 4xx, 5xx, or unknown
+// For any HTTP status code, CategorizeStatus should correctly classify it as 2xx, 3xx, 4xx, 5xx, or unknown
 // Validates: Requirements 1.5
 func TestProperty_HTTPStatusCodeClassification(t *testing.T) {
 	// Property: For any status code, the categorization should be consistent and correct
 	property := func(code int) bool {
-		result := categorizeStatus(code)
+		result := commonmetrics.CategorizeStatus(code)
 
 		// Check that the result is one of the valid categories
 		validCategories := map[string]bool{

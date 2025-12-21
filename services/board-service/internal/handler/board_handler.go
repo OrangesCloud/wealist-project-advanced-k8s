@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
 	"project-board-api/internal/database"
@@ -393,7 +393,7 @@ func (h *BoardHandler) MoveBoard(c *gin.Context) {
 		newKey := fmt.Sprintf("kanban:project:%s:group:%s", projectID.String(), newFieldValue)
 
 		redisClient.ZRem(context.Background(), oldKey, boardID.String())
-		redisClient.ZAdd(context.Background(), newKey, &redis.Z{
+		redisClient.ZAdd(context.Background(), newKey, redis.Z{
 			Score:  float64(time.Now().UnixMilli()),
 			Member: boardID.String(),
 		})

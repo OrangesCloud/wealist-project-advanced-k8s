@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,15 +10,7 @@ import (
 	"storage-service/internal/client"
 	"storage-service/internal/domain"
 	"storage-service/internal/repository"
-)
-
-var (
-	ErrAccessDenied            = errors.New("access denied")
-	ErrNotWorkspaceMember      = errors.New("user is not a workspace member")
-	ErrInsufficientPermission  = errors.New("insufficient permission")
-	ErrCannotRemoveOwner       = errors.New("cannot remove project owner")
-	ErrCannotChangeOwnRole     = errors.New("cannot change own role")
-	ErrInvalidPermission       = errors.New("invalid permission value")
+	"storage-service/internal/response"
 )
 
 // ProjectService defines the interface for project operations
@@ -75,11 +66,11 @@ func (s *projectService) ValidateWorkspaceMember(ctx context.Context, workspaceI
 			zap.String("user_id", userID.String()),
 		)
 		// On error, deny access for security
-		return ErrNotWorkspaceMember
+		return response.ErrNotWorkspaceMember
 	}
 
 	if !isValid {
-		return ErrNotWorkspaceMember
+		return response.ErrNotWorkspaceMember
 	}
 
 	return nil
@@ -157,7 +148,7 @@ func (s *projectService) GetProject(ctx context.Context, projectID, userID uuid.
 	// Check project access
 	perm, err := s.projectRepo.GetUserPermission(ctx, projectID, userID)
 	if err != nil {
-		return nil, ErrAccessDenied
+		return nil, response.ErrAccessDenied
 	}
 
 	response := project.ToResponse()
@@ -250,7 +241,7 @@ func (s *projectService) UpdateProject(ctx context.Context, projectID uuid.UUID,
 	// Check permission (must be owner or editor)
 	result, err := s.CheckAccess(ctx, projectID, userID, token, domain.ProjectPermissionEditor)
 	if err != nil || !result.HasAccess {
-		return nil, ErrInsufficientPermission
+		return nil, response.ErrInsufficientPermission
 	}
 
 	// Update fields
@@ -262,7 +253,7 @@ func (s *projectService) UpdateProject(ctx context.Context, projectID uuid.UUID,
 	}
 	if req.DefaultPermission != nil {
 		if !req.DefaultPermission.IsValid() {
-			return nil, ErrInvalidPermission
+			return nil, response.ErrInvalidPermission
 		}
 		project.DefaultPermission = *req.DefaultPermission
 	}
@@ -296,7 +287,7 @@ func (s *projectService) DeleteProject(ctx context.Context, projectID, userID uu
 	// Check permission (must be owner)
 	result, err := s.CheckAccess(ctx, projectID, userID, token, domain.ProjectPermissionOwner)
 	if err != nil || !result.HasAccess {
-		return ErrInsufficientPermission
+		return response.ErrInsufficientPermission
 	}
 
 	return s.projectRepo.Delete(ctx, projectID)
@@ -313,23 +304,24 @@ func (s *projectService) AddMember(ctx context.Context, projectID uuid.UUID, req
 	if err := s.ValidateWorkspaceMember(ctx, project.WorkspaceID, userID, token); err != nil {
 		return nil, err
 	}
+	// 대상 사용자의 워크스페이스 멤버십 검증
 	if err := s.ValidateWorkspaceMember(ctx, project.WorkspaceID, req.UserID, token); err != nil {
-		return nil, errors.New("target user is not a workspace member")
+		return nil, response.NewForbiddenError("target user is not a workspace member", req.UserID.String())
 	}
 
 	// Check permission (must be owner or editor)
 	result, err := s.CheckAccess(ctx, projectID, userID, token, domain.ProjectPermissionEditor)
 	if err != nil || !result.HasAccess {
-		return nil, ErrInsufficientPermission
+		return nil, response.ErrInsufficientPermission
 	}
 
 	// Only owners can add other owners
 	if req.Permission == domain.ProjectPermissionOwner && !result.IsOwner {
-		return nil, ErrInsufficientPermission
+		return nil, response.ErrInsufficientPermission
 	}
 
 	if !req.Permission.IsValid() {
-		return nil, ErrInvalidPermission
+		return nil, response.ErrInvalidPermission
 	}
 
 	member := &domain.ProjectMember{
@@ -364,7 +356,7 @@ func (s *projectService) GetMembers(ctx context.Context, projectID, userID uuid.
 	// Check access (must have at least view permission)
 	result, err := s.CheckAccess(ctx, projectID, userID, token, domain.ProjectPermissionViewer)
 	if err != nil || !result.HasAccess {
-		return nil, ErrAccessDenied
+		return nil, response.ErrAccessDenied
 	}
 
 	members, err := s.projectRepo.GetMembers(ctx, projectID)
@@ -394,17 +386,17 @@ func (s *projectService) UpdateMember(ctx context.Context, projectID, memberUser
 
 	// Cannot change own role
 	if memberUserID == userID {
-		return nil, ErrCannotChangeOwnRole
+		return nil, response.ErrCannotChangeOwnRole
 	}
 
 	// Check permission (must be owner)
 	result, err := s.CheckAccess(ctx, projectID, userID, token, domain.ProjectPermissionOwner)
 	if err != nil || !result.HasAccess {
-		return nil, ErrInsufficientPermission
+		return nil, response.ErrInsufficientPermission
 	}
 
 	if !req.Permission.IsValid() {
-		return nil, ErrInvalidPermission
+		return nil, response.ErrInvalidPermission
 	}
 
 	member, err := s.projectRepo.GetMember(ctx, projectID, memberUserID)
@@ -450,7 +442,7 @@ func (s *projectService) RemoveMember(ctx context.Context, projectID, memberUser
 			}
 		}
 		if ownerCount <= 1 {
-			return ErrCannotRemoveOwner
+			return response.ErrCannotRemoveOwner
 		}
 	}
 
@@ -458,7 +450,7 @@ func (s *projectService) RemoveMember(ctx context.Context, projectID, memberUser
 	if memberUserID != userID {
 		result, err := s.CheckAccess(ctx, projectID, userID, token, domain.ProjectPermissionOwner)
 		if err != nil || !result.HasAccess {
-			return ErrInsufficientPermission
+			return response.ErrInsufficientPermission
 		}
 	}
 

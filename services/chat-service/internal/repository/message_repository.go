@@ -103,3 +103,13 @@ func (r *MessageRepository) GetUnreadCount(chatID, userID uuid.UUID, lastReadAt 
 	err := query.Count(&count).Error
 	return count, err
 }
+
+// CountAll은 전체 메시지 수를 반환합니다.
+// 메트릭용으로 사용됩니다.
+func (r *MessageRepository) CountAll() (int64, error) {
+	var count int64
+	err := r.db.Model(&domain.Message{}).
+		Where("deleted_at IS NULL").
+		Count(&count).Error
+	return count, err
+}

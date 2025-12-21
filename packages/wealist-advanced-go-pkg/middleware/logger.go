@@ -1,4 +1,5 @@
-// Package middleware provides common HTTP middleware for Gin-based services.
+// Package middleware는 Gin 기반 서비스를 위한 HTTP 미들웨어를 제공합니다.
+// 이 파일은 요청 로깅 미들웨어를 포함합니다.
 package middleware
 
 import (
@@ -9,32 +10,37 @@ import (
 	"go.uber.org/zap"
 )
 
-// RequestIDKey is the context key for request ID
+// RequestIDKey는 컨텍스트에서 요청 ID를 저장/조회하기 위한 키입니다.
 const RequestIDKey = "request_id"
 
-// Logger returns a middleware that logs HTTP requests with structured logging
+// Logger는 HTTP 요청을 구조화된 로그로 기록하는 미들웨어를 반환합니다.
+// 각 요청에 대해 UUID 기반 request_id를 생성하고, 요청/응답 정보를 로깅합니다.
+// 상태 코드에 따라 로그 레벨이 결정됩니다:
+//   - 5xx: Error
+//   - 4xx: Warn
+//   - 그 외: Info
 func Logger(logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Generate request ID
+		// 요청 ID 생성 및 설정
 		requestID := uuid.New().String()
 		c.Set(RequestIDKey, requestID)
 		c.Header("X-Request-ID", requestID)
 
-		// Start timer
+		// 타이머 시작
 		start := time.Now()
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
 
-		// Process request
+		// 요청 처리
 		c.Next()
 
-		// Calculate duration
+		// 처리 시간 계산
 		duration := time.Since(start)
 
-		// Get status code
+		// 상태 코드 가져오기
 		statusCode := c.Writer.Status()
 
-		// Build log fields
+		// 로그 필드 구성
 		fields := []zap.Field{
 			zap.String("request_id", requestID),
 			zap.String("method", c.Request.Method),
@@ -47,17 +53,17 @@ func Logger(logger *zap.Logger) gin.HandlerFunc {
 			zap.Int("body_size", c.Writer.Size()),
 		}
 
-		// Add user ID if available (from auth middleware)
+		// 인증 미들웨어에서 설정한 user_id가 있으면 추가
 		if userID, exists := c.Get("user_id"); exists {
 			fields = append(fields, zap.Any("user_id", userID))
 		}
 
-		// Add error if exists
+		// 에러가 있으면 추가
 		if len(c.Errors) > 0 {
 			fields = append(fields, zap.String("error", c.Errors.String()))
 		}
 
-		// Log based on status code
+		// 상태 코드에 따른 로그 레벨 결정
 		if statusCode >= 500 {
 			logger.Error("Server error", fields...)
 		} else if statusCode >= 400 {
@@ -68,8 +74,10 @@ func Logger(logger *zap.Logger) gin.HandlerFunc {
 	}
 }
 
-// SkipPathLogger returns a logger middleware that skips certain paths
+// SkipPathLogger는 특정 경로를 로깅에서 제외하는 미들웨어를 반환합니다.
+// /health, /metrics 등 노이즈가 많은 경로를 제외할 때 사용합니다.
 func SkipPathLogger(logger *zap.Logger, skipPaths ...string) gin.HandlerFunc {
+	// 스킵할 경로를 map으로 변환하여 O(1) 조회
 	skipMap := make(map[string]bool)
 	for _, path := range skipPaths {
 		skipMap[path] = true
@@ -78,18 +86,19 @@ func SkipPathLogger(logger *zap.Logger, skipPaths ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
 
-		// Skip logging for specified paths
+		// 스킵 경로면 로깅 없이 다음 핸들러로 진행
 		if skipMap[path] {
 			c.Next()
 			return
 		}
 
-		// Use regular logger
+		// 일반 로거 사용
 		Logger(logger)(c)
 	}
 }
 
-// GetRequestID gets the request ID from context
+// GetRequestID는 컨텍스트에서 요청 ID를 가져옵니다.
+// 요청 ID가 없으면 새로운 UUID를 생성하여 반환합니다.
 func GetRequestID(c *gin.Context) string {
 	if requestID, exists := c.Get(RequestIDKey); exists {
 		if id, ok := requestID.(string); ok {

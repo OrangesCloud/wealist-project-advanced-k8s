@@ -71,6 +71,10 @@ ENV_FILE="docker/env/.env.dev"
 ENV_FILE_OPTION="--env-file $ENV_FILE"
 export VITE_API_BASE_URL="http://localhost"
 
+# 프로젝트 이름 (promtail 로그 수집 필터와 일치해야 함)
+PROJECT_NAME="wealist"
+COMPOSE_PROJECT="-p $PROJECT_NAME"
+
 # Go 서비스 목록
 GO_SERVICES=(
     "user-service"
@@ -116,10 +120,10 @@ start_all_services() {
     echo -e "${BLUE}🚀 전체 서비스 시작 중...${NC}"
 
     # auth-service, frontend는 기존 방식으로 빌드
-    docker compose $ENV_FILE_OPTION -f docker/compose/docker-compose.yml up -d --build auth-service frontend-service
+    docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION -f docker/compose/docker-compose.yml up -d --build auth-service frontend-service
 
     # 인프라 + 나머지 서비스 시작 (빌드된 이미지 사용)
-    docker compose $ENV_FILE_OPTION -f docker/compose/docker-compose.yml up -d
+    docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION -f docker/compose/docker-compose.yml up -d
 
     echo -e "${GREEN}✅ 모든 서비스가 시작되었습니다.${NC}"
     echo ""
@@ -173,16 +177,16 @@ case $COMMAND in
 
     down)
         echo -e "${YELLOW}⏹️  개발 환경을 중지합니다...${NC}"
-        docker compose $ENV_FILE_OPTION -f docker/compose/docker-compose.yml down
+        docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION -f docker/compose/docker-compose.yml down
         echo -e "${GREEN}✅ 개발 환경이 중지되었습니다.${NC}"
         ;;
 
     logs)
         SERVICE=${2:-}
         if [ -z "$SERVICE" ]; then
-            docker compose $ENV_FILE_OPTION -f docker/compose/docker-compose.yml logs -f
+            docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION -f docker/compose/docker-compose.yml logs -f
         else
-            docker compose $ENV_FILE_OPTION -f docker/compose/docker-compose.yml logs -f "$SERVICE"
+            docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION -f docker/compose/docker-compose.yml logs -f "$SERVICE"
         fi
         ;;
 
@@ -191,13 +195,13 @@ case $COMMAND in
         read -p "계속하시겠습니까? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            docker compose $ENV_FILE_OPTION -f docker/compose/docker-compose.yml down -v --remove-orphans
+            docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION -f docker/compose/docker-compose.yml down -v --remove-orphans
             echo -e "${GREEN}✅ 정리가 완료되었습니다.${NC}"
         fi
         ;;
 
     ps)
-        docker compose $ENV_FILE_OPTION -f docker/compose/docker-compose.yml ps
+        docker compose $COMPOSE_PROJECT $ENV_FILE_OPTION -f docker/compose/docker-compose.yml ps
         ;;
 
     *)

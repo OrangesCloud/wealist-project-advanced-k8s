@@ -6,7 +6,7 @@ weAlist의 전체 시스템 아키텍처입니다.
 
 ## AWS Architecture (대표)
 
-![AWS Architecture](../images/wealist_aws_arch.png)
+![AWS Architecture](../images/wealist_aws_arch_v2.png)
 
 > AWS 인프라 상세: [Architecture-AWS](Architecture-AWS.md)
 
@@ -28,6 +28,14 @@ weAlist의 전체 시스템 아키텍처입니다.
 | **storage-service** | Go + Gin | 8003 | 파일 스토리지 (S3/MinIO) |
 | **video-service** | Go + Gin | 8004 | 영상통화 (LiveKit) |
 | **frontend** | React + Vite | 3000 | Web UI |
+
+---
+
+## Kubernetes Workloads
+
+![K8s Workloads](../images/wealist_k8s_workloads.png)
+
+> K8s 플랫폼 상세: [Architecture-K8s](Architecture-K8s.md)
 
 ---
 
@@ -77,6 +85,7 @@ weAlist의 전체 시스템 아키텍처입니다.
 ## Related Pages
 
 - [AWS Architecture](Architecture-AWS.md)
+- [Kubernetes Architecture](Architecture-K8s.md)
 - [CI/CD Pipeline](Architecture-CICD.md)
 - [Security (VPC)](Architecture-VPC.md)
 - [Monitoring Stack](Architecture-Monitoring.md)

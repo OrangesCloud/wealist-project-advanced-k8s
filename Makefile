@@ -20,13 +20,15 @@ include makefiles/docker.mk
 include makefiles/kind.mk
 include makefiles/services.mk
 include makefiles/helm.mk
+include makefiles/branch-based.mk
+include makefiles/argo.mk
 
 ##@ General
 
 .PHONY: help
 
 help: ## Display this help
-	@awk 'BEGIN {FS = ":.*##"; printf "\n\033[1mUsage:\033[0m\n  make \033[36m<target>\033[0m [ENV=<env>]\n\n\033[1mEnvironments:\033[0m\n  local-kind (default), local-ubuntu, dev, staging, prod\n"} \
+	@awk 'BEGIN {FS = ":.*##"; printf "\n\033[1mUsage:\033[0m\n  make \033[36m<target>\033[0m [ENV=<env>]\n\n\033[1mEnvironments:\033[0m\n  localhost (default), local-ubuntu, dev, staging, prod\n"} \
 		/^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } \
 		/^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""

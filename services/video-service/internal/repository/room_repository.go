@@ -1,3 +1,7 @@
+// Package repository provides data access layer for video-service.
+//
+// This package implements the RoomRepository interface for managing
+// video rooms, participants, call history, and transcripts using GORM.
 package repository
 
 import (
@@ -7,13 +11,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// RoomRepository defines the interface for room data persistence operations.
+// It provides methods for room CRUD, participant management, call history,
+// and transcript storage.
 type RoomRepository interface {
+	// Room CRUD operations
 	Create(room *domain.Room) error
 	GetByID(id uuid.UUID) (*domain.Room, error)
 	GetByWorkspaceID(workspaceID uuid.UUID) ([]domain.Room, error)
 	GetActiveByWorkspaceID(workspaceID uuid.UUID) ([]domain.Room, error)
 	Update(room *domain.Room) error
 	Delete(id uuid.UUID) error
+
+	// Participant management
 	AddParticipant(participant *domain.RoomParticipant) error
 	RemoveParticipant(roomID, userID uuid.UUID) error
 	UpdateParticipant(participant *domain.RoomParticipant) error
@@ -22,22 +32,24 @@ type RoomRepository interface {
 	GetAllParticipants(roomID uuid.UUID) ([]domain.RoomParticipant, error)
 	CountActiveParticipants(roomID uuid.UUID) (int64, error)
 
-	// Call History methods
+	// Call history operations
 	CreateCallHistory(history *domain.CallHistory) error
 	GetCallHistoryByWorkspace(workspaceID uuid.UUID, limit, offset int) ([]domain.CallHistory, int64, error)
 	GetCallHistoryByUser(userID uuid.UUID, limit, offset int) ([]domain.CallHistory, int64, error)
 	GetCallHistoryByID(id uuid.UUID) (*domain.CallHistory, error)
 
-	// Transcript methods
+	// Transcript operations
 	SaveTranscript(transcript *domain.CallTranscript) error
 	GetTranscriptByCallHistoryID(callHistoryID uuid.UUID) (*domain.CallTranscript, error)
 	GetTranscriptByRoomID(roomID uuid.UUID) (*domain.CallTranscript, error)
 }
 
+// roomRepository implements RoomRepository using GORM.
 type roomRepository struct {
 	db *gorm.DB
 }
 
+// NewRoomRepository creates a new RoomRepository with the given GORM database.
 func NewRoomRepository(db *gorm.DB) RoomRepository {
 	return &roomRepository{db: db}
 }
