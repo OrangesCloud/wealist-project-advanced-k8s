@@ -586,8 +586,9 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 		DB_HOST="host.docker.internal"; \
 		echo "🖥️  macOS 감지 → DB 호스트: host.docker.internal"; \
 	elif grep -qi microsoft /proc/version 2>/dev/null; then \
-		DB_HOST="host.docker.internal"; \
-		echo "🖥️  WSL 감지 → DB 호스트: host.docker.internal"; \
+		DB_HOST=$$(hostname -I | awk '{print $$1}'); \
+		echo "🖥️  WSL 감지 → DB 호스트: $$DB_HOST (WSL IP)"; \
+		echo "   ⚠️  WSL IP는 재부팅 시 변경될 수 있습니다."; \
 	else \
 		DB_HOST="172.18.0.1"; \
 		echo "🖥️  Linux 감지 → DB 호스트: 172.18.0.1"; \
