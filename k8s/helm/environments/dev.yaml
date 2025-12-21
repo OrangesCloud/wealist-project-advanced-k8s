@@ -2,7 +2,7 @@
 # Development Server Environment
 # =============================================================================
 # Development environment with dev.wealist.co.kr domain
-# Uses local registry (localhost:5001) for Kind cluster
+# Uses GHCR (GitHub Container Registry) + ArgoCD for deployment
 # Namespace: wealist-dev
 
 # -----------------------------------------------------------------------------
@@ -12,7 +12,10 @@ global:
   namespace: wealist-dev
   environment: development
   domain: dev.wealist.co.kr
-  imageRegistry: localhost:5001
+  imageRegistry: ghcr.io/orangescloud
+  # GitHub Container Registry 인증을 위한 imagePullSecrets
+  imagePullSecrets:
+    - ghcr-secret
 
 # -----------------------------------------------------------------------------
 # cert-manager Configuration (Disabled - CloudFront handles SSL termination)
@@ -24,11 +27,14 @@ certManager:
 # -----------------------------------------------------------------------------
 # Deployment Settings
 # -----------------------------------------------------------------------------
-replicaCount: 1
+auth-service:
+  replicaCount: 2
+board-service:
+  replicaCount: 2
 
 image:
   pullPolicy: Always
-  tag: "latest" # Local registry uses :latest tag
+  tag: "latest"  # Local registry uses :latest tag
 
 # -----------------------------------------------------------------------------
 # Resources (Development)
@@ -60,7 +66,7 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   runAsNonRoot: true
-  readOnlyRootFilesystem: false # Spring Boot (Tomcat) needs /tmp write access
+  readOnlyRootFilesystem: false  # Spring Boot (Tomcat) needs /tmp write access
 
 # -----------------------------------------------------------------------------
 # Features
@@ -78,47 +84,19 @@ podDisruptionBudget:
   enabled: false
 
 # -----------------------------------------------------------------------------
-# Database Configuration (dev server specific)
-# -----------------------------------------------------------------------------
-# Use HOST PC's PostgreSQL and Redis instead of cluster's internal DB
-# This ensures data persistence across cluster resets
-#
-# Prerequisites:
-#   1. PostgreSQL installed on host: sudo apt install postgresql
-#   2. Redis installed on host: sudo apt install redis-server
-#   3. PostgreSQL pg_hba.conf allows connections from Docker network:
-#      host    all    all    172.17.0.0/16    md5
-#      host    all    all    172.18.0.0/16    md5
-#   4. PostgreSQL postgresql.conf: listen_addresses = '*'
-#   5. Redis redis.conf: bind 0.0.0.0, protected-mode no
-#
-# Note: Kind uses its own bridge network (172.18.0.0/16)
-#       172.18.0.1 is the gateway IP that Kind pods use to reach the host
-
-postgres:
-  enabled: false  # Disable internal PostgreSQL StatefulSet
-  external:
-    enabled: true
-    host: "172.18.0.1"  # Kind bridge gateway (host machine)
-    port: 5432
-
-redis:
-  enabled: false  # Disable internal Redis StatefulSet
-  external:
-    enabled: true
-    host: "172.18.0.1"  # Kind bridge gateway (host machine)
-    port: 6379
-
-# -----------------------------------------------------------------------------
 # Shared Configuration
 # -----------------------------------------------------------------------------
 shared:
   config:
     ENV: "development"
     LOG_LEVEL: "debug"
-    DB_AUTO_MIGRATE: "false"  # Disabled - external DB has existing data
+    DB_AUTO_MIGRATE: "true"  # Create tables on startup
     CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
+    # S3/MinIO Configuration
+    S3_ENDPOINT: "http://minio:9000"
     S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/minio"
+    S3_BUCKET: "wealist-files"
+    S3_REGION: "ap-northeast-2"
     LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/svc/livekit"
     # OAuth2 Redirect URLs
     # Google redirects here after user authenticates (must match Google Console)
@@ -126,155 +104,168 @@ shared:
     # auth-service redirects here (frontend) after processing OAuth
     OAUTH2_REDIRECT_URL_ENV: "https://dev.wealist.co.kr/oauth/callback"
 
-    # External Database Configuration (Host PC's PostgreSQL/Redis)
-    DB_HOST: "postgres"       # K8s Service name (routes to 172.18.0.1)
-    DB_PORT: "5432"
-    DB_USER: "postgres"       # Host PC PostgreSQL superuser
-    DB_SSLMODE: "disable"
-    REDIS_HOST: "redis"       # K8s Service name (routes to 172.18.0.1)
-    REDIS_PORT: "6379"
-
-  # Secrets for dev environment (stored in K8s Secret)
-  secrets:
-    DB_PASSWORD: "postgres"   # Host PC PostgreSQL password
-    REDIS_PASSWORD: ""        # No password for local Redis
-
 # -----------------------------------------------------------------------------
-# Ingress (HTTP only - CloudFront handles SSL termination)
+# Ingress (nginx - 비활성화, Istio Gateway 사용)
 # -----------------------------------------------------------------------------
 ingress:
+  enabled: false  # Istio HTTPRoute 사용
+
+# -----------------------------------------------------------------------------
+# 데이터베이스 설정 (외부 DB 사용 - AWS RDS/ElastiCache)
+# -----------------------------------------------------------------------------
+postgres:
+  enabled: false   # 내부 PostgreSQL 비활성화
+  external:
+    enabled: true  # 외부 DB (AWS RDS 등) 사용
+    # host/port는 secrets.yaml에서 설정
+
+redis:
+  enabled: false   # 내부 Redis 비활성화
+  external:
+    enabled: true  # 외부 Redis (AWS ElastiCache 등) 사용
+    # host/port는 secrets.yaml에서 설정
+
+# -----------------------------------------------------------------------------
+# 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)
+# -----------------------------------------------------------------------------
+# dev.wealist.co.kr → CloudFront → S3 (정적 파일)
+# api.dev.wealist.co.kr → CloudFront → ALB → EKS (API)
+frontend:
+  enabled: false  # Frontend pod 비활성화 (CDN 사용)
+
+# -----------------------------------------------------------------------------
+# Istio 서비스 메시 설정
+# -----------------------------------------------------------------------------
+istio:
   enabled: true
-  className: nginx
-  # Frontend is served via S3/CloudFront, not K8s
-  includeFrontend: false
-  annotations:
-    # No cert-manager - CloudFront handles SSL
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    # CloudFront with AllViewer policy forwards X-Forwarded-* headers
-  hosts:
-    # Main domain (CloudFront forwards with this Host header)
-    - host: dev.wealist.co.kr
-    # API endpoint
-    - host: api.dev.wealist.co.kr
-    # DDNS hostname for direct access (No-IP)
-    - host: wonnyhome.myddns.me
-  # No TLS - CloudFront handles SSL termination
-  tls: []
+  namespace: wealist-dev
+
+  gateway:
+    enabled: false  # setup-cluster.sh에서 이미 생성됨
+    name: wealist-gateway
+    hosts:
+      - "dev.wealist.co.kr"
+      - "api.dev.wealist.co.kr"
+      - "*"
+    tls:
+      enabled: false
+
+  # HTTPRoute 설정 (Kubernetes Gateway API)
+  httpRoute:
+    enabled: true
+    gatewayRef:
+      name: istio-ingressgateway
+      namespace: istio-system
+    hosts:
+      - "dev.wealist.co.kr"
+      - "api.dev.wealist.co.kr"
+    # Frontend Pod 라우팅 (비활성화 - CDN 사용)
+    frontend:
+      enabled: false
+    # Monitoring routes (활성화 - dev.wealist.co.kr/monitoring/*)
+    monitoring:
+      enabled: true
+
+  # mTLS - 서비스 간 암호화
+  mtls:
+    enabled: true
+    mode: STRICT  # dev 환경: mTLS 강제 (보안 강화)
+
+  # Database mTLS 설정 (외부 DB 사용 - 해당 없음)
+  database:
+    postgres:
+      disableMtls: false  # 내부 postgres pod 없음
+    redis:
+      disableMtls: false  # 내부 redis pod 없음
+
+  # 트래픽 제어 - Circuit Breaker, Connection Pool
+  destinationRules:
+    enabled: true
+    loadBalancer:
+      simple: ROUND_ROBIN
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 10s
+      http:
+        h2UpgradePolicy: DO_NOT_UPGRADE
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 100
+        maxRetries: 3
+    # Circuit Breaker - 장애 서비스 격리
+    outlierDetection:
+      consecutive5xxErrors: 5
+      consecutiveGatewayErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+
+  # 서비스 간 통신 제어
+  # dev: Zero Trust 정책 적용
+  authorizationPolicy:
+    enabled: true
+    denyAll: true  # dev: 기본 거부 (Zero Trust)
+
+  # 서비스별 호출 권한 (L7 정책)
+  serviceAuthorization:
+    enabled: true  # dev: 활성화 (보안 강화)
+
+  # JWT 인증
+  # dev: Istio에서 JWT 검증
+  jwtAuth:
+    enabled: false  # 서비스에서 직접 처리 (추후 활성화 가능)
+
+  # Ambient 모드 (Sidecar-less)
+  ambient:
+    enabled: true
+    waypoint:
+      enabled: true
+      name: wealist-waypoint
+
+  # 텔레메트리 - 트레이싱, 로깅
+  telemetry:
+    tracing:
+      enabled: true
+      samplingPercentage: 50  # dev 환경 50%
+    accessLogging:
+      enabled: true
 
 # =============================================================================
-# Monitoring Stack (wealist-monitoring chart values)
+# 모니터링 스택 설정
 # =============================================================================
-# 이 설정은 wealist-monitoring Helm 차트 배포 시 사용됩니다.
-# helm-install-monitoring ENV=dev 명령 시 적용
 
-# Prometheus - Metrics Collection
+# Prometheus - 메트릭 수집
 prometheus:
   enabled: true
-  service:
-    type: ClusterIP
-    port: 9090
-  persistence:
-    enabled: true
-    storageClass: "standard"
-    size: 10Gi
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "100m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
-  config:
-    scrapeInterval: 15s
-    retentionTime: 7d
 
-# Loki - Log Aggregation
+# Loki - 로그 수집
 loki:
   enabled: true
-  service:
-    type: ClusterIP
-    port: 3100
-  persistence:
-    enabled: true
-    storageClass: "standard"
-    size: 10Gi
-  config:
-    retentionPeriod: 168h  # 7 days
 
-# Promtail - Log Collector
-promtail:
-  enabled: true
-
-# Grafana - Visualization Dashboard
+# Grafana - 시각화 대시보드
 grafana:
   enabled: true
-  service:
-    type: ClusterIP  # Ingress 사용하므로 ClusterIP
-    port: 3000
-  persistence:
-    enabled: true
-    size: 5Gi
-  admin:
-    user: admin
-    password: admin  # TODO: 프로덕션에서는 시크릿으로 관리
-  config:
-    allowSignUp: false
-    # Sub-path configuration for /monitoring/grafana access
-    rootUrl: "https://dev.wealist.co.kr/monitoring/grafana"
-    serveFromSubPath: "true"
 
-# Monitoring Ingress - External Access via https://dev.wealist.co.kr/monitoring/*
+# 모니터링 Ingress (Istio HTTPRoute로 처리)
 monitoringIngress:
-  enabled: true
-  className: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"  # CloudFront handles SSL
-  hosts:
-    - host: dev.wealist.co.kr
-    - host: api.dev.wealist.co.kr
-    - host: wonnyhome.myddns.me
-  tls: []  # No TLS - CloudFront handles SSL termination
+  enabled: false
 
 # -----------------------------------------------------------------------------
-# Database Exporters (for external DB monitoring)
+# 데이터베이스 Exporter (외부 DB 메트릭 수집)
 # -----------------------------------------------------------------------------
+# DB 호스트 설정:
+#   - Mac/WSL (Docker Desktop): host.docker.internal
+#   - Native Linux: 172.18.0.1 (Kind bridge gateway)
 postgresExporter:
   enabled: true
-  image:
-    repository: prometheuscommunity/postgres-exporter
-    tag: v0.15.0
-  service:
-    port: 9187
-  resources:
-    requests:
-      memory: "64Mi"
-      cpu: "50m"
-    limits:
-      memory: "128Mi"
-      cpu: "100m"
-  # Connection to external PostgreSQL (host machine)
   config:
-    host: "172.18.0.1"
+    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
     port: 5432
-    user: "postgres"
-    database: "postgres"
-    sslmode: "disable"
 
 redisExporter:
   enabled: true
-  image:
-    repository: oliver006/redis_exporter
-    tag: v1.55.0
-  service:
-    port: 9121
-  resources:
-    requests:
-      memory: "32Mi"
-      cpu: "25m"
-    limits:
-      memory: "64Mi"
-      cpu: "50m"
-  # Connection to external Redis (host machine)
   config:
-    host: "172.18.0.1"
+    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
     port: 6379

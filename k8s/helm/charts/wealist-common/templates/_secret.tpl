@@ -24,3 +24,10 @@ spec:
   selector:
     {{- include "wealist-common.selectorLabels" . | nindent 4 }}
 {{- end }}
+
+{{/*
+Shared secret name
+*/}}
+{{- define "wealist-common.sharedSecretName" -}}
+{{- .Values.global.sharedSecretName | default "wealist-shared-secret" }}
+{{- end }}

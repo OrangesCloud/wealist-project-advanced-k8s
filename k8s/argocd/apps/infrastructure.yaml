@@ -3,19 +3,23 @@ kind: Application
 metadata:
   name: wealist-infrastructure
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"  # 가장 먼저 배포
 spec:
   project: wealist
   source:
-    repoURL: https://github.com/OrangesCloud/wealist-argo-helm.git 
-    targetRevision: main
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-dev
     path: k8s/helm/charts/wealist-infrastructure
     helm:
       valueFiles:
         - values.yaml
-        # - values-develop-registry-local.yaml
+        - ../../environments/base.yaml
+        - ../../environments/dev.yaml
+        # - ../../environments/dev-secrets.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: wealist-kind-local
+    namespace: wealist-dev 
   syncPolicy:
     automated:
       prune: true

@@ -19,6 +19,7 @@ data:
       # Prometheus - 메트릭 데이터
       - name: Prometheus
         type: prometheus
+        uid: prometheus
         access: proxy
         url: http://prometheus:9090
         isDefault: true
@@ -31,6 +32,7 @@ data:
       # Loki - 로그 데이터
       - name: Loki
         type: loki
+        uid: loki
         access: proxy
         url: http://loki:3100
         editable: false

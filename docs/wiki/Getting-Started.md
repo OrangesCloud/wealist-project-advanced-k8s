@@ -37,7 +37,7 @@ make kind-setup
 make kind-load-images
 
 # 4. Helm으로 전체 배포
-make helm-install-all ENV=local-kind
+make helm-install-all ENV=localhost
 
 # 5. 상태 확인
 make status
@@ -64,13 +64,13 @@ make dev-up
 
 ## Access Points
 
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 (Compose) / http://localhost (K8s) |
-| API Gateway | http://localhost |
-| Grafana | http://localhost:3001 (admin/admin) |
-| Prometheus | http://localhost:9090 |
-| MinIO Console | http://localhost:9001 |
+| Service       | URL                                                      |
+| ------------- | -------------------------------------------------------- |
+| Frontend      | http://localhost:3000 (Compose) / http://localhost (K8s) |
+| API Gateway   | http://localhost                                         |
+| Grafana       | http://localhost:3001 (admin/admin)                      |
+| Prometheus    | http://localhost:9090                                    |
+| MinIO Console | http://localhost:9001                                    |
 
 ---
 
@@ -88,7 +88,7 @@ kubectl logs -f deploy/board-service -n wealist-kind-local  # K8s
 make board-service-all           # 빌드 + 로드 + 재배포
 
 # 전체 재시작
-make redeploy-all ENV=local-kind
+make redeploy-all ENV=localhost
 ```
 
 ---
@@ -96,6 +96,7 @@ make redeploy-all ENV=local-kind
 ## Troubleshooting
 
 ### Pod가 시작되지 않음
+
 ```bash
 # Pod 상태 확인
 kubectl describe pod -l app=board-service -n wealist-kind-local
@@ -105,6 +106,7 @@ kubectl logs -f deploy/board-service -n wealist-kind-local
 ```
 
 ### 이미지 빌드 실패
+
 ```bash
 # 캐시 없이 재빌드
 docker build --no-cache -t localhost:5001/board-service:latest \
@@ -112,6 +114,7 @@ docker build --no-cache -t localhost:5001/board-service:latest \
 ```
 
 ### DB 연결 실패
+
 ```bash
 # Pod에서 DB 연결 테스트
 kubectl exec -it deploy/board-service -n wealist-kind-local -- \

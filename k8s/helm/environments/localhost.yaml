@@ -1,0 +1,338 @@
+# =============================================================================
+# 로컬 통합 환경 설정 (ENV=localhost)
+# =============================================================================
+# 도메인: localhost (Kind 클러스터)
+# 네임스페이스: wealist-localhost
+# 특징: 모든 컴포넌트가 클러스터 내부에서 실행 (DB, Frontend, Backend)
+#
+# 사용법:
+#   make kind-localhost-setup
+#   make helm-install-all ENV=localhost
+
+# -----------------------------------------------------------------------------
+# 전역 설정
+# -----------------------------------------------------------------------------
+global:
+  namespace: wealist-localhost
+  environment: development
+  domain: localhost
+  imageRegistry: localhost:5001
+
+# -----------------------------------------------------------------------------
+# cert-manager (localhost에서는 비활성화)
+# -----------------------------------------------------------------------------
+certManager:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# 배포 설정
+# -----------------------------------------------------------------------------
+image:
+  pullPolicy: Always
+  tag: "latest"
+
+# -----------------------------------------------------------------------------
+# 보안 컨텍스트 (로컬 개발용 - 완화된 설정)
+# -----------------------------------------------------------------------------
+podSecurityContext:
+  runAsNonRoot: false
+
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: false
+  runAsUser: 0  # nginx(프론트엔드)가 chown 실행에 필요
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop: []  # 로컬 개발에서는 엄격한 권한 제한 불필요
+
+# -----------------------------------------------------------------------------
+# 기능 설정 (로컬 개발용 - 비활성화)
+# -----------------------------------------------------------------------------
+autoscaling:
+  enabled: false
+
+serviceAccount:
+  create: false
+
+networkPolicy:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# 데이터베이스 설정 (클러스터 내부 Pod로 실행)
+# -----------------------------------------------------------------------------
+postgres:
+  enabled: true   # 클러스터 내부 PostgreSQL StatefulSet 활성화
+  external:
+    enabled: false
+
+  image:
+    repository: postgres
+    tag: "15-alpine"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 5Gi
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  config:
+    superuser: "postgres"
+
+redis:
+  enabled: true   # 클러스터 내부 Redis StatefulSet 활성화
+  external:
+    enabled: false
+
+  image:
+    repository: redis
+    tag: "7-alpine"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 2Gi
+
+  config:
+    password: ""
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# -----------------------------------------------------------------------------
+# 프론트엔드 설정 (클러스터 내부 Pod로 실행)
+# -----------------------------------------------------------------------------
+frontend:
+  enabled: true
+
+  image:
+    repository: frontend
+    tag: "latest"
+    pullPolicy: Always
+
+  replicas: 1
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# -----------------------------------------------------------------------------
+# 공유 설정
+# -----------------------------------------------------------------------------
+shared:
+  config:
+    ENV: "development"
+    LOG_LEVEL: "debug"
+    CORS_ORIGINS: "*"
+    S3_PUBLIC_ENDPOINT: "http://localhost:8080/minio"
+    LIVEKIT_WS_URL: "ws://localhost:8080/svc/livekit"
+
+    # OAuth2 리다이렉트 URL (localhost, Kind NodePort 8080)
+    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost:8080/svc/auth/oauth2/callback/google"
+    OAUTH2_REDIRECT_URL_ENV: "http://localhost:8080/oauth/callback"
+
+    # DB 자동 마이그레이션 (내부 DB - 초기 설정 시 활성화)
+    DB_AUTO_MIGRATE: "true"
+
+    # 내부 데이터베이스 연결 설정
+    DB_HOST: "postgres"
+    DB_PORT: "5432"
+    DB_USER: "postgres"
+    DB_SSLMODE: "disable"
+    REDIS_HOST: "redis"
+    REDIS_PORT: "6379"
+
+  # 시크릿 (localhost 환경용)
+  secrets:
+    DB_PASSWORD: "postgres"
+    REDIS_PASSWORD: ""
+
+# -----------------------------------------------------------------------------
+# Ingress 설정 (nginx - 비활성화, Istio Gateway 사용)
+# -----------------------------------------------------------------------------
+ingress:
+  enabled: false  # Istio HTTPRoute 사용
+
+# -----------------------------------------------------------------------------
+# Istio 서비스 메시 설정
+# -----------------------------------------------------------------------------
+istio:
+  enabled: true
+  namespace: wealist-localhost
+
+  gateway:
+    enabled: false  # setup-cluster.sh에서 이미 생성됨
+    name: wealist-gateway
+    hosts:
+      - "localhost"
+      - "*"
+    tls:
+      enabled: false
+
+  # HTTPRoute 설정 (Kubernetes Gateway API)
+  httpRoute:
+    enabled: true
+    gatewayRef:
+      name: istio-ingressgateway
+      namespace: istio-system
+    hosts:
+      - "localhost"
+      - "*"
+    # Frontend Pod 라우팅 (localhost 환경)
+    frontend:
+      enabled: true
+    # Monitoring routes (Grafana, Prometheus, Loki)
+    monitoring:
+      enabled: true
+      grafana:
+        prefix: /monitoring/grafana
+        host: grafana
+        port: 3000
+      prometheus:
+        prefix: /monitoring/prometheus
+        host: prometheus
+        port: 9090
+      loki:
+        prefix: /monitoring/loki
+        host: loki
+        port: 3100
+
+  # mTLS - 서비스 간 암호화
+  mtls:
+    enabled: true
+    mode: PERMISSIVE  # 개발 환경: mTLS + 일반 HTTP 모두 허용
+
+  # Database mTLS 설정 (PostgreSQL/Redis는 자체 프로토콜 사용)
+  database:
+    postgres:
+      disableMtls: true  # postgres pod에 mTLS 비활성화
+    redis:
+      disableMtls: true  # redis pod에 mTLS 비활성화
+
+  # 트래픽 제어 - Circuit Breaker, Connection Pool
+  destinationRules:
+    enabled: true
+    loadBalancer:
+      simple: ROUND_ROBIN
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 10s
+      http:
+        h2UpgradePolicy: DO_NOT_UPGRADE
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 100
+        maxRetries: 3
+    # Circuit Breaker - 장애 서비스 격리
+    outlierDetection:
+      consecutive5xxErrors: 5
+      consecutiveGatewayErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+
+  # 서비스 간 통신 제어
+  # localhost: 개발 편의를 위해 완화된 정책
+  # dev/prod: Zero Trust (denyAll: true) 적용
+  authorizationPolicy:
+    enabled: true
+    denyAll: false  # localhost: 기본 허용 (개발 편의)
+
+  # 서비스별 호출 권한 (L7 정책)
+  serviceAuthorization:
+    enabled: false  # localhost: 비활성화 (개발 편의)
+
+  # JWT 인증
+  # localhost: 비활성화 (서비스가 직접 처리)
+  # dev/prod: Istio에서 JWT 검증
+  jwtAuth:
+    enabled: false
+
+  # Ambient 모드 (Sidecar-less)
+  ambient:
+    enabled: true
+    waypoint:
+      enabled: true
+      name: wealist-waypoint
+
+  # 텔레메트리 - 트레이싱, 로깅
+  telemetry:
+    tracing:
+      enabled: true
+      samplingPercentage: 100  # 개발환경 100%, 프로덕션 1-10%
+    accessLogging:
+      enabled: true
+
+# =============================================================================
+# 모니터링 스택 설정 (wealist-monitoring 차트 값)
+# =============================================================================
+
+# Prometheus - 메트릭 수집
+prometheus:
+  enabled: true
+  config:
+    externalUrl: "http://localhost:8080/monitoring/prometheus"
+
+# Grafana - 시각화 대시보드
+grafana:
+  enabled: true
+  service:
+    type: ClusterIP
+    port: 3000
+  config:
+    allowSignUp: false
+    rootUrl: "http://localhost:8080/monitoring/grafana"
+    serveFromSubPath: "true"
+
+# 모니터링 Ingress (nginx - 비활성화)
+# NodePort로 직접 접근: Grafana(30001), Prometheus(30090)
+monitoringIngress:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# 데이터베이스 Exporter (내부 Pod 메트릭 수집)
+# -----------------------------------------------------------------------------
+postgresExporter:
+  enabled: true
+  config:
+    host: "postgres"  # 내부 서비스명
+    port: 5432
+    user: "postgres"
+    database: "postgres"
+    sslmode: "disable"
+
+redisExporter:
+  enabled: true
+  config:
+    host: "redis"  # 내부 서비스명
+    port: 6379

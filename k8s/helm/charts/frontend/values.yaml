@@ -1,10 +1,8 @@
 # =============================================================================
-# frontend - Service Configuration
+# frontend Helm Chart - Default Values
 # =============================================================================
-# React 18 + Vite application served by NGINX
-#
-# Global settings (namespace, environment, imageRegistry, domain) are defined
-# in helm/environments/*.yaml files.
+# Frontend service (React/Vite + Nginx)
+# No database connection required - serves static files only
 
 # -----------------------------------------------------------------------------
 # Image Configuration
@@ -31,47 +29,46 @@ strategy:
 # -----------------------------------------------------------------------------
 service:
   type: ClusterIP
-  port: 3000
-  targetPort: 80  # NGINX internal port
+  port: 80
+  targetPort: 80
   annotations: {}
 
 # -----------------------------------------------------------------------------
-# Application Configuration (Service-Specific Only)
+# Application Configuration
 # -----------------------------------------------------------------------------
-# Note: Common config (ENV, LOG_LEVEL, CORS_ORIGINS, etc.) comes from
-# helm/environments/*.yaml via shared.config section.
-# Only service-specific values should be defined here.
+# Frontend doesn't need database or most backend configs
 config:
-  # Build-time environment variables (injected during Docker build)
-  VITE_API_URL: "/api"
-  VITE_WS_URL: "/ws"
+  PORT: "80"
 
-  # Runtime configuration (config.js)
-  runtimeConfig:
-    # Empty string = relative paths, requests go through ingress (same origin)
-    API_BASE_URL: ""
+# No secrets needed for frontend
+secrets: {}
 
 # -----------------------------------------------------------------------------
-# Health Check Configuration (NGINX)
+# Health Checks
 # -----------------------------------------------------------------------------
 healthCheck:
   liveness:
+    enabled: true
     path: /
+    port: 80
     initialDelaySeconds: 10
     periodSeconds: 10
-    timeoutSeconds: 3
+    timeoutSeconds: 5
     successThreshold: 1
     failureThreshold: 3
+
   readiness:
+    enabled: true
     path: /
+    port: 80
     initialDelaySeconds: 5
     periodSeconds: 5
-    timeoutSeconds: 2
+    timeoutSeconds: 3
     successThreshold: 1
     failureThreshold: 3
 
 # -----------------------------------------------------------------------------
-# Resource Management
+# Resource Limits
 # -----------------------------------------------------------------------------
 resources:
   requests:
@@ -82,123 +79,57 @@ resources:
     cpu: "200m"
 
 # -----------------------------------------------------------------------------
-# Autoscaling
+# Autoscaling (HPA)
 # -----------------------------------------------------------------------------
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
   targetCPUUtilizationPercentage: 70
-  targetMemoryUtilizationPercentage: 80
-  behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 300
-      policies:
-        - type: Percent
-          value: 50
-          periodSeconds: 60
-      selectPolicy: Min
-    scaleUp:
-      stabilizationWindowSeconds: 0
-      policies:
-        - type: Percent
-          value: 100
-          periodSeconds: 30
-      selectPolicy: Max
 
 # -----------------------------------------------------------------------------
-# Security
+# Security Configuration
 # -----------------------------------------------------------------------------
-# NGINX needs root to set up cache directory permissions on startup
-# Override environment defaults for nginx compatibility
+# Nginx needs to run as root to chown files
 podSecurityContext:
   runAsNonRoot: false
 
 securityContext:
-  runAsNonRoot: false
-  runAsUser: 0  # Run as root for nginx
-  readOnlyRootFilesystem: false
   allowPrivilegeEscalation: false
+  runAsNonRoot: false
+  runAsUser: 0
+  readOnlyRootFilesystem: false
   capabilities:
-    drop: []  # Don't drop capabilities - nginx needs CAP_CHOWN for cache dirs
-    add:
-      - CHOWN
+    drop: []
 
-# -----------------------------------------------------------------------------
-# Service Account
-# -----------------------------------------------------------------------------
 serviceAccount:
-  create: true
+  create: false
   annotations: {}
   name: ""
-  automount: false  # Frontend doesn't need K8s API access
 
-# -----------------------------------------------------------------------------
-# Pod Disruption Budget
-# -----------------------------------------------------------------------------
-podDisruptionBudget:
-  enabled: true
-  minAvailable: 1
-
-# -----------------------------------------------------------------------------
-# Network Policy
-# -----------------------------------------------------------------------------
 networkPolicy:
   enabled: false
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: wealist
-      ports:
-        - protocol: TCP
-          port: 80
 
 # -----------------------------------------------------------------------------
 # Monitoring
 # -----------------------------------------------------------------------------
 metrics:
-  enabled: false  # Frontend doesn't expose metrics by default
+  enabled: false  # Nginx doesn't expose Prometheus metrics by default
 
 podAnnotations: {}
 
+# -----------------------------------------------------------------------------
+# Pod Disruption Budget
+# -----------------------------------------------------------------------------
+podDisruptionBudget:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# Advanced Configuration
+# -----------------------------------------------------------------------------
 nodeSelector: {}
 tolerations: []
-affinity:
-  podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - frontend
-          topologyKey: kubernetes.io/hostname
-
-# -----------------------------------------------------------------------------
-# NGINX Specific
-# -----------------------------------------------------------------------------
-nginx:
-  # Additional NGINX configuration can be added via ConfigMap
-  cacheControl: "public, max-age=31536000, immutable"
-
-extraEnv: []
-
-# -----------------------------------------------------------------------------
-# Volume Configuration (for runtime config injection)
-# -----------------------------------------------------------------------------
-# Mount the runtime-config ConfigMap as config.js
-# This overrides the default config.js baked into the Docker image
-volumes:
-  - name: runtime-config
-    configMap:
-      name: frontend-runtime-config
-
-volumeMounts:
-  - name: runtime-config
-    mountPath: /usr/share/nginx/html/config.js
-    subPath: config.js
+affinity: {}
+volumeMounts: []
+volumes: []
+env: []

@@ -1,4 +1,7 @@
 {{- if and .Values.enabled .Values.mtls.enabled }}
+# =============================================================================
+# 네임스페이스 기본 mTLS 정책
+# =============================================================================
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
@@ -9,4 +12,42 @@ metadata:
 spec:
   mtls:
     mode: {{ .Values.mtls.mode }}
+---
+# =============================================================================
+# PostgreSQL - mTLS 비활성화 (자체 프로토콜 사용)
+# =============================================================================
+{{- if .Values.database.postgres.disableMtls }}
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: postgres-disable-mtls
+  namespace: {{ include "istio-config.namespace" . }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  mtls:
+    mode: DISABLE
+{{- end }}
+---
+# =============================================================================
+# Redis - mTLS 비활성화 (자체 프로토콜 사용)
+# =============================================================================
+{{- if .Values.database.redis.disableMtls }}
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: redis-disable-mtls
+  namespace: {{ include "istio-config.namespace" . }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  mtls:
+    mode: DISABLE
+{{- end }}
 {{- end }}
