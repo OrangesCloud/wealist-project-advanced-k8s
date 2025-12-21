@@ -730,9 +730,9 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 			REDIS_CONF=""; \
 			echo "  🔍 redis.conf 경로 검색 중..."; \
 			for path in /etc/redis/redis.conf /etc/redis.conf /usr/local/etc/redis.conf /opt/homebrew/etc/redis.conf; do \
-				if [ -f "$$path" ]; then REDIS_CONF="$$path"; break; fi; \
+				if sudo test -f "$$path" 2>/dev/null; then REDIS_CONF="$$path"; echo "  📄 redis.conf: $$path"; break; fi; \
 			done; \
-			if [ -n "$$REDIS_CONF" ] && [ -f "$$REDIS_CONF" ]; then \
+			if [ -n "$$REDIS_CONF" ]; then \
 				echo "  📄 redis.conf: $$REDIS_CONF"; \
 				sudo sed -i 's/^bind .*/bind 0.0.0.0/' "$$REDIS_CONF"; \
 				sudo sed -i 's/^# *bind .*/bind 0.0.0.0/' "$$REDIS_CONF"; \
