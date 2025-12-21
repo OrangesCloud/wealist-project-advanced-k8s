@@ -1,0 +1,28 @@
+{{- if .Values.referenceGrant.enabled }}
+# =============================================================================
+# ReferenceGrant - Cross-namespace routing permission
+# =============================================================================
+# HTTPRoute가 다른 네임스페이스에서 istio-system의 서비스를 참조할 수 있도록 허용
+# 예: wealist-dev의 HTTPRoute → istio-system의 Kiali, Jaeger 서비스
+#
+# Kubernetes Gateway API 요구사항:
+# - HTTPRoute가 다른 네임스페이스의 Service를 backendRef로 사용하려면
+# - 대상 네임스페이스에 ReferenceGrant가 필요함
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-httproute-to-istio-addons
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "istio-addons.labels" . | nindent 4 }}
+spec:
+  from:
+    {{- range .Values.referenceGrant.allowedNamespaces }}
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: {{ . }}
+    {{- end }}
+  to:
+    - group: ""
+      kind: Service
+{{- end }}
