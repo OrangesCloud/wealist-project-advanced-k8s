@@ -728,16 +728,19 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 			echo ""; \
 			echo "🔧 Redis 외부 연결 설정 중..."; \
 			REDIS_CONF=""; \
+			IS_WSL=false; \
+			if grep -qi microsoft /proc/version 2>/dev/null; then \
+				IS_WSL=true; \
+				echo "  🖥️  WSL 환경 감지 (systemd 대신 직접 실행)"; \
+			fi; \
 			echo "  🔍 redis.conf 경로 검색 중..."; \
 			for path in /etc/redis/redis.conf /etc/redis.conf /usr/local/etc/redis.conf /opt/homebrew/etc/redis.conf; do \
 				if sudo test -f "$$path" 2>/dev/null; then REDIS_CONF="$$path"; echo "  📄 redis.conf: $$path"; break; fi; \
 			done; \
 			if [ -n "$$REDIS_CONF" ]; then \
 				echo "  📄 redis.conf: $$REDIS_CONF"; \
-				sudo sed -i 's/^bind .*/bind 0.0.0.0/' "$$REDIS_CONF"; \
-				sudo sed -i 's/^# *bind .*/bind 0.0.0.0/' "$$REDIS_CONF"; \
-				sudo sed -i 's/^protected-mode yes/protected-mode no/' "$$REDIS_CONF"; \
-				sudo sed -i 's/^# *protected-mode yes/protected-mode no/' "$$REDIS_CONF"; \
+				sudo sed -i 's/^bind 127\.0\.0\.1.*$$/bind 0.0.0.0/' "$$REDIS_CONF"; \
+				sudo sed -i 's/^protected-mode yes$$/protected-mode no/' "$$REDIS_CONF"; \
 				if ! sudo grep -q "^bind 0.0.0.0" "$$REDIS_CONF"; then \
 					echo "bind 0.0.0.0" | sudo tee -a "$$REDIS_CONF" > /dev/null; \
 				fi; \
@@ -751,9 +754,20 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 			fi; \
 			echo ""; \
 			echo "🔄 Redis 재시작 중..."; \
-			sudo systemctl restart redis 2>/dev/null || sudo systemctl restart redis-server 2>/dev/null || sudo service redis restart 2>/dev/null; \
-			sleep 3; \
-			echo "  ✅ Redis 재시작 완료"; \
+			if [ "$$IS_WSL" = "true" ]; then \
+				sudo pkill redis-server 2>/dev/null || true; \
+				sleep 1; \
+				sudo redis-server "$$REDIS_CONF" --daemonize yes; \
+				echo "  ✅ Redis 직접 시작 완료 (WSL)"; \
+			else \
+				sudo systemctl restart redis 2>/dev/null || \
+				sudo systemctl restart redis-server 2>/dev/null || \
+				sudo service redis restart 2>/dev/null || \
+				sudo service redis-server restart 2>/dev/null || \
+				{ sudo pkill redis-server 2>/dev/null; sleep 1; sudo redis-server "$$REDIS_CONF" --daemonize yes; }; \
+				echo "  ✅ Redis 재시작 완료"; \
+			fi; \
+			sleep 2; \
 			echo ""; \
 			echo "🔗 연결 재테스트..."; \
 			. /tmp/kind_db_host.env; \
@@ -766,7 +780,11 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 				echo "  수동 확인 필요:"; \
 				echo "    1. redis.conf: bind 0.0.0.0"; \
 				echo "    2. redis.conf: protected-mode no"; \
-				echo "    3. sudo systemctl restart redis"; \
+				if [ "$$IS_WSL" = "true" ]; then \
+					echo "    3. sudo pkill redis-server && sudo redis-server /etc/redis/redis.conf --daemonize yes"; \
+				else \
+					echo "    3. sudo systemctl restart redis"; \
+				fi; \
 				echo ""; \
 				echo "계속 진행하시겠습니까? (DB 연결 없이) [y/N]"; \
 				read -r skip; \
