@@ -13,6 +13,7 @@ echo ""
 echo "※ 로드할 이미지:"
 echo "  - PostgreSQL 15 (alpine)"
 echo "  - Redis 7 (alpine)"
+echo "  - MinIO (S3 호환 스토리지)"
 echo "  - LiveKit Server v1.5"
 echo ""
 
@@ -46,6 +47,11 @@ load() {
 echo "--- 데이터베이스 이미지 ---"
 load "public.ecr.aws/docker/library/postgres:15-alpine" "postgres" "15-alpine"
 load "public.ecr.aws/docker/library/redis:7-alpine" "redis" "7-alpine"
+
+# MinIO - S3 호환 스토리지
+echo ""
+echo "--- 스토리지 이미지 ---"
+load "minio/minio:latest" "minio" "latest"
 
 # Docker Hub - LiveKit (실시간 통신)
 echo ""

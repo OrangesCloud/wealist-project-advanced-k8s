@@ -10,9 +10,9 @@ metadata:
   name: {{ include "wealist-common.fullname" . }}
   labels:
     {{- include "wealist-common.labels" . | nindent 4 }}
-  {{- if .Values.service.annotations }}
+  {{- with .Values.service.annotations }}
   annotations:
-    {{- toYaml .Values.service.annotations | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
   type: {{ .Values.service.type | default "ClusterIP" }}
@@ -25,9 +25,4 @@ spec:
     {{- include "wealist-common.selectorLabels" . | nindent 4 }}
 {{- end }}
 
-{{/*
-Shared secret name
-*/}}
-{{- define "wealist-common.sharedSecretName" -}}
-{{- .Values.global.sharedSecretName | default "wealist-shared-secret" }}
-{{- end }}
+

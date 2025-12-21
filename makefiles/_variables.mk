@@ -13,16 +13,16 @@ IMAGE_TAG ?= latest
 EXTERNAL_DB ?= false
 
 # Environment configuration (used across all commands)
-# Options: local-kind, dev, staging, prod
+# Options: localhost, dev, staging, prod
 # DEPRECATED-SOON: local-ubuntu (will be replaced by staging)
-ENV ?= local-kind
+ENV ?= localhost
 
 # Namespace, Domain, and Protocol mapping based on environment
 ifeq ($(ENV),localhost)
   K8S_NAMESPACE = wealist-localhost
   DOMAIN = localhost:8080
   PROTOCOL = http
-else ifeq ($(ENV),local-kind)
+else ifeq ($(ENV),localhost)
   K8S_NAMESPACE = wealist-localhost
   DOMAIN = localhost:8080
   PROTOCOL = http

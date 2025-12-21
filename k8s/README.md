@@ -13,9 +13,7 @@
 
 ---
 
-## 🚀 로컬 환경 (local-kind) 배포 가이드
-
-++ enviroments에 개발환경에 맞는 환경변수 존재 해야됨
+## 🚀 로컬 환경 (localhost) 배포 가이드
 
 ### 1. 사전 준비
 
@@ -84,6 +82,7 @@ ArgoCD가 GitHub 저장소에 접근하기 위한 토큰이 필요합니다.
    - ✅ `read:org` - 조직 정보 읽기
    - ✅ `repo` - 저장소 전체 접근
    - ✅ `workflow` - GitHub Actions 워크플로우 접근
+   - ✅ 'write:package - 이미지 패키지 읽기 권한
 5. 생성된 토큰 값을 복사 (한 번만 표시됩니다!)
 
 ### 3. 배포 실행
@@ -98,8 +97,6 @@ make all-simple
 - **GitHub Access Token** (위에서 생성한 토큰)
 
 ✅ Dev 환경 배포 완료!
-
----
 
 ## 💡 주요 참고사항
 

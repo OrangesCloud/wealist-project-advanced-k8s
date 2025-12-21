@@ -92,9 +92,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "wealist-common.fullname" . }}-config
-            {{- /* Always include shared secret - created by wealist-infrastructure */}}
+            {{- /* Include shared secret from wealist-infrastructure */}}
             - secretRef:
                 name: wealist-shared-secret
+            {{- /* Include ArgoCD secret (SealedSecret) - optional for fallback */}}
+            - secretRef:
+                name: wealist-argocd-secret
+                optional: true
           {{- if .Values.envFrom }}
             {{- toYaml .Values.envFrom | nindent 12 }}
           {{- end }}

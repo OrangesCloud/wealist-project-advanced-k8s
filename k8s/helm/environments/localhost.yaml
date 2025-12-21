@@ -69,7 +69,7 @@ postgres:
     enabled: false
 
   image:
-    repository: localhost:5001/postgres
+    repository: postgres
     tag: "15-alpine"
     pullPolicy: IfNotPresent
 
@@ -97,7 +97,7 @@ redis:
     enabled: false
 
   image:
-    repository: localhost:5001/redis
+    repository: redis
     tag: "7-alpine"
     pullPolicy: IfNotPresent
 
@@ -126,7 +126,7 @@ frontend:
   enabled: true
 
   image:
-    repository: localhost:5001/frontend
+    repository: frontend
     tag: "latest"
     pullPolicy: Always
 
@@ -209,6 +209,21 @@ istio:
     # Frontend Pod 라우팅 (localhost 환경)
     frontend:
       enabled: true
+    # Monitoring routes (Grafana, Prometheus, Loki)
+    monitoring:
+      enabled: true
+      grafana:
+        prefix: /monitoring/grafana
+        host: grafana
+        port: 3000
+      prometheus:
+        prefix: /monitoring/prometheus
+        host: prometheus
+        port: 9090
+      loki:
+        prefix: /monitoring/loki
+        host: loki
+        port: 3100
 
   # mTLS - 서비스 간 암호화
   mtls:

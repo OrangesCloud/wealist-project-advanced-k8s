@@ -51,7 +51,7 @@ config:
 
   # Database (service-specific)
   DB_NAME: "wealist_user_service_db"
-  DATABASE_URL: "postgresql://user_service:user_service_password@postgres:5432/wealist_user_service_db?sslmode=disable"
+  DATABASE_URL: "postgresql://user_service:postgres@postgres:5432/wealist_user_service_db?sslmode=disable"
 
   # Service-specific URLs (if any)
 

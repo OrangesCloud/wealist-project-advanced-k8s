@@ -27,6 +27,85 @@ kind-check-db-setup: ## 🚀 통합 설정: Secrets → DB 확인 → 클러스�
 	@echo "  0단계: 필수 도구 확인"
 	@echo "----------------------------------------------"
 	@echo ""
+	@# kubectl 확인 및 설치
+	@if ! command -v kubectl >/dev/null 2>&1; then \
+		echo "❌ kubectl: 미설치"; \
+		echo ""; \
+		echo "kubectl을 자동 설치하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "kubectl 설치 중..."; \
+			if [ "$$(uname)" = "Darwin" ]; then \
+				brew install kubectl; \
+			else \
+				curl -LO "https://dl.k8s.io/release/$$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"; \
+				chmod +x kubectl; \
+				sudo mv kubectl /usr/local/bin/kubectl; \
+			fi; \
+			echo ""; \
+			echo "✅ kubectl 설치 완료!"; \
+		else \
+			echo ""; \
+			echo "kubectl 없이는 진행할 수 없습니다."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "✅ kubectl: $$(kubectl version --client --short 2>/dev/null || echo '설치됨')"; \
+	fi
+	@echo ""
+	@# Kind 확인 및 설치
+	@if ! command -v kind >/dev/null 2>&1; then \
+		echo "❌ kind: 미설치"; \
+		echo ""; \
+		echo "kind를 자동 설치하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "kind 설치 중..."; \
+			if [ "$$(uname)" = "Darwin" ]; then \
+				brew install kind; \
+			else \
+				curl -Lo /tmp/kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64; \
+				chmod +x /tmp/kind; \
+				sudo mv /tmp/kind /usr/local/bin/kind; \
+			fi; \
+			echo ""; \
+			echo "✅ kind 설치 완료!"; \
+		else \
+			echo ""; \
+			echo "kind 없이는 진행할 수 없습니다."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "✅ kind: $$(kind version 2>/dev/null || echo '설치됨')"; \
+	fi
+	@echo ""
+	@# Helm 확인 및 설치
+	@if ! command -v helm >/dev/null 2>&1; then \
+		echo "❌ helm: 미설치"; \
+		echo ""; \
+		echo "helm을 자동 설치하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "helm 설치 중..."; \
+			curl -fsSL -o /tmp/get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3; \
+			chmod 700 /tmp/get_helm.sh; \
+			/tmp/get_helm.sh; \
+			rm -f /tmp/get_helm.sh; \
+			echo ""; \
+			echo "✅ helm 설치 완료!"; \
+		else \
+			echo ""; \
+			echo "helm 없이는 진행할 수 없습니다."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "✅ helm: $$(helm version --short 2>/dev/null || echo '설치됨')"; \
+	fi
+	@echo ""
+	@# istioctl 확인 및 설치
 	@if ! command -v istioctl >/dev/null 2>&1; then \
 		if [ -f "./istio-1.24.0/bin/istioctl" ]; then \
 			echo "✅ istioctl: 로컬 설치됨 (./istio-1.24.0/bin/istioctl)"; \
@@ -161,6 +240,85 @@ kind-localhost-setup: ## 🏠 통합 환경: 클러스터 생성 → 모든 이�
 	@echo "  0단계: 필수 도구 확인"
 	@echo "----------------------------------------------"
 	@echo ""
+	@# kubectl 확인 및 설치
+	@if ! command -v kubectl >/dev/null 2>&1; then \
+		echo "❌ kubectl: 미설치"; \
+		echo ""; \
+		echo "kubectl을 자동 설치하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "kubectl 설치 중..."; \
+			if [ "$$(uname)" = "Darwin" ]; then \
+				brew install kubectl; \
+			else \
+				curl -LO "https://dl.k8s.io/release/$$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"; \
+				chmod +x kubectl; \
+				sudo mv kubectl /usr/local/bin/kubectl; \
+			fi; \
+			echo ""; \
+			echo "✅ kubectl 설치 완료!"; \
+		else \
+			echo ""; \
+			echo "kubectl 없이는 진행할 수 없습니다."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "✅ kubectl: $$(kubectl version --client --short 2>/dev/null || echo '설치됨')"; \
+	fi
+	@echo ""
+	@# Kind 확인 및 설치
+	@if ! command -v kind >/dev/null 2>&1; then \
+		echo "❌ kind: 미설치"; \
+		echo ""; \
+		echo "kind를 자동 설치하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "kind 설치 중..."; \
+			if [ "$$(uname)" = "Darwin" ]; then \
+				brew install kind; \
+			else \
+				curl -Lo /tmp/kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64; \
+				chmod +x /tmp/kind; \
+				sudo mv /tmp/kind /usr/local/bin/kind; \
+			fi; \
+			echo ""; \
+			echo "✅ kind 설치 완료!"; \
+		else \
+			echo ""; \
+			echo "kind 없이는 진행할 수 없습니다."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "✅ kind: $$(kind version 2>/dev/null || echo '설치됨')"; \
+	fi
+	@echo ""
+	@# Helm 확인 및 설치
+	@if ! command -v helm >/dev/null 2>&1; then \
+		echo "❌ helm: 미설치"; \
+		echo ""; \
+		echo "helm을 자동 설치하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "helm 설치 중..."; \
+			curl -fsSL -o /tmp/get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3; \
+			chmod 700 /tmp/get_helm.sh; \
+			/tmp/get_helm.sh; \
+			rm -f /tmp/get_helm.sh; \
+			echo ""; \
+			echo "✅ helm 설치 완료!"; \
+		else \
+			echo ""; \
+			echo "helm 없이는 진행할 수 없습니다."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "✅ helm: $$(helm version --short 2>/dev/null || echo '설치됨')"; \
+	fi
+	@echo ""
+	@# istioctl 확인 및 설치
 	@if ! command -v istioctl >/dev/null 2>&1; then \
 		if [ -f "./istio-1.24.0/bin/istioctl" ]; then \
 			echo "✅ istioctl: 로컬 설치됨 (./istio-1.24.0/bin/istioctl)"; \
@@ -232,19 +390,102 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 	@echo "=============================================="
 	@echo ""
 	@echo "이 명령어는 다음을 순서대로 실행합니다:"
-	@echo "  0. 필수 도구 확인 (istioctl)"
-	@echo "  1. Secrets 파일 확인/생성"
-	@echo "  2. Kind 클러스터 생성 + Istio Ambient"
-	@echo "  3. 서비스 이미지 로드 (Backend + Frontend)"
+	@echo "  1. 필수 도구 확인 (kubectl, kind, helm, istioctl)"
+	@echo "  2. Secrets 파일 확인/생성"
+	@echo "  3. GHCR 로그인"
+	@echo "  4. Kind 클러스터 생성 + Istio Ambient"
+	@echo "  5. 외부 DB 확인 + 연결 테스트 (172.18.0.1)"
+	@echo "  6. GHCR Secret + 인프라 이미지 로드"
+	@echo "  7. GHCR 서비스 이미지 확인"
+	@echo "  8. ArgoCD 설치 (선택)"
 	@echo ""
-	@echo "※ 이 환경은 호스트 PC의 PostgreSQL/Redis를 사용합니다."
+	@echo "※ dev 환경은 호스트 PC의 PostgreSQL/Redis를 사용합니다."
 	@echo "  - PostgreSQL: 호스트 머신 (172.18.0.1:5432)"
 	@echo "  - Redis: 호스트 머신 (172.18.0.1:6379)"
 	@echo ""
 	@echo "----------------------------------------------"
-	@echo "  0단계: 필수 도구 확인"
+	@echo "  [1/8] 필수 도구 확인"
 	@echo "----------------------------------------------"
 	@echo ""
+	@# kubectl 확인 및 설치
+	@if ! command -v kubectl >/dev/null 2>&1; then \
+		echo "❌ kubectl: 미설치"; \
+		echo ""; \
+		echo "kubectl을 자동 설치하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "kubectl 설치 중..."; \
+			if [ "$$(uname)" = "Darwin" ]; then \
+				brew install kubectl; \
+			else \
+				curl -LO "https://dl.k8s.io/release/$$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"; \
+				chmod +x kubectl; \
+				sudo mv kubectl /usr/local/bin/kubectl; \
+			fi; \
+			echo ""; \
+			echo "✅ kubectl 설치 완료!"; \
+		else \
+			echo ""; \
+			echo "kubectl 없이는 진행할 수 없습니다."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "✅ kubectl: $$(kubectl version --client --short 2>/dev/null || echo '설치됨')"; \
+	fi
+	@echo ""
+	@# Kind 확인 및 설치
+	@if ! command -v kind >/dev/null 2>&1; then \
+		echo "❌ kind: 미설치"; \
+		echo ""; \
+		echo "kind를 자동 설치하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "kind 설치 중..."; \
+			if [ "$$(uname)" = "Darwin" ]; then \
+				brew install kind; \
+			else \
+				curl -Lo /tmp/kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64; \
+				chmod +x /tmp/kind; \
+				sudo mv /tmp/kind /usr/local/bin/kind; \
+			fi; \
+			echo ""; \
+			echo "✅ kind 설치 완료!"; \
+		else \
+			echo ""; \
+			echo "kind 없이는 진행할 수 없습니다."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "✅ kind: $$(kind version 2>/dev/null || echo '설치됨')"; \
+	fi
+	@echo ""
+	@# Helm 확인 및 설치
+	@if ! command -v helm >/dev/null 2>&1; then \
+		echo "❌ helm: 미설치"; \
+		echo ""; \
+		echo "helm을 자동 설치하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "helm 설치 중..."; \
+			curl -fsSL -o /tmp/get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3; \
+			chmod 700 /tmp/get_helm.sh; \
+			/tmp/get_helm.sh; \
+			rm -f /tmp/get_helm.sh; \
+			echo ""; \
+			echo "✅ helm 설치 완료!"; \
+		else \
+			echo ""; \
+			echo "helm 없이는 진행할 수 없습니다."; \
+			exit 1; \
+		fi; \
+	else \
+		echo "✅ helm: $$(helm version --short 2>/dev/null || echo '설치됨')"; \
+	fi
+	@echo ""
+	@# istioctl 확인 및 설치
 	@if ! command -v istioctl >/dev/null 2>&1; then \
 		if [ -f "./istio-1.24.0/bin/istioctl" ]; then \
 			echo "✅ istioctl: 로컬 설치됨 (./istio-1.24.0/bin/istioctl)"; \
@@ -270,7 +511,7 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 	fi
 	@echo ""
 	@echo "----------------------------------------------"
-	@echo "  1단계: Secrets 파일 확인"
+	@echo "  [2/8] Secrets 파일 확인"
 	@echo "----------------------------------------------"
 	@echo ""
 	@if [ ! -f "./k8s/helm/environments/secrets.yaml" ]; then \
@@ -285,30 +526,368 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 	fi
 	@echo ""
 	@echo "----------------------------------------------"
-	@echo "  2단계: Kind 클러스터 생성"
+	@echo "  [3/8] GHCR (GitHub Container Registry) 로그인"
+	@echo "----------------------------------------------"
+	@echo ""
+	@echo "dev 환경은 ghcr.io/orangescloud에서 이미지를 pull합니다."
+	@echo "GHCR 로그인이 필요합니다."
+	@echo ""
+	@# GHCR 로그인 확인 및 credential 저장
+	@rm -f /tmp/ghcr_credentials.env; \
+	GHCR_LOGGED_IN=false; \
+	if docker login ghcr.io --get-login 2>/dev/null | grep -q .; then \
+		echo "✅ GHCR: Docker에 로그인됨"; \
+		echo ""; \
+		echo "⚠️  Kubernetes Secret 생성을 위해 토큰 재입력이 필요합니다."; \
+		echo "   (Docker credential helper는 토큰을 직접 저장하지 않음)"; \
+	else \
+		echo "❌ GHCR: 로그인 필요"; \
+	fi; \
+	echo ""; \
+	echo "GitHub Personal Access Token (PAT)이 필요합니다."; \
+	echo "  - GitHub → Settings → Developer settings → Personal access tokens"; \
+	echo "  - 권한: read:packages (최소)"; \
+	echo ""; \
+	echo "GitHub 사용자명을 입력하세요:"; \
+	read -r GITHUB_USER; \
+	echo "GitHub Personal Access Token을 입력하세요:"; \
+	read -rs GITHUB_TOKEN; \
+	echo ""; \
+	echo "GHCR 로그인 중..."; \
+	if echo "$$GITHUB_TOKEN" | docker login ghcr.io -u "$$GITHUB_USER" --password-stdin; then \
+		echo ""; \
+		echo "✅ GHCR 로그인 성공!"; \
+		echo "GITHUB_USER=$$GITHUB_USER" > /tmp/ghcr_credentials.env; \
+		echo "GITHUB_TOKEN=$$GITHUB_TOKEN" >> /tmp/ghcr_credentials.env; \
+		chmod 600 /tmp/ghcr_credentials.env; \
+		echo "✅ Credentials 저장됨 (Secret 생성에 사용)"; \
+	else \
+		echo ""; \
+		echo "❌ GHCR 로그인 실패"; \
+		echo "   토큰 권한을 확인하세요 (read:packages 필요)"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "----------------------------------------------"
+	@echo "  [4/8] Kind 클러스터 생성"
 	@echo "----------------------------------------------"
 	@$(MAKE) kind-setup ENV=dev
 	@echo ""
 	@echo "----------------------------------------------"
-	@echo "  3단계: 서비스 이미지 로드 (Backend + Frontend)"
+	@echo "  [5/8] 외부 DB 확인 + 연결 테스트"
 	@echo "----------------------------------------------"
+	@echo ""
+	@echo "dev 환경은 호스트 PC의 PostgreSQL/Redis를 사용합니다."
+	@echo ""
+	@# OS 감지 및 DB 호스트 설정
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		DB_HOST="host.docker.internal"; \
+		echo "🖥️  macOS 감지 → DB 호스트: host.docker.internal"; \
+	elif grep -qi microsoft /proc/version 2>/dev/null; then \
+		DB_HOST="host.docker.internal"; \
+		echo "🖥️  WSL 감지 → DB 호스트: host.docker.internal"; \
+	else \
+		DB_HOST="172.18.0.1"; \
+		echo "🖥️  Linux 감지 → DB 호스트: 172.18.0.1"; \
+	fi; \
+	echo ""; \
+	echo "DB_HOST=$$DB_HOST" > /tmp/kind_db_host.env
+	@echo ""
+	@# PostgreSQL 확인
+	@echo "🔍 PostgreSQL 확인 중..."
+	@if command -v psql >/dev/null 2>&1; then \
+		if pg_isready >/dev/null 2>&1 || (command -v systemctl >/dev/null 2>&1 && systemctl is-active postgresql >/dev/null 2>&1) || (command -v brew >/dev/null 2>&1 && brew services list 2>/dev/null | grep -q "postgresql.*started"); then \
+			echo "  ✅ 호스트: PostgreSQL 실행 중"; \
+		else \
+			echo "  ❌ 호스트: PostgreSQL 실행 중이 아님"; \
+			echo "     PostgreSQL을 시작하세요: brew services start postgresql (macOS)"; \
+			echo "     또는: sudo systemctl start postgresql (Linux)"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "  ❌ 호스트: PostgreSQL 미설치"; \
+		echo "     설치 후 다시 시도하세요."; \
+		exit 1; \
+	fi
+	@# Redis 확인
+	@echo "🔍 Redis 확인 중..."
+	@if command -v redis-cli >/dev/null 2>&1; then \
+		if redis-cli ping >/dev/null 2>&1; then \
+			echo "  ✅ 호스트: Redis 실행 중"; \
+		else \
+			echo "  ❌ 호스트: Redis 실행 중이 아님"; \
+			echo "     Redis를 시작하세요: brew services start redis (macOS)"; \
+			echo "     또는: sudo systemctl start redis (Linux)"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "  ❌ 호스트: Redis 미설치"; \
+		echo "     설치 후 다시 시도하세요."; \
+		exit 1; \
+	fi
+	@echo ""
+	@# Kind에서 DB 연결 테스트
+	@. /tmp/kind_db_host.env && \
+	echo "🔗 Kind 클러스터 → 호스트 DB 연결 테스트..." && \
+	echo "  PostgreSQL ($$DB_HOST:5432)..." && \
+	if kubectl run pg-test --rm -i --restart=Never --image=postgres:15-alpine -- \
+		pg_isready -h $$DB_HOST -p 5432 -t 5 2>/dev/null; then \
+		echo "  ✅ PostgreSQL 연결 성공!"; \
+	else \
+		echo "  ❌ PostgreSQL 연결 실패"; \
+		echo ""; \
+		echo "PostgreSQL 외부 연결을 자동 설정하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "🔧 PostgreSQL 외부 연결 설정 중..."; \
+			PG_CONF=""; PG_HBA=""; \
+			PG_CONF=$$(sudo -u postgres psql -t -c "SHOW config_file" 2>/dev/null | tr -d ' '); \
+			PG_HBA=$$(sudo -u postgres psql -t -c "SHOW hba_file" 2>/dev/null | tr -d ' '); \
+			if [ -z "$$PG_CONF" ] || [ ! -f "$$PG_CONF" ]; then \
+				echo "  🔍 postgresql.conf 경로 검색 중..."; \
+				for path in /etc/postgresql/*/main/postgresql.conf /var/lib/pgsql/*/data/postgresql.conf /var/lib/pgsql/data/postgresql.conf /usr/local/var/postgres/postgresql.conf /opt/homebrew/var/postgres/postgresql.conf; do \
+					if [ -f "$$path" ]; then PG_CONF="$$path"; break; fi; \
+				done; \
+			fi; \
+			if [ -z "$$PG_HBA" ] || [ ! -f "$$PG_HBA" ]; then \
+				for path in /etc/postgresql/*/main/pg_hba.conf /var/lib/pgsql/*/data/pg_hba.conf /var/lib/pgsql/data/pg_hba.conf /usr/local/var/postgres/pg_hba.conf /opt/homebrew/var/postgres/pg_hba.conf; do \
+					if [ -f "$$path" ]; then PG_HBA="$$path"; break; fi; \
+				done; \
+			fi; \
+			if [ -n "$$PG_CONF" ] && [ -f "$$PG_CONF" ]; then \
+				echo "  📄 postgresql.conf: $$PG_CONF"; \
+				sudo sed -i "s/^#*listen_addresses.*/listen_addresses = '*'/" "$$PG_CONF"; \
+				echo "  ✅ listen_addresses = '*' 설정 완료"; \
+			else \
+				echo "  ❌ postgresql.conf를 찾을 수 없습니다"; \
+				echo "     수동으로 listen_addresses = '*' 설정이 필요합니다"; \
+			fi; \
+			if [ -n "$$PG_HBA" ] && [ -f "$$PG_HBA" ]; then \
+				echo "  📄 pg_hba.conf: $$PG_HBA"; \
+				if ! sudo grep -q "172.18.0.0/16" "$$PG_HBA"; then \
+					echo "host    all    all    172.18.0.0/16    md5" | sudo tee -a "$$PG_HBA" > /dev/null; \
+					echo "  ✅ Kind 네트워크 접근 허용 추가"; \
+				else \
+					echo "  ✅ Kind 네트워크 접근 이미 설정됨"; \
+				fi; \
+			else \
+				echo "  ❌ pg_hba.conf를 찾을 수 없습니다"; \
+				echo "     수동으로 host all all 172.18.0.0/16 md5 설정이 필요합니다"; \
+			fi; \
+			echo ""; \
+			echo "🔄 PostgreSQL 재시작 중..."; \
+			sudo systemctl restart postgresql 2>/dev/null || sudo service postgresql restart 2>/dev/null; \
+			sleep 3; \
+			echo "  ✅ PostgreSQL 재시작 완료"; \
+			echo ""; \
+			echo "🔗 연결 재테스트..."; \
+			. /tmp/kind_db_host.env; \
+			if kubectl run pg-test2 --rm -i --restart=Never --image=postgres:15-alpine -- \
+				pg_isready -h $$DB_HOST -p 5432 -t 5 2>/dev/null; then \
+				echo "  ✅ PostgreSQL 연결 성공!"; \
+			else \
+				echo "  ❌ 여전히 연결 실패"; \
+				echo ""; \
+				echo "  수동 확인 필요:"; \
+				echo "    1. postgresql.conf: listen_addresses = '*'"; \
+				echo "    2. pg_hba.conf: host all all 172.18.0.0/16 md5"; \
+				echo "    3. sudo systemctl restart postgresql"; \
+				echo ""; \
+				echo "계속 진행하시겠습니까? (DB 연결 없이) [y/N]"; \
+				read -r skip; \
+				if [ "$$skip" != "y" ] && [ "$$skip" != "Y" ]; then \
+					exit 1; \
+				fi; \
+			fi; \
+		else \
+			echo ""; \
+			echo "수동 설정이 필요합니다:"; \
+			echo "  - listen_addresses = '*' (postgresql.conf)"; \
+			echo "  - host all all 172.18.0.0/16 md5 (pg_hba.conf)"; \
+			exit 1; \
+		fi; \
+	fi
+	@. /tmp/kind_db_host.env && \
+	echo "  Redis ($$DB_HOST:6379)..." && \
+	if kubectl run redis-test --rm -i --restart=Never --image=redis:7-alpine -- \
+		redis-cli -h $$DB_HOST -p 6379 ping 2>/dev/null | grep -q PONG; then \
+		echo "  ✅ Redis 연결 성공!"; \
+	else \
+		echo "  ❌ Redis 연결 실패"; \
+		echo ""; \
+		echo "Redis 외부 연결을 자동 설정하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "🔧 Redis 외부 연결 설정 중..."; \
+			REDIS_CONF=""; \
+			echo "  🔍 redis.conf 경로 검색 중..."; \
+			for path in /etc/redis/redis.conf /etc/redis.conf /usr/local/etc/redis.conf /opt/homebrew/etc/redis.conf; do \
+				if [ -f "$$path" ]; then REDIS_CONF="$$path"; break; fi; \
+			done; \
+			if [ -n "$$REDIS_CONF" ] && [ -f "$$REDIS_CONF" ]; then \
+				echo "  📄 redis.conf: $$REDIS_CONF"; \
+				sudo sed -i "s/^bind 127.0.0.1.*/bind 0.0.0.0/" "$$REDIS_CONF"; \
+				sudo sed -i "s/^protected-mode yes/protected-mode no/" "$$REDIS_CONF"; \
+				echo "  ✅ bind 0.0.0.0, protected-mode no 설정 완료"; \
+			else \
+				echo "  ❌ redis.conf를 찾을 수 없습니다"; \
+				echo "     수동으로 bind 0.0.0.0, protected-mode no 설정이 필요합니다"; \
+			fi; \
+			echo ""; \
+			echo "🔄 Redis 재시작 중..."; \
+			sudo systemctl restart redis 2>/dev/null || sudo systemctl restart redis-server 2>/dev/null || sudo service redis restart 2>/dev/null; \
+			sleep 3; \
+			echo "  ✅ Redis 재시작 완료"; \
+			echo ""; \
+			echo "🔗 연결 재테스트..."; \
+			. /tmp/kind_db_host.env; \
+			if kubectl run redis-test2 --rm -i --restart=Never --image=redis:7-alpine -- \
+				redis-cli -h $$DB_HOST -p 6379 ping 2>/dev/null | grep -q PONG; then \
+				echo "  ✅ Redis 연결 성공!"; \
+			else \
+				echo "  ❌ 여전히 연결 실패"; \
+				echo ""; \
+				echo "  수동 확인 필요:"; \
+				echo "    1. redis.conf: bind 0.0.0.0"; \
+				echo "    2. redis.conf: protected-mode no"; \
+				echo "    3. sudo systemctl restart redis"; \
+				echo ""; \
+				echo "계속 진행하시겠습니까? (DB 연결 없이) [y/N]"; \
+				read -r skip; \
+				if [ "$$skip" != "y" ] && [ "$$skip" != "Y" ]; then \
+					exit 1; \
+				fi; \
+			fi; \
+		else \
+			echo ""; \
+			echo "수동 설정이 필요합니다:"; \
+			echo "  - bind 0.0.0.0 (redis.conf)"; \
+			echo "  - protected-mode no"; \
+			exit 1; \
+		fi; \
+	fi
+	@echo ""
+	@echo "✅ DB 연결 테스트 완료!"
+	@echo ""
+	@echo "----------------------------------------------"
+	@echo "  [6/8] GHCR Secret + 인프라 이미지 로드"
+	@echo "----------------------------------------------"
+	@echo ""
+	@echo "Kubernetes에서 GHCR 이미지를 pull하려면 Secret이 필요합니다."
+	@# ghcr-secret 생성 (저장된 credentials 사용)
+	@if kubectl get secret ghcr-secret -n wealist-dev >/dev/null 2>&1; then \
+		echo "⚠️  ghcr-secret 이미 존재 - 재생성합니다..."; \
+		kubectl delete secret ghcr-secret -n wealist-dev; \
+	fi; \
+	if [ -f /tmp/ghcr_credentials.env ]; then \
+		. /tmp/ghcr_credentials.env; \
+		echo "ghcr-secret 생성 중 (user: $$GITHUB_USER)..."; \
+		kubectl create secret docker-registry ghcr-secret \
+			--docker-server=ghcr.io \
+			--docker-username="$$GITHUB_USER" \
+			--docker-password="$$GITHUB_TOKEN" \
+			-n wealist-dev; \
+		echo "✅ ghcr-secret 생성 완료!"; \
+		rm -f /tmp/ghcr_credentials.env; \
+	else \
+		echo "❌ GHCR credentials를 찾을 수 없습니다."; \
+		echo "   다시 setup을 실행하세요."; \
+		exit 1; \
+	fi
+	@echo ""
+	@# 인프라 이미지 로드
 	@./k8s/helm/scripts/dev/1.load_infra_images.sh
-	@./k8s/helm/scripts/dev/2.build_all_and_load.sh
+	@echo ""
+	@echo "----------------------------------------------"
+	@echo "  [7/8] GHCR 서비스 이미지 확인"
+	@echo "----------------------------------------------"
+	@echo ""
+	@echo "GHCR에 서비스 이미지가 있는지 확인합니다..."
+	@echo ""
+	@# 서비스 이미지 존재 여부 확인
+	@MISSING_IMAGES=""; \
+	for svc in auth-service user-service board-service chat-service noti-service storage-service video-service; do \
+		if docker manifest inspect ghcr.io/orangescloud/$$svc:latest >/dev/null 2>&1; then \
+			echo "✅ $$svc: 존재"; \
+		else \
+			echo "❌ $$svc: 없음"; \
+			MISSING_IMAGES="$$MISSING_IMAGES $$svc"; \
+		fi; \
+	done; \
+	echo ""; \
+	if [ -n "$$MISSING_IMAGES" ]; then \
+		echo "⚠️  일부 이미지가 GHCR에 없습니다:$$MISSING_IMAGES"; \
+		echo ""; \
+		echo "이미지를 빌드하고 GHCR에 푸시하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "이미지 빌드 및 푸시 중... (시간이 걸릴 수 있습니다)"; \
+			$(MAKE) ghcr-push-all ENV=dev || { \
+				echo ""; \
+				echo "❌ 이미지 빌드/푸시 실패"; \
+				echo "   수동으로 실행: make ghcr-push-all ENV=dev"; \
+				echo ""; \
+				echo "계속 진행하시겠습니까? (이미지 없이) [y/N]"; \
+				read -r cont; \
+				if [ "$$cont" != "y" ] && [ "$$cont" != "Y" ]; then \
+					exit 1; \
+				fi; \
+			}; \
+		else \
+			echo ""; \
+			echo "⚠️  이미지 없이 진행합니다."; \
+			echo "   helm-install-all 시 ImagePullBackOff 발생할 수 있습니다."; \
+			echo "   나중에 빌드: make ghcr-push-all ENV=dev"; \
+		fi; \
+	else \
+		echo "✅ 모든 서비스 이미지가 GHCR에 존재합니다!"; \
+	fi
+	@echo ""
+	@echo "----------------------------------------------"
+	@echo "  [8/8] ArgoCD 설치 (GitOps) - 선택사항"
+	@echo "----------------------------------------------"
+	@echo ""
+	@echo "ArgoCD를 설치하시겠습니까? [Y/n]"
+	@read -r answer; \
+	if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+		echo ""; \
+		echo "ArgoCD 설치 중..."; \
+		$(MAKE) argo-install-simple; \
+		echo ""; \
+		echo "✅ ArgoCD 설치 완료!"; \
+		echo ""; \
+		echo "📝 ArgoCD 접속 정보:"; \
+		echo "   URL: https://localhost:8079"; \
+		echo "   User: admin"; \
+		echo "   Password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath=\"{.data.password}\" | base64 -d"; \
+	else \
+		echo ""; \
+		echo "ArgoCD 설치를 건너뜁니다."; \
+		echo "나중에 설치: make argo-install-simple"; \
+	fi
 	@echo ""
 	@echo "=============================================="
 	@echo "  🎉 개발 환경 설정 완료!"
 	@echo "=============================================="
 	@echo ""
-	@echo "  ⚠️  외부 DB 확인:"
-	@echo "    - PostgreSQL: 172.18.0.1:5432 접근 가능해야 함"
-	@echo "    - Redis: 172.18.0.1:6379 접근 가능해야 함"
+	@echo "  ✅ 설치 완료:"
+	@echo "    - Kind 클러스터 + Istio Ambient"
+	@echo "    - Kiali, Jaeger (Istio 관측성)"
+	@echo "    - ArgoCD (GitOps)"
+	@echo ""
+	@echo "  📊 모니터링:"
+	@echo "    - Kiali:  kubectl port-forward svc/kiali -n istio-system 20001:20001"
+	@echo "    - Jaeger: kubectl port-forward svc/tracing -n istio-system 16686:80"
+	@echo "    - ArgoCD: kubectl port-forward svc/argocd-server -n argocd 8079:443"
 	@echo ""
 	@echo "  다음 단계:"
-	@echo "    1. (선택) secrets.yaml 편집:"
-	@echo "       vi k8s/helm/environments/secrets.yaml"
+	@echo "    make helm-install-all ENV=dev"
 	@echo ""
-	@echo "    2. Helm 배포:"
-	@echo "       make helm-install-all ENV=dev"
+	@echo "  이후 개발 사이클:"
+	@echo "    git push → GitHub Actions → GHCR → ArgoCD 자동 배포"
 	@echo ""
 	@echo "=============================================="
 
@@ -487,6 +1066,35 @@ _setup-db-debian:
 	@sudo sed -i 's/^protected-mode yes/protected-mode no/' /etc/redis/redis.conf 2>/dev/null || true
 	@sudo systemctl restart redis-server || sudo systemctl restart redis
 	@echo "Redis 준비 완료"
+
+_setup-db-for-kind: ## (내부) Kind 클러스터에서 호스트 DB 접근 설정
+	@echo "Kind 클러스터에서 호스트 DB 접근 설정 중..."
+	@# Linux에서만 필요 (macOS는 Docker Desktop이 자동 처리)
+	@if [ "$$(uname)" != "Darwin" ]; then \
+		echo "PostgreSQL 설정 (0.0.0.0 바인딩)..."; \
+		PG_HBA=$$(sudo -u postgres psql -t -P format=unaligned -c "SHOW hba_file" 2>/dev/null) || true; \
+		if [ -n "$$PG_HBA" ]; then \
+			if ! sudo grep -q "172.18.0.0/16" "$$PG_HBA" 2>/dev/null; then \
+				echo "host    all    all    172.17.0.0/16    trust" | sudo tee -a "$$PG_HBA" >/dev/null; \
+				echo "host    all    all    172.18.0.0/16    trust" | sudo tee -a "$$PG_HBA" >/dev/null; \
+			fi; \
+			PG_CONF=$$(sudo -u postgres psql -t -P format=unaligned -c "SHOW config_file" 2>/dev/null) || true; \
+			if [ -n "$$PG_CONF" ]; then \
+				sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" "$$PG_CONF" 2>/dev/null || true; \
+				sudo sed -i "s/listen_addresses = 'localhost'/listen_addresses = '*'/" "$$PG_CONF" 2>/dev/null || true; \
+			fi; \
+			sudo systemctl restart postgresql 2>/dev/null || true; \
+		fi; \
+		echo "Redis 설정 (0.0.0.0 바인딩)..."; \
+		if [ -f /etc/redis/redis.conf ]; then \
+			sudo sed -i 's/^bind 127.0.0.1/bind 0.0.0.0/' /etc/redis/redis.conf 2>/dev/null || true; \
+			sudo sed -i 's/^protected-mode yes/protected-mode no/' /etc/redis/redis.conf 2>/dev/null || true; \
+			sudo systemctl restart redis-server 2>/dev/null || sudo systemctl restart redis 2>/dev/null || true; \
+		fi; \
+		echo "✅ DB 접근 설정 완료 (Kind → Host 172.18.0.1)"; \
+	else \
+		echo "ℹ️  macOS: Docker Desktop이 자동으로 host.docker.internal을 제공합니다."; \
+	fi
 
 kind-load-images: ## 모든 이미지 빌드/풀 (인프라 + 백엔드 서비스)
 	@echo "=== 모든 이미지 로드 ==="

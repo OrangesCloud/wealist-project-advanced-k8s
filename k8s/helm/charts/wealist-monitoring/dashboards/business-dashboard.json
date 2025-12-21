@@ -33,7 +33,7 @@
       "gridPos": {"h": 5, "w": 4, "x": 4, "y": 1},
       "id": 2,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(increase(user_logins_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "round(sum(increase(user_logins_total[24h]))) or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "DAU (추정)",
       "description": "일일 로그인 기준 추정치",
       "type": "stat"
@@ -46,7 +46,7 @@
       "gridPos": {"h": 5, "w": 4, "x": 8, "y": 1},
       "id": 3,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(increase(user_logins_total[30d])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "round(sum(increase(user_logins_total[30d]))) or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "MAU (추정)",
       "description": "월간 로그인 기준 추정치",
       "type": "stat"
@@ -71,7 +71,7 @@
       "gridPos": {"h": 5, "w": 4, "x": 16, "y": 1},
       "id": 5,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(increase(user_registrations_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "round(sum(increase(user_registrations_total[24h]))) or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "오늘 신규 가입",
       "type": "stat"
     },
@@ -83,7 +83,7 @@
       "gridPos": {"h": 5, "w": 4, "x": 20, "y": 1},
       "id": 6,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "workspaces_total or vector(0)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "user_service_workspaces_total or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "전체 워크스페이스",
       "type": "stat"
     },
@@ -106,7 +106,7 @@
       "id": 7,
       "options": {"legend": {"calcs": ["sum"], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "sum(increase(user_registrations_total[1d])) or vector(0)", "legendFormat": "신규 가입", "refId": "A"}
+        {"expr": "round(sum(increase(user_registrations_total[1d]))) or vector(0)", "legendFormat": "신규 가입", "refId": "A"}
       ],
       "title": "일별 신규 회원",
       "type": "timeseries"
@@ -124,7 +124,7 @@
       "id": 8,
       "options": {"legend": {"calcs": ["sum"], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "sum(increase(user_registrations_total[7d])) or vector(0)", "legendFormat": "신규 가입", "refId": "A"}
+        {"expr": "round(sum(increase(user_registrations_total[7d]))) or vector(0)", "legendFormat": "신규 가입", "refId": "A"}
       ],
       "title": "주별 신규 회원",
       "type": "timeseries"
@@ -142,7 +142,7 @@
       "id": 9,
       "options": {"legend": {"calcs": ["sum"], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "sum(increase(user_registrations_total[30d])) or vector(0)", "legendFormat": "신규 가입", "refId": "A"}
+        {"expr": "round(sum(increase(user_registrations_total[30d]))) or vector(0)", "legendFormat": "신규 가입", "refId": "A"}
       ],
       "title": "월별 신규 회원",
       "type": "timeseries"
@@ -185,7 +185,7 @@
       "gridPos": {"h": 5, "w": 6, "x": 12, "y": 16},
       "id": 12,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(increase(board_service_project_created_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "round(sum(increase(board_service_project_created_total[24h]))) or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "오늘 프로젝트 생성",
       "type": "stat"
     },
@@ -197,7 +197,7 @@
       "gridPos": {"h": 5, "w": 6, "x": 18, "y": 16},
       "id": 13,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(increase(board_service_board_created_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "round(sum(increase(board_service_board_created_total[24h]))) or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "오늘 보드 생성",
       "type": "stat"
     },
@@ -214,8 +214,8 @@
       "id": 14,
       "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "sum(increase(board_service_project_created_total[1h])) or vector(0)", "legendFormat": "프로젝트 생성", "refId": "A"},
-        {"expr": "sum(increase(board_service_board_created_total[1h])) or vector(0)", "legendFormat": "보드 생성", "refId": "B"}
+        {"expr": "round(sum(increase(board_service_project_created_total[1h]))) or vector(0)", "legendFormat": "프로젝트 생성", "refId": "A"},
+        {"expr": "round(sum(increase(board_service_board_created_total[1h]))) or vector(0)", "legendFormat": "보드 생성", "refId": "B"}
       ],
       "title": "프로젝트/보드 생성 추이",
       "type": "timeseries"
@@ -259,7 +259,7 @@
       "gridPos": {"h": 5, "w": 4, "x": 8, "y": 30},
       "id": 17,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(increase(chat_messages_sent_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "round(sum(increase(chat_messages_sent_total[24h]))) or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "오늘 채팅 메시지",
       "type": "stat"
     },
@@ -296,7 +296,7 @@
       "gridPos": {"h": 5, "w": 4, "x": 20, "y": 30},
       "id": 20,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(increase(video_calls_started_total[24h])) or sum(increase(video_participants_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "round(sum(increase(video_calls_started_total[24h]))) or round(sum(increase(video_participants_total[24h]))) or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "오늘 회의 참가",
       "type": "stat"
     },
@@ -314,7 +314,7 @@
       "options": {"legend": {"calcs": ["sum", "mean"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
         {"expr": "websocket_active_connections or vector(0)", "legendFormat": "채팅 접속자", "refId": "A"},
-        {"expr": "sum(increase(chat_messages_sent_total[5m])) or vector(0)", "legendFormat": "메시지 (5분)", "refId": "B"}
+        {"expr": "round(sum(increase(chat_messages_sent_total[5m]))) or vector(0)", "legendFormat": "메시지 (5분)", "refId": "B"}
       ],
       "title": "채팅 활동 추이",
       "type": "timeseries"
@@ -357,7 +357,7 @@
       "id": 23,
       "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "sum(increase(workspaces_created_total[1d])) or vector(0)", "legendFormat": "워크스페이스 생성", "refId": "A"}
+        {"expr": "round(sum(increase(user_service_workspace_created_total[1d]))) or vector(0)", "legendFormat": "워크스페이스 생성", "refId": "A"}
       ],
       "title": "워크스페이스 생성 추이",
       "type": "timeseries"
@@ -375,7 +375,7 @@
       "id": 24,
       "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "workspaces_total or vector(0)", "legendFormat": "전체 워크스페이스", "refId": "A"}
+        {"expr": "user_service_workspaces_total or vector(0)", "legendFormat": "전체 워크스페이스", "refId": "A"}
       ],
       "title": "전체 워크스페이스 수 추이",
       "type": "timeseries"

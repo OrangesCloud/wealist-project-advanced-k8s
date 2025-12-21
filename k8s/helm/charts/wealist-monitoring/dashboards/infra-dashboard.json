@@ -42,7 +42,7 @@
       "gridPos": {"h": 5, "w": 6, "x": 0, "y": 6},
       "id": 2,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(rate(http_requests_total[5m]))", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "sum(rate({__name__=~\".+_http_requests_total\"}[5m]))", "legendFormat": "", "refId": "A"}],
       "title": "전체 RPS",
       "type": "stat"
     },
@@ -54,7 +54,7 @@
       "gridPos": {"h": 5, "w": 6, "x": 6, "y": 6},
       "id": 3,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "sum(rate({__name__=~\".+_http_requests_total\", status=~\"5..\"}[5m])) / sum(rate({__name__=~\".+_http_requests_total\"}[5m])) or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "전체 에러율",
       "type": "stat"
     },
@@ -66,7 +66,7 @@
       "gridPos": {"h": 5, "w": 6, "x": 12, "y": 6},
       "id": 4,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate({__name__=~\".+_http_request_duration_seconds_bucket\"}[5m])) by (le))", "legendFormat": "", "refId": "A"}],
       "title": "전체 응답시간 (p95)",
       "type": "stat"
     },
@@ -78,7 +78,7 @@
       "gridPos": {"h": 5, "w": 6, "x": 18, "y": 6},
       "id": 5,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(http_requests_in_flight)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "sum({__name__=~\".+_http_requests_in_flight\"}) or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "처리 중 요청",
       "type": "stat"
     },
@@ -101,7 +101,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
       "id": 6,
       "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) by (job) / sum(rate(http_requests_total[5m])) by (job)", "legendFormat": "{{job}}", "refId": "A"}],
+      "targets": [{"expr": "sum(rate({__name__=~\".+_http_requests_total\", status=~\"5..\"}[5m])) by (job) / sum(rate({__name__=~\".+_http_requests_total\"}[5m])) by (job)", "legendFormat": "{{job}}", "refId": "A"}],
       "title": "서비스별 에러율 (5xx)",
       "type": "timeseries"
     },
@@ -118,7 +118,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
       "id": 7,
       "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))", "legendFormat": "{{job}}", "refId": "A"}],
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate({__name__=~\".+_http_request_duration_seconds_bucket\"}[5m])) by (le, job))", "legendFormat": "{{job}}", "refId": "A"}],
       "title": "서비스별 응답시간 (p95)",
       "type": "timeseries"
     },
@@ -140,7 +140,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 21},
       "id": 8,
       "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"expr": "sum(rate(http_requests_total[5m])) by (job)", "legendFormat": "{{job}}", "refId": "A"}],
+      "targets": [{"expr": "sum(rate({__name__=~\".+_http_requests_total\"}[5m])) by (job)", "legendFormat": "{{job}}", "refId": "A"}],
       "title": "서비스별 RPS",
       "type": "timeseries"
     },
@@ -157,9 +157,9 @@
       "id": 9,
       "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "sum(rate(http_requests_total{status=~\"2..\"}[5m]))", "legendFormat": "2xx 성공", "refId": "A"},
-        {"expr": "sum(rate(http_requests_total{status=~\"4..\"}[5m]))", "legendFormat": "4xx 클라이언트에러", "refId": "B"},
-        {"expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m]))", "legendFormat": "5xx 서버에러", "refId": "C"}
+        {"expr": "sum(rate({__name__=~\".+_http_requests_total\", status=~\"2..\"}[5m]))", "legendFormat": "2xx 성공", "refId": "A"},
+        {"expr": "sum(rate({__name__=~\".+_http_requests_total\", status=~\"4..\"}[5m]))", "legendFormat": "4xx 클라이언트에러", "refId": "B"},
+        {"expr": "sum(rate({__name__=~\".+_http_requests_total\", status=~\"5..\"}[5m]))", "legendFormat": "5xx 서버에러", "refId": "C"}
       ],
       "title": "HTTP 상태코드 분포",
       "type": "timeseries"

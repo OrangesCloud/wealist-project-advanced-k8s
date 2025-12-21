@@ -43,10 +43,10 @@ OAuth 로그인과 JWT 토큰이 정상 동작하려면 secrets 파일이 필요
 
 ```bash
 # 1. secrets 파일 생성
-cp helm/environments/secrets.example.yaml helm/environments/local-kind-secrets.yaml
+cp helm/environments/secrets.example.yaml helm/environments/localhost-secrets.yaml
 
 # 2. 파일 편집하여 실제 값 입력
-vi helm/environments/local-kind-secrets.yaml
+vi helm/environments/localhost-secrets.yaml
 
 # 필수 항목:
 # - GOOGLE_CLIENT_ID: Google Cloud Console에서 발급
@@ -74,8 +74,8 @@ make kind-setup
 make kind-load-images
 
 # 3단계: Secrets 설정 (위 "Secrets 설정" 섹션 참고)
-cp helm/environments/secrets.example.yaml helm/environments/local-kind-secrets.yaml
-vi helm/environments/local-kind-secrets.yaml  # GOOGLE_CLIENT_ID 등 입력
+cp helm/environments/secrets.example.yaml helm/environments/localhost-secrets.yaml
+vi helm/environments/localhost-secrets.yaml  # GOOGLE_CLIENT_ID 등 입력
 
 # 4단계: Helm으로 전체 배포
 make helm-install-all ENV=localhost
@@ -85,7 +85,7 @@ make helm-install-all ENV=localhost
 
 ```bash
 make status                    # Pod 상태 확인
-kubectl get pods -n wealist-localhost
+kubectl get pods -n wealist-kind-local
 ```
 
 **접속 URL:**
@@ -189,13 +189,13 @@ make helm-install-all ENV=prod
 
 ### 환경별 네임스페이스
 
-| ENV          | Namespace         | 도메인                |
-| ------------ | ----------------- | --------------------- |
-| local-kind   | wealist-localhost | localhost             |
-| local-ubuntu | wealist-dev       | local.wealist.co.kr   |
-| dev          | wealist-dev       | dev.wealist.co.kr     |
-| staging      | wealist-staging   | staging.wealist.co.kr |
-| prod         | wealist-prod      | wealist.co.kr         |
+| ENV          | Namespace          | 도메인                |
+| ------------ | ------------------ | --------------------- |
+| localhost    | wealist-kind-local | localhost             |
+| local-ubuntu | wealist-dev        | local.wealist.co.kr   |
+| dev          | wealist-dev        | dev.wealist.co.kr     |
+| staging      | wealist-staging    | staging.wealist.co.kr |
+| prod         | wealist-prod       | wealist.co.kr         |
 
 ### 업그레이드 / 삭제
 
@@ -224,13 +224,13 @@ make helm-install-all-init ENV=localhost
 ```bash
 # Pod 상태
 make status
-kubectl get pods -n wealist-localhost
+kubectl get pods -n wealist-kind-local
 
 # 특정 Pod 로그
-kubectl logs -f deployment/board-service -n wealist-localhost
+kubectl logs -f deployment/board-service -n wealist-kind-local
 
 # Pod 상세 정보 (에러 확인)
-kubectl describe pod -l app=board-service -n wealist-localhost
+kubectl describe pod -l app=board-service -n wealist-kind-local
 ```
 
 ### 클러스터 관리
@@ -263,14 +263,14 @@ make helm-validate
 
 ```bash
 # Pod 안에서 직접 명령 실행
-kubectl exec -it deployment/board-service -n wealist-localhost -- sh
+kubectl exec -it deployment/board-service -n wealist-kind-local -- sh
 
 # DB 연결 테스트
-kubectl exec -it deployment/board-service -n wealist-localhost -- \
+kubectl exec -it deployment/board-service -n wealist-kind-local -- \
   env | grep DB
 
 # 서비스 간 통신 테스트
-kubectl run -it --rm debug --image=curlimages/curl -n wealist-localhost -- \
+kubectl run -it --rm debug --image=curlimages/curl -n wealist-kind-local -- \
   curl http://user-service:8081/health/live
 ```
 
@@ -330,10 +330,10 @@ make sonar-clean    # 데이터 초기화 (주의!)
 
 ```bash
 # 1. 에러 확인
-kubectl describe pod -l app=board-service -n wealist-localhost
+kubectl describe pod -l app=board-service -n wealist-kind-local
 
 # 2. 로그 확인
-kubectl logs deployment/board-service -n wealist-localhost --previous
+kubectl logs deployment/board-service -n wealist-kind-local --previous
 
 # 3. Health check 경로 문제인 경우가 많음
 # Helm values에서 healthCheck 설정 확인
@@ -346,7 +346,7 @@ kubectl logs deployment/board-service -n wealist-localhost --previous
 make board-service-all
 
 # 그래도 안 되면 Pod 강제 삭제
-kubectl delete pod -l app=board-service -n wealist-localhost
+kubectl delete pod -l app=board-service -n wealist-kind-local
 ```
 
 ### 클러스터 접속 안 됨 (재부팅 후)
@@ -366,13 +366,13 @@ make helm-install-all ENV=localhost
 
 ```bash
 # 1. PostgreSQL Pod 상태 확인
-kubectl get pods -l app=postgres -n wealist-localhost
+kubectl get pods -l app=postgres -n wealist-kind-local
 
 # 2. 서비스 환경변수 확인
-kubectl exec deployment/board-service -n wealist-localhost -- env | grep DB
+kubectl exec deployment/board-service -n wealist-kind-local -- env | grep DB
 
 # 3. DB 직접 연결 테스트
-kubectl exec -it statefulset/postgres -n wealist-localhost -- \
+kubectl exec -it statefulset/postgres -n wealist-kind-local -- \
   psql -U postgres -c "\l"
 ```
 
@@ -421,7 +421,7 @@ export SONAR_TOKEN="..."       # 토큰 설정
 make sonar-all                 # 전체 분석
 
 # === 디버깅 ===
-kubectl logs -f deployment/board-service -n wealist-localhost
-kubectl describe pod -l app=board-service -n wealist-localhost
-kubectl exec -it deployment/board-service -n wealist-localhost -- sh
+kubectl logs -f deployment/board-service -n wealist-kind-local
+kubectl describe pod -l app=board-service -n wealist-kind-local
+kubectl exec -it deployment/board-service -n wealist-kind-local -- sh
 ```

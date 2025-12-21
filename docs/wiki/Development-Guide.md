@@ -203,24 +203,24 @@ swag init -g cmd/api/main.go
 ### Pod Shell Access
 
 ```bash
-kubectl exec -it deploy/board-service -n wealist-localhost -- sh
+kubectl exec -it deploy/board-service -n wealist-kind-local -- sh
 ```
 
 ### Port Forward
 
 ```bash
 # 특정 서비스 직접 접근
-kubectl port-forward deploy/board-service 8000:8000 -n wealist-localhost
+kubectl port-forward deploy/board-service 8000:8000 -n wealist-kind-local
 ```
 
 ### Logs
 
 ```bash
 # 실시간 로그
-kubectl logs -f deploy/board-service -n wealist-localhost
+kubectl logs -f deploy/board-service -n wealist-kind-local
 
 # 이전 컨테이너 로그
-kubectl logs deploy/board-service -n wealist-localhost --previous
+kubectl logs deploy/board-service -n wealist-kind-local --previous
 ```
 
 ---

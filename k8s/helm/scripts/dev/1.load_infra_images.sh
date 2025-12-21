@@ -1,65 +1,94 @@
 #!/bin/bash
-# 인프라 이미지를 로컬 레지스트리에 푸시
-# 이미 로컬 레지스트리에 있으면 스킵
-#
-# 환경 변수:
-#   SKIP_DB=true  - PostgreSQL/Redis 이미지 스킵 (외부 DB 사용 시)
+# =============================================================================
+# 인프라 이미지 로드 (dev 환경)
+# =============================================================================
+# dev 환경:
+# - PostgreSQL/Redis: 호스트 PC 외부 DB 사용 (이미지 불필요)
+# - MinIO: 클러스터 내 Pod로 실행 (이미지 필요)
+# - Backend: GHCR에서 pull
 
 set -e
 
-LOCAL_REG="localhost:5001"
+CLUSTER_NAME="wealist"
+GHCR_REGISTRY="ghcr.io/orangescloud"
 
-echo "=== 인프라 이미지 → 로컬 레지스트리 (dev 환경) ==="
+# 아키텍처 감지
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64)  PLATFORM="linux/amd64" ;;
+    aarch64) PLATFORM="linux/arm64" ;;
+    arm64)   PLATFORM="linux/arm64" ;;
+    *)       PLATFORM="linux/amd64" ;;
+esac
+
+echo "=== dev 환경 인프라 이미지 로드 ==="
 echo ""
-if [ "${SKIP_DB}" = "true" ]; then
-    echo "※ 로드할 이미지 (SKIP_DB=true):"
-    echo "  - LiveKit Server v1.5"
-    echo "  (PostgreSQL/Redis는 호스트 PC 사용)"
+echo "📦 Registry: ${GHCR_REGISTRY}"
+echo "🖥️  Architecture: ${ARCH} → Platform: ${PLATFORM}"
+echo ""
+echo "ℹ️  dev 환경 구성:"
+echo "   - PostgreSQL: 호스트 PC (외부) - 이미지 불필요"
+echo "   - Redis: 호스트 PC (외부) - 이미지 불필요"
+echo "   - MinIO: 클러스터 내 Pod - 이미지 로드 필요"
+echo "   - Backend: GHCR 이미지"
+echo ""
+
+# GHCR 인증 확인 (토큰 유효성만 체크, 이미지 존재 여부와 무관)
+echo "🔐 GHCR 인증 확인 중..."
+if docker login ghcr.io --get-login 2>/dev/null | grep -q .; then
+    echo "✅ GHCR 로그인 상태: $(docker login ghcr.io --get-login 2>/dev/null)"
 else
-    echo "※ 로드할 이미지:"
-    echo "  - PostgreSQL 15 (alpine)"
-    echo "  - Redis 7 (alpine)"
-    echo "  - LiveKit Server v1.5"
+    echo "⚠️  GHCR 로그인 필요"
+    echo ""
+    echo "   GHCR 로그인:"
+    echo "   echo \$GHCR_TOKEN | docker login ghcr.io -u \$GHCR_USERNAME --password-stdin"
 fi
+
 echo ""
+echo "--- 인프라 이미지 로드 (Kind 클러스터) ---"
 
-# 레지스트리 확인
-if ! curl -s "http://${LOCAL_REG}/v2/" > /dev/null 2>&1; then
-    echo "ERROR: 레지스트리 없음. make kind-setup 먼저 실행"
-    exit 1
-fi
+# Kind 클러스터에 이미지 로드하는 함수
+# Docker Desktop containerd 호환성을 위해 tar 파일로 저장 후 로드
+load_to_kind() {
+    local image=$1
+    local tar_file="/tmp/kind-image-$(echo "$image" | tr '/:' '-').tar"
+    echo "  📦 ${image}"
 
-# 로컬 레지스트리에 이미지 있는지 확인
-image_exists() {
-    local name=$1 tag=$2
-    curl -sf "http://${LOCAL_REG}/v2/${name}/manifests/${tag}" > /dev/null 2>&1
+    # 기존 이미지 삭제 (containerd 캐시 문제 방지)
+    docker rmi "$image" 2>/dev/null || true
+
+    # 플랫폼 명시하여 pull
+    echo "     Pulling with platform: ${PLATFORM}"
+    docker pull --platform "${PLATFORM}" "$image"
+
+    # tar 파일로 저장 후 Kind에 로드 (containerd 우회)
+    echo "     Saving to tar..."
+    docker save "$image" -o "$tar_file"
+
+    echo "     Loading to Kind cluster..."
+    kind load image-archive "$tar_file" --name "$CLUSTER_NAME"
+
+    # 임시 파일 삭제
+    rm -f "$tar_file"
+    echo "     ✅ 로드 완료"
 }
 
-load() {
-    local src=$1 name=$2 tag=$3
+# MinIO - S3 호환 스토리지
+echo ""
+echo "🗄️  MinIO 이미지 로드 중..."
+load_to_kind "minio/minio:latest"
 
-    if image_exists "$name" "$tag"; then
-        echo "✓ ${name}:${tag} - 이미 있음 (스킵)"
-        return
-    fi
-
-    echo "$src → ${LOCAL_REG}/${name}:${tag}"
-    docker pull --platform linux/amd64 "$src"
-    docker tag "$src" "${LOCAL_REG}/${name}:${tag}"
-    docker push "${LOCAL_REG}/${name}:${tag}"
-}
-
-# AWS ECR Public (무료) - DB 이미지
-if [ "${SKIP_DB}" != "true" ]; then
-    load "public.ecr.aws/docker/library/postgres:15-alpine" "postgres" "15-alpine"
-    load "public.ecr.aws/docker/library/redis:7-alpine" "redis" "7-alpine"
-else
-    echo "⏭ postgres:15-alpine - 외부 DB 사용으로 스킵"
-    echo "⏭ redis:7-alpine - 외부 DB 사용으로 스킵"
-fi
-
-# Docker Hub - LiveKit (실시간 통신)
-load "livekit/livekit-server:v1.5" "livekit" "v1.5"
+# LiveKit - 실시간 통신 (필요시)
+echo ""
+echo "📹 LiveKit 이미지 로드 중..."
+load_to_kind "livekit/livekit-server:v1.5"
 
 echo ""
-echo "완료!"
+echo "✅ 인프라 이미지 로드 완료!"
+echo ""
+echo "📝 다음 단계:"
+echo "   1. 서비스 이미지 확인/푸시:"
+echo "      make ghcr-push-all ENV=dev"
+echo ""
+echo "   2. Helm 배포:"
+echo "      make helm-install-all ENV=dev"

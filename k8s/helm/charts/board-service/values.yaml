@@ -47,7 +47,7 @@ config:
 
   # Database (service-specific)
   DB_NAME: "wealist_board_service_db"
-  DATABASE_URL: "postgresql://board_service:board_service_password@postgres:5432/wealist_board_service_db?sslmode=disable"
+  DATABASE_URL: "postgresql://board_service:postgres@postgres:5432/wealist_board_service_db?sslmode=disable"
 
 # -----------------------------------------------------------------------------
 # External Secrets

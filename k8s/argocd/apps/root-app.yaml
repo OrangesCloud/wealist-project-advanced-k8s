@@ -6,8 +6,8 @@ metadata:
 spec:
   project: wealist
   source:
-    repoURL: https://github.com/OrangesCloud/wealist-argo-helm.git
-    targetRevision: main
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-dev
     path: k8s/argocd/apps
   destination:
     server: https://kubernetes.default.svc

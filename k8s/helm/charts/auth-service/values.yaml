@@ -7,6 +7,9 @@
 # Global settings (namespace, environment, imageRegistry, domain) are defined
 # in helm/environments/*.yaml files.
 
+shared:
+  config: {}
+  secrets: {}
 # -----------------------------------------------------------------------------
 # Image Configuration
 # -----------------------------------------------------------------------------

@@ -6,28 +6,16 @@ Expand the name of the chart.
 {{- end }}
 
 {{/*
-Create a default fully qualified app name.
+Create chart name and version as used by the chart label.
 */}}
-{{- define "istio-config.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- printf "%s" $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
+{{- define "istio-config.chart" -}}
+{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
 {{- define "istio-config.labels" -}}
-helm.sh/chart: {{ include "istio-config.name" . }}
+helm.sh/chart: {{ include "istio-config.chart" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- end }}
-
-{{/*
-Namespace helper
-*/}}
-{{- define "istio-config.namespace" -}}
-{{- .Values.namespace | default .Release.Namespace }}
 {{- end }}

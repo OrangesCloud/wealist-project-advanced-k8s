@@ -1,355 +1,90 @@
-# Istio Configuration Chart
-# Values are expected under 'istio:' key when using environment files
+# Default values for istio-config
+global:
+  namespace: wealist-localhost
 
-# Direct values (used when not using environment files)
-enabled: true
-namespace: wealist-localhost
-
-# =============================================================================
-# Gateway Configuration (Istio's own Gateway API - DEPRECATED)
-# =============================================================================
-# NOTE: This is the old Istio Gateway (networking.istio.io/v1beta1)
-# For Kind clusters, we use Kubernetes Gateway API instead (created by setup script)
-gateway:
-  enabled: false  # Disabled - using K8s Gateway API in istio-system
-  name: wealist-gateway
-  selector:
-    istio: ingressgateway
-  hosts:
-    - "*"
-  tls:
-    enabled: false
-    credentialName: wealist-tls
-    mode: SIMPLE
-
-# =============================================================================
-# VirtualService Configuration (Istio's own routing - DEPRECATED)
-# =============================================================================
-# NOTE: This is the old Istio VirtualService (networking.istio.io/v1beta1)
-# For Kind clusters, we use HTTPRoute instead (Kubernetes Gateway API)
-virtualService:
-  enabled: false  # Disabled - using HTTPRoute
-  hosts:
-    - "*"
-  routes:
-    auth:
-      prefix: /svc/auth
-      host: auth-service
-      port: 8080
-      timeout: 30s
-    user:
-      prefix: /svc/user
-      host: user-service
-      port: 8081
-      timeout: 30s
-    board:
-      prefix: /svc/board
-      host: board-service
-      port: 8000
-      timeout: 3600s
-    chat:
-      prefix: /svc/chat
-      host: chat-service
-      port: 8001
-      timeout: 3600s
-    noti:
-      prefix: /svc/noti
-      host: noti-service
-      port: 8002
-      timeout: 3600s
-    storage:
-      prefix: /svc/storage
-      host: storage-service
-      port: 8003
-      timeout: 300s
-    video:
-      prefix: /svc/video
-      host: video-service
-      port: 8004
-      timeout: 3600s
-
-# =============================================================================
-# HTTPRoute Configuration (Kubernetes Gateway API - RECOMMENDED)
-# =============================================================================
-# Reference: https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRoute
-# This is the future standard for Kubernetes ingress routing
-httpRoute:
+istio:
   enabled: true
-  # Reference to the Gateway in istio-system (created by Kind setup script)
-  gatewayRef:
-    name: istio-ingressgateway
-    namespace: istio-system
-  hosts:
-    - "localhost"
-  routes:
-    auth:
-      prefix: /svc/auth
-      host: auth-service
-      port: 8080
-      timeout: 30s
-    user:
-      prefix: /svc/user
-      host: user-service
-      port: 8081
-      timeout: 30s
-    board:
-      prefix: /svc/board
-      host: board-service
-      port: 8000
-      timeout: 3600s
-    chat:
-      prefix: /svc/chat
-      host: chat-service
-      port: 8001
-      timeout: 3600s
-    noti:
-      prefix: /svc/noti
-      host: noti-service
-      port: 8002
-      timeout: 3600s
-    storage:
-      prefix: /svc/storage
-      host: storage-service
-      port: 8003
-      timeout: 300s
-    video:
-      prefix: /svc/video
-      host: video-service
-      port: 8004
-      timeout: 3600s
-  # Frontend route (catch-all)
-  # dev 환경에서는 비활성화 (CloudFront/S3에서 서빙)
-  frontend:
-    enabled: true  # localhost: true, dev: false
+  namespace: wealist-localhost
 
-# =============================================================================
-# mTLS Configuration
-# =============================================================================
-mtls:
-  enabled: true
-  mode: PERMISSIVE  # Allow both mTLS and plain HTTP for DB connections
-
-# =============================================================================
-# Database mTLS Configuration
-# =============================================================================
-# PostgreSQL/Redis use their own wire protocols (not HTTP)
-# mTLS interferes with these connections, so we disable it for DB pods
-database:
-  postgres:
-    disableMtls: true  # Disable mTLS for postgres pods
-  redis:
-    disableMtls: true  # Disable mTLS for redis pods
-
-destinationRules:
-  enabled: true
-  loadBalancer:
-    simple: ROUND_ROBIN  # ROUND_ROBIN, LEAST_CONN, RANDOM, PASSTHROUGH
-  connectionPool:
-    tcp:
-      maxConnections: 100
-      connectTimeout: 10s
-    http:
-      h2UpgradePolicy: DO_NOT_UPGRADE  # Go services use HTTP/1.1
-      http1MaxPendingRequests: 100
-      http2MaxRequests: 1000
-      maxRequestsPerConnection: 100
-      maxRetries: 3
-  outlierDetection:
-    consecutive5xxErrors: 5
-    consecutiveGatewayErrors: 5
-    interval: 10s
-    baseEjectionTime: 30s
-    maxEjectionPercent: 50
-    minHealthPercent: 30
-
-retryPolicy:
-  enabled: true
-  attempts: 3
-  perTryTimeout: 5s
-  retryOn: gateway-error,connect-failure,refused-stream,retriable-4xx,reset
-
-authorizationPolicy:
-  enabled: true
-  denyAll: false  # 기본값: 허용 (localhost), dev/staging/prod에서 true로 설정
-  # Service-level authorization rules
-  rules:
-    # Which services each service can call
-    board:
-      allowedCallers:
-        - user-service    # workspace validation
-        - auth-service    # token validation
-      allowedPaths:
-        - /api/*
-        - /health/*
-        - /internal/*
-    chat:
-      allowedCallers:
-        - user-service
-        - auth-service
-        - noti-service    # notification on new message
-      allowedPaths:
-        - /api/*
-        - /health/*
-        - /ws/*
-    noti:
-      allowedCallers:
-        - user-service
-        - auth-service
-        - board-service   # board notifications
-        - chat-service    # chat notifications
-      allowedPaths:
-        - /api/*
-        - /health/*
-        - /internal/*
-        - /sse/*
-    storage:
-      allowedCallers:
-        - user-service
-        - auth-service
-        - board-service   # file attachments
-        - chat-service    # media uploads
-      allowedPaths:
-        - /api/*
-        - /health/*
-    video:
-      allowedCallers:
-        - user-service
-        - auth-service
-      allowedPaths:
-        - /api/*
-        - /health/*
-
-jwtAuth:
-  # RS256 JWKS 기반 JWT 검증 활성화
-  # auth-service가 /.well-known/jwks.json 엔드포인트 노출
-  enabled: true
-  issuer: wealist-auth-service
-  # JWKS endpoint from auth-service (RS256 공개키)
-  jwksUri: "http://auth-service:8080/.well-known/jwks.json"
-  # Public paths that don't require JWT (인증 없이 접근 가능)
-  excludePaths:
-    - /health/*
-    - /actuator/health/*
-    - /.well-known/*
-    - /oauth2/*
-    - /login/oauth2/*
-    - /api/auth/login
-    - /api/auth/register
-    - /api/auth/refresh
-    - /api/auth/oauth2/*
-    - /swagger-ui/*
-    - /v3/api-docs/*
-    - /  # Frontend static files
-
-telemetry:
-  tracing:
+  httpRoute:
     enabled: true
-    samplingPercentage: 100
-    provider: jaeger
-  accessLogging:
-    enabled: true
-    provider: envoy
-
-# Ambient Mesh Configuration
-# Ambient mode uses ztunnel (L4) + Waypoint Proxy (L7) instead of sidecars
-ambient:
-  enabled: true
-  waypoint:
-    enabled: true  # Deploy Waypoint Proxy for L7 features (routing, retries, JWT)
-    name: wealist-waypoint
-    annotations: {}
-
-services:
-  - name: auth-service
-    port: 8080
-  - name: user-service
-    port: 8081
-  - name: board-service
-    port: 8000
-  - name: chat-service
-    port: 8001
-  - name: noti-service
-    port: 8002
-  - name: storage-service
-    port: 8003
-  - name: video-service
-    port: 8004
-  - name: frontend
-    port: 80
-
-# -----------------------------------------------------------------------------
-# Service-to-Service Authorization (ServiceAccount-based)
-# Defines which services can call which other services
-# -----------------------------------------------------------------------------
-serviceAuthorization:
-  enabled: true
-  rules:
-    # user-service: receives calls from multiple services for workspace validation
-    user-service:
-      allowedCallers:
-        - board-service
-        - chat-service
-        - storage-service
-        - video-service
-      allowedPaths:
-        - /api/workspaces/*/validate-member/*
-        - /api/users/*
-        - /api/profiles/*
-        - /health/*
-        - /internal/*
-
-    # auth-service: JWT validation and JWKS endpoint
-    auth-service:
-      allowedCallers:
-        - board-service  # WebSocket token validation
-      allowedPaths:
-        - /api/auth/validate
-        - /.well-known/*
-        - /actuator/health/*
-
-    # noti-service: receives notifications from board and chat
-    noti-service:
-      allowedCallers:
-        - board-service
-        - chat-service
-      allowedPaths:
-        - /api/*
-        - /internal/*
-        - /sse/*
-        - /health/*
-
-    # board-service: gateway only (no internal callers)
-    board-service:
-      allowedCallers: []
-      allowedPaths:
-        - /api/*
-        - /health/*
-        - /internal/*
-
-    # chat-service: gateway only
-    chat-service:
-      allowedCallers: []
-      allowedPaths:
-        - /api/*
-        - /ws/*
-        - /health/*
-
-    # storage-service: gateway only
-    storage-service:
-      allowedCallers: []
-      allowedPaths:
-        - /api/*
-        - /health/*
-
-    # video-service: gateway only
-    video-service:
-      allowedCallers: []
-      allowedPaths:
-        - /api/*
-        - /health/*
-
-    # frontend: gateway only
+    gatewayRef:
+      name: istio-ingressgateway
+      namespace: istio-system
+    hosts:
+      - "localhost"
+      - "*"
     frontend:
-      allowedCallers: []
-      allowedPaths:
-        - /*
+      enabled: true
+    monitoring:
+      enabled: true
+      grafana:
+        prefix: /monitoring/grafana
+        host: grafana
+        port: 3000
+      prometheus:
+        prefix: /monitoring/prometheus
+        host: prometheus
+        port: 9090
+      loki:
+        prefix: /monitoring/loki
+        host: loki
+        port: 3100
+      # Istio Observability (istio-system 네임스페이스, setup 시 자동 설치됨)
+      kiali:
+        enabled: true
+        prefix: /monitoring/kiali
+        host: kiali
+        port: 20001
+        namespace: istio-system
+      jaeger:
+        enabled: true
+        prefix: /monitoring/jaeger
+        host: tracing
+        port: 80
+        namespace: istio-system
+
+  mtls:
+    enabled: true
+    mode: PERMISSIVE
+
+  database:
+    postgres:
+      disableMtls: true
+    redis:
+      disableMtls: true
+
+  destinationRules:
+    enabled: true
+    loadBalancer:
+      simple: ROUND_ROBIN
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 10s
+      http:
+        h2UpgradePolicy: DO_NOT_UPGRADE
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 100
+        maxRetries: 3
+    outlierDetection:
+      consecutive5xxErrors: 5
+      consecutiveGatewayErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+
+  authorizationPolicy:
+    enabled: true
+    denyAll: false
+
+  serviceAuthorization:
+    enabled: false
+
+  ambient:
+    enabled: true
+    waypoint:
+      enabled: true
+      name: wealist-waypoint
