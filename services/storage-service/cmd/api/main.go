@@ -111,11 +111,22 @@ func main() {
 		logger.Warn("S3 configuration incomplete, file uploads disabled")
 	}
 
-	// Initialize Auth validator (공통 모듈 사용)
+	// Initialize Auth validator (SmartValidator for RS256 JWKS support)
 	var tokenValidator middleware.TokenValidator
 	if cfg.AuthAPI.BaseURL != "" {
-		tokenValidator = middleware.NewAuthServiceValidator(cfg.AuthAPI.BaseURL, cfg.JWT.Secret, logger)
-		logger.Info("Auth validator initialized", zap.String("auth_api_url", cfg.AuthAPI.BaseURL))
+		jwtIssuer := os.Getenv("JWT_ISSUER")
+		if jwtIssuer == "" {
+			jwtIssuer = "wealist-auth-service"
+		}
+		tokenValidator = middleware.NewSmartValidator(cfg.AuthAPI.BaseURL, jwtIssuer, logger)
+		logger.Info("SmartValidator initialized",
+			zap.String("auth_api_url", cfg.AuthAPI.BaseURL),
+			zap.String("jwt_issuer", jwtIssuer))
+	}
+
+	// Initialize Redis for rate limiting
+	if err := database.InitRedis(logger); err != nil {
+		logger.Warn("Failed to initialize Redis, rate limiting will be disabled", zap.Error(err))
 	}
 
 	// Initialize User API client
@@ -131,13 +142,15 @@ func main() {
 
 	// Setup router
 	r := router.Setup(router.Config{
-		DB:             db,
-		Logger:         logger,
-		JWTSecret:      cfg.JWT.Secret,
-		BasePath:       cfg.Server.BasePath,
-		S3Client:       s3Client,
-		TokenValidator: tokenValidator,
-		UserClient:     userClient,
+		DB:              db,
+		Logger:          logger,
+		JWTSecret:       cfg.JWT.Secret,
+		BasePath:        cfg.Server.BasePath,
+		S3Client:        s3Client,
+		TokenValidator:  tokenValidator,
+		UserClient:      userClient,
+		RedisClient:     database.GetRedis(),
+		RateLimitConfig: cfg.RateLimit,
 	})
 
 	// Create HTTP server

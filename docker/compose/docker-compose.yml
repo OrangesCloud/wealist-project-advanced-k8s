@@ -251,6 +251,7 @@ services:
 
       # JWT Configuration
       - SECRET_KEY=${JWT_SECRET}
+      - JWT_ISSUER=wealist-auth-service
 
       # Service URLs
       - AUTH_SERVICE_URL=http://auth-service:8080
@@ -329,6 +330,7 @@ services:
 
       # JWT Configuration (로컬 검증용 - fallback)
       - SECRET_KEY=${JWT_SECRET}
+      - JWT_ISSUER=wealist-auth-service
 
       # Service URLs
       - USER_SERVICE_URL=http://user-service:8081
@@ -414,6 +416,7 @@ services:
       - USER_SERVICE_URL=http://user-service:8081
       - AUTH_SERVICE_URL=http://auth-service:8080
       - SECRET_KEY=${JWT_SECRET}
+      - JWT_ISSUER=wealist-auth-service
       - CORS_ORIGINS=${CORS_ORIGINS}
 
     networks:
@@ -484,6 +487,7 @@ services:
       # Auth Service
       - AUTH_SERVICE_URL=http://auth-service:8080
       - SECRET_KEY=${JWT_SECRET}
+      - JWT_ISSUER=wealist-auth-service
 
       # Internal API Key
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-internal-secret-key}
@@ -549,6 +553,7 @@ services:
 
       # JWT Configuration
       - SECRET_KEY=${JWT_SECRET}
+      - JWT_ISSUER=wealist-auth-service
 
       # Service URLs
       - AUTH_SERVICE_URL=http://auth-service:8080
@@ -631,6 +636,7 @@ services:
       # Auth Service
       - AUTH_SERVICE_URL=http://auth-service:8080
       - SECRET_KEY=${JWT_SECRET}
+      - JWT_ISSUER=wealist-auth-service
 
       # User Service (base path for workspace validation)
       - USER_SERVICE_URL=http://user-service:8081

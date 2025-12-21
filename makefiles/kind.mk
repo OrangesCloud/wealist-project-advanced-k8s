@@ -4,12 +4,25 @@
 
 ##@ Kubernetes (Kind)
 
-.PHONY: kind-setup kind-setup-db kind-load-images kind-load-images-mono kind-delete kind-recover
+.PHONY: kind-setup kind-setup-simple kind-setup-db kind-load-images kind-load-images-mono kind-delete kind-recover
 .PHONY: _setup-db-macos _setup-db-debian
 
-kind-setup: kind-setup-db ## Create cluster + registry (with local DB setup)
-	@echo "=== Step 2: Creating Kind cluster with local registry ==="
-	./docker/scripts/dev/0.setup-cluster.sh
+kind-setup: ## Create cluster + Istio Ambient + Gateway API (recommended)
+	@echo "=== Creating Kind cluster with Istio Ambient + Gateway API ==="
+	./k8s/installShell/0.setup-cluster.sh
+	@echo ""
+	@echo "Cluster ready! Next: make kind-load-images"
+
+kind-setup-simple: ## Create cluster + nginx ingress (no Istio, for simple testing)
+	@echo "=== Creating Kind cluster with nginx ingress (simple mode) ==="
+	./k8s/installShell/0.setup-cluster-simple.sh
+	@echo ""
+	@echo "Cluster ready! Next: make kind-load-images"
+
+# (legacy) kind-setup-local-db - use kind-setup + ENV=local-ubuntu instead
+kind-setup-local-db: kind-setup-db
+	@echo "=== Creating Kind cluster with Istio Ambient + Gateway API (local DB) ==="
+	./k8s/installShell/0.setup-cluster.sh
 	@echo ""
 	@echo "Cluster ready! Next: make kind-load-images"
 
@@ -101,14 +114,14 @@ _setup-db-debian:
 	@sudo systemctl restart redis-server || sudo systemctl restart redis
 	@echo "Redis ready"
 
-kind-load-images: ## Build/pull all images (infra + services)
+kind-load-images: ## Build/pull all images (infra + backend services)
 	@echo "=== Step 2: Loading all images ==="
 	@echo ""
 	@echo "--- Loading infrastructure images ---"
 	./docker/scripts/dev/1.load_infra_images.sh
 	@echo ""
-	@echo "--- Building service images ---"
-	./docker/scripts/dev/2.build_services_and_load.sh
+	@echo "--- Building backend service images ---"
+	SKIP_FRONTEND=true ./docker/scripts/dev/2.build_services_and_load.sh
 	@echo ""
 	@echo "All images loaded!"
 	@echo ""
@@ -130,8 +143,8 @@ kind-load-images-mono: ## Build Go services with monorepo pattern (faster rebuil
 		docker push $(LOCAL_REGISTRY)/$$svc:$(IMAGE_TAG); \
 	done
 	@echo ""
-	@echo "--- Building auth-service and frontend ---"
-	@$(MAKE) auth-service-load frontend-load
+	@echo "--- Building auth-service ---"
+	@$(MAKE) auth-service-load
 	@echo ""
 	@echo "All images loaded! (Monorepo pattern)"
 	@echo ""

@@ -37,6 +37,6 @@ help: ## Display this help
 	@echo "  \033[36m<service>-redeploy\033[0m        Rollout restart in k8s"
 	@echo "  \033[36m<service>-all\033[0m             Build, push, and redeploy"
 	@echo ""
-	@echo "  Services: auth-service, board-service, chat-service, frontend,"
-	@echo "            noti-service, storage-service, user-service, video-service"
+	@echo "  Services: auth-service, board-service, chat-service, noti-service,"
+	@echo "            storage-service, user-service, video-service"
 	@echo ""

@@ -2,8 +2,9 @@
 # Per-Service Commands
 # =============================================================================
 # Usage: make <service>-build, make <service>-load, make <service>-redeploy, make <service>-all
-# Services: auth-service, board-service, chat-service, frontend,
+# Services: auth-service, board-service, chat-service,
 #           noti-service, storage-service, user-service, video-service
+# Note: Frontend is deployed separately (CDN/S3 or npm run dev locally)
 
 ##@ Per-Service Commands
 
@@ -63,7 +64,8 @@ board-service-build: ## Build board-service image
 		-f services/board-service/docker/Dockerfile .
 	@echo "Built $(LOCAL_REGISTRY)/board-service:$(IMAGE_TAG)"
 
-frontend-build: ## Build frontend image
+# (legacy) frontend-build - frontend is now deployed separately (CDN/S3)
+frontend-build:
 	@echo "Building frontend..."
 	docker build -t $(LOCAL_REGISTRY)/frontend:$(IMAGE_TAG) \
 		-f services/frontend/Dockerfile services/frontend
@@ -85,7 +87,8 @@ chat-service-load: chat-service-build ## Build and push chat-service
 	docker push $(LOCAL_REGISTRY)/chat-service:$(IMAGE_TAG)
 	@echo "Pushed $(LOCAL_REGISTRY)/chat-service:$(IMAGE_TAG)"
 
-frontend-load: frontend-build ## Build and push frontend
+# (legacy) frontend-load - frontend is now deployed separately (CDN/S3)
+frontend-load: frontend-build
 	docker push $(LOCAL_REGISTRY)/frontend:$(IMAGE_TAG)
 	@echo "Pushed $(LOCAL_REGISTRY)/frontend:$(IMAGE_TAG)"
 
@@ -121,7 +124,8 @@ chat-service-redeploy: ## Rollout restart chat-service
 	kubectl rollout restart deployment/chat-service -n $(K8S_NAMESPACE)
 	@echo "Rollout restart triggered for chat-service"
 
-frontend-redeploy: ## Rollout restart frontend
+# (legacy) frontend-redeploy - frontend is now deployed separately (CDN/S3)
+frontend-redeploy:
 	kubectl rollout restart deployment/frontend -n $(K8S_NAMESPACE)
 	@echo "Rollout restart triggered for frontend"
 
@@ -151,7 +155,8 @@ board-service-all: board-service-load board-service-redeploy ## Build, push, and
 
 chat-service-all: chat-service-load chat-service-redeploy ## Build, push, and redeploy chat-service
 
-frontend-all: frontend-load frontend-redeploy ## Build, push, and redeploy frontend
+# (legacy) frontend-all - frontend is now deployed separately (CDN/S3)
+frontend-all: frontend-load frontend-redeploy
 
 noti-service-all: noti-service-load noti-service-redeploy ## Build, push, and redeploy noti-service
 

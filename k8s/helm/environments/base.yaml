@@ -66,8 +66,8 @@ securityContext:
 # Service Account
 # -----------------------------------------------------------------------------
 serviceAccount:
-  create: false
-  name: ""
+  create: true
+  name: ""  # 차트명 사용 (e.g., board-service)
   annotations: {}
 
 # -----------------------------------------------------------------------------
@@ -126,6 +126,12 @@ shared:
     REDIS_HOST: "redis"
     REDIS_PORT: "6379"
 
+    # JWT Configuration
+    JWT_ISSUER: "wealist-auth-service"
+    # Istio JWT Mode: true면 Istio가 검증, Go 서비스는 파싱만
+    # false면 Go 서비스의 SmartValidator가 검증
+    ISTIO_JWT_MODE: "false"
+
     # Service URLs
     AUTH_SERVICE_URL: "http://auth-service:8080"
     USER_SERVICE_URL: "http://user-service:8081"
@@ -145,7 +151,7 @@ shared:
     CORS_ORIGINS: "*"
 
     # OAuth2 Redirect URLs (override per environment)
-    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost/login/oauth2/code/google"
+    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "http://localhost/oauth/callback"
 
     # LiveKit (WebRTC) - non-sensitive
@@ -154,6 +160,11 @@ shared:
 
     # Database Migration (default: disabled for safety)
     DB_AUTO_MIGRATE: "false"
+
+    # Rate Limiting (Application Level - Redis based)
+    RATE_LIMIT_ENABLED: "true"
+    RATE_LIMIT_PER_MINUTE: "60"
+    RATE_LIMIT_BURST: "10"
 
   # ---------------------------------------------------------------------------
   # Shared Secrets (stored in K8s Secret, base64 encoded)
@@ -188,12 +199,27 @@ istio:
   # Enable/disable Istio configuration deployment
   enabled: false  # Enable per environment
 
+  # Istio mode: ambient (recommended) or sidecar (legacy)
+  mode: ambient
+
+  # Ambient Mesh Configuration (v1.24+)
+  # Uses ztunnel (L4) + Waypoint (L7) instead of sidecars
+  ambient:
+    enabled: true
+    waypoint:
+      enabled: true  # Deploy Waypoint Proxy for L7 features
+      name: wealist-waypoint
+
   # Target namespace (override per environment)
   namespace: wealist-dev
 
-  # Gateway configuration
+  # ---------------------------------------------------------------------------
+  # Gateway Configuration (Istio's own Gateway API - DEPRECATED)
+  # ---------------------------------------------------------------------------
+  # NOTE: For Kind clusters with Istio Ambient, use K8s Gateway API instead
+  # The setup script creates Gateway in istio-system namespace
   gateway:
-    enabled: true
+    enabled: false  # Disabled - using K8s Gateway API
     name: wealist-gateway
     selector:
       istio: ingressgateway
@@ -209,11 +235,64 @@ istio:
     enabled: true
     mode: PERMISSIVE  # STRICT or PERMISSIVE (start with PERMISSIVE)
 
-  # VirtualService routing
+  # ---------------------------------------------------------------------------
+  # VirtualService Routing (Istio's own routing - DEPRECATED)
+  # ---------------------------------------------------------------------------
+  # NOTE: For Kind clusters with Istio Ambient, use HTTPRoute instead
   virtualService:
-    enabled: true
+    enabled: false  # Disabled - using HTTPRoute
     hosts:
       - "*"
+    routes:
+      auth:
+        prefix: /svc/auth
+        host: auth-service
+        port: 8080
+        timeout: 30s
+      user:
+        prefix: /svc/user
+        host: user-service
+        port: 8081
+        timeout: 30s
+      board:
+        prefix: /svc/board
+        host: board-service
+        port: 8000
+        timeout: 3600s
+      chat:
+        prefix: /svc/chat
+        host: chat-service
+        port: 8001
+        timeout: 3600s
+      noti:
+        prefix: /svc/noti
+        host: noti-service
+        port: 8002
+        timeout: 3600s
+      storage:
+        prefix: /svc/storage
+        host: storage-service
+        port: 8003
+        timeout: 300s
+      video:
+        prefix: /svc/video
+        host: video-service
+        port: 8004
+        timeout: 3600s
+
+  # ---------------------------------------------------------------------------
+  # HTTPRoute Configuration (Kubernetes Gateway API - RECOMMENDED)
+  # ---------------------------------------------------------------------------
+  # Reference: https://gateway-api.sigs.k8s.io/
+  # This is the future standard for Kubernetes ingress routing
+  httpRoute:
+    enabled: true
+    # Reference to Gateway in istio-system (created by Kind setup script)
+    gatewayRef:
+      name: istio-ingressgateway
+      namespace: istio-system
+    hosts:
+      - "localhost"
     routes:
       auth:
         prefix: /svc/auth

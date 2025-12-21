@@ -19,15 +19,40 @@ import (
 type TokenValidator = commonauth.TokenValidator
 
 // AuthServiceValidator는 공통 모듈의 AuthServiceValidator 타입 별칭입니다.
-// auth-service 연동 + 로컬 JWT fallback을 지원합니다.
+// Deprecated: SmartValidator 사용 권장 (RS256 JWKS 지원)
 type AuthServiceValidator = commonauth.AuthServiceValidator
 
+// SmartValidator는 공통 모듈의 SmartValidator 타입 별칭입니다.
+// auth-service HTTP 검증 + JWKS (RSA) fallback을 지원합니다.
+type SmartValidator = commonauth.SmartValidator
+
+// JWTParser는 공통 모듈의 JWTParser 타입 별칭입니다.
+// Istio JWT 모드에서 사용: 검증 없이 파싱만 수행합니다.
+type JWTParser = commonauth.JWTParser
+
 // NewAuthServiceValidator는 새 AuthServiceValidator를 생성합니다.
-// authServiceURL: auth-service URL (비어있으면 로컬 검증만 사용)
-// secretKey: JWT 서명 키 (로컬 검증용)
-// logger: 로거 (nil이면 nop 로거 사용)
+// Deprecated: NewSmartValidator 사용 권장
 func NewAuthServiceValidator(authServiceURL, secretKey string, logger *zap.Logger) *AuthServiceValidator {
 	return commonauth.NewAuthServiceValidator(authServiceURL, secretKey, logger)
+}
+
+// NewSmartValidator는 새 SmartValidator를 생성합니다.
+// authServiceURL: auth-service URL (예: http://auth-service:8080)
+// issuer: JWT issuer (예: wealist-auth-service)
+func NewSmartValidator(authServiceURL, issuer string, logger *zap.Logger) *SmartValidator {
+	return commonauth.NewSmartValidator(authServiceURL, issuer, logger)
+}
+
+// NewJWTParser는 새 JWTParser를 생성합니다.
+// Istio JWT 모드에서 사용: Istio가 검증을 완료했다고 가정하고 파싱만 수행합니다.
+func NewJWTParser(logger *zap.Logger) *JWTParser {
+	return commonauth.NewJWTParser(logger)
+}
+
+// IstioAuthMiddleware는 Istio JWT 모드용 미들웨어입니다.
+// Istio가 JWT를 검증한 후 Go 서비스는 파싱만 수행합니다.
+func IstioAuthMiddleware(parser *JWTParser) gin.HandlerFunc {
+	return commonauth.IstioAuthMiddleware(parser)
 }
 
 // AuthMiddleware는 JWT 토큰을 검증하는 Gin 미들웨어입니다.

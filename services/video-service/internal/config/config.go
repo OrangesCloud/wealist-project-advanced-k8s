@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 
 	commonconfig "github.com/OrangesCloud/wealist-advanced-go-pkg/config"
 	"gopkg.in/yaml.v3"
@@ -10,9 +11,17 @@ import (
 // Config contains all configuration for video-service.
 type Config struct {
 	commonconfig.BaseConfig `yaml:",inline"`
-	LiveKit                 LiveKitConfig  `yaml:"livekit"`
-	Services                ServicesConfig `yaml:"services"`
-	CORS                    CORSConfig     `yaml:"cors"`
+	LiveKit                 LiveKitConfig   `yaml:"livekit"`
+	Services                ServicesConfig  `yaml:"services"`
+	CORS                    CORSConfig      `yaml:"cors"`
+	RateLimit               RateLimitConfig `yaml:"rate_limit"`
+}
+
+// RateLimitConfig contains rate limiting configuration.
+type RateLimitConfig struct {
+	Enabled           bool `yaml:"enabled"`
+	RequestsPerMinute int  `yaml:"requests_per_minute"`
+	BurstSize         int  `yaml:"burst_size"`
 }
 
 // LiveKitConfig contains LiveKit server configuration.
@@ -83,6 +92,25 @@ func Load(path string) (*Config, error) {
 	// CORS configuration
 	if corsOrigins := os.Getenv("CORS_ORIGINS"); corsOrigins != "" {
 		cfg.CORS.AllowedOrigins = corsOrigins
+	}
+
+	// Rate Limit configuration
+	if rateLimitEnabled := os.Getenv("RATE_LIMIT_ENABLED"); rateLimitEnabled != "" {
+		cfg.RateLimit.Enabled = rateLimitEnabled == "true"
+	}
+	if rpm := os.Getenv("RATE_LIMIT_PER_MINUTE"); rpm != "" {
+		if v, err := strconv.Atoi(rpm); err == nil {
+			cfg.RateLimit.RequestsPerMinute = v
+		}
+	}
+	if burst := os.Getenv("RATE_LIMIT_BURST"); burst != "" {
+		if v, err := strconv.Atoi(burst); err == nil {
+			cfg.RateLimit.BurstSize = v
+		}
+	}
+	// Set defaults if not configured
+	if cfg.RateLimit.RequestsPerMinute == 0 {
+		cfg.RateLimit.RequestsPerMinute = 60 // Default: 60 requests per minute
 	}
 
 	return cfg, nil
