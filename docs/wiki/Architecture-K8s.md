@@ -10,10 +10,10 @@ weAlist의 Kubernetes 플랫폼 아키텍처입니다.
 
 ### Node Configuration
 
-| Type | Instance | vCPU | Memory | 용도 |
-|------|----------|------|--------|------|
-| **App Nodes** | t3.medium | 2 | 4 GiB | 애플리케이션 워크로드 |
-| **DB Nodes** | t3.large | 2 | 8 GiB | StatefulSet (개발 환경) |
+| Type          | Instance  | vCPU | Memory | 용도                    |
+| ------------- | --------- | ---- | ------ | ----------------------- |
+| **App Nodes** | t3.medium | 2    | 4 GiB  | 애플리케이션 워크로드   |
+| **DB Nodes**  | t3.large  | 2    | 8 GiB  | StatefulSet (개발 환경) |
 
 > **Production**: Managed Node Groups + Spot Instances 혼합 권장
 
@@ -43,15 +43,15 @@ weAlist의 Kubernetes 플랫폼 아키텍처입니다.
 └────────────────────────────────────────────────────────┘
 ```
 
-| Namespace | 용도 | 환경 |
-|-----------|------|------|
-| `wealist-kind-local` | Kind 로컬 개발 | Local |
-| `wealist-dev` | 개발/테스트 | Dev |
-| `wealist-staging` | 스테이징 | Staging |
-| `wealist-prod` | 운영 | Production |
-| `argocd` | GitOps CD | Shared |
-| `monitoring` | 모니터링 스택 | Shared |
-| `ingress-nginx` | Ingress Controller | Shared |
+| Namespace            | 용도               | 환경       |
+| -------------------- | ------------------ | ---------- |
+| `wealist-kind-local` | Kind 로컬 개발     | Local      |
+| `wealist-dev`        | 개발/테스트        | Dev        |
+| `wealist-staging`    | 스테이징           | Staging    |
+| `wealist-prod`       | 운영               | Production |
+| `argocd`             | GitOps CD          | Shared     |
+| `monitoring`         | 모니터링 스택      | Shared     |
+| `ingress-nginx`      | Ingress Controller | Shared     |
 
 ---
 
@@ -61,16 +61,16 @@ weAlist의 Kubernetes 플랫폼 아키텍처입니다.
 
 ### Service Ports
 
-| Service | Port | Target Port | Type |
-|---------|------|-------------|------|
-| auth-service | 8080 | 8080 | ClusterIP |
-| user-service | 8081 | 8081 | ClusterIP |
-| board-service | 8000 | 8000 | ClusterIP |
-| chat-service | 8001 | 8001 | ClusterIP |
-| noti-service | 8002 | 8002 | ClusterIP |
-| storage-service | 8003 | 8003 | ClusterIP |
-| video-service | 8004 | 8004 | ClusterIP |
-| frontend | 80 | 80 | ClusterIP |
+| Service         | Port | Target Port | Type      |
+| --------------- | ---- | ----------- | --------- |
+| auth-service    | 8080 | 8080        | ClusterIP |
+| user-service    | 8081 | 8081        | ClusterIP |
+| board-service   | 8000 | 8000        | ClusterIP |
+| chat-service    | 8001 | 8001        | ClusterIP |
+| noti-service    | 8002 | 8002        | ClusterIP |
+| storage-service | 8003 | 8003        | ClusterIP |
+| video-service   | 8004 | 8004        | ClusterIP |
+| frontend        | 80   | 80          | ClusterIP |
 
 ---
 
@@ -80,7 +80,7 @@ weAlist의 Kubernetes 플랫폼 아키텍처입니다.
 helm/
 ├── environments/              # 환경별 Values
 │   ├── base.yaml              # 공통 설정
-│   ├── local-kind.yaml        # Kind 로컬
+│   ├── localhost.yaml        # Kind 로컬
 │   ├── local-ubuntu.yaml      # Ubuntu 개발서버
 │   ├── dev.yaml               # AWS Dev
 │   ├── staging.yaml           # AWS Staging
@@ -115,16 +115,16 @@ base.yaml (공통 설정 덮어씀)
 
 ### Requests & Limits 정책
 
-| Service | CPU Request | CPU Limit | Memory Request | Memory Limit |
-|---------|-------------|-----------|----------------|--------------|
-| auth-service | 100m | 500m | 256Mi | 512Mi |
-| user-service | 50m | 200m | 64Mi | 256Mi |
-| board-service | 50m | 200m | 64Mi | 256Mi |
-| chat-service | 50m | 200m | 64Mi | 256Mi |
-| noti-service | 50m | 200m | 64Mi | 256Mi |
-| storage-service | 50m | 200m | 64Mi | 256Mi |
-| video-service | 100m | 500m | 128Mi | 512Mi |
-| frontend | 50m | 200m | 64Mi | 256Mi |
+| Service         | CPU Request | CPU Limit | Memory Request | Memory Limit |
+| --------------- | ----------- | --------- | -------------- | ------------ |
+| auth-service    | 100m        | 500m      | 256Mi          | 512Mi        |
+| user-service    | 50m         | 200m      | 64Mi           | 256Mi        |
+| board-service   | 50m         | 200m      | 64Mi           | 256Mi        |
+| chat-service    | 50m         | 200m      | 64Mi           | 256Mi        |
+| noti-service    | 50m         | 200m      | 64Mi           | 256Mi        |
+| storage-service | 50m         | 200m      | 64Mi           | 256Mi        |
+| video-service   | 100m        | 500m      | 128Mi          | 512Mi        |
+| frontend        | 50m         | 200m      | 64Mi           | 256Mi        |
 
 ### Autoscaling (HPA)
 
@@ -136,12 +136,12 @@ spec:
   minReplicas: 2
   maxReplicas: 10
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
 ```
 
 ---
@@ -210,11 +210,11 @@ spec:
 
 ### Pod Security Standards
 
-| Level | 적용 환경 | 설명 |
-|-------|----------|------|
-| **Privileged** | - | 사용 안함 |
-| **Baseline** | dev, staging | 기본 보안 |
-| **Restricted** | prod | 최소 권한 원칙 |
+| Level          | 적용 환경    | 설명           |
+| -------------- | ------------ | -------------- |
+| **Privileged** | -            | 사용 안함      |
+| **Baseline**   | dev, staging | 기본 보안      |
+| **Restricted** | prod         | 최소 권한 원칙 |
 
 ### Network Policies (Phase 2)
 
@@ -229,15 +229,15 @@ spec:
     matchLabels:
       app: board-service
   policyTypes:
-  - Egress
+    - Egress
   egress:
-  - to:
-    - podSelector:
-        matchLabels:
-          app: user-service
-    - podSelector:
-        matchLabels:
-          app: postgres
+    - to:
+        - podSelector:
+            matchLabels:
+              app: user-service
+        - podSelector:
+            matchLabels:
+              app: postgres
 ```
 
 ---
@@ -246,9 +246,9 @@ spec:
 
 ### Probe 설정
 
-| Probe | Path | 용도 |
-|-------|------|------|
-| **Liveness** | `/health/live` | Pod 재시작 여부 결정 |
+| Probe         | Path            | 용도                  |
+| ------------- | --------------- | --------------------- |
+| **Liveness**  | `/health/live`  | Pod 재시작 여부 결정  |
 | **Readiness** | `/health/ready` | 트래픽 수신 여부 결정 |
 
 ```yaml

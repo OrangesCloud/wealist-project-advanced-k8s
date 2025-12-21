@@ -1,0 +1,44 @@
+{{- if and .Values.istio.enabled .Values.istio.mtls.enabled }}
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  mtls:
+    mode: {{ .Values.istio.mtls.mode }}
+---
+{{- if .Values.istio.database.postgres.disableMtls }}
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: postgres-disable-mtls
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  mtls:
+    mode: DISABLE
+{{- end }}
+---
+{{- if .Values.istio.database.redis.disableMtls }}
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: redis-disable-mtls
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  mtls:
+    mode: DISABLE
+{{- end }}
+{{- end }}

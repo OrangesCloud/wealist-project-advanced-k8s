@@ -1,0 +1,91 @@
+{{- if .Values.monitoringIngress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monitoring-ingress
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: monitoring
+    app.kubernetes.io/name: monitoring-ingress
+    app.kubernetes.io/component: monitoring
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    # No rewrite-target - Grafana handles sub-path internally
+    {{- with .Values.monitoringIngress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.monitoringIngress.className | default "nginx" }}
+  {{- if .Values.monitoringIngress.tls }}
+  tls:
+    {{- range .Values.monitoringIngress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.monitoringIngress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          # Grafana - Dashboard visualization (handles sub-path via GF_SERVER_SERVE_FROM_SUB_PATH)
+          {{- if $.Values.grafana.enabled }}
+          - path: /monitoring/grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: {{ $.Values.grafana.service.port }}
+          {{- end }}
+    {{- end }}
+---
+# Ingress with rewrite for Prometheus and Loki (they use --web.route-prefix=/ internally)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monitoring-ingress-rewrite
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: monitoring
+    app.kubernetes.io/name: monitoring-ingress-rewrite
+    app.kubernetes.io/component: monitoring
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    {{- with .Values.monitoringIngress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.monitoringIngress.className | default "nginx" }}
+  rules:
+    {{- range .Values.monitoringIngress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          # Prometheus - Metrics query (uses --web.external-url for links, --web.route-prefix=/ for internal)
+          {{- if $.Values.prometheus.enabled }}
+          - path: /monitoring/prometheus(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: prometheus
+                port:
+                  number: {{ $.Values.prometheus.service.port }}
+          {{- end }}
+
+          # Loki - Log query (doesn't support sub-path, needs rewrite)
+          {{- if $.Values.loki.enabled }}
+          - path: /monitoring/loki(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: loki
+                port:
+                  number: {{ $.Values.loki.service.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}

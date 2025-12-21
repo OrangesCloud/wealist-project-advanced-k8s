@@ -4,6 +4,23 @@ import { chatServiceClient } from './apiConfig';
 import { AxiosResponse } from 'axios';
 import type { Chat, Message, CreateChatRequest, SendMessageRequest } from '../types/chat';
 
+// chat-service 응답 wrapper 타입
+interface ChatServiceResponse<T> {
+  message: T;
+  success: boolean;
+}
+
+// 응답에서 실제 데이터 추출 헬퍼
+const extractData = <T>(response: AxiosResponse<ChatServiceResponse<T> | T>): T => {
+  const data = response.data;
+  // wrapper 형태인지 확인 (message 필드가 있고 success 필드가 있는 경우)
+  if (data && typeof data === 'object' && 'message' in data && 'success' in data) {
+    return (data as ChatServiceResponse<T>).message;
+  }
+  // 직접 데이터인 경우
+  return data as T;
+};
+
 /**
  * 🔥 DM 채팅방 생성 또는 기존 채팅방 가져오기
  * @param targetUserId 대화 상대방 userId
@@ -61,8 +78,8 @@ export const createOrGetDMChat = async (
  * [API] POST /api/chats
  */
 export const createChat = async (data: CreateChatRequest): Promise<Chat> => {
-  const response: AxiosResponse<Chat> = await chatServiceClient.post('', data);
-  return response.data;
+  const response = await chatServiceClient.post('', data);
+  return extractData<Chat>(response);
 };
 
 /**
@@ -70,8 +87,9 @@ export const createChat = async (data: CreateChatRequest): Promise<Chat> => {
  * [API] GET /api/chats/my
  */
 export const getMyChats = async (): Promise<Chat[]> => {
-  const response: AxiosResponse<Chat[]> = await chatServiceClient.get('/my');
-  return response.data;
+  const response = await chatServiceClient.get('/my');
+  const data = extractData<Chat[]>(response);
+  return Array.isArray(data) ? data : [];
 };
 
 /**
@@ -79,10 +97,9 @@ export const getMyChats = async (): Promise<Chat[]> => {
  * [API] GET /api/chats/workspace/{workspaceId}
  */
 export const getWorkspaceChats = async (workspaceId: string): Promise<Chat[]> => {
-  const response: AxiosResponse<Chat[]> = await chatServiceClient.get(
-    `/workspace/${workspaceId}`,
-  );
-  return response.data;
+  const response = await chatServiceClient.get(`/workspace/${workspaceId}`);
+  const data = extractData<Chat[]>(response);
+  return Array.isArray(data) ? data : [];
 };
 
 /**
@@ -99,8 +116,8 @@ export const getProjectChats = async (projectId: string): Promise<Chat[]> => {
  * [API] GET /api/chats/{chatId}
  */
 export const getChat = async (chatId: string): Promise<Chat> => {
-  const response: AxiosResponse<Chat> = await chatServiceClient.get(`/${chatId}`);
-  return response.data;
+  const response = await chatServiceClient.get(`/${chatId}`);
+  return extractData<Chat>(response);
 };
 
 /**
@@ -132,13 +149,16 @@ export const removeParticipant = async (chatId: string, userId: string): Promise
  * [API] GET /api/chats/messages/{chatId}
  */
 export const getMessages = async (chatId: string, limit = 50, offset = 0): Promise<Message[]> => {
-  const response: AxiosResponse<Message[]> = await chatServiceClient.get(`/messages/${chatId}`, {
+  const response = await chatServiceClient.get(`/messages/${chatId}`, {
     params: { limit, offset },
   });
 
+  // 🔥 wrapper 응답에서 데이터 추출
+  const data = extractData<Message[]>(response);
+
   // 🔥 null/undefined 체크
-  if (!response.data || !Array.isArray(response.data)) {
-    console.warn('[getMessages] 메시지 데이터가 비어있거나 배열이 아님:', response.data);
+  if (!data || !Array.isArray(data)) {
+    console.warn('[getMessages] 메시지 데이터가 비어있거나 배열이 아님:', data);
     return [];
   }
 
@@ -146,7 +166,7 @@ export const getMessages = async (chatId: string, limit = 50, offset = 0): Promi
   const currentUserId = localStorage.getItem('userId');
 
   // isMine 플래그 추가
-  return response.data.map((msg) => ({
+  return data.map((msg) => ({
     ...msg,
     isMine: msg.userId === currentUserId,
   }));
@@ -157,12 +177,9 @@ export const getMessages = async (chatId: string, limit = 50, offset = 0): Promi
  * [API] POST /api/chats/messages/{chatId}
  */
 export const sendMessage = async (chatId: string, content: string): Promise<Message> => {
-  const data: SendMessageRequest = { content };
-  const response: AxiosResponse<Message> = await chatServiceClient.post(
-    `/messages/${chatId}`,
-    data,
-  );
-  return response.data;
+  const requestData: SendMessageRequest = { content };
+  const response = await chatServiceClient.post(`/messages/${chatId}`, requestData);
+  return extractData<Message>(response);
 };
 
 /**
@@ -186,10 +203,9 @@ export const markMessagesAsRead = async (messageIds: string[]): Promise<void> =>
  * [API] GET /api/chats/messages/{chatId}/unread
  */
 export const getUnreadCount = async (chatId: string): Promise<number> => {
-  const response: AxiosResponse<{ unreadCount: number }> = await chatServiceClient.get(
-    `/messages/${chatId}/unread`,
-  );
-  return response.data.unreadCount;
+  const response = await chatServiceClient.get(`/messages/${chatId}/unread`);
+  const data = extractData<{ unreadCount: number }>(response);
+  return data?.unreadCount ?? 0;
 };
 
 /**
@@ -209,9 +225,9 @@ export const updateLastRead = async (chatId: string): Promise<void> => {
  * [API] GET /api/chats/presence/online
  */
 export const getOnlineUsers = async (): Promise<string[]> => {
-  const response: AxiosResponse<{ onlineUsers: string[]; count: number }> =
-    await chatServiceClient.get('/presence/online');
-  return response.data.onlineUsers;
+  const response = await chatServiceClient.get('/presence/online');
+  const data = extractData<{ onlineUsers: string[]; count: number }>(response);
+  return data?.onlineUsers ?? [];
 };
 
 /**
@@ -221,9 +237,9 @@ export const getOnlineUsers = async (): Promise<string[]> => {
  * @returns true: 온라인, false: 오프라인
  */
 export const checkUserStatus = async (userId: string): Promise<boolean> => {
-  const response: AxiosResponse<{ userId: string; isOnline: boolean }> =
-    await chatServiceClient.get(`/presence/status/${userId}`);
-  return response.data.isOnline;
+  const response = await chatServiceClient.get(`/presence/status/${userId}`);
+  const data = extractData<{ userId: string; isOnline: boolean }>(response);
+  return data?.isOnline ?? false;
 };
 
 /**

@@ -1,14 +1,19 @@
 package router
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	commonhealth "github.com/OrangesCloud/wealist-advanced-go-pkg/health"
 	commonmw "github.com/OrangesCloud/wealist-advanced-go-pkg/middleware"
+	"github.com/OrangesCloud/wealist-advanced-go-pkg/ratelimit"
 	"user-service/internal/client"
+	"user-service/internal/config"
 	"user-service/internal/handler"
 	"user-service/internal/metrics"
 	"user-service/internal/middleware"
@@ -18,13 +23,15 @@ import (
 
 // Config holds router configuration
 type Config struct {
-	DB             *gorm.DB
-	Logger         *zap.Logger
-	JWTSecret      string
-	BasePath       string
-	S3Client       *client.S3Client
-	TokenValidator middleware.TokenValidator // 공통 모듈의 TokenValidator 인터페이스 사용
-	Metrics        *metrics.Metrics
+	DB              *gorm.DB
+	Logger          *zap.Logger
+	JWTSecret       string
+	BasePath        string
+	S3Client        *client.S3Client
+	TokenValidator  middleware.TokenValidator // 공통 모듈의 TokenValidator 인터페이스 사용
+	Metrics         *metrics.Metrics
+	RedisClient     *redis.Client
+	RateLimitConfig config.RateLimitConfig
 }
 
 // Setup sets up the router with all routes
@@ -42,6 +49,21 @@ func Setup(cfg Config) *gin.Engine {
 	r.Use(commonmw.Logger(cfg.Logger))
 	r.Use(commonmw.DefaultCORS())
 	r.Use(metrics.HTTPMiddleware(m))
+
+	// Rate limiting middleware
+	if cfg.RateLimitConfig.Enabled && cfg.RedisClient != nil {
+		rlConfig := ratelimit.DefaultConfig().
+			WithRequestsPerMinute(cfg.RateLimitConfig.RequestsPerMinute).
+			WithBurstSize(cfg.RateLimitConfig.BurstSize).
+			WithKeyPrefix("rl:user:")
+		limiter := ratelimit.NewRedisRateLimiter(cfg.RedisClient, rlConfig, cfg.Logger)
+		r.Use(ratelimit.MiddlewareWithLogger(limiter, ratelimit.UserKey, rlConfig, cfg.Logger))
+		cfg.Logger.Info("Rate limiting middleware enabled",
+			zap.Int("requests_per_minute", cfg.RateLimitConfig.RequestsPerMinute),
+			zap.Int("burst_size", cfg.RateLimitConfig.BurstSize))
+	} else if cfg.RateLimitConfig.Enabled && cfg.RedisClient == nil {
+		cfg.Logger.Warn("Rate limiting enabled but Redis is not available, skipping")
+	}
 
 	// Prometheus metrics endpoint
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
@@ -86,12 +108,23 @@ func Setup(cfg Config) *gin.Engine {
 	// API routes group
 	api := r.Group(cfg.BasePath)
 
-	// Auth middleware - use auth-service validator if available, otherwise use local JWT
+	// Auth middleware - check ISTIO_JWT_MODE first
 	var authMiddleware gin.HandlerFunc
-	if cfg.TokenValidator != nil {
+	istioJWTMode := os.Getenv("ISTIO_JWT_MODE") == "true"
+
+	if istioJWTMode {
+		// K8s + Istio 환경: Istio가 JWT 검증, Go 서비스는 파싱만
+		parser := middleware.NewJWTParser(cfg.Logger)
+		authMiddleware = middleware.IstioAuthMiddleware(parser)
+		cfg.Logger.Info("Using Istio JWT mode (parse only)")
+	} else if cfg.TokenValidator != nil {
+		// Docker Compose / K8s without Istio: SmartValidator로 전체 검증
 		authMiddleware = middleware.AuthWithValidator(cfg.TokenValidator)
+		cfg.Logger.Info("Using SmartValidator mode (full validation)")
 	} else {
+		// Fallback: 로컬 JWT 검증
 		authMiddleware = middleware.Auth(cfg.JWTSecret)
+		cfg.Logger.Info("Using local JWT validation")
 	}
 
 	// ============================================================

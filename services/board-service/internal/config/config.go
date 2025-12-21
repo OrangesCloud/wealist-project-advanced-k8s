@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,15 +14,16 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Logger   LoggerConfig   `yaml:"logger"`
-	JWT      JWTConfig      `yaml:"jwt"`
-	AuthAPI  AuthAPIConfig  `yaml:"auth_api"` // ← Auth API 추가 (토큰 검증용)
-	UserAPI  UserAPIConfig  `yaml:"user_api"`
-	CORS     CORSConfig     `yaml:"cors"`
-	Redis    RedisConfig    `mapstructure:"redis" yaml:"redis"` // ← Redis 추가
-	S3       S3Config       `yaml:"s3"`                         // ← S3 추가
+	Server    ServerConfig    `yaml:"server"`
+	Database  DatabaseConfig  `yaml:"database"`
+	Logger    LoggerConfig    `yaml:"logger"`
+	JWT       JWTConfig       `yaml:"jwt"`
+	AuthAPI   AuthAPIConfig   `yaml:"auth_api"` // ← Auth API 추가 (토큰 검증용)
+	UserAPI   UserAPIConfig   `yaml:"user_api"`
+	CORS      CORSConfig      `yaml:"cors"`
+	Redis     RedisConfig     `mapstructure:"redis" yaml:"redis"` // ← Redis 추가
+	S3        S3Config        `yaml:"s3"`                         // ← S3 추가
+	RateLimit RateLimitConfig `yaml:"rate_limit"`                 // Rate limiting configuration
 }
 
 // ServerConfig holds server configuration
@@ -62,8 +64,9 @@ type JWTConfig struct {
 
 // AuthAPIConfig holds Auth Service configuration for token validation
 type AuthAPIConfig struct {
-	BaseURL string        `yaml:"base_url"`
-	Timeout time.Duration `yaml:"timeout"`
+	BaseURL   string        `yaml:"base_url"`
+	Timeout   time.Duration `yaml:"timeout"`
+	JWTIssuer string        `yaml:"jwt_issuer"` // JWT issuer for JWKS validation
 }
 
 // UserAPIConfig holds User API configuration
@@ -82,6 +85,13 @@ type RedisConfig struct {
 	DB       int    `mapstructure:"db" yaml:"db"`
 	TLS      bool   `mapstructure:"tls" yaml:"tls"`
 	URL      string `mapstructure:"url" yaml:"url"` // redis:// 형식 지원
+}
+
+// RateLimitConfig holds rate limiting configuration
+type RateLimitConfig struct {
+	Enabled           bool `yaml:"enabled"`
+	RequestsPerMinute int  `yaml:"requests_per_minute"`
+	BurstSize         int  `yaml:"burst_size"`
 }
 
 // S3Config holds S3 configuration
@@ -267,6 +277,13 @@ func (c *Config) overrideFromEnv() {
 	if c.AuthAPI.Timeout == 0 {
 		c.AuthAPI.Timeout = 5 * time.Second
 	}
+	// JWT Issuer for JWKS validation
+	if issuer := os.Getenv("JWT_ISSUER"); issuer != "" {
+		c.AuthAPI.JWTIssuer = issuer
+	}
+	if c.AuthAPI.JWTIssuer == "" {
+		c.AuthAPI.JWTIssuer = "wealist-auth-service" // default issuer
+	}
 
 	// User API - USER_SERVICE_URL alias (original format takes precedence)
 	if baseURL := os.Getenv("USER_SERVICE_URL"); baseURL != "" {
@@ -317,6 +334,25 @@ func (c *Config) overrideFromEnv() {
 	}
 	if s3PublicEndpoint := os.Getenv("S3_PUBLIC_ENDPOINT"); s3PublicEndpoint != "" {
 		c.S3.PublicEndpoint = s3PublicEndpoint
+	}
+
+	// Rate Limit 환경변수 오버라이드
+	if rateLimitEnabled := os.Getenv("RATE_LIMIT_ENABLED"); rateLimitEnabled != "" {
+		c.RateLimit.Enabled = rateLimitEnabled == "true"
+	}
+	if rpm := os.Getenv("RATE_LIMIT_PER_MINUTE"); rpm != "" {
+		if v, err := strconv.Atoi(rpm); err == nil {
+			c.RateLimit.RequestsPerMinute = v
+		}
+	}
+	if burst := os.Getenv("RATE_LIMIT_BURST"); burst != "" {
+		if v, err := strconv.Atoi(burst); err == nil {
+			c.RateLimit.BurstSize = v
+		}
+	}
+	// Set defaults if not configured
+	if c.RateLimit.RequestsPerMinute == 0 {
+		c.RateLimit.RequestsPerMinute = 60 // Default: 60 requests per minute
 	}
 }
 

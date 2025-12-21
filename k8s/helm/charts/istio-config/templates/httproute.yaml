@@ -1,0 +1,192 @@
+{{- if and .Values.istio.enabled .Values.istio.httpRoute.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: wealist-routes
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.istio.httpRoute.gatewayRef.name }}
+      namespace: {{ .Values.istio.httpRoute.gatewayRef.namespace }}
+  {{- $validHosts := list }}
+  {{- range .Values.istio.httpRoute.hosts }}
+  {{- if and (ne . "*") (ne . "") }}
+  {{- $validHosts = append $validHosts . }}
+  {{- end }}
+  {{- end }}
+  {{- if $validHosts }}
+  hostnames:
+    {{- range $validHosts }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    # ==========================================================================
+    # API Services (구체적인 경로를 먼저 정의해야 함!)
+    # 각 서비스의 실제 포트를 사용해야 함!
+    # ==========================================================================
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /svc/auth
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: auth-service
+          port: 8080
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /svc/user
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: user-service
+          port: 8081
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /svc/board
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: board-service
+          port: 8000
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /svc/chat
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: chat-service
+          port: 8001
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /svc/noti
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: noti-service
+          port: 8002
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /svc/storage
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: storage-service
+          port: 8003
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /svc/video
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: video-service
+          port: 8004
+
+    # Monitoring routes
+    {{- if .Values.istio.httpRoute.monitoring.enabled }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.istio.httpRoute.monitoring.grafana.prefix }}
+      backendRefs:
+        - name: {{ .Values.istio.httpRoute.monitoring.grafana.host }}
+          port: {{ .Values.istio.httpRoute.monitoring.grafana.port }}
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.istio.httpRoute.monitoring.prometheus.prefix }}
+      backendRefs:
+        - name: {{ .Values.istio.httpRoute.monitoring.prometheus.host }}
+          port: {{ .Values.istio.httpRoute.monitoring.prometheus.port }}
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.istio.httpRoute.monitoring.loki.prefix }}
+      backendRefs:
+        - name: {{ .Values.istio.httpRoute.monitoring.loki.host }}
+          port: {{ .Values.istio.httpRoute.monitoring.loki.port }}
+
+    # Kiali - Istio Service Mesh 시각화 (istio-system 네임스페이스)
+    {{- if .Values.istio.httpRoute.monitoring.kiali.enabled }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.istio.httpRoute.monitoring.kiali.prefix }}
+      backendRefs:
+        - name: {{ .Values.istio.httpRoute.monitoring.kiali.host }}
+          namespace: {{ .Values.istio.httpRoute.monitoring.kiali.namespace }}
+          port: {{ .Values.istio.httpRoute.monitoring.kiali.port }}
+    {{- end }}
+
+    # Jaeger - 분산 추적 (istio-system 네임스페이스)
+    {{- if .Values.istio.httpRoute.monitoring.jaeger.enabled }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.istio.httpRoute.monitoring.jaeger.prefix }}
+      backendRefs:
+        - name: {{ .Values.istio.httpRoute.monitoring.jaeger.host }}
+          namespace: {{ .Values.istio.httpRoute.monitoring.jaeger.namespace }}
+          port: {{ .Values.istio.httpRoute.monitoring.jaeger.port }}
+    {{- end }}
+    {{- end }}
+
+    # ==========================================================================
+    # Frontend (루트 경로 - 반드시 마지막에 정의!)
+    # PathPrefix "/" 는 모든 경로와 매칭되므로 가장 마지막에 있어야 함
+    # ==========================================================================
+    {{- if .Values.istio.httpRoute.frontend.enabled }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: frontend
+          port: 80
+    {{- end }}
+{{- end }}
