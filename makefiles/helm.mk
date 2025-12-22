@@ -173,17 +173,33 @@ helm-install-cert-manager: ## cert-manager 설치 (환경에서 활성화된 경
 helm-install-infra: ## 인프라 차트 설치 (EXTERNAL_DB가 DB 배포 결정)
 	@echo "인프라 설치 중 (ENV=$(ENV), NS=$(K8S_NAMESPACE), EXTERNAL_DB=$(EXTERNAL_DB))..."
 ifeq ($(EXTERNAL_DB),true)
-	@echo "외부 데이터베이스 사용 중 (호스트 머신의 PostgreSQL/Redis)"
-	helm upgrade --install wealist-infrastructure ./k8s/helm/charts/wealist-infrastructure \
-		-f $(HELM_BASE_VALUES) \
-		-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
-		--set postgres.enabled=false \
-		--set postgres.external.enabled=true \
-		--set postgres.external.host=172.18.0.1 \
-		--set redis.enabled=false \
-		--set redis.external.enabled=true \
-		--set redis.external.host=172.18.0.1 \
-		-n $(K8S_NAMESPACE) --create-namespace
+	@if [ -f /tmp/kind_db_host.env ]; then \
+		. /tmp/kind_db_host.env; \
+		echo "외부 DB 사용 (Host: $$DB_HOST)"; \
+		helm upgrade --install wealist-infrastructure ./k8s/helm/charts/wealist-infrastructure \
+			-f $(HELM_BASE_VALUES) \
+			-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+			--set postgres.enabled=false \
+			--set postgres.external.enabled=true \
+			--set postgres.external.host=$$DB_HOST \
+			--set redis.enabled=false \
+			--set redis.external.enabled=true \
+			--set redis.external.host=$$DB_HOST \
+			--set shared.config.DB_HOST=$$DB_HOST \
+			--set shared.config.POSTGRES_HOST=$$DB_HOST \
+			--set shared.config.REDIS_HOST=$$DB_HOST \
+			-n $(K8S_NAMESPACE) --create-namespace; \
+	else \
+		echo "⚠️  /tmp/kind_db_host.env 없음 - 기본값 사용"; \
+		helm upgrade --install wealist-infrastructure ./k8s/helm/charts/wealist-infrastructure \
+			-f $(HELM_BASE_VALUES) \
+			-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+			--set postgres.enabled=false \
+			--set postgres.external.enabled=true \
+			--set redis.enabled=false \
+			--set redis.external.enabled=true \
+			-n $(K8S_NAMESPACE) --create-namespace; \
+	fi
 else
 	@echo "내부 데이터베이스 사용 중 (클러스터 내 PostgreSQL/Redis 파드)"
 	helm upgrade --install wealist-infrastructure ./k8s/helm/charts/wealist-infrastructure \
@@ -201,14 +217,35 @@ helm-install-services: ## 모든 서비스 차트 설치
 	@echo "서비스 설치 중 (ENV=$(ENV), NS=$(K8S_NAMESPACE), EXTERNAL_DB=$(EXTERNAL_DB))..."
 	@echo "설치할 서비스: $(HELM_SERVICES)"
 ifeq ($(EXTERNAL_DB),true)
-	@echo "EXTERNAL_DB=true: 기존 외부 DB 사용, auto-migrate 건너뜀"
-	@for service in $(HELM_SERVICES); do \
-		echo "$$service 설치 중..."; \
-		helm upgrade --install $$service ./k8s/helm/charts/$$service \
-			-f $(HELM_BASE_VALUES) \
-			-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
-			-n $(K8S_NAMESPACE); \
-	done
+	@echo "EXTERNAL_DB=true: 외부 DB 사용"
+	@if [ -f /tmp/kind_db_host.env ]; then \
+		. /tmp/kind_db_host.env; \
+		echo "  DB/Redis Host: $$DB_HOST"; \
+		for service in $(HELM_SERVICES); do \
+			echo "$$service 설치 중..."; \
+			db_user=$$(echo $$service | sed 's/-/_/g'); \
+			db_name="wealist_$${db_user}_db"; \
+			db_url="postgresql://$${db_user}:postgres@$${DB_HOST}:5432/$${db_name}?sslmode=disable"; \
+			echo "  DATABASE_URL: $$db_url"; \
+			helm upgrade --install $$service ./k8s/helm/charts/$$service \
+				-f $(HELM_BASE_VALUES) \
+				-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+				--set shared.config.DB_HOST=$$DB_HOST \
+				--set shared.config.POSTGRES_HOST=$$DB_HOST \
+				--set shared.config.REDIS_HOST=$$DB_HOST \
+				--set config.DATABASE_URL=$$db_url \
+				-n $(K8S_NAMESPACE); \
+		done; \
+	else \
+		echo "⚠️  /tmp/kind_db_host.env 없음. 기본값 사용"; \
+		for service in $(HELM_SERVICES); do \
+			echo "$$service 설치 중..."; \
+			helm upgrade --install $$service ./k8s/helm/charts/$$service \
+				-f $(HELM_BASE_VALUES) \
+				-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+				-n $(K8S_NAMESPACE); \
+		done; \
+	fi
 else
 	@echo "EXTERNAL_DB=false: 내부 DB 파드 사용, auto-migrate 활성화"
 	@for service in $(HELM_SERVICES); do \
@@ -240,12 +277,24 @@ helm-install-frontend: ## 프론트엔드 설치 (localhost.yaml에서 frontend.
 helm-install-monitoring: ## 모니터링 스택 설치 (Prometheus, Loki, Grafana)
 	@echo "모니터링 스택 설치 중 (ENV=$(ENV), NS=$(K8S_NAMESPACE), EXTERNAL_DB=$(EXTERNAL_DB))..."
 ifeq ($(EXTERNAL_DB),true)
-	@echo "외부 데이터베이스 exporter 사용 (host: 172.18.0.1)"
-	helm upgrade --install wealist-monitoring ./k8s/helm/charts/wealist-monitoring \
-		-f $(HELM_BASE_VALUES) \
-		-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
-		--set global.namespace=$(K8S_NAMESPACE) \
-		-n $(K8S_NAMESPACE)
+	@if [ -f /tmp/kind_db_host.env ]; then \
+		. /tmp/kind_db_host.env; \
+		echo "외부 DB exporter 사용 (host: $$DB_HOST)"; \
+		helm upgrade --install wealist-monitoring ./k8s/helm/charts/wealist-monitoring \
+			-f $(HELM_BASE_VALUES) \
+			-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+			--set global.namespace=$(K8S_NAMESPACE) \
+			--set postgresExporter.config.host=$$DB_HOST \
+			--set redisExporter.config.host=$$DB_HOST \
+			-n $(K8S_NAMESPACE); \
+	else \
+		echo "외부 DB exporter 사용 (host: 기본값)"; \
+		helm upgrade --install wealist-monitoring ./k8s/helm/charts/wealist-monitoring \
+			-f $(HELM_BASE_VALUES) \
+			-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+			--set global.namespace=$(K8S_NAMESPACE) \
+			-n $(K8S_NAMESPACE); \
+	fi
 else
 	@echo "내부 데이터베이스 exporter 사용 (host: postgres/redis 서비스)"
 	helm upgrade --install wealist-monitoring ./k8s/helm/charts/wealist-monitoring \
@@ -308,6 +357,32 @@ helm-install-all-init: helm-check-secrets helm-deps-build helm-install-cert-mana
 	@sleep 5
 	@echo "DB 마이그레이션 활성화하여 서비스 설치 중 (최초 설정)..."
 	@echo "설치할 서비스: $(HELM_SERVICES)"
+ifeq ($(EXTERNAL_DB),true)
+	@if [ -f /tmp/kind_db_host.env ]; then \
+		. /tmp/kind_db_host.env; \
+		echo "  외부 DB Host: $$DB_HOST"; \
+		for service in $(HELM_SERVICES); do \
+			echo "$$service (DB 마이그레이션 포함) 설치 중..."; \
+			helm install $$service ./k8s/helm/charts/$$service \
+				-f $(HELM_BASE_VALUES) \
+				-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+				--set shared.config.DB_AUTO_MIGRATE=true \
+				--set shared.config.DB_HOST=$$DB_HOST \
+				--set shared.config.POSTGRES_HOST=$$DB_HOST \
+				--set shared.config.REDIS_HOST=$$DB_HOST \
+				-n $(K8S_NAMESPACE); \
+		done; \
+	else \
+		for service in $(HELM_SERVICES); do \
+			echo "$$service (DB 마이그레이션 포함) 설치 중..."; \
+			helm install $$service ./k8s/helm/charts/$$service \
+				-f $(HELM_BASE_VALUES) \
+				-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+				--set shared.config.DB_AUTO_MIGRATE=true \
+				-n $(K8S_NAMESPACE); \
+		done; \
+	fi
+else
 	@for service in $(HELM_SERVICES); do \
 		echo "$$service (DB 마이그레이션 포함) 설치 중..."; \
 		helm install $$service ./k8s/helm/charts/$$service \
@@ -316,6 +391,7 @@ helm-install-all-init: helm-check-secrets helm-deps-build helm-install-cert-mana
 			--set shared.config.DB_AUTO_MIGRATE=true \
 			-n $(K8S_NAMESPACE); \
 	done
+endif
 	@echo "최초 설정 완료! 이후 배포는 DB 마이그레이션이 건너뜁니다."
 
 ##@ Helm 업그레이드/삭제
@@ -324,16 +400,30 @@ helm-upgrade-all: helm-deps-build ## 전체 차트 업그레이드
 	@echo "전체 차트 업그레이드 중 (ENV=$(ENV), NS=$(K8S_NAMESPACE), EXTERNAL_DB=$(EXTERNAL_DB))..."
 	@echo "업그레이드할 서비스: $(HELM_SERVICES)"
 ifeq ($(EXTERNAL_DB),true)
-	@helm upgrade wealist-infrastructure ./k8s/helm/charts/wealist-infrastructure \
-		-f $(HELM_BASE_VALUES) \
-		-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
-		--set postgres.enabled=false \
-		--set postgres.external.enabled=true \
-		--set postgres.external.host=172.18.0.1 \
-		--set redis.enabled=false \
-		--set redis.external.enabled=true \
-		--set redis.external.host=172.18.0.1 \
-		-n $(K8S_NAMESPACE)
+	@if [ -f /tmp/kind_db_host.env ]; then \
+		. /tmp/kind_db_host.env; \
+		echo "  외부 DB Host: $$DB_HOST"; \
+		helm upgrade wealist-infrastructure ./k8s/helm/charts/wealist-infrastructure \
+			-f $(HELM_BASE_VALUES) \
+			-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+			--set postgres.enabled=false \
+			--set postgres.external.enabled=true \
+			--set postgres.external.host=$$DB_HOST \
+			--set redis.enabled=false \
+			--set redis.external.enabled=true \
+			--set redis.external.host=$$DB_HOST \
+			-n $(K8S_NAMESPACE); \
+	else \
+		echo "⚠️  /tmp/kind_db_host.env 없음"; \
+		helm upgrade wealist-infrastructure ./k8s/helm/charts/wealist-infrastructure \
+			-f $(HELM_BASE_VALUES) \
+			-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+			--set postgres.enabled=false \
+			--set postgres.external.enabled=true \
+			--set redis.enabled=false \
+			--set redis.external.enabled=true \
+			-n $(K8S_NAMESPACE); \
+	fi
 else
 	@helm upgrade wealist-infrastructure ./k8s/helm/charts/wealist-infrastructure \
 		-f $(HELM_BASE_VALUES) \
@@ -345,13 +435,27 @@ else
 		-n $(K8S_NAMESPACE)
 endif
 ifeq ($(EXTERNAL_DB),true)
-	@for service in $(HELM_SERVICES); do \
-		echo "$$service 업그레이드 중..."; \
-		helm upgrade $$service ./k8s/helm/charts/$$service \
-			-f $(HELM_BASE_VALUES) \
-			-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
-			-n $(K8S_NAMESPACE); \
-	done
+	@if [ -f /tmp/kind_db_host.env ]; then \
+		. /tmp/kind_db_host.env; \
+		for service in $(HELM_SERVICES); do \
+			echo "$$service 업그레이드 중..."; \
+			helm upgrade $$service ./k8s/helm/charts/$$service \
+				-f $(HELM_BASE_VALUES) \
+				-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+				--set shared.config.DB_HOST=$$DB_HOST \
+				--set shared.config.POSTGRES_HOST=$$DB_HOST \
+				--set shared.config.REDIS_HOST=$$DB_HOST \
+				-n $(K8S_NAMESPACE); \
+		done; \
+	else \
+		for service in $(HELM_SERVICES); do \
+			echo "$$service 업그레이드 중..."; \
+			helm upgrade $$service ./k8s/helm/charts/$$service \
+				-f $(HELM_BASE_VALUES) \
+				-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+				-n $(K8S_NAMESPACE); \
+		done; \
+	fi
 else
 	@for service in $(HELM_SERVICES); do \
 		echo "$$service (DB auto-migrate 포함) 업그레이드 중..."; \
@@ -363,11 +467,22 @@ else
 	done
 endif
 ifeq ($(EXTERNAL_DB),true)
-	@helm upgrade wealist-monitoring ./k8s/helm/charts/wealist-monitoring \
-		-f $(HELM_BASE_VALUES) \
-		-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
-		--set global.namespace=$(K8S_NAMESPACE) \
-		-n $(K8S_NAMESPACE) 2>/dev/null || echo "모니터링 미설치, 업그레이드 건너뜀"
+	@if [ -f /tmp/kind_db_host.env ]; then \
+		. /tmp/kind_db_host.env; \
+		helm upgrade wealist-monitoring ./k8s/helm/charts/wealist-monitoring \
+			-f $(HELM_BASE_VALUES) \
+			-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+			--set global.namespace=$(K8S_NAMESPACE) \
+			--set postgresExporter.config.host=$$DB_HOST \
+			--set redisExporter.config.host=$$DB_HOST \
+			-n $(K8S_NAMESPACE) 2>/dev/null || echo "모니터링 미설치, 업그레이드 건너뜀"; \
+	else \
+		helm upgrade wealist-monitoring ./k8s/helm/charts/wealist-monitoring \
+			-f $(HELM_BASE_VALUES) \
+			-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
+			--set global.namespace=$(K8S_NAMESPACE) \
+			-n $(K8S_NAMESPACE) 2>/dev/null || echo "모니터링 미설치, 업그레이드 건너뜀"; \
+	fi
 else
 	@helm upgrade wealist-monitoring ./k8s/helm/charts/wealist-monitoring \
 		-f $(HELM_BASE_VALUES) \

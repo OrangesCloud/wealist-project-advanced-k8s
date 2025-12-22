@@ -89,7 +89,7 @@ jobs:
         if: inputs.rollback_type == 's3' || inputs.rollback_type == 'both'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_FRONTEND }}
           aws-region: ap-northeast-2
 
       - name: Check S3 version exists
@@ -161,7 +161,7 @@ jobs:
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_FRONTEND }}
           aws-region: ap-northeast-2
 
       - name: Rollback S3 (Dry Run)

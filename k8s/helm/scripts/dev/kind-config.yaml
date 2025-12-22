@@ -1,12 +1,12 @@
 # =============================================================================
-# Kind 클러스터 공용 설정
+# Kind 클러스터 설정 - dev 환경
 # =============================================================================
-# 사용: scripts/localhost/0.setup-cluster.sh, scripts/dev/0.setup-cluster.sh
+# 사용: scripts/dev/0.setup-cluster.sh
 #
 # 포트 매핑:
-#   - hostPort 80  → containerPort 80  (Istio Gateway hostPort)
-#   - hostPort 443 → containerPort 443 (HTTPS)
-#   - hostPort 8080 → containerPort 30080 (NodePort 백업)
+#   - hostPort 80  → containerPort 30080 (Istio Gateway HTTP)
+#   - hostPort 443 → containerPort 30443 (Istio Gateway HTTPS)
+#   - hostPort 8080 → containerPort 30080 (백업용)
 
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -29,16 +29,21 @@ nodes:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
     extraPortMappings:
-      # Istio Gateway hostPort 80 사용
-      - containerPort: 80
+      # Istio Gateway NodePort → hostPort 80 (기본 HTTP)
+      # listenAddress: 0.0.0.0 → 외부 네트워크에서 접근 가능
+      - containerPort: 30080
         hostPort: 80
+        listenAddress: "0.0.0.0"
         protocol: TCP
-      - containerPort: 443
+      # Istio Gateway NodePort → hostPort 443 (HTTPS)
+      - containerPort: 30443
         hostPort: 443
+        listenAddress: "0.0.0.0"
         protocol: TCP
-      # NodePort 백업 (hostPort 80 실패 시)
+      # 백업용 (hostPort 80 충돌 시)
       - containerPort: 30080
         hostPort: 8080
+        listenAddress: "0.0.0.0"
         protocol: TCP
 
   # Worker 노드들

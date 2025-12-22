@@ -8,9 +8,9 @@ LOCAL_REGISTRY ?= localhost:5001
 IMAGE_TAG ?= latest
 
 # External Database Configuration
-# false (default): Deploy PostgreSQL/Redis as pods inside cluster
-# true: Use host machine's PostgreSQL/Redis (requires local installation)
-EXTERNAL_DB ?= false
+# false: Deploy PostgreSQL/Redis as pods inside cluster (localhost)
+# true: Use external PostgreSQL/Redis (dev, staging, prod)
+# 환경별로 자동 설정됨 (아래 참조)
 
 # Environment configuration (used across all commands)
 # Options: localhost, dev, staging, prod
@@ -22,31 +22,41 @@ ifeq ($(ENV),localhost)
   K8S_NAMESPACE = wealist-localhost
   DOMAIN = localhost:8080
   PROTOCOL = http
+  # localhost: 내부 DB Pod 사용
+  EXTERNAL_DB ?= false
 else ifeq ($(ENV),localhost)
   K8S_NAMESPACE = wealist-localhost
   DOMAIN = localhost:8080
   PROTOCOL = http
+  EXTERNAL_DB ?= false
 # DEPRECATED-SOON: local-ubuntu will be replaced by staging
 else ifeq ($(ENV),local-ubuntu)
   K8S_NAMESPACE = wealist-dev
   DOMAIN = local.wealist.co.kr
   PROTOCOL = https
+  EXTERNAL_DB ?= true
 else ifeq ($(ENV),dev)
   K8S_NAMESPACE = wealist-dev
   DOMAIN = dev.wealist.co.kr
   PROTOCOL = https
+  # dev: 호스트 PC의 외부 DB 사용
+  EXTERNAL_DB ?= true
 else ifeq ($(ENV),staging)
   K8S_NAMESPACE = wealist-staging
   DOMAIN = staging.wealist.co.kr
   PROTOCOL = https
+  # staging/prod: 외부 DB (RDS 등) 사용
+  EXTERNAL_DB ?= true
 else ifeq ($(ENV),prod)
   K8S_NAMESPACE = wealist-prod
   DOMAIN = wealist.co.kr
   PROTOCOL = https
+  EXTERNAL_DB ?= true
 else
   K8S_NAMESPACE = wealist-localhost
   DOMAIN = localhost:8080
   PROTOCOL = http
+  EXTERNAL_DB ?= false
 endif
 
 # Helm values file paths

@@ -4,10 +4,17 @@
 # =============================================================================
 # dev 환경:
 # - PostgreSQL/Redis: 호스트 PC 외부 DB 사용 (이미지 불필요)
-# - MinIO: 클러스터 내 Pod로 실행 (이미지 필요)
+# - MinIO, LiveKit: 클러스터 내 Pod로 실행
+# - 모니터링: Prometheus, Grafana, Loki, Promtail, Exporters
 # - Backend: GHCR에서 pull
+#
+# 환경변수:
+#   SKIP_INFRA=true      - 인프라 이미지(MinIO, LiveKit) 건너뛰기
+#   SKIP_MONITORING=true - 모니터링 이미지 건너뛰기
+#   ONLY_INFRA=true      - 인프라 이미지만 로드
+#   ONLY_MONITORING=true - 모니터링 이미지만 로드
 
-set -e
+# set -e 제거 - 개별 이미지 실패해도 계속 진행
 
 CLUSTER_NAME="wealist"
 GHCR_REGISTRY="ghcr.io/orangescloud"
@@ -116,7 +123,9 @@ fi
 echo "ℹ️  dev 환경 구성:"
 echo "   - PostgreSQL: 호스트 PC (외부) - 이미지 불필요"
 echo "   - Redis: 호스트 PC (외부) - 이미지 불필요"
-echo "   - MinIO: 클러스터 내 Pod - 이미지 로드 필요"
+echo "   - MinIO, LiveKit: 클러스터 내 Pod"
+echo "   - 모니터링: Prometheus, Grafana, Loki, Promtail"
+echo "   - Exporters: PostgreSQL, Redis"
 echo "   - Backend: GHCR 이미지"
 echo ""
 
@@ -174,24 +183,42 @@ load_to_kind() {
 
     # 방법 3: 노드에 직접 ctr import (최후의 수단)
     # Kind 노드의 containerd에 직접 이미지 로드
-    local node="${CLUSTER_NAME}-control-plane"
-    echo "     Loading directly to node: $node"
+    # 중요: 모든 노드(control-plane + workers)에 로드해야 함
+    local nodes=("${CLUSTER_NAME}-control-plane" "${CLUSTER_NAME}-worker" "${CLUSTER_NAME}-worker2")
+    local loaded=false
 
-    # gunzip 없이 직접 import
-    if docker exec -i "$node" ctr --namespace=k8s.io images import - < "$tar_file" 2>/dev/null; then
-        rm -f "$tar_file"
+    for node in "${nodes[@]}"; do
+        # 노드 존재 여부 확인
+        if ! docker inspect "$node" &>/dev/null; then
+            continue
+        fi
+
+        echo "     Loading to node: $node"
+        if docker exec -i "$node" ctr --namespace=k8s.io images import - < "$tar_file" 2>/dev/null; then
+            echo "       ✅ $node 로드 완료"
+            loaded=true
+        else
+            echo "       ⚠️  $node 로드 실패"
+        fi
+    done
+
+    rm -f "$tar_file"
+
+    if [ "$loaded" = true ]; then
         echo "     ✅ 로드 완료 (direct ctr import)"
         return 0
     fi
 
     # 모든 방법 실패
-    rm -f "$tar_file"
     echo "     ❌ 이미지 로드 실패: $image"
     echo ""
     echo "     수동 로드 방법:"
     echo "       docker pull $image"
     echo "       docker save $image -o /tmp/image.tar"
-    echo "       docker exec -i ${CLUSTER_NAME}-control-plane ctr -n k8s.io images import - < /tmp/image.tar"
+    echo "       # 모든 노드에 로드 필요:"
+    echo "       for node in ${CLUSTER_NAME}-control-plane ${CLUSTER_NAME}-worker ${CLUSTER_NAME}-worker2; do"
+    echo "         docker exec -i \$node ctr -n k8s.io images import - < /tmp/image.tar"
+    echo "       done"
     echo ""
     return 1
 }
@@ -239,59 +266,75 @@ load_image_with_fallback() {
     load_to_kind "${ghcr_image}:latest"
 }
 
-# MinIO - S3 호환 스토리지
-load_image_with_fallback \
-    "${GHCR_BASE}/minio-latest" \
-    "minio/minio:latest" \
-    "MinIO"
+# =============================================================================
+# 인프라 이미지 로드 (SKIP_INFRA, ONLY_MONITORING으로 건너뛰기 가능)
+# =============================================================================
+if [ "${SKIP_INFRA}" != "true" ] && [ "${ONLY_MONITORING}" != "true" ]; then
+    echo ""
+    echo "--- 인프라 이미지 로드 ---"
 
-# LiveKit - 실시간 통신
-load_image_with_fallback \
-    "${GHCR_BASE}/livekit-server-latest" \
-    "livekit/livekit-server:latest" \
-    "LiveKit"
+    # MinIO - S3 호환 스토리지
+    load_image_with_fallback \
+        "${GHCR_BASE}/minio-latest" \
+        "minio/minio:latest" \
+        "MinIO"
+
+    # LiveKit - 실시간 통신
+    load_image_with_fallback \
+        "${GHCR_BASE}/livekit-server-latest" \
+        "livekit/livekit-server:latest" \
+        "LiveKit"
+else
+    echo ""
+    echo "--- 인프라 이미지 건너뜀 (SKIP_INFRA=${SKIP_INFRA:-false}, ONLY_MONITORING=${ONLY_MONITORING:-false}) ---"
+fi
 
 # =============================================================================
-# 모니터링 이미지 (GHCR 미러 우선, Docker Hub fallback)
+# 모니터링 이미지 (SKIP_MONITORING, ONLY_INFRA로 건너뛰기 가능)
 # =============================================================================
-echo ""
-echo "--- 모니터링 이미지 로드 ---"
+if [ "${SKIP_MONITORING}" != "true" ] && [ "${ONLY_INFRA}" != "true" ]; then
+    echo ""
+    echo "--- 모니터링 이미지 로드 ---"
 
-# Prometheus - 메트릭 수집
-load_image_with_fallback \
-    "${GHCR_BASE}/prometheus-v2.48.0" \
-    "prom/prometheus:v2.48.0" \
-    "Prometheus"
+    # Prometheus - 메트릭 수집
+    load_image_with_fallback \
+        "${GHCR_BASE}/prometheus-v2.48.0" \
+        "prom/prometheus:v2.48.0" \
+        "Prometheus"
 
-# Grafana - 시각화
-load_image_with_fallback \
-    "${GHCR_BASE}/grafana-10.2.2" \
-    "grafana/grafana:10.2.2" \
-    "Grafana"
+    # Grafana - 시각화
+    load_image_with_fallback \
+        "${GHCR_BASE}/grafana-10.2.2" \
+        "grafana/grafana:10.2.2" \
+        "Grafana"
 
-# Loki - 로그 수집
-load_image_with_fallback \
-    "${GHCR_BASE}/loki-2.9.2" \
-    "grafana/loki:2.9.2" \
-    "Loki"
+    # Loki - 로그 수집
+    load_image_with_fallback \
+        "${GHCR_BASE}/loki-2.9.2" \
+        "grafana/loki:2.9.2" \
+        "Loki"
 
-# Promtail - 로그 수집 에이전트
-load_image_with_fallback \
-    "${GHCR_BASE}/promtail-2.9.2" \
-    "grafana/promtail:2.9.2" \
-    "Promtail"
+    # Promtail - 로그 수집 에이전트
+    load_image_with_fallback \
+        "${GHCR_BASE}/promtail-2.9.2" \
+        "grafana/promtail:2.9.2" \
+        "Promtail"
 
-# PostgreSQL Exporter - DB 메트릭
-load_image_with_fallback \
-    "${GHCR_BASE}/postgres-exporter-v0.15.0" \
-    "prometheuscommunity/postgres-exporter:v0.15.0" \
-    "PostgreSQL Exporter"
+    # PostgreSQL Exporter - DB 메트릭
+    load_image_with_fallback \
+        "${GHCR_BASE}/postgres-exporter-v0.15.0" \
+        "prometheuscommunity/postgres-exporter:v0.15.0" \
+        "PostgreSQL Exporter"
 
-# Redis Exporter - 캐시 메트릭
-load_image_with_fallback \
-    "${GHCR_BASE}/redis_exporter-v1.55.0" \
-    "oliver006/redis_exporter:v1.55.0" \
-    "Redis Exporter"
+    # Redis Exporter - 캐시 메트릭
+    load_image_with_fallback \
+        "${GHCR_BASE}/redis_exporter-v1.55.0" \
+        "oliver006/redis_exporter:v1.55.0" \
+        "Redis Exporter"
+else
+    echo ""
+    echo "--- 모니터링 이미지 건너뜀 (SKIP_MONITORING=${SKIP_MONITORING:-false}, ONLY_INFRA=${ONLY_INFRA:-false}) ---"
+fi
 
 echo ""
 echo "✅ 인프라 이미지 로드 완료!"

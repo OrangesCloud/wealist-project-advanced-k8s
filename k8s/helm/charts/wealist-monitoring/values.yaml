@@ -43,6 +43,8 @@ prometheus:
     scrapeInterval: 15s
     evaluationInterval: 15s
     retentionTime: 7d
+    # Sub-path configuration (for Gateway access via /monitoring/prometheus)
+    externalUrl: "/monitoring/prometheus"
 
   # 스크래핑 대상 서비스들
   scrapeTargets:
@@ -181,9 +183,10 @@ grafana:
 
   config:
     allowSignUp: false
-    # Sub-path configuration (for Ingress access via /monitoring/grafana)
-    rootUrl: "http://localhost:3000"
-    serveFromSubPath: "false"
+    # Sub-path configuration (for Gateway access via /monitoring/grafana)
+    # %(protocol)s://%(domain)s:%(http_port)s 는 Grafana가 자동으로 치환
+    rootUrl: "%(protocol)s://%(domain)s:%(http_port)s/monitoring/grafana"
+    serveFromSubPath: "true"
 
 # =============================================================================
 # Monitoring Ingress - External Access via domain/monitoring/*

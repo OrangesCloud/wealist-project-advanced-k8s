@@ -15,7 +15,7 @@
 #   - :latest-dev   - dev 환경 최신 (매 배포마다 업데이트)
 #
 # Required Secrets:
-#   AWS_ROLE_ARN, AWS_S3_BUCKET_DEV, AWS_CLOUDFRONT_DISTRIBUTION_ID_DEV
+#   AWS_ROLE_ARN_FRONTEND, AWS_S3_BUCKET_DEV, AWS_CLOUDFRONT_DISTRIBUTION_ID_DEV
 # Optional Secrets:
 #   VITE_API_BASE_URL, API_DOMAIN_DEV
 # =============================================================================
@@ -305,7 +305,7 @@ jobs:
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_FRONTEND }}
           aws-region: ap-northeast-2
 
       - name: Deploy to S3 (versioned folder)

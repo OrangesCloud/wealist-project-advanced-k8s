@@ -1,20 +1,23 @@
 #!/bin/bash
 # =============================================================================
 # 인프라 이미지를 로컬 레지스트리에 로드 (localhost 환경용)
-# - PostgreSQL, Redis 포함 (클러스터 내부 Pod로 실행)
 # =============================================================================
+# localhost 환경:
+# - PostgreSQL, Redis: 클러스터 내부 Pod로 실행
+# - MinIO, LiveKit: 클러스터 내 Pod로 실행
+# - 모니터링: Prometheus, Grafana, Loki, Promtail, Exporters
 
-set -e
+# set -e 제거 - 개별 이미지 실패해도 계속 진행
 
 LOCAL_REG="localhost:5001"
 
 echo "=== 인프라 이미지 → 로컬 레지스트리 (localhost 환경) ==="
 echo ""
-echo "※ 로드할 이미지:"
-echo "  - PostgreSQL 15 (alpine)"
-echo "  - Redis 7 (alpine)"
-echo "  - MinIO (S3 호환 스토리지)"
-echo "  - LiveKit Server v1.5"
+echo "ℹ️  localhost 환경 구성:"
+echo "   - 데이터베이스: PostgreSQL 16, Redis 7"
+echo "   - 스토리지/통신: MinIO, LiveKit"
+echo "   - 모니터링: Prometheus, Grafana, Loki, Promtail"
+echo "   - Exporters: PostgreSQL, Redis"
 echo ""
 
 # 레지스트리 확인
