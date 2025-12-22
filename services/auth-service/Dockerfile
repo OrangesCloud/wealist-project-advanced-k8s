@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 # Build stage
-FROM ghcr.io/orangescloud/base/gradle-8-jdk21 AS builder
+FROM gradle-8-jdk21 AS builder
 WORKDIR /home/gradle/src
 
 # Use Gradle Wrapper for consistent builds

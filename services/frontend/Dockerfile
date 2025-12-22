@@ -12,7 +12,7 @@
 #   - prod: EKS (production stage + ConfigMap)
 
 # === Base Stage ===
-FROM ghcr.io/orangescloud/base/node-20-alpine AS base
+FROM node-20-alpine AS base
 WORKDIR /app
 ENV NPM_CONFIG_LOGLEVEL=warn
 RUN npm install -g pnpm
