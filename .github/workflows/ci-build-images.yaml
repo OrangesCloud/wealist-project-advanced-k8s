@@ -418,16 +418,18 @@ jobs:
           git diff --name-only
 
           git add .
-          git commit -m "🚀 [${NAMESPACE}] Update image tags for services
 
-Services: ${{ needs.detect-changes.outputs.services }}
-Environment: ${{ needs.detect-changes.outputs.environment }}
-ECR Registry: ${ECR_REGISTRY}
-New Tag: ${NEW_TAG}
-Commit: ${{ github.sha }}
+          # 멀티라인 커밋 메시지
+          COMMIT_MSG="🚀 [${NAMESPACE}] Update image tags for services"
+          COMMIT_MSG="${COMMIT_MSG}"$'\n\n'"Services: ${{ needs.detect-changes.outputs.services }}"
+          COMMIT_MSG="${COMMIT_MSG}"$'\n'"Environment: ${{ needs.detect-changes.outputs.environment }}"
+          COMMIT_MSG="${COMMIT_MSG}"$'\n'"ECR Registry: ${ECR_REGISTRY}"
+          COMMIT_MSG="${COMMIT_MSG}"$'\n'"New Tag: ${NEW_TAG}"
+          COMMIT_MSG="${COMMIT_MSG}"$'\n'"Commit: ${{ github.sha }}"
+          COMMIT_MSG="${COMMIT_MSG}"$'\n\n'"Updated by: ${{ github.actor }}"
+          COMMIT_MSG="${COMMIT_MSG}"$'\n'"Triggered by: ${{ github.event_name }}"
 
-Updated by: ${{ github.actor }}
-Triggered by: ${{ github.event_name }}"
+          git commit -m "${COMMIT_MSG}"
 
           git push origin ${K8S_BRANCH}
 
