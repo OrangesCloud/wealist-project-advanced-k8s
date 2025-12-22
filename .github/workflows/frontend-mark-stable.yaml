@@ -86,7 +86,7 @@ jobs:
         if: inputs.update_s3 == true
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_FRONTEND }}
           aws-region: ap-northeast-2
 
       - name: Check S3 version exists
@@ -163,7 +163,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_FRONTEND }}
           aws-region: ap-northeast-2
 
       - name: Copy version to stable folder
