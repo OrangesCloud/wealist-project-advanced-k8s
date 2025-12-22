@@ -1,4 +1,5 @@
 // Package config provides configuration loading and management for the application.
+// CI/CD workflow test - 2025-12-22
 package config
 
 import (
