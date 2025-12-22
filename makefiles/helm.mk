@@ -223,12 +223,17 @@ ifeq ($(EXTERNAL_DB),true)
 		echo "  DB/Redis Host: $$DB_HOST"; \
 		for service in $(HELM_SERVICES); do \
 			echo "$$service 설치 중..."; \
+			db_user=$$(echo $$service | sed 's/-/_/g'); \
+			db_name="wealist_$${db_user}_db"; \
+			db_url="postgresql://$${db_user}:postgres@$${DB_HOST}:5432/$${db_name}?sslmode=disable"; \
+			echo "  DATABASE_URL: $$db_url"; \
 			helm upgrade --install $$service ./k8s/helm/charts/$$service \
 				-f $(HELM_BASE_VALUES) \
 				-f $(HELM_ENV_VALUES) $(HELM_SECRETS_FLAG) \
 				--set shared.config.DB_HOST=$$DB_HOST \
 				--set shared.config.POSTGRES_HOST=$$DB_HOST \
 				--set shared.config.REDIS_HOST=$$DB_HOST \
+				--set config.DATABASE_URL=$$db_url \
 				-n $(K8S_NAMESPACE); \
 		done; \
 	else \
