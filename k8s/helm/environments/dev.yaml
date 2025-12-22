@@ -2,11 +2,7 @@
 # Development Server Environment
 # =============================================================================
 # Development environment with dev.wealist.co.kr domain
-<<<<<<< Updated upstream
-# Uses GHCR (GitHub Container Registry) + ArgoCD for deployment
-=======
 # Uses AWS ECR + ArgoCD for deployment
->>>>>>> Stashed changes
 # Namespace: wealist-dev
 
 # -----------------------------------------------------------------------------
@@ -16,17 +12,10 @@ global:
   namespace: wealist-dev
   environment: development
   domain: dev.wealist.co.kr
-<<<<<<< Updated upstream
-  imageRegistry: ghcr.io/orangescloud
-  # GitHub Container Registry 인증을 위한 imagePullSecrets
-  imagePullSecrets:
-    - ghcr-secret
-=======
   # imageRegistry는 ArgoCD Application parameters에서 ECR URL로 덮어씁니다
   # 예: <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
   imageRegistry: ""
   # ECR은 IAM 기반 인증 사용 (EKS IRSA)
->>>>>>> Stashed changes
 
 # -----------------------------------------------------------------------------
 # cert-manager Configuration (Disabled - CloudFront handles SSL termination)
@@ -38,34 +27,14 @@ certManager:
 # -----------------------------------------------------------------------------
 # Deployment Settings
 # -----------------------------------------------------------------------------
-auth-service:
-  replicaCount: 2
-board-service:
-  replicaCount: 2
+# Note: Service-specific settings (replicaCount, resources, healthCheck)
+# are defined in each service chart's values.yaml
+# Do NOT define auth-service/board-service keys here to avoid parsing issues
+# with wealist-infrastructure chart
 
 image:
   pullPolicy: Always
-  tag: "latest"  # Local registry uses :latest tag
-
-# -----------------------------------------------------------------------------
-# Resources (Development)
-# -----------------------------------------------------------------------------
-resources:
-  requests:
-    memory: "128Mi"
-    cpu: "100m"
-  limits:
-    memory: "512Mi"
-    cpu: "500m"
-
-# -----------------------------------------------------------------------------
-# Health Check
-# -----------------------------------------------------------------------------
-healthCheck:
-  liveness:
-    initialDelaySeconds: 30
-  readiness:
-    initialDelaySeconds: 10
+  tag: "latest"
 
 # -----------------------------------------------------------------------------
 # Security (Standard)
@@ -77,7 +46,7 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   runAsNonRoot: true
-  readOnlyRootFilesystem: false  # Spring Boot (Tomcat) needs /tmp write access
+  readOnlyRootFilesystem: false # Spring Boot (Tomcat) needs /tmp write access
 
 # -----------------------------------------------------------------------------
 # Features
@@ -101,7 +70,7 @@ shared:
   config:
     ENV: "development"
     LOG_LEVEL: "debug"
-    DB_AUTO_MIGRATE: "true"  # Create tables on startup
+    DB_AUTO_MIGRATE: "true" # Create tables on startup
     CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
     # S3/MinIO Configuration
     S3_ENDPOINT: "http://minio:9000"
@@ -119,21 +88,21 @@ shared:
 # Ingress (nginx - 비활성화, Istio Gateway 사용)
 # -----------------------------------------------------------------------------
 ingress:
-  enabled: false  # Istio HTTPRoute 사용
+  enabled: false # Istio HTTPRoute 사용
 
 # -----------------------------------------------------------------------------
 # 데이터베이스 설정 (외부 DB 사용 - AWS RDS/ElastiCache)
 # -----------------------------------------------------------------------------
 postgres:
-  enabled: false   # 내부 PostgreSQL 비활성화
+  enabled: false # 내부 PostgreSQL 비활성화
   external:
-    enabled: true  # 외부 DB (AWS RDS 등) 사용
+    enabled: true # 외부 DB (AWS RDS 등) 사용
     # host/port는 secrets.yaml에서 설정
 
 redis:
-  enabled: false   # 내부 Redis 비활성화
+  enabled: false # 내부 Redis 비활성화
   external:
-    enabled: true  # 외부 Redis (AWS ElastiCache 등) 사용
+    enabled: true # 외부 Redis (AWS ElastiCache 등) 사용
     # host/port는 secrets.yaml에서 설정
 
 # -----------------------------------------------------------------------------
@@ -142,7 +111,7 @@ redis:
 # dev.wealist.co.kr → CloudFront → S3 (정적 파일)
 # api.dev.wealist.co.kr → CloudFront → ALB → EKS (API)
 frontend:
-  enabled: false  # Frontend pod 비활성화 (CDN 사용)
+  enabled: false # Frontend pod 비활성화 (CDN 사용)
 
 # -----------------------------------------------------------------------------
 # Istio 서비스 메시 설정
@@ -152,7 +121,7 @@ istio:
   namespace: wealist-dev
 
   gateway:
-    enabled: false  # setup-cluster.sh에서 이미 생성됨
+    enabled: false # setup-cluster.sh에서 이미 생성됨
     name: wealist-gateway
     hosts:
       - "dev.wealist.co.kr"
@@ -180,14 +149,14 @@ istio:
   # mTLS - 서비스 간 암호화
   mtls:
     enabled: true
-    mode: STRICT  # dev 환경: mTLS 강제 (보안 강화)
+    mode: STRICT # dev 환경: mTLS 강제 (보안 강화)
 
   # Database mTLS 설정 (외부 DB 사용 - 해당 없음)
   database:
     postgres:
-      disableMtls: false  # 내부 postgres pod 없음
+      disableMtls: false # 내부 postgres pod 없음
     redis:
-      disableMtls: false  # 내부 redis pod 없음
+      disableMtls: false # 내부 redis pod 없음
 
   # 트래픽 제어 - Circuit Breaker, Connection Pool
   destinationRules:
@@ -217,16 +186,16 @@ istio:
   # dev: Zero Trust 정책 적용
   authorizationPolicy:
     enabled: true
-    denyAll: true  # dev: 기본 거부 (Zero Trust)
+    denyAll: true # dev: 기본 거부 (Zero Trust)
 
   # 서비스별 호출 권한 (L7 정책)
   serviceAuthorization:
-    enabled: true  # dev: 활성화 (보안 강화)
+    enabled: true # dev: 활성화 (보안 강화)
 
   # JWT 인증
   # dev: Istio에서 JWT 검증
   jwtAuth:
-    enabled: false  # 서비스에서 직접 처리 (추후 활성화 가능)
+    enabled: false # 서비스에서 직접 처리 (추후 활성화 가능)
 
   # Ambient 모드 (Sidecar-less)
   ambient:
@@ -239,69 +208,42 @@ istio:
   telemetry:
     tracing:
       enabled: true
-      samplingPercentage: 50  # dev 환경 50%
+      samplingPercentage: 50 # dev 환경 50%
     accessLogging:
       enabled: true
 
 # =============================================================================
-<<<<<<< Updated upstream
-# 모니터링 스택 설정 (GHCR 미러 이미지 사용)
-# =============================================================================
-# Docker Hub rate limit 회피를 위해 GHCR에 미러링된 이미지 사용
-# 미러링: ./scripts/mirror-base-images.sh
-=======
 # 모니터링 스택 설정 (ECR Public 이미지 사용)
 # =============================================================================
 # Docker Hub rate limit 회피를 위해 ECR Public Gallery 이미지 사용
->>>>>>> Stashed changes
 
 # Prometheus - 메트릭 수집
 prometheus:
   enabled: true
   image:
-<<<<<<< Updated upstream
-    repository: ghcr.io/orangescloud/base/prometheus-v2.48.0
-    tag: "latest"
-=======
     repository: public.ecr.aws/prometheus/prometheus
     tag: "v2.48.0"
->>>>>>> Stashed changes
 
 # Loki - 로그 수집
 loki:
   enabled: true
   image:
-<<<<<<< Updated upstream
-    repository: ghcr.io/orangescloud/base/loki-2.9.2
-    tag: "latest"
-=======
     repository: public.ecr.aws/grafana/loki
     tag: "2.9.2"
->>>>>>> Stashed changes
 
 # Promtail - 로그 수집 에이전트
 promtail:
   enabled: true
   image:
-<<<<<<< Updated upstream
-    repository: ghcr.io/orangescloud/base/promtail-2.9.2
-    tag: "latest"
-=======
     repository: public.ecr.aws/grafana/promtail
     tag: "2.9.2"
->>>>>>> Stashed changes
 
 # Grafana - 시각화 대시보드
 grafana:
   enabled: true
   image:
-<<<<<<< Updated upstream
-    repository: ghcr.io/orangescloud/base/grafana-10.2.2
-    tag: "latest"
-=======
     repository: public.ecr.aws/grafana/grafana
     tag: "10.2.2"
->>>>>>> Stashed changes
 
 # 모니터링 Ingress (Istio HTTPRoute로 처리)
 monitoringIngress:
@@ -316,27 +258,17 @@ monitoringIngress:
 postgresExporter:
   enabled: true
   image:
-<<<<<<< Updated upstream
-    repository: ghcr.io/orangescloud/base/postgres-exporter-v0.15.0
-    tag: "latest"
-=======
     repository: public.ecr.aws/bitnami/postgres-exporter
     tag: "0.15.0"
->>>>>>> Stashed changes
   config:
-    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
+    host: "host.docker.internal" # Docker Desktop (Mac/WSL)
     port: 5432
 
 redisExporter:
   enabled: true
   image:
-<<<<<<< Updated upstream
-    repository: ghcr.io/orangescloud/base/redis_exporter-v1.55.0
-    tag: "latest"
-=======
     repository: public.ecr.aws/bitnami/redis-exporter
     tag: "1.55.0"
->>>>>>> Stashed changes
   config:
-    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
+    host: "host.docker.internal" # Docker Desktop (Mac/WSL)
     port: 6379
