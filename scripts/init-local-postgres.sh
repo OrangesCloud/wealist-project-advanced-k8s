@@ -45,13 +45,14 @@ is_wsl() {
 
 # Database configurations
 # Format: db_name:user:password
+# Note: Using 'postgres' as password to match Helm values.yaml configuration
 DATABASES=(
-    "wealist_user_service_db:user_service:user_service_password"
-    "wealist_board_service_db:board_service:board_service_password"
-    "wealist_chat_service_db:chat_service:chat_service_password"
-    "wealist_noti_service_db:noti_service:noti_service_password"
-    "wealist_storage_service_db:storage_service:storage_service_password"
-    "wealist_video_service_db:video_service:video_service_password"
+    "wealist_user_service_db:user_service:postgres"
+    "wealist_board_service_db:board_service:postgres"
+    "wealist_chat_service_db:chat_service:postgres"
+    "wealist_noti_service_db:noti_service:postgres"
+    "wealist_storage_service_db:storage_service:postgres"
+    "wealist_video_service_db:video_service:postgres"
 )
 
 # Check if running as root or can use sudo
