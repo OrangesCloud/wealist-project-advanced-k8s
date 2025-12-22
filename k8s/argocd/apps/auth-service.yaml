@@ -18,9 +18,9 @@ spec:
         - ../../environments/dev.yaml
       parameters:
         - name: image.tag
-          value: "service-deploy-dev-79620c2"  # ← CI가 여기 업데이트
+          value: "dev-latest"  # ← CI가 여기 업데이트 (ECR)
         - name: image.repository
-          value: "ghcr.io/orangescloud/auth-service"
+          value: "<AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com/auth-service"  # ← CI가 여기 업데이트
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-dev 

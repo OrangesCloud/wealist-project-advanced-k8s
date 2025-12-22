@@ -40,10 +40,10 @@ k8s/helm/environments/*-secrets.yaml
 sealed-secrets-*.key
 
 # Allow SealedSecrets (encrypted - safe to commit)
-!main/argocd/sealed-secrets/
-!main/argocd/sealed-secrets/*.yaml
-!main/argocd/sealed-secrets/**/*.yaml
-!main/helm/charts/wealist-infrastructure/templates/shared-secret.yaml
+!k8s/argocd/sealed-secrets/
+!k8s/argocd/sealed-secrets/*.yaml
+!k8s/argocd/sealed-secrets/**/*.yaml
+!k8s/helm/charts/wealist-infrastructure/templates/shared-secret.yaml
 !**/sealed-secret-*.yaml
 !**/sealed-secret.yaml
 !**/*.example
