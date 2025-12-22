@@ -239,55 +239,8 @@ jobs:
           echo "Image URI: ${ECR_REGISTRY}/${SERVICE}"
 
       # -------------------------------------------------------------------------
-      # [1단계] 보안 검사용 임시 빌드 (amd64 Only, No Push)
-      # -------------------------------------------------------------------------
-      - name: Build for Scan (amd64)
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ steps.build-config.outputs.context }}
-          file: ${{ steps.build-config.outputs.dockerfile }}
-          platforms: linux/amd64
-          load: true               # 로컬 도커 데몬으로 이미지 로드
-          push: false              # 푸시하지 않음
-          tags: ${{ matrix.service }}:scan-temp
-          cache-from: type=gha,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
-
-      # -------------------------------------------------------------------------
-      # [2단계] Trivy 스캔 (검사만 수행, 배포 중단 안함)
-      # -------------------------------------------------------------------------
-
-      # A. 로그 확인용 (Table 출력)
-      - name: Run Trivy (Log Output)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ matrix.service }}:scan-temp
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
-      # B. Security 탭 업로드용 (SARIF 생성)
-      - name: Run Trivy (SARIF Output)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ matrix.service }}:scan-temp
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
-          category: ${{ matrix.service }}
-
-      # -------------------------------------------------------------------------
-      # [3단계] 실제 배포용 멀티 아키텍처 빌드 및 푸시
+      # 멀티 아키텍처 빌드 및 ECR 푸시
+      # (Trivy 스캔은 PR Validation에서 완료됨)
       # -------------------------------------------------------------------------
       - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v5
@@ -304,7 +257,7 @@ jobs:
 
       - name: Output image info
         run: |
-          echo "### 🚀 Image Published to ECR (Scan Completed)" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Image Published to ECR" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Service:** ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** ${{ needs.detect-changes.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
