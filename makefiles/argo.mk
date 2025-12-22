@@ -1,7 +1,8 @@
-# Makefile
-.PHONY: help cluster-up cluster-down bootstrap deploy clean status helm-install-infra all
-
-
+# ============================================
+# ArgoCD Makefile
+# ============================================
+.PHONY: argo-help cluster-up cluster-down bootstrap deploy argo-clean argo-status helm-install-infra all
+.PHONY: setup-local-argocd kind-setup-ghcr load-infra-images-ghcr build-and-push-ghcr
 
 # 색상
 GREEN  := \033[0;32m
@@ -15,9 +16,7 @@ SEALED_SECRETS_KEY ?= k8s/argocd/scripts/sealed-secrets-dev-20251218-152119.key
 ENVIRONMENT ?= dev
 ENV ?= dev
 
-# Include common variables
-include makefiles/_variables.mk
-help: ## 도움말 표시
+argo-help: ## [ArgoCD] 도움말 표시
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "  Wealist Platform - Make Commands"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -145,6 +144,51 @@ bootstrap-without-key: ## 키 없이 Bootstrap (새 키 생성)
 	@chmod +x k8s/argocd/scripts/deploy-argocd.sh
 	@./k8s/argocd/scripts/deploy-argocd.sh
 
+argo-install-simple: ## ArgoCD만 간단 설치 (Sealed Secrets 없이)
+	@echo "ArgoCD 설치 중..."
+	@kubectl create namespace argocd 2>/dev/null || true
+	@kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+	@echo "ArgoCD 설치 완료, Pod 준비 대기 중..."
+	@kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd || echo "WARNING: ArgoCD server not ready yet"
+	@echo ""
+	@echo "=============================================="
+	@echo "  ✅ ArgoCD 설치 완료!"
+	@echo "=============================================="
+	@echo ""
+	@echo "  포트 포워딩:"
+	@echo "    kubectl port-forward svc/argocd-server -n argocd 8079:443"
+	@echo ""
+	@echo "  로그인 정보:"
+	@echo "    URL: https://localhost:8079"
+	@echo "    User: admin"
+	@echo "    Password: $$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo '(아직 생성 안됨)')"
+	@echo ""
+	@echo "  Git 레포 연결:"
+	@echo "    make argo-add-repo"
+	@echo "=============================================="
+
+argo-add-repo: ## Git 레포지토리 ArgoCD에 등록
+	@echo "Git 레포지토리를 ArgoCD에 등록합니다."
+	@echo ""
+	@echo "GitHub Personal Access Token이 필요합니다."
+	@echo "Token 생성: https://github.com/settings/tokens (repo 권한 필요)"
+	@echo ""
+	@read -p "GitHub Username: " gh_user; \
+	read -p "GitHub Token: " gh_token; \
+	read -p "Repository URL (예: https://github.com/org/repo.git): " repo_url; \
+	kubectl -n argocd create secret generic repo-creds \
+		--from-literal=url=$$repo_url \
+		--from-literal=username=$$gh_user \
+		--from-literal=password=$$gh_token \
+		--dry-run=client -o yaml | kubectl apply -f -; \
+	echo ""; \
+	echo "✅ Git 레포 등록 완료: $$repo_url"
+
+argo-ui: ## ArgoCD UI 포트 포워딩
+	@echo "ArgoCD UI 포트 포워딩: https://localhost:8079"
+	@echo "종료하려면 Ctrl+C"
+	@kubectl port-forward svc/argocd-server -n argocd 8079:443
+
 # ============================================
 # 배포
 # ============================================
@@ -162,7 +206,7 @@ bootstrap-without-key: ## 키 없이 Bootstrap (새 키 생성)
 # 상태 확인
 # ============================================
 
-status: ## 전체 상태 확인
+argo-status: ## [ArgoCD] 전체 상태 확인
 	@echo -e "$(YELLOW)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
 	@echo -e "$(YELLOW)📊 시스템 상태$(NC)"
 	@echo -e "$(YELLOW)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
@@ -249,13 +293,13 @@ backup-keys: ## Sealed Secrets 키 백업
 # 정리
 # ============================================
 
-clean: ## 모든 리소스 삭제 (클러스터는 유지)
+argo-clean: ## [ArgoCD] 모든 리소스 삭제 (클러스터는 유지)
 	@echo -e "$(YELLOW)🗑️  리소스 삭제 중...$(NC)"
 	@kubectl delete namespace wealist-$(ENVIRONMENT) --ignore-not-found=true
 	@kubectl delete namespace argocd --ignore-not-found=true
 	@echo -e "$(GREEN)✅ 리소스 삭제 완료$(NC)"
 
-clean-all: cluster-down ## 클러스터 포함 모든 것 삭제
+argo-clean-all: cluster-down ## [ArgoCD] 클러스터 포함 모든 것 삭제
 	@echo -e "$(GREEN)✅ 전체 정리 완료$(NC)"
 
 # ============================================
@@ -328,18 +372,20 @@ verify-secrets: ## Secrets 복호화 확인
 # ... (기존 내용 유지) ...
 
 # ============================================
-# 로컬 개발 (Kind + Registry)
+# 로컬 개발 (Kind + Registry) - ArgoCD용
 # ============================================
+# NOTE: kind-setup은 kind.mk에서 정의됨 (Istio Ambient + 로컬 레지스트리)
+# 아래는 GHCR 직접 연결이 필요한 ArgoCD 환경용
 
-setup-local: ## 로컬 개발 환경 전체 설정 (Registry + 이미지 + Bootstrap)
-	$(MAKE) kind-setup
-	$(MAKE) load-infra-images
-	$(MAKE) build-and-push
+setup-local-argocd: ## [ArgoCD] 로컬 개발 환경 전체 설정 (GHCR + Bootstrap)
+	$(MAKE) kind-setup-ghcr
+	$(MAKE) load-infra-images-ghcr
+	$(MAKE) build-and-push-ghcr
 	$(MAKE) bootstrap
 	$(MAKE) deploy
 
-kind-setup: ## Kind 클러스터 + 로컬 Registry 생성
-	@echo -e "$(YELLOW)🏗️  Kind 클러스터 + Registry 설정...$(NC)"
+kind-setup-ghcr: ## [ArgoCD] Kind 클러스터 + GHCR 직접 연결
+	@echo -e "$(YELLOW)🏗️  Kind 클러스터 + GHCR 설정...$(NC)"
 	@if [ -f "k8s/installShell/0.setup-cluster.sh" ]; then \
 		chmod +x k8s/installShell/0.setup-cluster.sh; \
 		cd k8s/installShell && ./0.setup-cluster.sh; \
@@ -347,9 +393,9 @@ kind-setup: ## Kind 클러스터 + 로컬 Registry 생성
 		echo -e "$(RED)❌ 0.setup-cluster.sh not found$(NC)"; \
 		exit 1; \
 	fi
-	@echo -e "$(GREEN)✅ Kind 클러스터 + Registry 준비 완료$(NC)"
+	@echo -e "$(GREEN)✅ Kind 클러스터 + GHCR 준비 완료$(NC)"
 
-load-infra-images: ## 인프라 이미지 로드 (PostgreSQL, Redis 등)
+load-infra-images-ghcr: ## [ArgoCD] 인프라 이미지 로드 (GHCR에서)
 	@echo -e "$(YELLOW)📦 인프라 이미지 로드 중...$(NC)"
 	@if [ -f "k8s/installShell/1.load_infra_images.sh" ]; then \
 		chmod +x k8s/installShell/1.load_infra_images.sh; \
@@ -360,7 +406,7 @@ load-infra-images: ## 인프라 이미지 로드 (PostgreSQL, Redis 등)
 	fi
 	@echo -e "$(GREEN)✅ 인프라 이미지 로드 완료$(NC)"
 
-build-and-push: ## 서비스 이미지 빌드 및 푸시
+build-and-push-ghcr: ## [ArgoCD] 서비스 이미지 빌드 및 GHCR 푸시
 	@echo -e "$(YELLOW)🔨 서비스 이미지 빌드 및 푸시...$(NC)"
 	@if [ -f "k8s/installShell/2.build_services_and_load.sh" ]; then \
 		chmod +x k8s/installShell/2.build_services_and_load.sh; \

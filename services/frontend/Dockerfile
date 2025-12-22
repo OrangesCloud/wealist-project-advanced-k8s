@@ -12,7 +12,7 @@
 #   - prod: EKS (production stage + ConfigMap)
 
 # === Base Stage ===
-FROM node:20-alpine AS base
+FROM public.ecr.aws/docker/library/node:20-alpine AS base
 WORKDIR /app
 ENV NPM_CONFIG_LOGLEVEL=warn
 RUN npm install -g pnpm
@@ -44,7 +44,7 @@ RUN pnpm run build || (echo "Build failed. Check Vite config or env vars." && ex
 
 # === Production Stage ===
 # Serves static files with nginx
-FROM nginx:stable-alpine AS production
+FROM public.ecr.aws/docker/library/nginx:stable-alpine AS production
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -52,9 +52,10 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy nginx config for SPA routing (handles /oauth/callback etc.)
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Create config.js placeholder for runtime injection (K8s ConfigMap)
-# This file will be overwritten by ConfigMap mount in K8s
-RUN echo 'window.__ENV__ = { API_BASE_URL: "http://localhost" };' > /usr/share/nginx/html/config.js
+# Create config.js for runtime configuration
+# K8s (Kind/EKS): API_BASE_URL = "" (empty = ingress mode, uses /svc/* paths)
+# Docker-compose: Override via volume mount with API_BASE_URL = "http://localhost"
+RUN echo 'window.__ENV__ = { API_BASE_URL: "", API_DOMAIN: "" };' > /usr/share/nginx/html/config.js
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

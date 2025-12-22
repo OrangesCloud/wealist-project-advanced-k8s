@@ -27,25 +27,23 @@ configs/config.yaml
 # Kubernetes Secrets
 # ============================================
 # Plain text secrets (NEVER commit)
-
+*-secret.yaml
 *-secrets.yaml
 secret.yaml
 secrets.yaml
 k8s/base/shared/secret-shared.yaml
 services/auth-service/k8s/base/secret.yaml
-
-## 환경변수 
-local-kind.yaml
-local-ubuntu.yaml
+# Helm 환경별 시크릿 파일 (절대 커밋 금지)
+k8s/helm/environments/*-secrets.yaml
 # Private keys (NEVER commit)
 *.key
 sealed-secrets-*.key
 
 # Allow SealedSecrets (encrypted - safe to commit)
-!main/argocd/sealed-secrets/
-!main/argocd/sealed-secrets/*.yaml
-!main/argocd/sealed-secrets/**/*.yaml
-!main/helm/charts/wealist-infrastructure/templates/shared-secret.yaml
+!k8s/argocd/sealed-secrets/
+!k8s/argocd/sealed-secrets/*.yaml
+!k8s/argocd/sealed-secrets/**/*.yaml
+!k8s/helm/charts/wealist-infrastructure/templates/shared-secret.yaml
 !**/sealed-secret-*.yaml
 !**/sealed-secret.yaml
 !**/*.example
@@ -72,12 +70,10 @@ minio-data/
 # ============================================
 # File Uploads (Local Development)
 # ============================================
+# 루트 레벨 업로드 폴더만 무시 (components/storage 제외)
 /uploads/
 /storage/
 /files/
-uploads/
-storage/
-files/
 
 # ============================================
 # Go
@@ -150,6 +146,11 @@ grafana/volume/**
 *.db
 prometheus/volume/
 prometheus/data/
+
+# ============================================
+# Downloaded CLI Tools (자동 설치됨)
+# ============================================
+/istio-*/
 
 # SonarQube
 .scannerwork/

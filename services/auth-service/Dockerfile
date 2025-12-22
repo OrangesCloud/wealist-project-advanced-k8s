@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 # Build stage
-FROM gradle:8-jdk21 AS builder
+FROM public.ecr.aws/docker/library/gradle:8-jdk21 AS builder
 WORKDIR /home/gradle/src
 
 # Use Gradle Wrapper for consistent builds
@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/home/gradle/.gradle \
     ./gradlew bootJar --no-daemon
 
 # Runtime stage
-FROM eclipse-temurin:21-jre-jammy as final
+FROM public.ecr.aws/docker/library/eclipse-temurin:21-jre-jammy AS final
 ENV TZ=Asia/Seoul
 
 # Create a non-root user

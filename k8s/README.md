@@ -13,11 +13,12 @@
 
 ---
 
-## 🚀 로컬 환경 (local-kind) 배포 가이드
+## 🚀 로컬 환경 (localhost) 배포 가이드
 
 ### 1. 사전 준비
 
 먼저 각 서비스의 Docker 이미지를 빌드해야 합니다:
+
 - 목표: `localhost:5001/service:latest` 형식의 이미지 생성
 - 각 서비스 디렉토리에서 Docker 이미지 빌드를 수행하세요
 
@@ -43,7 +44,7 @@ curl -s http://localhost:5001/v2/_catalog | jq
 ### 4. Helm 배포
 
 ```bash
-make helm-install-all ENV=local-kind
+make helm-install-all ENV=localhost
 ```
 
 ### 5. ArgoCD 배포
@@ -63,6 +64,7 @@ make helm-install-all ENV=local-kind
 Dev 환경의 암호화된 시크릿을 복호화하기 위한 키가 필요합니다.
 
 #### 키 파일 준비
+
 - **키 이름**: `sealed-secrets-dev-20251218-152119.key`
 - **저장 위치**: `k8s/argocd/scripts/sealed-secrets-dev-20251218-152119.key`
 - **키 복사**: xaczx 폴더에서 해당 키 파일을 복사하여 위 경로에 생성
@@ -90,12 +92,11 @@ make all-simple
 ```
 
 실행 중 다음 정보를 입력하라는 프롬프트가 나타납니다:
+
 - **GitHub 계정 이름** (username)
 - **GitHub Access Token** (위에서 생성한 토큰)
 
 ✅ Dev 환경 배포 완료!
-
-
 
 ## 💡 주요 참고사항
 

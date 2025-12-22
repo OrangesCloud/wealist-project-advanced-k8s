@@ -42,6 +42,7 @@ public class SecurityConfig {
                                 "/actuator/**",
                                 "/health",
                                 "/ready",
+                                "/.well-known/**",  // JWKS 엔드포인트
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/swagger-resources/**"

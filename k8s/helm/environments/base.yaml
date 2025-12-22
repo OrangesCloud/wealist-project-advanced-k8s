@@ -2,7 +2,7 @@
 # Helm Base Configuration - Common defaults for all environments
 # =============================================================================
 # This file contains shared configuration inherited by all environments.
-# Override specific values in environment-specific files (local-kind.yaml, etc.)
+# Override specific values in environment-specific files (localhost.yaml, etc.)
 
 # -----------------------------------------------------------------------------
 # Global Settings (override per environment)

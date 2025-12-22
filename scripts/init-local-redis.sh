@@ -97,19 +97,51 @@ configure_protected_mode() {
     fi
 }
 
+# Check if running in WSL
+is_wsl() {
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
 # Restart Redis to apply changes
 restart_redis() {
     log_info "Restarting Redis..."
-    systemctl restart redis-server || systemctl restart redis
 
-    # Wait for Redis to be ready
-    sleep 2
+    if is_wsl; then
+        log_info "WSL 환경 감지 - systemd 대신 직접 실행"
+        # WSL에서는 systemd가 없으므로 직접 실행
+        pkill redis-server 2>/dev/null || true
+        sleep 1
+        redis-server "$REDIS_CONF" --daemonize yes
+        sleep 2
 
-    if systemctl is-active --quiet redis-server || systemctl is-active --quiet redis; then
-        log_info "Redis restarted successfully"
+        # 프로세스 확인
+        if pgrep -x redis-server >/dev/null 2>&1; then
+            log_info "Redis started successfully (WSL direct)"
+        else
+            log_error "Failed to start Redis"
+            exit 1
+        fi
     else
-        log_error "Failed to restart Redis"
-        exit 1
+        # 일반 Linux/macOS - systemctl 사용
+        systemctl restart redis-server 2>/dev/null || \
+        systemctl restart redis 2>/dev/null || \
+        service redis-server restart 2>/dev/null || \
+        service redis restart 2>/dev/null
+
+        # Wait for Redis to be ready
+        sleep 2
+
+        if systemctl is-active --quiet redis-server 2>/dev/null || \
+           systemctl is-active --quiet redis 2>/dev/null || \
+           pgrep -x redis-server >/dev/null 2>&1; then
+            log_info "Redis restarted successfully"
+        else
+            log_error "Failed to restart Redis"
+            exit 1
+        fi
     fi
 }
 
@@ -139,8 +171,17 @@ print_summary() {
     echo "Redis Configuration Complete!"
     echo "============================================="
     echo ""
-    echo "Connection Info (for Kind cluster):"
-    echo "  Host: 172.17.0.1 (Docker bridge gateway)"
+
+    # Get host IP for Kind cluster
+    if is_wsl; then
+        HOST_IP=$(hostname -I | awk '{print $1}')
+        echo "Connection Info (for Kind cluster - WSL):"
+        echo "  Host: $HOST_IP (WSL IP)"
+        echo "  Note: WSL IP may change after reboot"
+    else
+        echo "Connection Info (for Kind cluster):"
+        echo "  Host: 172.17.0.1 (Docker bridge gateway)"
+    fi
     echo "  Port: 6379"
     echo "  Password: (none)"
     echo ""
@@ -148,6 +189,12 @@ print_summary() {
     echo "  - bind 0.0.0.0"
     echo "  - protected-mode no"
     echo ""
+    if is_wsl; then
+        echo "WSL Note:"
+        echo "  Redis를 수동으로 시작하려면:"
+        echo "    sudo redis-server /etc/redis/redis.conf --daemonize yes"
+        echo ""
+    fi
     echo "Security Note:"
     echo "  This configuration is for local development only!"
     echo "  Do not use in production without proper security."

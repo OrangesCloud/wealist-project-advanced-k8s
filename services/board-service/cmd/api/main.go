@@ -220,13 +220,17 @@ func main() {
 
 	// Setup router with dependency injection
 	routerConfig := router.Config{
-		DB:         db,
-		Logger:     log.Logger,
-		JWTSecret:  cfg.JWT.Secret,
-		UserClient: userClient,
-		BasePath:   cfg.Server.BasePath,
-		Metrics:    m,
-		S3Client:   s3Client,
+		DB:              db,
+		Logger:          log.Logger,
+		JWTSecret:       cfg.JWT.Secret, // Deprecated: kept for backward compatibility
+		AuthServiceURL:  cfg.AuthAPI.BaseURL,
+		JWTIssuer:       cfg.AuthAPI.JWTIssuer,
+		UserClient:      userClient,
+		BasePath:        cfg.Server.BasePath,
+		Metrics:         m,
+		S3Client:        s3Client,
+		RedisClient:     database.GetRedis(),
+		RateLimitConfig: cfg.RateLimit,
 	}
 
 	r := router.Setup(routerConfig)
@@ -287,7 +291,7 @@ func main() {
 	<-cronCtx.Done()
 	log.Info("Cleanup job scheduler stopped")
 
-	// Close database connection
+	// Close database connection.
 	log.Info("Closing database connection")
 	if err := database.Close(db); err != nil {
 		log.Error("Failed to close database connection", zap.Error(err))

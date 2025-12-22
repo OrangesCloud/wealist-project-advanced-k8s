@@ -2,8 +2,11 @@
 package router
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
@@ -11,7 +14,9 @@ import (
 
 	commonhealth "github.com/OrangesCloud/wealist-advanced-go-pkg/health"
 	commonmw "github.com/OrangesCloud/wealist-advanced-go-pkg/middleware"
+	"github.com/OrangesCloud/wealist-advanced-go-pkg/ratelimit"
 	"project-board-api/internal/client"
+	"project-board-api/internal/config"
 	"project-board-api/internal/converter"
 	"project-board-api/internal/database"
 	"project-board-api/internal/handler"
@@ -24,12 +29,16 @@ import (
 type Config struct {
 	DB                 *gorm.DB
 	Logger             *zap.Logger
-	JWTSecret          string
+	JWTSecret          string // Deprecated: Use AuthServiceURL + JWTIssuer instead
+	AuthServiceURL     string // auth-service URL for SmartValidator
+	JWTIssuer          string // JWT issuer for JWKS validation
 	UserClient         client.UserClient
 	BasePath           string
 	UserServiceBaseURL string
 	Metrics            *metrics.Metrics
 	S3Client           *client.S3Client
+	RedisClient        *redis.Client
+	RateLimitConfig    config.RateLimitConfig
 }
 
 // Setup initializes the router with all dependencies and routes.
@@ -48,6 +57,21 @@ func Setup(cfg Config) *gin.Engine {
 	if cfg.Metrics != nil {
 		router.Use(middleware.Metrics(cfg.Metrics))
 		cfg.Logger.Info("Metrics middleware enabled")
+	}
+
+	// Add rate limiting middleware if enabled and Redis is available
+	if cfg.RateLimitConfig.Enabled && cfg.RedisClient != nil {
+		rlConfig := ratelimit.DefaultConfig().
+			WithRequestsPerMinute(cfg.RateLimitConfig.RequestsPerMinute).
+			WithBurstSize(cfg.RateLimitConfig.BurstSize).
+			WithKeyPrefix("rl:board:")
+		limiter := ratelimit.NewRedisRateLimiter(cfg.RedisClient, rlConfig, cfg.Logger)
+		router.Use(ratelimit.MiddlewareWithLogger(limiter, ratelimit.UserKey, rlConfig, cfg.Logger))
+		cfg.Logger.Info("Rate limiting middleware enabled",
+			zap.Int("requests_per_minute", cfg.RateLimitConfig.RequestsPerMinute),
+			zap.Int("burst_size", cfg.RateLimitConfig.BurstSize))
+	} else if cfg.RateLimitConfig.Enabled && cfg.RedisClient == nil {
+		cfg.Logger.Warn("Rate limiting enabled but Redis is not available, skipping")
 	}
 
 	// Initialize repositories
@@ -114,8 +138,27 @@ func Setup(cfg Config) *gin.Engine {
 		cfg.Logger.Info("Metrics endpoint configured at root path", zap.String("path", "/metrics"))
 	}
 
+	// Initialize auth middleware based on ISTIO_JWT_MODE
+	var authMiddleware gin.HandlerFunc
+	istioJWTMode := os.Getenv("ISTIO_JWT_MODE") == "true"
+
+	if istioJWTMode {
+		// K8s + Istio 환경: Istio가 JWT 검증, Go 서비스는 파싱만
+		parser := middleware.NewJWTParser(cfg.Logger)
+		authMiddleware = middleware.IstioAuthMiddleware(parser)
+		cfg.Logger.Info("Using Istio JWT mode (parse only)",
+			zap.String("auth_service_url", cfg.AuthServiceURL))
+	} else if cfg.AuthServiceURL != "" {
+		// Docker Compose / K8s without Istio: SmartValidator로 전체 검증
+		tokenValidator := middleware.NewSmartValidator(cfg.AuthServiceURL, cfg.JWTIssuer, cfg.Logger)
+		authMiddleware = middleware.AuthWithValidator(tokenValidator)
+		cfg.Logger.Info("Using SmartValidator mode (full validation)",
+			zap.String("auth_service_url", cfg.AuthServiceURL),
+			zap.String("jwt_issuer", cfg.JWTIssuer))
+	}
+
 	// Setup API routes
-	setupRoutes(baseGroup, cfg.JWTSecret, projectHandler, boardHandler, participantHandler, commentHandler, fieldOptionHandler, projectMemberHandler, projectJoinRequestHandler, attachmentHandler)
+	setupRoutes(baseGroup, authMiddleware, projectHandler, boardHandler, participantHandler, commentHandler, fieldOptionHandler, projectMemberHandler, projectJoinRequestHandler, attachmentHandler)
 
 	// 🔥 [중요] WebSocket은 baseGroup에 직접 등록 (chat-service와 동일한 패턴)
 	// basePath가 /api/boards일 때: /api/boards/ws/project/:projectId
@@ -127,7 +170,7 @@ func Setup(cfg Config) *gin.Engine {
 // setupRoutes configures all API routes
 func setupRoutes(
 	baseGroup *gin.RouterGroup,
-	jwtSecret string,
+	authMiddleware gin.HandlerFunc,
 	projectHandler *handler.ProjectHandler,
 	boardHandler *handler.BoardHandler,
 	participantHandler *handler.ParticipantHandler,
@@ -139,7 +182,9 @@ func setupRoutes(
 ) {
 	// API group with authentication
 	api := baseGroup.Group("/api")
-	api.Use(middleware.Auth(jwtSecret))
+	if authMiddleware != nil {
+		api.Use(authMiddleware)
+	}
 	{
 		// Project routes
 		projects := api.Group("/projects")

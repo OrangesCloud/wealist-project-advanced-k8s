@@ -1,0 +1,222 @@
+# =============================================================================
+# Frontend Mark as Stable
+# =============================================================================
+# 특정 버전을 stable로 지정하는 워크플로우
+#
+# 사용 시나리오:
+#   - Prod에 배포 후 며칠간 모니터링
+#   - 문제 없으면 해당 버전을 stable로 마킹
+#   - 이후 롤백 시 stable 버전으로 안전하게 복구
+#
+# 사용 방법:
+#   1. Actions → Frontend Mark as Stable → Run workflow
+#   2. 버전 입력 (예: v1.0.0)
+#   3. Run!
+# =============================================================================
+
+name: Frontend Mark as Stable
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to mark as stable (e.g., v1.0.0)"
+        required: true
+        type: string
+      update_s3:
+        description: "Also update S3 stable folder"
+        required: false
+        default: true
+        type: boolean
+      environment:
+        description: "Environment (affects S3 bucket)"
+        required: true
+        type: choice
+        default: "prod"
+        options:
+          - prod
+          - dev
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/frontend
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  # ===========================================================================
+  # Job 1: Validate Version Exists
+  # ===========================================================================
+  validate:
+    name: Validate Version
+    runs-on: ubuntu-latest
+    outputs:
+      image_exists: ${{ steps.check-image.outputs.exists }}
+      s3_exists: ${{ steps.check-s3.outputs.exists }}
+
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check image exists in GHCR
+        id: check-image
+        run: |
+          VERSION="${{ inputs.version }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}"
+
+          echo "🔍 Checking image: ${IMAGE}"
+
+          if docker manifest inspect "${IMAGE}" > /dev/null 2>&1; then
+            echo "✅ Image found!"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Image not found: ${IMAGE}"
+            echo "exists=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Configure AWS Credentials
+        if: inputs.update_s3 == true
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_FRONTEND }}
+          aws-region: ap-northeast-2
+
+      - name: Check S3 version exists
+        id: check-s3
+        if: inputs.update_s3 == true
+        run: |
+          VERSION="${{ inputs.version }}"
+          BUCKET="${{ inputs.environment == 'prod' && secrets.AWS_S3_BUCKET_PROD || secrets.AWS_S3_BUCKET_DEV }}"
+
+          echo "🔍 Checking S3: s3://${BUCKET}/${VERSION}/"
+
+          if aws s3 ls "s3://${BUCKET}/${VERSION}/" > /dev/null 2>&1; then
+            echo "✅ S3 version found!"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ S3 version not found, will skip S3 update"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ===========================================================================
+  # Job 2: Mark Docker Image as Stable
+  # ===========================================================================
+  mark-image-stable:
+    name: Mark Image as Stable
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag image as stable
+        run: |
+          VERSION="${{ inputs.version }}"
+          SOURCE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}"
+
+          echo "🏆 Marking ${VERSION} as stable..."
+
+          # Pull the version image
+          docker pull "${SOURCE}"
+
+          # Tag as :stable
+          docker tag "${SOURCE}" "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:stable"
+          docker push "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:stable"
+
+          echo "✅ Successfully tagged as :stable"
+
+      - name: Get current stable info
+        run: |
+          echo "## 🏆 Stable Version Updated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | \`${{ inputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Image** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:stable\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Marked At** | \`$(date -u +"%Y-%m-%dT%H:%M:%SZ")\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Marked By** | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Job 3: Update S3 Stable Folder (Optional)
+  # ===========================================================================
+  update-s3-stable:
+    name: Update S3 Stable Folder
+    runs-on: ubuntu-latest
+    needs: [validate, mark-image-stable]
+    if: inputs.update_s3 == true && needs.validate.outputs.s3_exists == 'true'
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_FRONTEND }}
+          aws-region: ap-northeast-2
+
+      - name: Copy version to stable folder
+        run: |
+          VERSION="${{ inputs.version }}"
+          BUCKET="${{ inputs.environment == 'prod' && secrets.AWS_S3_BUCKET_PROD || secrets.AWS_S3_BUCKET_DEV }}"
+
+          echo "📦 Copying ${VERSION} to /stable/ folder..."
+
+          # 버전 폴더를 stable 폴더로 복사
+          aws s3 sync "s3://${BUCKET}/${VERSION}/" "s3://${BUCKET}/stable/" \
+            --delete
+
+          echo "✅ S3 stable folder updated"
+
+      - name: S3 Stable Summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### S3 Stable Folder" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **S3 Path** | \`s3://${{ inputs.environment == 'prod' && secrets.AWS_S3_BUCKET_PROD || secrets.AWS_S3_BUCKET_DEV }}/stable/\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Source Version** | \`${{ inputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Job 4: Final Summary
+  # ===========================================================================
+  summary:
+    name: Summary
+    runs-on: ubuntu-latest
+    needs: [mark-image-stable, update-s3-stable]
+    if: always()
+
+    steps:
+      - name: Final Summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 How to Use Stable Version" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Docker (K8s):**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Helm" >> $GITHUB_STEP_SUMMARY
+          echo "helm upgrade frontend ./helm/charts/frontend --set image.tag=stable" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# kubectl" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl set image deployment/frontend frontend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:stable" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**S3 Rollback to Stable:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "aws s3 sync s3://\${BUCKET}/stable/ s3://\${BUCKET}/ --delete" >> $GITHUB_STEP_SUMMARY
+          echo "aws cloudfront create-invalidation --distribution-id \${DIST_ID} --paths '/*'" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

@@ -2,7 +2,7 @@
 # Development Server Environment
 # =============================================================================
 # Development environment with dev.wealist.co.kr domain
-# Uses local registry (localhost:5001) for Kind cluster
+# Uses AWS ECR + ArgoCD for deployment
 # Namespace: wealist-dev
 
 # -----------------------------------------------------------------------------
@@ -12,10 +12,10 @@ global:
   namespace: wealist-dev
   environment: development
   domain: dev.wealist.co.kr
-  # imageRegistry: ghcr.io
-  # GitHub Container Registry 인증을 위한 imagePullSecrets
-  imagePullSecrets:
-    - ghcr-secret
+  # imageRegistry는 ArgoCD Application parameters에서 ECR URL로 덮어씁니다
+  # 예: <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
+  imageRegistry: ""
+  # ECR은 IAM 기반 인증 사용 (EKS IRSA)
 
 # -----------------------------------------------------------------------------
 # cert-manager Configuration (Disabled - CloudFront handles SSL termination)
@@ -105,23 +105,190 @@ shared:
     OAUTH2_REDIRECT_URL_ENV: "https://dev.wealist.co.kr/oauth/callback"
 
 # -----------------------------------------------------------------------------
-# Ingress (HTTP only - CloudFront handles SSL termination)
+# Ingress (nginx - 비활성화, Istio Gateway 사용)
 # -----------------------------------------------------------------------------
 ingress:
+  enabled: false  # Istio HTTPRoute 사용
+
+# -----------------------------------------------------------------------------
+# 데이터베이스 설정 (외부 DB 사용 - AWS RDS/ElastiCache)
+# -----------------------------------------------------------------------------
+postgres:
+  enabled: false   # 내부 PostgreSQL 비활성화
+  external:
+    enabled: true  # 외부 DB (AWS RDS 등) 사용
+    # host/port는 secrets.yaml에서 설정
+
+redis:
+  enabled: false   # 내부 Redis 비활성화
+  external:
+    enabled: true  # 외부 Redis (AWS ElastiCache 등) 사용
+    # host/port는 secrets.yaml에서 설정
+
+# -----------------------------------------------------------------------------
+# 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)
+# -----------------------------------------------------------------------------
+# dev.wealist.co.kr → CloudFront → S3 (정적 파일)
+# api.dev.wealist.co.kr → CloudFront → ALB → EKS (API)
+frontend:
+  enabled: false  # Frontend pod 비활성화 (CDN 사용)
+
+# -----------------------------------------------------------------------------
+# Istio 서비스 메시 설정
+# -----------------------------------------------------------------------------
+istio:
   enabled: true
-  className: nginx
-  # Frontend is served via S3/CloudFront, not K8s
-  includeFrontend: false
-  annotations:
-    # No cert-manager - CloudFront handles SSL
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    # CloudFront with AllViewer policy forwards X-Forwarded-* headers
-  hosts:
-    # Main domain (CloudFront forwards with this Host header)
-    - host: dev.wealist.co.kr
-    # API endpoint
-    - host: api.dev.wealist.co.kr
-    # DDNS hostname for direct access (No-IP)
-    - host: wonnyhome.myddns.me
-  # No TLS - CloudFront handles SSL termination
-  tls: []
+  namespace: wealist-dev
+
+  gateway:
+    enabled: false  # setup-cluster.sh에서 이미 생성됨
+    name: wealist-gateway
+    hosts:
+      - "dev.wealist.co.kr"
+      - "api.dev.wealist.co.kr"
+      - "*"
+    tls:
+      enabled: false
+
+  # HTTPRoute 설정 (Kubernetes Gateway API)
+  httpRoute:
+    enabled: true
+    gatewayRef:
+      name: istio-ingressgateway
+      namespace: istio-system
+    hosts:
+      - "dev.wealist.co.kr"
+      - "api.dev.wealist.co.kr"
+    # Frontend Pod 라우팅 (비활성화 - CDN 사용)
+    frontend:
+      enabled: false
+    # Monitoring routes (활성화 - dev.wealist.co.kr/monitoring/*)
+    monitoring:
+      enabled: true
+
+  # mTLS - 서비스 간 암호화
+  mtls:
+    enabled: true
+    mode: STRICT  # dev 환경: mTLS 강제 (보안 강화)
+
+  # Database mTLS 설정 (외부 DB 사용 - 해당 없음)
+  database:
+    postgres:
+      disableMtls: false  # 내부 postgres pod 없음
+    redis:
+      disableMtls: false  # 내부 redis pod 없음
+
+  # 트래픽 제어 - Circuit Breaker, Connection Pool
+  destinationRules:
+    enabled: true
+    loadBalancer:
+      simple: ROUND_ROBIN
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 10s
+      http:
+        h2UpgradePolicy: DO_NOT_UPGRADE
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 100
+        maxRetries: 3
+    # Circuit Breaker - 장애 서비스 격리
+    outlierDetection:
+      consecutive5xxErrors: 5
+      consecutiveGatewayErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+
+  # 서비스 간 통신 제어
+  # dev: Zero Trust 정책 적용
+  authorizationPolicy:
+    enabled: true
+    denyAll: true  # dev: 기본 거부 (Zero Trust)
+
+  # 서비스별 호출 권한 (L7 정책)
+  serviceAuthorization:
+    enabled: true  # dev: 활성화 (보안 강화)
+
+  # JWT 인증
+  # dev: Istio에서 JWT 검증
+  jwtAuth:
+    enabled: false  # 서비스에서 직접 처리 (추후 활성화 가능)
+
+  # Ambient 모드 (Sidecar-less)
+  ambient:
+    enabled: true
+    waypoint:
+      enabled: true
+      name: wealist-waypoint
+
+  # 텔레메트리 - 트레이싱, 로깅
+  telemetry:
+    tracing:
+      enabled: true
+      samplingPercentage: 50  # dev 환경 50%
+    accessLogging:
+      enabled: true
+
+# =============================================================================
+# 모니터링 스택 설정 (ECR Public 이미지 사용)
+# =============================================================================
+# Docker Hub rate limit 회피를 위해 ECR Public Gallery 이미지 사용
+
+# Prometheus - 메트릭 수집
+prometheus:
+  enabled: true
+  image:
+    repository: public.ecr.aws/prometheus/prometheus
+    tag: "v2.48.0"
+
+# Loki - 로그 수집
+loki:
+  enabled: true
+  image:
+    repository: public.ecr.aws/grafana/loki
+    tag: "2.9.2"
+
+# Promtail - 로그 수집 에이전트
+promtail:
+  enabled: true
+  image:
+    repository: public.ecr.aws/grafana/promtail
+    tag: "2.9.2"
+
+# Grafana - 시각화 대시보드
+grafana:
+  enabled: true
+  image:
+    repository: public.ecr.aws/grafana/grafana
+    tag: "10.2.2"
+
+# 모니터링 Ingress (Istio HTTPRoute로 처리)
+monitoringIngress:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# 데이터베이스 Exporter (외부 DB 메트릭 수집)
+# -----------------------------------------------------------------------------
+# DB 호스트 설정:
+#   - Mac/WSL (Docker Desktop): host.docker.internal
+#   - Native Linux: 172.18.0.1 (Kind bridge gateway)
+postgresExporter:
+  enabled: true
+  image:
+    repository: public.ecr.aws/bitnami/postgres-exporter
+    tag: "0.15.0"
+  config:
+    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
+    port: 5432
+
+redisExporter:
+  enabled: true
+  image:
+    repository: public.ecr.aws/bitnami/redis-exporter
+    tag: "1.55.0"
+  config:
+    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
+    port: 6379
