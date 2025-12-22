@@ -12,7 +12,7 @@
 #   - prod: EKS (production stage + ConfigMap)
 
 # === Base Stage ===
-FROM node:20-alpine AS base
+FROM public.ecr.aws/docker/library/node:20-alpine AS base
 WORKDIR /app
 ENV NPM_CONFIG_LOGLEVEL=warn
 RUN npm install -g pnpm
@@ -44,7 +44,7 @@ RUN pnpm run build || (echo "Build failed. Check Vite config or env vars." && ex
 
 # === Production Stage ===
 # Serves static files with nginx
-FROM nginx:stable-alpine AS production
+FROM public.ecr.aws/docker/library/nginx:stable-alpine AS production
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html

@@ -1,17 +1,6 @@
 # syntax=docker/dockerfile:1.4
-# =============================================================================
-# Base Image 설정 (환경별 선택 가능)
-# =============================================================================
-# localhost: 기본값 (공개 이미지)
-# dev/prod:  --build-arg로 ECR 이미지 지정
-#   docker build --build-arg GO_IMAGE=<ecr>/golang:1.24-bookworm \
-#                --build-arg RUNTIME_IMAGE=<ecr>/alpine:latest ...
-# =============================================================================
-ARG GO_IMAGE=golang:1.24-bookworm
-ARG RUNTIME_IMAGE=alpine:latest
-
-# Builder stage
-FROM ${GO_IMAGE} AS builder
+# Builder stage - optimized layer caching (2025-12-18)
+FROM public.ecr.aws/docker/library/golang:1.24-bookworm AS builder
 
 # Install build dependencies (cached layer)
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
@@ -48,7 +37,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o chat-api ./cmd/api
 
 # Runtime stage
-FROM ${RUNTIME_IMAGE}
+FROM public.ecr.aws/docker/library/alpine:latest
 
 # Install runtime dependencies
 RUN apk --no-cache add ca-certificates tzdata wget
