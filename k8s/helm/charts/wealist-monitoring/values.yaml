@@ -117,7 +117,7 @@ loki:
       cpu: "200m"
 
   config:
-    retentionPeriod: 168h # 7 days
+    retentionPeriod: 168h  # 7 days
     ingestionRateMB: 10
     ingestionBurstSizeMB: 20
 
@@ -179,7 +179,7 @@ grafana:
   # Admin credentials
   admin:
     user: admin
-    password: admin # Override in production!
+    password: admin  # Override in production!
 
   config:
     allowSignUp: false
@@ -193,7 +193,7 @@ grafana:
 # =============================================================================
 # Note: Named 'monitoringIngress' to avoid conflict with infrastructure 'ingress'
 monitoringIngress:
-  enabled: false # Enable in environments with Ingress controller
+  enabled: false  # Enable in environments with Ingress controller
   className: nginx
   annotations: {}
   hosts: []
@@ -204,7 +204,7 @@ monitoringIngress:
 # PostgreSQL Exporter - External PostgreSQL Metrics
 # =============================================================================
 postgresExporter:
-  enabled: false # Enable in environments with external PostgreSQL
+  enabled: false  # Enable in environments with external PostgreSQL
 
   image:
     repository: prometheuscommunity/postgres-exporter
@@ -233,7 +233,7 @@ postgresExporter:
 # Redis Exporter - External Redis Metrics
 # =============================================================================
 redisExporter:
-  enabled: false # Enable in environments with external Redis
+  enabled: false  # Enable in environments with external Redis
 
   image:
     repository: oliver006/redis_exporter

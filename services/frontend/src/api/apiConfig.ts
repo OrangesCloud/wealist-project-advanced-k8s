@@ -54,10 +54,12 @@ const getApiBaseUrl = (path: string): string => {
   //     axios.get('/api/workspaces/all') → '/svc/user/api/workspaces/all'
   if (isIngressMode) {
     const hostname = window.location.hostname;
-    // Kind 로컬 개발 환경 (localhost): Istio NodePort 사용
-    // /svc/{service}/* 경로로 라우팅 (포트 8080)
+    // Kind 로컬 개발 환경 (localhost): Istio Gateway 사용
+    // /svc/{service}/* 경로로 라우팅 (프론트엔드와 동일한 포트 사용)
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      const localBaseUrl = 'http://localhost:8080';
+      // 프론트엔드가 사용하는 포트와 동일하게 사용 (CORS 문제 방지)
+      const port = window.location.port || '80';
+      const localBaseUrl = `http://localhost:${port}`;
       // HTTPRoute가 /svc/{service}/ → / 로 리라이트하므로,
       // 백엔드 basePath를 포함해야 올바른 경로로 도달
       // ⚠️ 단, 프론트엔드 호출이 이미 /api를 포함하면 baseURL에서 제외
@@ -382,9 +384,10 @@ export const getChatWebSocketUrl = (chatId: string, token: string): string => {
     return `${protocol}//${window.location.host}/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
-  // Kind 로컬 개발 - Istio NodePort를 통해 WebSocket 프록시
+  // Kind 로컬 개발 - Istio Gateway를 통해 WebSocket 프록시
   if (injectedApiBaseUrl?.includes('localhost')) {
-    return `ws://localhost:8080/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
+    const port = window.location.port || '80';
+    return `ws://localhost:${port}/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
@@ -397,7 +400,8 @@ export const getChatWebSocketUrl = (chatId: string, token: string): string => {
   // Fallback
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return `ws://localhost:8080/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
+    const port = window.location.port || '80';
+    return `ws://localhost:${port}/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
   return `wss://api.wealist.co.kr/api/chats/ws/${chatId}?token=${encodedToken}`;
@@ -419,9 +423,10 @@ export const getPresenceWebSocketUrl = (token: string): string => {
     return `${protocol}//${window.location.host}/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
   }
 
-  // Kind 로컬 개발 - Istio NodePort를 통해 WebSocket 프록시
+  // Kind 로컬 개발 - Istio Gateway를 통해 WebSocket 프록시
   if (injectedApiBaseUrl?.includes('localhost')) {
-    return `ws://localhost:8080/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
+    const port = window.location.port || '80';
+    return `ws://localhost:${port}/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
@@ -434,7 +439,8 @@ export const getPresenceWebSocketUrl = (token: string): string => {
   // Fallback
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return `ws://localhost:8080/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
+    const port = window.location.port || '80';
+    return `ws://localhost:${port}/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
   }
 
   return `wss://api.wealist.co.kr/api/chats/ws/presence?token=${encodedToken}`;
@@ -458,9 +464,10 @@ export const getBoardWebSocketUrl = (projectId: string, token: string): string =
     return `${protocol}//${window.location.host}/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
-  // Kind 로컬 개발 - Istio NodePort를 통해 WebSocket 프록시
+  // Kind 로컬 개발 - Istio Gateway를 통해 WebSocket 프록시
   if (injectedApiBaseUrl?.includes('localhost')) {
-    return `ws://localhost:8080/svc/board/ws/project/${projectId}?token=${encodedToken}`;
+    const port = window.location.port || '80';
+    return `ws://localhost:${port}/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
@@ -473,7 +480,8 @@ export const getBoardWebSocketUrl = (projectId: string, token: string): string =
   // Fallback
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
-    return `ws://localhost:8080/svc/board/ws/project/${projectId}?token=${encodedToken}`;
+    const port = window.location.port || '80';
+    return `ws://localhost:${port}/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   return `wss://api.wealist.co.kr/ws/project/${projectId}?token=${encodedToken}`;
@@ -495,9 +503,10 @@ export const getNotificationSSEUrl = (token?: string): string => {
     return `${window.location.origin}/svc/noti/api/notifications/stream?token=${encodedToken}`;
   }
 
-  // Kind 로컬 개발 - Istio NodePort를 통해 SSE 프록시
+  // Kind 로컬 개발 - Istio Gateway를 통해 SSE 프록시
   if (injectedApiBaseUrl?.includes('localhost')) {
-    return `http://localhost:8080/svc/noti/api/notifications/stream?token=${encodedToken}`;
+    const port = window.location.port || '80';
+    return `http://localhost:${port}/svc/noti/api/notifications/stream?token=${encodedToken}`;
   }
 
   // 운영 환경 또는 Fallback
@@ -521,10 +530,11 @@ export const getOAuthBaseUrl = (): string => {
     if (hostname === 'wealist.co.kr' || hostname === 'www.wealist.co.kr') {
       return 'https://api.wealist.co.kr';
     }
-    // Kind 개발 환경 (localhost): Istio NodePort 사용
-    // /svc/auth 경로로 auth-service에 접근 (포트 8080)
+    // Kind 개발 환경 (localhost): Istio Gateway 사용
+    // /svc/auth 경로로 auth-service에 접근 (프론트엔드와 동일한 포트)
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:8080/svc/auth';
+      const port = window.location.port || '80';
+      return `http://localhost:${port}/svc/auth`;
     }
     return '';
   }
