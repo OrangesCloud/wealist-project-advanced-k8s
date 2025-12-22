@@ -4,10 +4,10 @@
 # =============================================================================
 # localhost: 기본값 (공개 이미지)
 # dev/prod:  --build-arg로 ECR 이미지 지정
-#   docker build --build-arg GO_IMAGE=<ecr>/golang:1.23-bookworm \
+#   docker build --build-arg GO_IMAGE=<ecr>/golang:1.24-bookworm \
 #                --build-arg RUNTIME_IMAGE=<ecr>/alpine:latest ...
 # =============================================================================
-ARG GO_IMAGE=golang:1.23-bookworm
+ARG GO_IMAGE=golang:1.24-bookworm
 ARG RUNTIME_IMAGE=alpine:latest
 
 # Builder stage
