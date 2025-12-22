@@ -291,7 +291,7 @@ func main() {
 	<-cronCtx.Done()
 	log.Info("Cleanup job scheduler stopped")
 
-	// Close database connection
+	// Close database connection.
 	log.Info("Closing database connection")
 	if err := database.Close(db); err != nil {
 		log.Error("Failed to close database connection", zap.Error(err))

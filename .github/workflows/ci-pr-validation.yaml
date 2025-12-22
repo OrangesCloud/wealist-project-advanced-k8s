@@ -1,0 +1,412 @@
+# .github/workflows/ci-pr-validation.yaml
+name: PR Validation (Lint, Test, Build, Scan)
+
+on:
+  pull_request:
+    branches:
+      - service-deploy-dev
+      - service-deploy-prod
+    paths:
+      - 'services/**'
+      - 'packages/wealist-advanced-go-pkg/**'
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to validate (comma-separated). Leave empty for auto-detect.'
+        required: false
+        type: string
+
+env:
+  GO_VERSION: '1.24'
+
+jobs:
+  # ==========================================================================
+  # 변경된 서비스 감지
+  # ==========================================================================
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set-services.outputs.services }}
+      go_services: ${{ steps.set-services.outputs.go_services }}
+      has_changes: ${{ steps.set-services.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            common-package:
+              - 'packages/wealist-advanced-go-pkg/**'
+            auth-service:
+              - 'services/auth-service/**'
+            board-service:
+              - 'services/board-service/**'
+            chat-service:
+              - 'services/chat-service/**'
+            noti-service:
+              - 'services/noti-service/**'
+            storage-service:
+              - 'services/storage-service/**'
+            user-service:
+              - 'services/user-service/**'
+            video-service:
+              - 'services/video-service/**'
+
+      - name: Set services to validate
+        id: set-services
+        run: |
+          # workflow_dispatch 수동 입력
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.services }}" ]; then
+            SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+            echo "Manual trigger with services: ${SERVICES}"
+          # 공통 패키지 변경 시 모든 Go 서비스
+          elif [ "${{ steps.filter.outputs.common-package }}" = "true" ]; then
+            SERVICES='["board-service","chat-service","noti-service","storage-service","user-service","video-service"]'
+            echo "Common package changed - building all Go services"
+          else
+            SERVICES='${{ steps.filter.outputs.changes }}'
+            echo "Auto-detected services: ${SERVICES}"
+          fi
+
+          # Go 서비스만 필터링 (lint/test용)
+          GO_SERVICES=$(echo "${SERVICES}" | jq -c '[.[] | select(. != "auth-service")]')
+
+          # 변경 여부 확인
+          if [ "${SERVICES}" = "[]" ] || [ -z "${SERVICES}" ]; then
+            HAS_CHANGES="false"
+          else
+            HAS_CHANGES="true"
+          fi
+
+          echo "services=${SERVICES}" >> $GITHUB_OUTPUT
+          echo "go_services=${GO_SERVICES}" >> $GITHUB_OUTPUT
+          echo "has_changes=${HAS_CHANGES}" >> $GITHUB_OUTPUT
+
+          echo "=== Detection Results ==="
+          echo "All Services: ${SERVICES}"
+          echo "Go Services: ${GO_SERVICES}"
+          echo "Has Changes: ${HAS_CHANGES}"
+
+  # ==========================================================================
+  # Go 서비스 Lint (golangci-lint)
+  # ==========================================================================
+  lint:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.has_changes == 'true' && needs.detect-changes.outputs.go_services != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJSON(needs.detect-changes.outputs.go_services) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            services/${{ matrix.service }}/go.sum
+            packages/wealist-advanced-go-pkg/go.sum
+
+      - name: Setup Go workspace
+        run: |
+          # go.work 설정 (공통 패키지 연결)
+          cat > go.work << 'EOF'
+          go 1.24
+
+          use (
+              ./packages/wealist-advanced-go-pkg
+              ./services/${{ matrix.service }}
+          )
+          EOF
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          working-directory: services/${{ matrix.service }}
+          args: --timeout=5m
+
+  # ==========================================================================
+  # Go 서비스 Test
+  # ==========================================================================
+  test:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.has_changes == 'true' && needs.detect-changes.outputs.go_services != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJSON(needs.detect-changes.outputs.go_services) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            services/${{ matrix.service }}/go.sum
+            packages/wealist-advanced-go-pkg/go.sum
+
+      - name: Setup Go workspace
+        run: |
+          cat > go.work << 'EOF'
+          go 1.24
+
+          use (
+              ./packages/wealist-advanced-go-pkg
+              ./services/${{ matrix.service }}
+          )
+          EOF
+
+      - name: Run tests
+        working-directory: services/${{ matrix.service }}
+        run: |
+          go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: services/${{ matrix.service }}/coverage.out
+          retention-days: 7
+
+  # ==========================================================================
+  # auth-service (Spring Boot) 테스트
+  # ==========================================================================
+  test-auth:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.has_changes == 'true' && contains(needs.detect-changes.outputs.services, 'auth-service') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Run Gradle tests
+        working-directory: services/auth-service
+        run: ./gradlew test --no-daemon
+
+  # ==========================================================================
+  # Docker Build + Trivy Scan (lint/test 통과 후)
+  # ==========================================================================
+  build-and-scan:
+    needs: [detect-changes, lint, test]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      (needs.lint.result == 'success' || needs.lint.result == 'skipped') &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJSON(needs.detect-changes.outputs.services) }}
+      fail-fast: false
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set build configuration
+        id: build-config
+        run: |
+          SERVICE="${{ matrix.service }}"
+
+          case "${SERVICE}" in
+            "auth-service")
+              DOCKERFILE="services/${SERVICE}/Dockerfile"
+              CONTEXT="services/${SERVICE}"
+              ;;
+            *)
+              DOCKERFILE="services/${SERVICE}/docker/Dockerfile"
+              CONTEXT="."
+              ;;
+          esac
+
+          echo "dockerfile=${DOCKERFILE}" >> $GITHUB_OUTPUT
+          echo "context=${CONTEXT}" >> $GITHUB_OUTPUT
+
+      # Docker Build (push 안함, 캐시 저장)
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.build-config.outputs.context }}
+          file: ${{ steps.build-config.outputs.dockerfile }}
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ matrix.service }}:pr-${{ github.event.pull_request.number || 'manual' }}
+          cache-from: type=gha,scope=${{ matrix.service }}-pr
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}-pr
+
+      # Trivy 스캔 (Table 출력)
+      - name: Run Trivy vulnerability scanner (Table)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.service }}:pr-${{ github.event.pull_request.number || 'manual' }}
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      # Trivy 스캔 (SARIF - GitHub Security 탭)
+      - name: Run Trivy vulnerability scanner (SARIF)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.service }}:pr-${{ github.event.pull_request.number || 'manual' }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: ${{ matrix.service }}-pr
+
+      - name: Build Summary
+        run: |
+          echo "### ✅ PR Validation Passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Service:** ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ github.event.pull_request.number || 'manual' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Lint passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Docker build succeeded" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Trivy scan completed" >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # auth-service Build + Scan (별도)
+  # ==========================================================================
+  build-and-scan-auth:
+    needs: [detect-changes, test-auth]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.has_changes == 'true' &&
+      contains(needs.detect-changes.outputs.services, 'auth-service') &&
+      needs.test-auth.result == 'success'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: services/auth-service
+          file: services/auth-service/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: auth-service:pr-${{ github.event.pull_request.number || 'manual' }}
+          cache-from: type=gha,scope=auth-service-pr
+          cache-to: type=gha,mode=max,scope=auth-service-pr
+
+      - name: Run Trivy vulnerability scanner (Table)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: auth-service:pr-${{ github.event.pull_request.number || 'manual' }}
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy vulnerability scanner (SARIF)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: auth-service:pr-${{ github.event.pull_request.number || 'manual' }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: auth-service-pr
+
+  # ==========================================================================
+  # 최종 상태 체크 (Branch Protection용)
+  # ==========================================================================
+  validation-complete:
+    needs: [detect-changes, lint, test, test-auth, build-and-scan, build-and-scan-auth]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check validation results
+        run: |
+          echo "=== PR Validation Results ==="
+          echo "Changes detected: ${{ needs.detect-changes.outputs.has_changes }}"
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "Test: ${{ needs.test.result }}"
+          echo "Test Auth: ${{ needs.test-auth.result }}"
+          echo "Build & Scan: ${{ needs.build-and-scan.result }}"
+          echo "Build & Scan Auth: ${{ needs.build-and-scan-auth.result }}"
+
+          # 변경 없으면 성공
+          if [ "${{ needs.detect-changes.outputs.has_changes }}" = "false" ]; then
+            echo "No changes detected - validation skipped"
+            exit 0
+          fi
+
+          # 실패 체크
+          if [ "${{ needs.lint.result }}" = "failure" ]; then
+            echo "❌ Lint failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.test.result }}" = "failure" ]; then
+            echo "❌ Test failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.test-auth.result }}" = "failure" ]; then
+            echo "❌ Auth test failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.build-and-scan.result }}" = "failure" ]; then
+            echo "❌ Build & Scan failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.build-and-scan-auth.result }}" = "failure" ]; then
+            echo "❌ Auth Build & Scan failed"
+            exit 1
+          fi
+
+          echo "✅ All validations passed!"

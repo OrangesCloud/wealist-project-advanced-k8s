@@ -1,0 +1,26 @@
+# =============================================================================
+# Dev Environment Configuration - Example Variables
+# =============================================================================
+# 이 파일을 terraform.tfvars로 복사하고 필요시 값을 수정하세요.
+# cp terraform.tfvars.example terraform.tfvars
+
+# AWS Region
+aws_region = "ap-northeast-2"
+
+# ECR 리포지토리로 생성할 서비스 목록
+service_names = [
+  "auth-service",
+  "user-service",
+  "board-service",
+  "chat-service",
+  "noti-service",
+  "storage-service",
+  "video-service",
+  "frontend"
+]
+
+# 리포지토리당 유지할 최대 이미지 수
+max_image_count = 30
+
+# 로컬 개발용 IAM User 이름
+iam_user_name = "wealist-dev-ecr-user"

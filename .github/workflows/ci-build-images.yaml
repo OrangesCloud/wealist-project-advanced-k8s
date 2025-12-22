@@ -1,0 +1,447 @@
+# .github/workflows/ci-build-images.yaml
+name: Build and Push Images to ECR
+
+on:
+  push:
+    branches:
+      - service-deploy-dev   # dev 환경 배포
+      - service-deploy-prod  # prod 환경 배포
+    paths:
+      - 'services/**'
+      - 'packages/wealist-advanced-go-pkg/**'  # 공통 모듈 변경 감지
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to build (comma-separated, e.g., user-service,board-service). Leave empty for all services.'
+        required: false
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+        default: dev
+      skip_gitops:
+        description: 'Skip GitOps update trigger'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  AWS_REGION: ap-northeast-2
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set-services.outputs.services }}
+      branch: ${{ steps.branch.outputs.name }}
+      environment: ${{ steps.env-config.outputs.environment }}
+      ecr_registry: ${{ steps.env-config.outputs.ecr_registry }}
+      k8s_branch: ${{ steps.env-config.outputs.k8s_branch }}
+      namespace: ${{ steps.env-config.outputs.namespace }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get branch name
+        id: branch
+        run: echo "name=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+
+      # 환경별 설정
+      - name: Set environment config
+        id: env-config
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+
+          # workflow_dispatch인 경우 입력값 사용
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+          else
+            # 브랜치명에서 환경 추출
+            case "${BRANCH}" in
+              "service-deploy-dev")
+                ENV="dev"
+                ;;
+              "service-deploy-prod")
+                ENV="prod"
+                ;;
+              *)
+                echo "Error: Unknown branch ${BRANCH}"
+                exit 1
+                ;;
+            esac
+          fi
+
+          echo "environment=${ENV}" >> $GITHUB_OUTPUT
+          echo "ecr_registry=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com" >> $GITHUB_OUTPUT
+          echo "k8s_branch=k8s-deploy-${ENV}" >> $GITHUB_OUTPUT
+
+          if [ "${ENV}" = "dev" ]; then
+            echo "namespace=wealist-dev" >> $GITHUB_OUTPUT
+          else
+            echo "namespace=wealist-prod" >> $GITHUB_OUTPUT
+          fi
+
+          echo "=== Environment Config ==="
+          echo "Environment: ${ENV}"
+          echo "K8s Branch: k8s-deploy-${ENV}"
+
+      # Push 이벤트: 자동 감지
+      - uses: dorny/paths-filter@v2
+        if: github.event_name == 'push'
+        id: filter
+        with:
+          filters: |
+            common-package:
+              - 'packages/wealist-advanced-go-pkg/**'
+            auth-service:
+              - 'services/auth-service/**'
+            board-service:
+              - 'services/board-service/**'
+            chat-service:
+              - 'services/chat-service/**'
+            noti-service:
+              - 'services/noti-service/**'
+            storage-service:
+              - 'services/storage-service/**'
+            user-service:
+              - 'services/user-service/**'
+            video-service:
+              - 'services/video-service/**'
+
+      # 수동 실행 또는 자동 감지 결과 설정
+      - name: Set services to build
+        id: set-services
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "${{ github.event.inputs.services }}" ]; then
+              SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+              echo "Manual trigger with services: ${SERVICES}"
+            else
+              SERVICES='["auth-service","board-service","chat-service","noti-service","storage-service","user-service","video-service"]'
+              echo "Manual trigger: building all services"
+            fi
+          # 공통 패키지 변경 시 모든 Go 서비스 빌드
+          elif [ "${{ steps.filter.outputs.common-package }}" = "true" ]; then
+            # 공통 패키지만 변경된 경우 모든 Go 서비스
+            GO_SERVICES='["board-service","chat-service","noti-service","storage-service","user-service","video-service"]'
+            # 다른 서비스도 변경되었으면 병합
+            OTHER_CHANGES='${{ steps.filter.outputs.changes }}'
+            if [ "${OTHER_CHANGES}" != "[]" ] && [ -n "${OTHER_CHANGES}" ]; then
+              # common-package 제외하고 병합
+              SERVICES=$(echo "${GO_SERVICES}" "${OTHER_CHANGES}" | jq -s 'add | unique | map(select(. != "common-package"))')
+            else
+              SERVICES="${GO_SERVICES}"
+            fi
+            echo "Common package changed - building Go services: ${SERVICES}"
+          else
+            # common-package 제외
+            SERVICES=$(echo '${{ steps.filter.outputs.changes }}' | jq -c 'map(select(. != "common-package"))')
+            echo "Auto-detected services: ${SERVICES}"
+          fi
+
+          echo "services=${SERVICES}" >> $GITHUB_OUTPUT
+
+  build-and-push:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != '' }}
+    runs-on: ubuntu-latest
+    environment: ${{ needs.detect-changes.outputs.environment }}
+
+    strategy:
+      matrix:
+        service: ${{ fromJSON(needs.detect-changes.outputs.services) }}
+      fail-fast: false
+
+    permissions:
+      id-token: write  # OIDC 인증용
+      contents: read
+      security-events: write  # Trivy 결과를 Security 탭에 올리기 위해 필요
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # AWS 자격 증명 설정 (Backend 전용 Role)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_BACKEND }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ECR 로그인
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ECR 리포지토리 생성 (없으면)
+      - name: Create ECR repository if not exists
+        run: |
+          aws ecr describe-repositories --repository-names ${{ matrix.service }} 2>/dev/null || \
+          aws ecr create-repository \
+            --repository-name ${{ matrix.service }} \
+            --image-scanning-configuration scanOnPush=true \
+            --encryption-configuration encryptionType=AES256
+
+      # 서비스별 Dockerfile 경로 및 빌드 컨텍스트 설정
+      - name: Set build configuration
+        id: build-config
+        run: |
+          SERVICE="${{ matrix.service }}"
+
+          case "${SERVICE}" in
+            "auth-service")
+              # Java/Gradle 서비스
+              DOCKERFILE="services/${SERVICE}/Dockerfile"
+              CONTEXT="services/${SERVICE}"
+              ;;
+            "board-service"|"chat-service"|"noti-service"|"storage-service"|"user-service"|"video-service")
+              # Go 서비스들
+              DOCKERFILE="services/${SERVICE}/docker/Dockerfile"
+              CONTEXT="."
+              ;;
+            *)
+              echo "Error: Unknown service ${SERVICE}"
+              exit 1
+              ;;
+          esac
+
+          echo "dockerfile=${DOCKERFILE}" >> $GITHUB_OUTPUT
+          echo "context=${CONTEXT}" >> $GITHUB_OUTPUT
+          echo "Service: ${SERVICE}"
+          echo "Dockerfile: ${DOCKERFILE}"
+          echo "Context: ${CONTEXT}"
+
+      - name: Generate image tags
+        id: tags
+        run: |
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA=${SHORT_SHA:0:7}
+          ENV="${{ needs.detect-changes.outputs.environment }}"
+          ECR_REGISTRY="${{ needs.detect-changes.outputs.ecr_registry }}"
+          SERVICE="${{ matrix.service }}"
+
+          # 태그 생성
+          TAG_SHA="${ENV}-${SHORT_SHA}"
+          TAG_LATEST="${ENV}-latest"
+
+          echo "tag_sha=${TAG_SHA}" >> $GITHUB_OUTPUT
+          echo "tag_latest=${TAG_LATEST}" >> $GITHUB_OUTPUT
+          echo "image_uri=${ECR_REGISTRY}/${SERVICE}" >> $GITHUB_OUTPUT
+
+          echo "=== Image Tags ==="
+          echo "SHA Tag: ${TAG_SHA}"
+          echo "Latest Tag: ${TAG_LATEST}"
+          echo "Image URI: ${ECR_REGISTRY}/${SERVICE}"
+
+      # -------------------------------------------------------------------------
+      # [1단계] 보안 검사용 임시 빌드 (amd64 Only, No Push)
+      # -------------------------------------------------------------------------
+      - name: Build for Scan (amd64)
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.build-config.outputs.context }}
+          file: ${{ steps.build-config.outputs.dockerfile }}
+          platforms: linux/amd64
+          load: true               # 로컬 도커 데몬으로 이미지 로드
+          push: false              # 푸시하지 않음
+          tags: ${{ matrix.service }}:scan-temp
+          cache-from: type=gha,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
+
+      # -------------------------------------------------------------------------
+      # [2단계] Trivy 스캔 (검사만 수행, 배포 중단 안함)
+      # -------------------------------------------------------------------------
+
+      # A. 로그 확인용 (Table 출력)
+      - name: Run Trivy (Log Output)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.service }}:scan-temp
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      # B. Security 탭 업로드용 (SARIF 생성)
+      - name: Run Trivy (SARIF Output)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.service }}:scan-temp
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: ${{ matrix.service }}
+
+      # -------------------------------------------------------------------------
+      # [3단계] 실제 배포용 멀티 아키텍처 빌드 및 푸시
+      # -------------------------------------------------------------------------
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.build-config.outputs.context }}
+          file: ${{ steps.build-config.outputs.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.image_uri }}:${{ steps.tags.outputs.tag_sha }}
+            ${{ steps.tags.outputs.image_uri }}:${{ steps.tags.outputs.tag_latest }}
+          cache-from: type=gha,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
+
+      - name: Output image info
+        run: |
+          echo "### 🚀 Image Published to ECR (Scan Completed)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Service:** ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.detect-changes.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ needs.detect-changes.outputs.branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "**ECR Registry:** ${{ needs.detect-changes.outputs.ecr_registry }}" >> $GITHUB_STEP_SUMMARY
+          echo "**SHA Tag:** ${{ steps.tags.outputs.tag_sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Platforms:** linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
+
+  update-gitops-manifests:
+    needs: [detect-changes, build-and-push]
+    if: |
+      needs.detect-changes.outputs.services != '[]' &&
+      needs.detect-changes.outputs.services != '' &&
+      success() &&
+      github.event.inputs.skip_gitops != 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ needs.detect-changes.outputs.environment }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITOPS_PAT }}
+          fetch-depth: 0
+
+      - name: Set environment variables
+        run: |
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA=${SHORT_SHA:0:7}
+          ENV="${{ needs.detect-changes.outputs.environment }}"
+          NEW_TAG="${ENV}-${SHORT_SHA}"
+          K8S_BRANCH="${{ needs.detect-changes.outputs.k8s_branch }}"
+          ECR_REGISTRY="${{ needs.detect-changes.outputs.ecr_registry }}"
+
+          echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
+          echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
+          echo "K8S_BRANCH=${K8S_BRANCH}" >> $GITHUB_ENV
+          echo "ECR_REGISTRY=${ECR_REGISTRY}" >> $GITHUB_ENV
+          echo "NAMESPACE=${{ needs.detect-changes.outputs.namespace }}" >> $GITHUB_ENV
+
+          echo "=== GitOps Config ==="
+          echo "Environment: ${ENV}"
+          echo "New Tag: ${NEW_TAG}"
+          echo "K8s Branch: ${K8S_BRANCH}"
+          echo "ECR Registry: ${ECR_REGISTRY}"
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action Bot"
+
+      - name: Checkout or create k8s branch
+        run: |
+          if git ls-remote --heads origin ${K8S_BRANCH} | grep -q ${K8S_BRANCH}; then
+            echo "Branch ${K8S_BRANCH} exists"
+            git fetch origin ${K8S_BRANCH}
+            git checkout ${K8S_BRANCH}
+          else
+            echo "Branch ${K8S_BRANCH} does not exist. Creating it..."
+            git checkout -b ${K8S_BRANCH}
+            git push origin ${K8S_BRANCH}
+          fi
+
+      - name: Update manifest files
+        run: |
+          SERVICES='${{ needs.detect-changes.outputs.services }}'
+
+          echo "Updating image tags to: ${NEW_TAG}"
+          echo "ECR Registry: ${ECR_REGISTRY}"
+          echo "Services to update: ${SERVICES}"
+
+          for service in $(echo $SERVICES | jq -r '.[]'); do
+            MANIFEST_FILE="k8s/argocd/apps/${service}.yaml"
+
+            if [ -f "$MANIFEST_FILE" ]; then
+              echo "Updating ${MANIFEST_FILE}"
+
+              # image.tag 업데이트
+              sed -i.bak '/- name: image\.tag/{
+                n
+                s|value: ".*"|value: "'"${NEW_TAG}"'"|
+              }' "$MANIFEST_FILE"
+
+              # global.imageRegistry 업데이트 (ECR 레지스트리)
+              sed -i.bak '/- name: global\.imageRegistry/{
+                n
+                s|value: ".*"|value: "'"${ECR_REGISTRY}"'"|
+              }' "$MANIFEST_FILE"
+
+              rm -f "${MANIFEST_FILE}.bak"
+
+              echo "Updated ${service} to tag: ${NEW_TAG}"
+              echo "=== Changes in ${MANIFEST_FILE} ==="
+              git diff "$MANIFEST_FILE" || true
+              echo "=================================="
+            else
+              echo "Warning: Manifest file not found: ${MANIFEST_FILE}"
+            fi
+          done
+
+      - name: Commit and push changes
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          echo "Changed files:"
+          git diff --name-only
+
+          git add .
+          git commit -m "🚀 [${NAMESPACE}] Update image tags for services
+
+Services: ${{ needs.detect-changes.outputs.services }}
+Environment: ${{ needs.detect-changes.outputs.environment }}
+ECR Registry: ${ECR_REGISTRY}
+New Tag: ${NEW_TAG}
+Commit: ${{ github.sha }}
+
+Updated by: ${{ github.actor }}
+Triggered by: ${{ github.event_name }}"
+
+          git push origin ${K8S_BRANCH}
+
+          echo "✅ Successfully updated manifests in ${K8S_BRANCH} branch"
+
+      - name: Create deployment summary
+        run: |
+          echo "## 🚀 GitOps Manifest Update (ECR)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.detect-changes.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Updated Services:** ${{ needs.detect-changes.outputs.services }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Target Branch:** ${K8S_BRANCH}" >> $GITHUB_STEP_SUMMARY
+          echo "**Namespace:** ${NAMESPACE}" >> $GITHUB_STEP_SUMMARY
+          echo "**ECR Registry:** ${ECR_REGISTRY}" >> $GITHUB_STEP_SUMMARY
+          echo "**New Image Tag:** ${NEW_TAG}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**ArgoCD will automatically sync these changes.**" >> $GITHUB_STEP_SUMMARY

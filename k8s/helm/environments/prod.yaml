@@ -1,17 +1,17 @@
 # =============================================================================
-# Development Server Environment
+# Production Environment
 # =============================================================================
-# Development environment with dev.wealist.co.kr domain
+# Production environment with wealist.co.kr domain
 # Uses AWS ECR + ArgoCD for deployment
-# Namespace: wealist-dev
+# Namespace: wealist-prod
 
 # -----------------------------------------------------------------------------
 # Global Settings
 # -----------------------------------------------------------------------------
 global:
-  namespace: wealist-dev
-  environment: development
-  domain: dev.wealist.co.kr
+  namespace: wealist-prod
+  environment: production
+  domain: wealist.co.kr
   # imageRegistry는 ArgoCD Application parameters에서 ECR URL로 덮어씁니다
   # 예: <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
   imageRegistry: ""
@@ -25,39 +25,49 @@ certManager:
   # Note: SSL is handled by CloudFront, K8s receives HTTP only
 
 # -----------------------------------------------------------------------------
-# Deployment Settings
+# Deployment Settings (Production)
 # -----------------------------------------------------------------------------
 auth-service:
-  replicaCount: 2
+  replicaCount: 3
 board-service:
+  replicaCount: 3
+user-service:
+  replicaCount: 3
+chat-service:
+  replicaCount: 3
+noti-service:
+  replicaCount: 2
+storage-service:
+  replicaCount: 2
+video-service:
   replicaCount: 2
 
 image:
-  pullPolicy: Always
-  tag: "latest"  # Local registry uses :latest tag
+  pullPolicy: IfNotPresent
+  tag: "latest"
 
 # -----------------------------------------------------------------------------
-# Resources (Development)
+# Resources (Production - Higher limits)
 # -----------------------------------------------------------------------------
 resources:
   requests:
-    memory: "128Mi"
-    cpu: "100m"
+    memory: "256Mi"
+    cpu: "200m"
   limits:
-    memory: "512Mi"
-    cpu: "500m"
+    memory: "1Gi"
+    cpu: "1000m"
 
 # -----------------------------------------------------------------------------
 # Health Check
 # -----------------------------------------------------------------------------
 healthCheck:
   liveness:
-    initialDelaySeconds: 30
+    initialDelaySeconds: 60
   readiness:
-    initialDelaySeconds: 10
+    initialDelaySeconds: 15
 
 # -----------------------------------------------------------------------------
-# Security (Standard)
+# Security (Strict)
 # -----------------------------------------------------------------------------
 podSecurityContext:
   runAsNonRoot: true
@@ -67,42 +77,48 @@ securityContext:
   allowPrivilegeEscalation: false
   runAsNonRoot: true
   readOnlyRootFilesystem: false  # Spring Boot (Tomcat) needs /tmp write access
+  capabilities:
+    drop:
+      - ALL
 
 # -----------------------------------------------------------------------------
-# Features
+# Features (Production)
 # -----------------------------------------------------------------------------
 autoscaling:
-  enabled: false
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
 
 serviceAccount:
   create: true
 
 networkPolicy:
-  enabled: false
+  enabled: true
 
 podDisruptionBudget:
-  enabled: false
+  enabled: true
+  minAvailable: 1
 
 # -----------------------------------------------------------------------------
 # Shared Configuration
 # -----------------------------------------------------------------------------
 shared:
   config:
-    ENV: "development"
-    LOG_LEVEL: "debug"
-    DB_AUTO_MIGRATE: "true"  # Create tables on startup
-    CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
+    ENV: "production"
+    LOG_LEVEL: "info"
+    DB_AUTO_MIGRATE: "false"  # Production: No auto migration
+    CORS_ORIGINS: "https://wealist.co.kr,https://api.wealist.co.kr"
     # S3/MinIO Configuration
-    S3_ENDPOINT: "http://minio:9000"
-    S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/minio"
-    S3_BUCKET: "wealist-files"
+    S3_ENDPOINT: ""  # AWS S3 기본 엔드포인트 사용
+    S3_PUBLIC_ENDPOINT: "https://cdn.wealist.co.kr"
+    S3_BUCKET: "wealist-prod-files"
     S3_REGION: "ap-northeast-2"
-    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/svc/livekit"
+    LIVEKIT_WS_URL: "wss://wealist.co.kr/svc/livekit"
     # OAuth2 Redirect URLs
-    # Google redirects here after user authenticates (must match Google Console)
-    OAUTH2_CLIENT_REDIRECT_URI: "https://api.dev.wealist.co.kr/oauth2/callback/google"
-    # auth-service redirects here (frontend) after processing OAuth
-    OAUTH2_REDIRECT_URL_ENV: "https://dev.wealist.co.kr/oauth/callback"
+    OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/oauth2/callback/google"
+    OAUTH2_REDIRECT_URL_ENV: "https://wealist.co.kr/oauth/callback"
 
 # -----------------------------------------------------------------------------
 # Ingress (nginx - 비활성화, Istio Gateway 사용)
@@ -128,8 +144,6 @@ redis:
 # -----------------------------------------------------------------------------
 # 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)
 # -----------------------------------------------------------------------------
-# dev.wealist.co.kr → CloudFront → S3 (정적 파일)
-# api.dev.wealist.co.kr → CloudFront → ALB → EKS (API)
 frontend:
   enabled: false  # Frontend pod 비활성화 (CDN 사용)
 
@@ -138,17 +152,16 @@ frontend:
 # -----------------------------------------------------------------------------
 istio:
   enabled: true
-  namespace: wealist-dev
+  namespace: wealist-prod
 
   gateway:
-    enabled: false  # setup-cluster.sh에서 이미 생성됨
+    enabled: false  # EKS ALB Ingress 또는 별도 Gateway 사용
     name: wealist-gateway
     hosts:
-      - "dev.wealist.co.kr"
-      - "api.dev.wealist.co.kr"
-      - "*"
+      - "wealist.co.kr"
+      - "api.wealist.co.kr"
     tls:
-      enabled: false
+      enabled: false  # CloudFront에서 SSL 처리
 
   # HTTPRoute 설정 (Kubernetes Gateway API)
   httpRoute:
@@ -157,26 +170,24 @@ istio:
       name: istio-ingressgateway
       namespace: istio-system
     hosts:
-      - "dev.wealist.co.kr"
-      - "api.dev.wealist.co.kr"
-    # Frontend Pod 라우팅 (비활성화 - CDN 사용)
+      - "wealist.co.kr"
+      - "api.wealist.co.kr"
     frontend:
       enabled: false
-    # Monitoring routes (활성화 - dev.wealist.co.kr/monitoring/*)
     monitoring:
-      enabled: true
+      enabled: false  # Production: 모니터링 외부 노출 비활성화
 
   # mTLS - 서비스 간 암호화
   mtls:
     enabled: true
-    mode: STRICT  # dev 환경: mTLS 강제 (보안 강화)
+    mode: STRICT  # Production: mTLS 강제
 
-  # Database mTLS 설정 (외부 DB 사용 - 해당 없음)
+  # Database mTLS 설정
   database:
     postgres:
-      disableMtls: false  # 내부 postgres pod 없음
+      disableMtls: false
     redis:
-      disableMtls: false  # 내부 redis pod 없음
+      disableMtls: false
 
   # 트래픽 제어 - Circuit Breaker, Connection Pool
   destinationRules:
@@ -185,37 +196,35 @@ istio:
       simple: ROUND_ROBIN
     connectionPool:
       tcp:
-        maxConnections: 100
+        maxConnections: 200
         connectTimeout: 10s
       http:
         h2UpgradePolicy: DO_NOT_UPGRADE
-        http1MaxPendingRequests: 100
-        http2MaxRequests: 1000
-        maxRequestsPerConnection: 100
+        http1MaxPendingRequests: 200
+        http2MaxRequests: 2000
+        maxRequestsPerConnection: 200
         maxRetries: 3
     # Circuit Breaker - 장애 서비스 격리
     outlierDetection:
-      consecutive5xxErrors: 5
-      consecutiveGatewayErrors: 5
+      consecutive5xxErrors: 3
+      consecutiveGatewayErrors: 3
       interval: 10s
-      baseEjectionTime: 30s
-      maxEjectionPercent: 50
-      minHealthPercent: 30
+      baseEjectionTime: 60s
+      maxEjectionPercent: 30
+      minHealthPercent: 50
 
-  # 서비스 간 통신 제어
-  # dev: Zero Trust 정책 적용
+  # 서비스 간 통신 제어 (Zero Trust)
   authorizationPolicy:
     enabled: true
-    denyAll: true  # dev: 기본 거부 (Zero Trust)
+    denyAll: true
 
   # 서비스별 호출 권한 (L7 정책)
   serviceAuthorization:
-    enabled: true  # dev: 활성화 (보안 강화)
+    enabled: true
 
   # JWT 인증
-  # dev: Istio에서 JWT 검증
   jwtAuth:
-    enabled: false  # 서비스에서 직접 처리 (추후 활성화 가능)
+    enabled: false
 
   # Ambient 모드 (Sidecar-less)
   ambient:
@@ -228,7 +237,7 @@ istio:
   telemetry:
     tracing:
       enabled: true
-      samplingPercentage: 50  # dev 환경 50%
+      samplingPercentage: 10  # Production: 10% 샘플링
     accessLogging:
       enabled: true
 
@@ -265,23 +274,20 @@ grafana:
     repository: public.ecr.aws/grafana/grafana
     tag: "10.2.2"
 
-# 모니터링 Ingress (Istio HTTPRoute로 처리)
+# 모니터링 Ingress
 monitoringIngress:
-  enabled: false
+  enabled: false  # Production: 별도 VPN/Bastion 통해 접근
 
 # -----------------------------------------------------------------------------
 # 데이터베이스 Exporter (외부 DB 메트릭 수집)
 # -----------------------------------------------------------------------------
-# DB 호스트 설정:
-#   - Mac/WSL (Docker Desktop): host.docker.internal
-#   - Native Linux: 172.18.0.1 (Kind bridge gateway)
 postgresExporter:
   enabled: true
   image:
     repository: public.ecr.aws/bitnami/postgres-exporter
     tag: "0.15.0"
   config:
-    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
+    host: ""  # secrets.yaml에서 설정
     port: 5432
 
 redisExporter:
@@ -290,5 +296,5 @@ redisExporter:
     repository: public.ecr.aws/bitnami/redis-exporter
     tag: "1.55.0"
   config:
-    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
+    host: ""  # secrets.yaml에서 설정
     port: 6379
