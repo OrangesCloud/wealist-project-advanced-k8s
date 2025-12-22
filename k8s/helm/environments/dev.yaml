@@ -12,10 +12,11 @@ global:
   namespace: wealist-dev
   environment: development
   domain: dev.wealist.co.kr
-  # imageRegistry는 ArgoCD Application parameters에서 ECR URL로 덮어씁니다
-  # 예: <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
-  imageRegistry: ""
-  # ECR은 IAM 기반 인증 사용 (EKS IRSA)
+  # 현재: GHCR (Local Kind 클러스터용)
+  # TODO: ECR 전환 시 아래로 변경
+  #   imageRegistry: <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
+  #   또는 ArgoCD Application parameters에서 덮어쓰기
+  imageRegistry: ghcr.io/orangescloud # ECR: <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
 
 # -----------------------------------------------------------------------------
 # cert-manager Configuration (Disabled - CloudFront handles SSL termination)
@@ -213,37 +214,57 @@ istio:
       enabled: true
 
 # =============================================================================
-# 모니터링 스택 설정 (ECR Public 이미지 사용)
+# 모니터링 스택 설정
 # =============================================================================
-# Docker Hub rate limit 회피를 위해 ECR Public Gallery 이미지 사용
+# 현재: GHCR 이미지 (Kind 클러스터용)
+# TODO: ECR 전환 시 아래 주석 해제하고 GHCR 설정 삭제
+#
+# --- ECR 전환 시 사용할 설정 ---
+# prometheus:
+#   image:
+#     repository: public.ecr.aws/prometheus/prometheus
+#     tag: "v2.48.0"
+# loki:
+#   image:
+#     repository: public.ecr.aws/grafana/loki
+#     tag: "2.9.2"
+# promtail:
+#   image:
+#     repository: public.ecr.aws/grafana/promtail
+#     tag: "2.9.2"
+# grafana:
+#   image:
+#     repository: public.ecr.aws/grafana/grafana
+#     tag: "10.2.2"
+# ---------------------------------
 
 # Prometheus - 메트릭 수집
 prometheus:
   enabled: true
   image:
-    repository: public.ecr.aws/prometheus/prometheus
-    tag: "v2.48.0"
+    repository: ghcr.io/orangescloud/base/prometheus-v2.48.0 # ECR: public.ecr.aws/prometheus/prometheus:v2.48.0
+    tag: "latest"
 
 # Loki - 로그 수집
 loki:
   enabled: true
   image:
-    repository: public.ecr.aws/grafana/loki
-    tag: "2.9.2"
+    repository: ghcr.io/orangescloud/base/loki-2.9.2 # ECR: public.ecr.aws/grafana/loki:2.9.2
+    tag: "latest"
 
 # Promtail - 로그 수집 에이전트
 promtail:
   enabled: true
   image:
-    repository: public.ecr.aws/grafana/promtail
-    tag: "2.9.2"
+    repository: ghcr.io/orangescloud/base/promtail-2.9.2 # ECR: public.ecr.aws/grafana/promtail:2.9.2
+    tag: "latest"
 
 # Grafana - 시각화 대시보드
 grafana:
   enabled: true
   image:
-    repository: public.ecr.aws/grafana/grafana
-    tag: "10.2.2"
+    repository: ghcr.io/orangescloud/base/grafana-10.2.2 # ECR: public.ecr.aws/grafana/grafana:10.2.2
+    tag: "latest"
 
 # 모니터링 Ingress (Istio HTTPRoute로 처리)
 monitoringIngress:
@@ -255,11 +276,15 @@ monitoringIngress:
 # DB 호스트 설정:
 #   - Mac/WSL (Docker Desktop): host.docker.internal
 #   - Native Linux: 172.18.0.1 (Kind bridge gateway)
+#
+# TODO: ECR 전환 시 repository 변경
+#   postgres: public.ecr.aws/bitnami/postgres-exporter:0.15.0
+#   redis: public.ecr.aws/bitnami/redis-exporter:1.55.0
 postgresExporter:
   enabled: true
   image:
-    repository: public.ecr.aws/bitnami/postgres-exporter
-    tag: "0.15.0"
+    repository: ghcr.io/orangescloud/base/postgres-exporter-v0.15.0 # ECR: public.ecr.aws/bitnami/postgres-exporter:0.15.0
+    tag: "latest"
   config:
     host: "host.docker.internal" # Docker Desktop (Mac/WSL)
     port: 5432
@@ -267,8 +292,8 @@ postgresExporter:
 redisExporter:
   enabled: true
   image:
-    repository: public.ecr.aws/bitnami/redis-exporter
-    tag: "1.55.0"
+    repository: ghcr.io/orangescloud/base/redis_exporter-v1.55.0 # ECR: public.ecr.aws/bitnami/redis-exporter:1.55.0
+    tag: "latest"
   config:
     host: "host.docker.internal" # Docker Desktop (Mac/WSL)
     port: 6379
