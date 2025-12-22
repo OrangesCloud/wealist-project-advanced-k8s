@@ -1,15 +1,4 @@
 # syntax=docker/dockerfile:1.4
-# =============================================================================
-# Base Image 설정 (환경별 선택 가능)
-# =============================================================================
-# localhost: 기본값 (공개 이미지)
-# dev/prod:  --build-arg로 ECR 이미지 지정
-#   docker build --build-arg GRADLE_IMAGE=<ecr>/gradle:8-jdk21 \
-#                --build-arg JRE_IMAGE=<ecr>/eclipse-temurin:21-jre-jammy ...
-# =============================================================================
-ARG GRADLE_IMAGE=gradle:8-jdk21
-ARG JRE_IMAGE=eclipse-temurin:21-jre-jammy
-
 # Build stage
 FROM public.ecr.aws/docker/library/gradle:8-jdk21 AS builder
 WORKDIR /home/gradle/src
