@@ -1,4 +1,4 @@
-{{- if and .Values.enabled .Values.jwtAuth.enabled }}
+{{- if and .Values.istio.enabled .Values.istio.jwtAuth.enabled }}
 {{- $namespace := include "istio-config.namespace" . }}
 
 # JWT Authentication at mesh level
@@ -13,9 +13,9 @@ metadata:
 spec:
   # Apply to all workloads in namespace (not just labeled ones)
   jwtRules:
-  - issuer: {{ .Values.jwtAuth.issuer | quote }}
-    {{- if .Values.jwtAuth.jwksUri }}
-    jwksUri: {{ .Values.jwtAuth.jwksUri | quote }}
+  - issuer: {{ .Values.istio.jwtAuth.issuer | quote }}
+    {{- if .Values.istio.jwtAuth.jwksUri }}
+    jwksUri: {{ .Values.istio.jwtAuth.jwksUri | quote }}
     {{- end }}
     # Forward the original token to upstream services
     forwardOriginalToken: true
@@ -49,13 +49,13 @@ spec:
   - from:
     - source:
         requestPrincipals:
-        - "{{ .Values.jwtAuth.issuer }}/*"
+        - "{{ .Values.istio.jwtAuth.issuer }}/*"
   # Allow public paths without JWT (health checks, auth endpoints)
-  {{- if .Values.jwtAuth.excludePaths }}
+  {{- if .Values.istio.jwtAuth.excludePaths }}
   - to:
     - operation:
         paths:
-        {{- range .Values.jwtAuth.excludePaths }}
+        {{- range .Values.istio.jwtAuth.excludePaths }}
         - {{ . | quote }}
         {{- end }}
   {{- end }}

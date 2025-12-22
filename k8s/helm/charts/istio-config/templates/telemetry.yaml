@@ -1,5 +1,5 @@
-{{- if .Values.enabled }}
-{{- if or .Values.telemetry.tracing.enabled .Values.telemetry.accessLogging.enabled }}
+{{- if .Values.istio.enabled }}
+{{- if or .Values.istio.telemetry.tracing.enabled .Values.istio.telemetry.accessLogging.enabled }}
 apiVersion: telemetry.istio.io/v1alpha1
 kind: Telemetry
 metadata:
@@ -8,16 +8,16 @@ metadata:
   labels:
     {{- include "istio-config.labels" . | nindent 4 }}
 spec:
-  {{- if .Values.telemetry.tracing.enabled }}
+  {{- if .Values.istio.telemetry.tracing.enabled }}
   tracing:
   - providers:
-    - name: {{ .Values.telemetry.tracing.provider }}
-    randomSamplingPercentage: {{ .Values.telemetry.tracing.samplingPercentage }}
+    - name: "zipkin"
+    randomSamplingPercentage: {{ .Values.istio.telemetry.tracing.samplingPercentage }}
   {{- end }}
-  {{- if .Values.telemetry.accessLogging.enabled }}
+  {{- if .Values.istio.telemetry.accessLogging.enabled }}
   accessLogging:
   - providers:
-    - name: {{ .Values.telemetry.accessLogging.provider }}
+    - name: "envoy"
   {{- end }}
 {{- end }}
 {{- end }}

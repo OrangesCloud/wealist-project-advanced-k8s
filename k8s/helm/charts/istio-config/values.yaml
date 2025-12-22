@@ -78,10 +78,119 @@ istio:
 
   authorizationPolicy:
     enabled: true
-    denyAll: false
+    denyAll: false  # 환경별 오버라이드: dev/prod는 true (Zero Trust)
 
+  # -----------------------------------------------------------------------------
+  # Service-to-Service Authorization (ServiceAccount-based)
+  # Defines which services can call which other services
+  # L7 정책: Waypoint에서 적용 (targetRef 사용)
+  # -----------------------------------------------------------------------------
   serviceAuthorization:
-    enabled: false
+    enabled: false  # 환경별 오버라이드: dev/prod는 true
+    rules:
+      # user-service: receives calls from multiple services for workspace validation
+      user-service:
+        allowedCallers:
+          - board-service
+          - chat-service
+          - storage-service
+          - video-service
+        allowedPaths:
+          - /api/workspaces/*/validate-member/*
+          - /api/users/*
+          - /api/profiles/*
+          - /health/*
+          - /internal/*
+
+      # auth-service: JWT validation and JWKS endpoint
+      auth-service:
+        allowedCallers:
+          - board-service  # WebSocket token validation
+        allowedPaths:
+          - /api/auth/validate
+          - /.well-known/*
+          - /actuator/health/*
+
+      # noti-service: receives notifications from board and chat
+      noti-service:
+        allowedCallers:
+          - board-service
+          - chat-service
+        allowedPaths:
+          - /api/*
+          - /internal/*
+          - /sse/*
+          - /health/*
+
+      # board-service: gateway only (no internal callers)
+      board-service:
+        allowedCallers: []
+        allowedPaths:
+          - /api/*
+          - /health/*
+          - /internal/*
+
+      # chat-service: gateway only
+      chat-service:
+        allowedCallers: []
+        allowedPaths:
+          - /api/*
+          - /ws/*
+          - /health/*
+
+      # storage-service: gateway only
+      storage-service:
+        allowedCallers: []
+        allowedPaths:
+          - /api/*
+          - /health/*
+
+      # video-service: gateway only
+      video-service:
+        allowedCallers: []
+        allowedPaths:
+          - /api/*
+          - /health/*
+
+      # frontend: gateway only
+      frontend:
+        allowedCallers: []
+        allowedPaths:
+          - /*
+
+  # -----------------------------------------------------------------------------
+  # JWT Authentication (RS256 JWKS based)
+  # auth-service exposes /.well-known/jwks.json endpoint
+  # -----------------------------------------------------------------------------
+  jwtAuth:
+    enabled: false  # 환경별 오버라이드: dev/prod는 true
+    issuer: wealist-auth-service
+    jwksUri: "http://auth-service:8080/.well-known/jwks.json"
+    # Public paths that don't require JWT
+    excludePaths:
+      - /health/*
+      - /actuator/health/*
+      - /.well-known/*
+      - /oauth2/*
+      - /login/oauth2/*
+      - /api/auth/login
+      - /api/auth/register
+      - /api/auth/refresh
+      - /api/auth/oauth2/*
+      - /swagger-ui/*
+      - /v3/api-docs/*
+      - /monitoring/*
+      - /  # Frontend static files
+
+  # -----------------------------------------------------------------------------
+  # Telemetry Configuration (Tracing & Access Logging)
+  # -----------------------------------------------------------------------------
+  telemetry:
+    tracing:
+      enabled: false  # 환경별 오버라이드
+      samplingPercentage: 100
+    accessLogging:
+      enabled: false  # 환경별 오버라이드
 
   ambient:
     enabled: true

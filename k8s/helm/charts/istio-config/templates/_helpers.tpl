@@ -13,6 +13,13 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
+Namespace - prefer global.namespace, fall back to istio.namespace
+*/}}
+{{- define "istio-config.namespace" -}}
+{{- .Values.global.namespace | default .Values.istio.namespace | default .Release.Namespace }}
+{{- end }}
+
+{{/*
 Common labels
 */}}
 {{- define "istio-config.labels" -}}

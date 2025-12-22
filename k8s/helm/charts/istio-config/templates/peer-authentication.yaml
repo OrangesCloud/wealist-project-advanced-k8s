@@ -1,4 +1,4 @@
-{{- if and .Values.enabled .Values.mtls.enabled }}
+{{- if and .Values.istio.enabled .Values.istio.mtls.enabled }}
 # =============================================================================
 # 네임스페이스 기본 mTLS 정책
 # =============================================================================
@@ -11,12 +11,12 @@ metadata:
     {{- include "istio-config.labels" . | nindent 4 }}
 spec:
   mtls:
-    mode: {{ .Values.mtls.mode }}
+    mode: {{ .Values.istio.mtls.mode }}
 ---
 # =============================================================================
 # PostgreSQL - mTLS 비활성화 (자체 프로토콜 사용)
 # =============================================================================
-{{- if .Values.database.postgres.disableMtls }}
+{{- if .Values.istio.database.postgres.disableMtls }}
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
@@ -35,7 +35,7 @@ spec:
 # =============================================================================
 # Redis - mTLS 비활성화 (자체 프로토콜 사용)
 # =============================================================================
-{{- if .Values.database.redis.disableMtls }}
+{{- if .Values.istio.database.redis.disableMtls }}
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
