@@ -249,7 +249,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [semantic-release, build-and-test, docker-build-push]
     if: ${{ !inputs.skip_s3_deploy }}
-    environment: develop
+    # environment: develop
 
     defaults:
       run:
