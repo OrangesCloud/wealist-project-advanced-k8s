@@ -27,34 +27,14 @@ certManager:
 # -----------------------------------------------------------------------------
 # Deployment Settings
 # -----------------------------------------------------------------------------
-auth-service:
-  replicaCount: 2
-board-service:
-  replicaCount: 2
+# Note: Service-specific settings (replicaCount, resources, healthCheck)
+# are defined in each service chart's values.yaml
+# Do NOT define auth-service/board-service keys here to avoid parsing issues
+# with wealist-infrastructure chart
 
 image:
   pullPolicy: Always
-  tag: "latest"  # Local registry uses :latest tag
-
-# -----------------------------------------------------------------------------
-# Resources (Development)
-# -----------------------------------------------------------------------------
-resources:
-  requests:
-    memory: "128Mi"
-    cpu: "100m"
-  limits:
-    memory: "512Mi"
-    cpu: "500m"
-
-# -----------------------------------------------------------------------------
-# Health Check
-# -----------------------------------------------------------------------------
-healthCheck:
-  liveness:
-    initialDelaySeconds: 30
-  readiness:
-    initialDelaySeconds: 10
+  tag: "latest"
 
 # -----------------------------------------------------------------------------
 # Security (Standard)
