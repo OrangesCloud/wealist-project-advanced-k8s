@@ -261,6 +261,8 @@ prometheus:
   image:
     repository: ghcr.io/orangescloud/base/prometheus-v2.48.0 # ECR: public.ecr.aws/prometheus/prometheus:v2.48.0
     tag: "latest"
+  config:
+    externalUrl: "https://api.dev.wealist.co.kr/monitoring/prometheus"
 
 # Loki - 로그 수집
 loki:
@@ -282,6 +284,10 @@ grafana:
   image:
     repository: ghcr.io/orangescloud/base/grafana-10.2.2 # ECR: public.ecr.aws/grafana/grafana:10.2.2
     tag: "latest"
+  config:
+    allowSignUp: false
+    rootUrl: "https://api.dev.wealist.co.kr/monitoring/grafana"
+    serveFromSubPath: "true"
 
 # 모니터링 Ingress (Istio HTTPRoute로 처리)
 monitoringIngress:
