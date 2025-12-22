@@ -11,11 +11,6 @@ data:
   ENV: {{ .Values.shared.config.ENV | quote }}
   LOG_LEVEL: {{ .Values.shared.config.LOG_LEVEL | quote }}
 
-  # JWT Configuration
-  JWT_ISSUER: {{ .Values.shared.config.JWT_ISSUER | default "wealist-auth-service" | quote }}
-  # Istio JWT Mode: true면 Istio가 검증, Go 서비스는 파싱만
-  ISTIO_JWT_MODE: {{ .Values.shared.config.ISTIO_JWT_MODE | default "false" | quote }}
-
   # Service Discovery URLs
   AUTH_SERVICE_URL: {{ .Values.shared.config.AUTH_SERVICE_URL | quote }}
   USER_SERVICE_URL: {{ .Values.shared.config.USER_SERVICE_URL | quote }}

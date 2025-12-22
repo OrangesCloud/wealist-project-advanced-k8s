@@ -89,7 +89,7 @@ spec:
       serviceAccountName: prometheus
       containers:
       - name: prometheus
-        image: prom/prometheus:v2.48.0
+        image: "{{ .Values.prometheus.image.repository }}:{{ .Values.prometheus.image.tag }}"
         args:
         - '--storage.tsdb.retention.time={{ .Values.prometheus.retention }}'
         - '--config.file=/etc/prometheus/prometheus.yml'

@@ -47,7 +47,7 @@ config:
 
   # Database (service-specific)
   DB_NAME: "wealist_noti_service_db"
-  DATABASE_URL: "postgresql://noti_service:noti_service_password@postgres:5432/wealist_noti_service_db?sslmode=disable"
+  DATABASE_URL: "postgresql://noti_service:postgres@postgres:5432/wealist_noti_service_db?sslmode=disable"
 
 # -----------------------------------------------------------------------------
 # External Secrets

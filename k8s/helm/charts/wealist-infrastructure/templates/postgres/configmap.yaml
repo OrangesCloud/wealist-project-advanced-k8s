@@ -21,7 +21,7 @@ data:
 
         -- Create users for each service
         {{- range .Values.postgres.config.databases }}
-        CREATE USER {{ .user }} WITH PASSWORD '{{ .password }}';
+        CREATE USER {{ .user }} WITH PASSWORD '{{ $.Values.shared.secrets.DB_PASSWORD }}';
         {{- end }}
 
         -- Grant privileges

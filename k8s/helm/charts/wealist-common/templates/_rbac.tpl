@@ -15,6 +15,17 @@ metadata:
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- if .Values.serviceAccount.imagePullSecrets }}
+imagePullSecrets:
+  {{- range .Values.serviceAccount.imagePullSecrets }}
+  - name: {{ . }}
+  {{- end }}
+{{- else if .Values.global.imagePullSecrets }}
+imagePullSecrets:
+  {{- range .Values.global.imagePullSecrets }}
+  - name: {{ . }}
+  {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

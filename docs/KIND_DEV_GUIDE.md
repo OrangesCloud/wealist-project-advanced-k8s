@@ -43,10 +43,10 @@ OAuth 로그인과 JWT 토큰이 정상 동작하려면 secrets 파일이 필요
 
 ```bash
 # 1. secrets 파일 생성
-cp helm/environments/secrets.example.yaml helm/environments/local-kind-secrets.yaml
+cp helm/environments/secrets.example.yaml helm/environments/localhost-secrets.yaml
 
 # 2. 파일 편집하여 실제 값 입력
-vi helm/environments/local-kind-secrets.yaml
+vi helm/environments/localhost-secrets.yaml
 
 # 필수 항목:
 # - GOOGLE_CLIENT_ID: Google Cloud Console에서 발급
@@ -55,6 +55,7 @@ vi helm/environments/local-kind-secrets.yaml
 ```
 
 > ⚠️ **secrets 파일이 없으면:**
+>
 > - Google OAuth 로그인 실패 (invalid_client 에러)
 > - JWT 토큰 생성 실패 (WeakKeyException)
 > - API 호출 시 401/500 에러
@@ -73,20 +74,22 @@ make kind-setup
 make kind-load-images
 
 # 3단계: Secrets 설정 (위 "Secrets 설정" 섹션 참고)
-cp helm/environments/secrets.example.yaml helm/environments/local-kind-secrets.yaml
-vi helm/environments/local-kind-secrets.yaml  # GOOGLE_CLIENT_ID 등 입력
+cp helm/environments/secrets.example.yaml helm/environments/localhost-secrets.yaml
+vi helm/environments/localhost-secrets.yaml  # GOOGLE_CLIENT_ID 등 입력
 
 # 4단계: Helm으로 전체 배포
-make helm-install-all ENV=local-kind
+make helm-install-all ENV=localhost
 ```
 
 **완료 후 확인:**
+
 ```bash
 make status                    # Pod 상태 확인
 kubectl get pods -n wealist-kind-local
 ```
 
 **접속 URL:**
+
 - Frontend: http://localhost
 - API Gateway: http://localhost/api/...
 
@@ -133,12 +136,12 @@ docker stop wealist-control-plane wealist-worker wealist-worker2
 
 ### 명령어 패턴
 
-| 명령어 | 설명 |
-|--------|------|
-| `make {서비스}-build` | Docker 이미지만 빌드 |
-| `make {서비스}-load` | 빌드 + 레지스트리에 푸시 |
-| `make {서비스}-redeploy` | Pod 재시작 (이미지 다시 풀) |
-| `make {서비스}-all` | 빌드 + 푸시 + 재시작 (가장 많이 사용) |
+| 명령어                   | 설명                                  |
+| ------------------------ | ------------------------------------- |
+| `make {서비스}-build`    | Docker 이미지만 빌드                  |
+| `make {서비스}-load`     | 빌드 + 레지스트리에 푸시              |
+| `make {서비스}-redeploy` | Pod 재시작 (이미지 다시 풀)           |
+| `make {서비스}-all`      | 빌드 + 푸시 + 재시작 (가장 많이 사용) |
 
 ### 사용 예시
 
@@ -173,7 +176,7 @@ make redeploy-all
 
 ```bash
 # 로컬 Kind 클러스터 (기본)
-make helm-install-all ENV=local-kind
+make helm-install-all ENV=localhost
 
 # 로컬 Ubuntu 서버 (외부 DB 사용)
 make helm-install-all ENV=local-ubuntu
@@ -186,22 +189,22 @@ make helm-install-all ENV=prod
 
 ### 환경별 네임스페이스
 
-| ENV | Namespace | 도메인 |
-|-----|-----------|--------|
-| local-kind | wealist-kind-local | localhost |
-| local-ubuntu | wealist-dev | local.wealist.co.kr |
-| dev | wealist-dev | dev.wealist.co.kr |
-| staging | wealist-staging | staging.wealist.co.kr |
-| prod | wealist-prod | wealist.co.kr |
+| ENV          | Namespace          | 도메인                |
+| ------------ | ------------------ | --------------------- |
+| localhost    | wealist-kind-local | localhost             |
+| local-ubuntu | wealist-dev        | local.wealist.co.kr   |
+| dev          | wealist-dev        | dev.wealist.co.kr     |
+| staging      | wealist-staging    | staging.wealist.co.kr |
+| prod         | wealist-prod       | wealist.co.kr         |
 
 ### 업그레이드 / 삭제
 
 ```bash
 # 설정 변경 후 업그레이드
-make helm-upgrade-all ENV=local-kind
+make helm-upgrade-all ENV=localhost
 
 # 전체 삭제
-make helm-uninstall-all ENV=local-kind
+make helm-uninstall-all ENV=localhost
 ```
 
 ### 최초 설치 (DB 마이그레이션 포함)
@@ -209,7 +212,7 @@ make helm-uninstall-all ENV=local-kind
 처음 배포하거나 DB 스키마가 변경되었을 때:
 
 ```bash
-make helm-install-all-init ENV=local-kind
+make helm-install-all-init ENV=localhost
 ```
 
 ---
@@ -356,7 +359,7 @@ make kind-recover
 make kind-delete
 make kind-setup
 make kind-load-images
-make helm-install-all ENV=local-kind
+make helm-install-all ENV=localhost
 ```
 
 ### DB 연결 실패
@@ -377,19 +380,19 @@ kubectl exec -it statefulset/postgres -n wealist-kind-local -- \
 
 ```bash
 # 모든 Pod 재시작 (새 설정 로드)
-make redeploy-all ENV=local-kind
+make redeploy-all ENV=localhost
 ```
 
 ---
 
 ## 참고 문서
 
-| 문서 | 설명 |
-|------|------|
-| [CLAUDE.md](../CLAUDE.md) | 프로젝트 전체 구조 및 규칙 |
-| [CONFIGURATION.md](./CONFIGURATION.md) | 포트, URL, 환경변수 설정 |
-| [docker/SONARQUBE_GUIDE.md](../docker/SONARQUBE_GUIDE.md) | SonarQube 상세 가이드 |
-| [helm/README.md](../helm/README.md) | Helm 차트 구조 |
+| 문서                                                      | 설명                       |
+| --------------------------------------------------------- | -------------------------- |
+| [CLAUDE.md](../CLAUDE.md)                                 | 프로젝트 전체 구조 및 규칙 |
+| [CONFIGURATION.md](./CONFIGURATION.md)                    | 포트, URL, 환경변수 설정   |
+| [docker/SONARQUBE_GUIDE.md](../docker/SONARQUBE_GUIDE.md) | SonarQube 상세 가이드      |
+| [helm/README.md](../helm/README.md)                       | Helm 차트 구조             |
 
 ---
 
@@ -405,11 +408,11 @@ make kind-recover              # 재부팅 후 복구
 # === 처음 설정할 때 ===
 make kind-setup                # 클러스터 생성
 make kind-load-images          # 이미지 로드
-make helm-install-all ENV=local-kind  # 배포
+make helm-install-all ENV=localhost  # 배포
 
 # === Helm 관련 ===
-make helm-upgrade-all ENV=local-kind  # 업그레이드
-make helm-uninstall-all ENV=local-kind # 삭제
+make helm-upgrade-all ENV=localhost  # 업그레이드
+make helm-uninstall-all ENV=localhost # 삭제
 make helm-deps-build           # 의존성 빌드
 
 # === SonarQube ===

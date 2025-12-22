@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 # Builder stage - optimized layer caching (2025-12-18)
-FROM golang:1.24-bookworm AS builder
+FROM ghcr.io/orangescloud/base/golang-1.24-bookworm AS builder
 
 # Install build dependencies (cached layer)
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
@@ -37,7 +37,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o noti-api ./cmd/api
 
 # Runtime stage
-FROM alpine:latest
+FROM ghcr.io/orangescloud/base/alpine-latest
 
 # Install runtime dependencies
 RUN apk --no-cache add ca-certificates tzdata wget

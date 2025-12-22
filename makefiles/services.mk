@@ -2,9 +2,8 @@
 # Per-Service Commands
 # =============================================================================
 # Usage: make <service>-build, make <service>-load, make <service>-redeploy, make <service>-all
-# Services: auth-service, board-service, chat-service,
+# Services: auth-service, board-service, chat-service, frontend,
 #           noti-service, storage-service, user-service, video-service
-# Note: Frontend is deployed separately (CDN/S3 or npm run dev locally)
 
 ##@ Per-Service Commands
 
@@ -64,8 +63,7 @@ board-service-build: ## Build board-service image
 		-f services/board-service/docker/Dockerfile .
 	@echo "Built $(LOCAL_REGISTRY)/board-service:$(IMAGE_TAG)"
 
-# (legacy) frontend-build - frontend is now deployed separately (CDN/S3)
-frontend-build:
+frontend-build: ## Build frontend image
 	@echo "Building frontend..."
 	docker build -t $(LOCAL_REGISTRY)/frontend:$(IMAGE_TAG) \
 		-f services/frontend/Dockerfile services/frontend
@@ -87,8 +85,7 @@ chat-service-load: chat-service-build ## Build and push chat-service
 	docker push $(LOCAL_REGISTRY)/chat-service:$(IMAGE_TAG)
 	@echo "Pushed $(LOCAL_REGISTRY)/chat-service:$(IMAGE_TAG)"
 
-# (legacy) frontend-load - frontend is now deployed separately (CDN/S3)
-frontend-load: frontend-build
+frontend-load: frontend-build ## Build and push frontend
 	docker push $(LOCAL_REGISTRY)/frontend:$(IMAGE_TAG)
 	@echo "Pushed $(LOCAL_REGISTRY)/frontend:$(IMAGE_TAG)"
 
@@ -124,8 +121,7 @@ chat-service-redeploy: ## Rollout restart chat-service
 	kubectl rollout restart deployment/chat-service -n $(K8S_NAMESPACE)
 	@echo "Rollout restart triggered for chat-service"
 
-# (legacy) frontend-redeploy - frontend is now deployed separately (CDN/S3)
-frontend-redeploy:
+frontend-redeploy: ## Rollout restart frontend
 	kubectl rollout restart deployment/frontend -n $(K8S_NAMESPACE)
 	@echo "Rollout restart triggered for frontend"
 
@@ -155,8 +151,7 @@ board-service-all: board-service-load board-service-redeploy ## Build, push, and
 
 chat-service-all: chat-service-load chat-service-redeploy ## Build, push, and redeploy chat-service
 
-# (legacy) frontend-all - frontend is now deployed separately (CDN/S3)
-frontend-all: frontend-load frontend-redeploy
+frontend-all: frontend-load frontend-redeploy ## Build, push, and redeploy frontend
 
 noti-service-all: noti-service-load noti-service-redeploy ## Build, push, and redeploy noti-service
 
@@ -173,9 +168,27 @@ redeploy-all: ## Restart all deployments (pick up new secrets)
 	kubectl rollout restart deployment -n $(K8S_NAMESPACE)
 	@echo "All deployments restarted"
 
-status: ## Show pods status
+status: ## Show pods status (use ENV=dev for dev environment)
 	@echo "=== Kubernetes Pods (ENV=$(ENV), NS=$(K8S_NAMESPACE)) ==="
-	@kubectl get pods -n $(K8S_NAMESPACE) 2>/dev/null || echo "Namespace not found"
+	@kubectl get pods -n $(K8S_NAMESPACE) 2>/dev/null || echo "Namespace $(K8S_NAMESPACE) not found"
+	@echo ""
+	@echo "💡 다른 환경: make status ENV=dev / make status ENV=localhost"
+
+status-dev: ## Show dev environment pods
+	@$(MAKE) status ENV=dev
+
+status-localhost: ## Show localhost environment pods
+	@$(MAKE) status ENV=localhost
+
+status-all: ## Show all wealist namespaces
+	@echo "=== All wealist namespaces ==="
+	@for ns in wealist-localhost wealist-dev wealist-staging wealist-prod; do \
+		if kubectl get namespace $$ns >/dev/null 2>&1; then \
+			echo ""; \
+			echo "📦 $$ns:"; \
+			kubectl get pods -n $$ns 2>/dev/null | head -10 || echo "  (no pods)"; \
+		fi; \
+	done
 
 clean: ## Clean up
 	./docker/scripts/clean.sh
@@ -196,7 +209,7 @@ ghcr-login: ## Login to ghcr.io (requires GHCR_TOKEN env var)
 	@echo "Logging in to ghcr.io..."
 	@echo "$$GHCR_TOKEN" | docker login ghcr.io -u $(shell echo $(GHCR_REGISTRY) | cut -d'/' -f2) --password-stdin
 
-ghcr-push-all: ## Build and push all backend services to ghcr.io (ENV=dev|staging|prod)
+ghcr-push-all: ## Build and push all backend services to ghcr.io (ENV=dev|staging|prod) - Multi-arch (amd64+arm64)
 	@if [ -z "$(GHCR_REGISTRY)" ]; then \
 		echo "Error: Could not read imageRegistry from $(HELM_ENV_VALUES)"; \
 		echo "Make sure ENV is set correctly (dev, staging, prod)"; \
@@ -206,23 +219,35 @@ ghcr-push-all: ## Build and push all backend services to ghcr.io (ENV=dev|stagin
 	@echo "ENV: $(ENV)"
 	@echo "Registry: $(GHCR_REGISTRY)"
 	@echo "Tag: $(IMAGE_TAG)"
+	@echo "Platform: linux/amd64,linux/arm64 (multi-arch)"
 	@echo ""
-	@# Build and push Go services (root context)
+	@# buildx 빌더 확인 및 생성
+	@if ! docker buildx inspect multiarch-builder >/dev/null 2>&1; then \
+		echo "🔧 Creating buildx builder for multi-arch..."; \
+		docker buildx create --name multiarch-builder --use --bootstrap; \
+	else \
+		docker buildx use multiarch-builder; \
+	fi
+	@echo ""
+	@# Build and push Go services (root context) - Multi-arch
 	@for svc in user-service board-service chat-service noti-service storage-service video-service; do \
-		echo "--- Building $$svc ---"; \
-		docker build -t $(GHCR_REGISTRY)/$$svc:$(IMAGE_TAG) \
-			-f services/$$svc/docker/Dockerfile . || exit 1; \
-		echo "--- Pushing $$svc ---"; \
-		docker push $(GHCR_REGISTRY)/$$svc:$(IMAGE_TAG) || exit 1; \
+		echo "--- Building $$svc (amd64 + arm64) ---"; \
+		docker buildx build --platform linux/amd64,linux/arm64 \
+			-t $(GHCR_REGISTRY)/$$svc:$(IMAGE_TAG) \
+			-f services/$$svc/docker/Dockerfile \
+			--push . || exit 1; \
+		echo "✅ $$svc pushed"; \
 		echo ""; \
 	done
-	@# Build and push auth-service (local context)
-	@echo "--- Building auth-service ---"
-	@docker build -t $(GHCR_REGISTRY)/auth-service:$(IMAGE_TAG) \
-		-f services/auth-service/Dockerfile services/auth-service
-	@echo "--- Pushing auth-service ---"
-	@docker push $(GHCR_REGISTRY)/auth-service:$(IMAGE_TAG)
+	@# Build and push auth-service (local context) - Multi-arch
+	@echo "--- Building auth-service (amd64 + arm64) ---"
+	@docker buildx build --platform linux/amd64,linux/arm64 \
+		-t $(GHCR_REGISTRY)/auth-service:$(IMAGE_TAG) \
+		-f services/auth-service/Dockerfile \
+		--push services/auth-service
+	@echo "✅ auth-service pushed"
 	@echo ""
 	@echo "=== All backend services pushed to $(GHCR_REGISTRY) ==="
+	@echo "   ✅ Supported platforms: linux/amd64, linux/arm64"
 	@echo ""
 	@echo "Next: make helm-install-all ENV=$(ENV)"

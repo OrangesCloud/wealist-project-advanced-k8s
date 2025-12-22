@@ -21,7 +21,7 @@ spec:
 ```yaml
 spec:
   source:
-    path: helm/charts/user-service
+    path: k8s/helm/charts/user-service
     helm:
       valueFiles:
         - values.yaml
@@ -98,15 +98,15 @@ argocd proj create wealist \
   --src https://github.com/your-org/wealist-project-advanced.git
 ```
 
-Or via YAML (`argocd/apps/project.yaml`):
+Or via YAML (`k8s/argocd/apps/project.yaml`):
 ```bash
-kubectl apply -f argocd/apps/project.yaml
+kubectl apply -f k8s/argocd/apps/project.yaml
 ```
 
 ### Step 2: Deploy Root Application (App of Apps Pattern)
 
 ```bash
-kubectl apply -f argocd/apps/root-app.yaml
+kubectl apply -f k8s/argocd/apps/root-app.yaml
 ```
 
 This will automatically deploy all 9 Applications:
@@ -166,7 +166,7 @@ argocd app set user-service \
 
 #### Option 2: Update Values File (Persistent)
 ```yaml
-# helm/charts/user-service/values-develop-registry-local.yaml
+# k8s/helm/charts/user-service/values-develop-registry-local.yaml
 image:
   tag: "v1.2.3"
 ```
@@ -175,7 +175,7 @@ Commit, push, and ArgoCD auto-syncs.
 ### Update Configuration
 
 ```yaml
-# helm/charts/user-service/values-develop-registry-local.yaml
+# k8s/helm/charts/user-service/values-develop-registry-local.yaml
 config:
   LOG_LEVEL: "info"  # Change from "debug"
   NEW_FEATURE_FLAG: "true"
@@ -200,7 +200,7 @@ argocd app set user-service \
 
 Edit Application manifest:
 ```yaml
-# argocd/apps/user-service.yaml
+# k8s/argocd/apps/user-service.yaml
 spec:
   source:
     helm:
@@ -254,8 +254,8 @@ argocd app sync user-service
 argocd app manifests user-service
 
 # Check for template errors
-helm template user-service ./helm/charts/user-service \
-  -f ./helm/charts/user-service/values-develop-registry-local.yaml \
+helm template user-service ./k8s/helm/charts/user-service \
+  -f ./k8s/helm/charts/user-service/values-develop-registry-local.yaml \
   --debug
 ```
 
@@ -302,7 +302,7 @@ argocd app rollback user-service 3
 ### Validate All Applications
 
 ```bash
-./argocd/scripts/validate-applications.sh
+./k8s/argocd/scripts/validate-applications.sh
 ```
 
 **Expected Output**:
@@ -363,7 +363,7 @@ argocd app sync-status user-service
 
 **Option 1: External Secrets Operator** (Recommended for production)
 ```yaml
-# helm/charts/user-service/values-production.yaml
+# k8s/helm/charts/user-service/values-production.yaml
 externalSecrets:
   enabled: true
   secretStore: aws-secrets-manager
@@ -422,12 +422,12 @@ argocd app list -o json | jq '.[] | select(.status.health.status != "Healthy")'
 
 For controlled deployment order, use annotations:
 ```yaml
-# helm/charts/wealist-infrastructure/templates/postgres/statefulset.yaml
+# k8s/helm/charts/wealist-infrastructure/templates/postgres/statefulset.yaml
 metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"  # Deploy first
 
-# helm/charts/user-service/templates/deployment.yaml
+# k8s/helm/charts/user-service/templates/deployment.yaml
 metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"  # Deploy after infrastructure
@@ -477,10 +477,10 @@ metadata:
 3. **"Helm chart not found"**
    - Ensure charts exist in repository
    - Check chart path in Application spec
-   - Run validation: `./argocd/scripts/validate-applications.sh`
+   - Run validation: `./k8s/argocd/scripts/validate-applications.sh`
 
 4. **"Values file not found"**
-   - Verify file exists: `ls helm/charts/user-service/values*.yaml`
+   - Verify file exists: `ls k8s/helm/charts/user-service/values*.yaml`
    - Check valueFiles path in Application spec
 
 ---

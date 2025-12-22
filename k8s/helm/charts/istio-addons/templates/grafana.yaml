@@ -70,7 +70,7 @@ spec:
     spec:
       containers:
       - name: grafana
-        image: grafana/grafana:10.2.2
+        image: "{{ .Values.grafana.image.repository }}:{{ .Values.grafana.image.tag }}"
         env:
         - name: GF_SECURITY_ADMIN_USER
           value: {{ .Values.grafana.adminUser }}

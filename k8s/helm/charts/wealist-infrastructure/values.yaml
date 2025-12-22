@@ -45,25 +45,22 @@ postgres:
 
     # Database list (init script creates these)
     # Note: DB names must match service config (DB_NAME in charts/*/values.yaml)
+    # Database list (init script creates these)
+    # Note: DB names must match service config (DB_NAME in charts/*/values.yaml)
+    # Passwords come from shared.secrets.DB_PASSWORD in environment files
     databases:
       - name: wealist_user_service_db
         user: user_service
-        password: user_service_password
       - name: wealist_board_service_db
         user: board_service
-        password: board_service_password
       - name: wealist_chat_service_db
         user: chat_service
-        password: chat_service_password
       - name: wealist_noti_service_db
         user: noti_service
-        password: noti_service_password
       - name: wealist_storage_service_db
         user: storage_service
-        password: storage_service_password
       - name: wealist_video_service_db
         user: video_service
-        password: video_service_password
 
 # Redis configuration
 redis:
@@ -128,3 +125,5 @@ ingress:
 
   # Default: no TLS (override in environment files)
   tls: []
+
+

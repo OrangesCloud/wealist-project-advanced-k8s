@@ -1,0 +1,46 @@
+# =============================================================================
+# Kind 클러스터 공용 설정
+# =============================================================================
+# 사용: scripts/localhost/0.setup-cluster.sh, scripts/dev/0.setup-cluster.sh
+#
+# 포트 매핑:
+#   - hostPort 80  → containerPort 80  (Istio Gateway hostPort)
+#   - hostPort 443 → containerPort 443 (HTTPS)
+#   - hostPort 8080 → containerPort 30080 (NodePort 백업)
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+# 로컬 레지스트리 설정 (localhost:5001)
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".registry]
+      [plugins."io.containerd.grpc.v1.cri".registry.mirrors]
+        [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5001"]
+          endpoint = ["http://kind-registry:5000"]
+
+nodes:
+  # Control Plane - Ingress 트래픽 수신
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      # Istio Gateway hostPort 80 사용
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+      # NodePort 백업 (hostPort 80 실패 시)
+      - containerPort: 30080
+        hostPort: 8080
+        protocol: TCP
+
+  # Worker 노드들
+  - role: worker
+  - role: worker

@@ -1,8 +1,6 @@
 #!/bin/bash
-# Kind 클러스터 + 로컬 레지스트리 + nginx ingress 설정 스크립트 (Simple Mode)
-# - Istio 없음: 간단한 테스트용
-# - nginx ingress: 표준 Kubernetes Ingress 사용
-# - 로컬 레지스트리: Docker Hub rate limit 우회
+# Kind 클러스터 + 로컬 레지스트리 설정 스크립트
+# 로컬 레지스트리를 사용하면 Docker Hub rate limit 우회 가능
 
 set -e
 
@@ -10,9 +8,7 @@ CLUSTER_NAME="wealist"
 REG_NAME="kind-registry"
 REG_PORT="5001"
 
-echo "🚀 Kind 클러스터 + nginx ingress 설정 (Simple Mode)"
-echo "   - Istio: 없음"
-echo "   - Ingress: nginx-ingress-controller"
+echo "🚀 Kind 클러스터 + 로컬 레지스트리 설정"
 echo ""
 
 # 1. 기존 클러스터 삭제 (있으면)
@@ -27,9 +23,9 @@ if [ "$(docker inspect -f '{{.State.Running}}' "${REG_NAME}" 2>/dev/null || true
     docker run -d --restart=always -p "127.0.0.1:${REG_PORT}:5000" --network bridge --name "${REG_NAME}" registry:2
 fi
 
-# 3. Kind 설정 파일 생성 (nginx ingress용 포트 매핑)
+# 3. Kind 설정 파일 생성 (로컬 레지스트리 포함)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cat > "${SCRIPT_DIR}/kind-config-simple.yaml" <<EOF
+cat > "${SCRIPT_DIR}/kind-config.yaml" <<EOF
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 containerdConfigPatches:
@@ -49,12 +45,15 @@ nodes:
     extraPortMappings:
       - containerPort: 80
         hostPort: 80
+        listenAddress: "0.0.0.0"  # Allow external access
         protocol: TCP
       - containerPort: 443
         hostPort: 443
+        listenAddress: "0.0.0.0"  # Allow external access
         protocol: TCP
       - containerPort: 30080
         hostPort: 8080
+        listenAddress: "0.0.0.0"  # Allow external access
         protocol: TCP
   - role: worker
   - role: worker
@@ -62,7 +61,7 @@ EOF
 
 # 4. Kind 클러스터 생성
 echo "🚀 Kind 클러스터 생성 중..."
-kind create cluster --name "$CLUSTER_NAME" --config "${SCRIPT_DIR}/kind-config-simple.yaml"
+kind create cluster --name "$CLUSTER_NAME" --config "${SCRIPT_DIR}/kind-config.yaml"
 
 # 5. 레지스트리를 Kind 네트워크에 연결
 if [ "$(docker inspect -f='{{json .NetworkSettings.Networks.kind}}' "${REG_NAME}" 2>/dev/null)" = 'null' ]; then
@@ -83,27 +82,37 @@ data:
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
 
-# 7. nginx ingress controller 설치
-echo "⏳ nginx ingress controller 설치 중..."
+# 7. Ingress Nginx Controller 설치
+echo "⏳ Ingress Nginx Controller 설치 중..."
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
 
-# 8. nginx ingress 준비 대기
-echo "⏳ nginx ingress 준비 대기 중..."
+echo "⏳ Ingress Controller 준비 대기 중..."
 kubectl wait --namespace ingress-nginx \
   --for=condition=ready pod \
   --selector=app.kubernetes.io/component=controller \
-  --timeout=120s || echo "WARNING: nginx ingress not ready yet"
+  --timeout=120s || echo "WARNING: Ingress controller not ready yet"
+
+# 8. Nginx Ingress Controller 설정 (snippet 허용 + hostNetwork)
+echo "⚙️ Ingress Controller 설정 중..."
+kubectl patch configmap ingress-nginx-controller -n ingress-nginx \
+  --type merge -p '{"data":{"allow-snippet-annotations":"true"}}' 2>/dev/null || true
+
+# hostNetwork 활성화 + control-plane 노드에서만 실행 (Kind 포트 매핑과 연결)
+kubectl patch deployment ingress-nginx-controller -n ingress-nginx \
+  --type='json' -p='[
+    {"op": "add", "path": "/spec/template/spec/hostNetwork", "value": true},
+    {"op": "replace", "path": "/spec/template/spec/dnsPolicy", "value": "ClusterFirstWithHostNet"},
+    {"op": "add", "path": "/spec/template/spec/nodeSelector", "value": {"ingress-ready": "true"}}
+  ]' 2>/dev/null || true
+
+echo "⏳ Ingress Controller 재시작 대기..."
+kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=60s || true
+
+# 9. 네임스페이스 생성
+kubectl create namespace wealist-dev 2>/dev/null || true
 
 echo ""
-echo "✅ 클러스터 준비 완료! (Simple Mode)"
+echo "✅ 클러스터 준비 완료!"
 echo ""
 echo "📦 로컬 레지스트리: localhost:${REG_PORT}"
-echo "🌐 nginx ingress: localhost:80 / localhost:8080"
-echo ""
-echo "📝 다음 단계:"
-echo "   1. make kind-load-images"
-echo "   2. make helm-install-all ENV=local-kind"
-echo ""
-echo "⚠️  참고: Simple 모드에서는 Istio HTTPRoute 대신"
-echo "   Kubernetes Ingress 리소스를 사용해야 합니다."
 echo ""

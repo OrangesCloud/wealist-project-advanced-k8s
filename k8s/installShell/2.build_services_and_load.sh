@@ -68,7 +68,6 @@ SERVICES=(
     "auth-service"
     "board-service" 
     "chat-service"
-    "frontend"
     "noti-service"
     "storage-service"
     "user-service"

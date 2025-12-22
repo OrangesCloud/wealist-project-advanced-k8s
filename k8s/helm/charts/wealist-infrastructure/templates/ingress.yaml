@@ -26,8 +26,14 @@ spec:
       http:
         paths:
           # OAuth2 Routes (auth-service)
-          # /oauth2/callback/google → auth-service
           - path: /()(oauth2/.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 8080
+          - path: /()(login/oauth2/.*)
             pathType: ImplementationSpecific
             backend:
               service:
@@ -120,6 +126,6 @@ spec:
               service:
                 name: frontend
                 port:
-                  number: 3000
+                  number: 80
     {{- end }}
 {{- end }}

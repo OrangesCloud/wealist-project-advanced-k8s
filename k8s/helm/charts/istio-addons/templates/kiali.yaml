@@ -57,7 +57,7 @@ spec:
       serviceAccountName: kiali
       containers:
       - name: kiali
-        image: quay.io/kiali/kiali:v1.77
+        image: "{{ .Values.kiali.image.repository }}:{{ .Values.kiali.image.tag }}"
         command:
         - /opt/kiali/kiali
         - -config
