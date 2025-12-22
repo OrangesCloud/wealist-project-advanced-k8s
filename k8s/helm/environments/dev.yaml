@@ -282,6 +282,10 @@ grafana:
   image:
     repository: ghcr.io/orangescloud/base/grafana-10.2.2  # ECR: public.ecr.aws/grafana/grafana:10.2.2
     tag: "latest"
+  config:
+    allowSignUp: false
+    rootUrl: "https://api.dev.wealist.co.kr/monitoring/grafana"
+    serveFromSubPath: "true"
 
 # 모니터링 Ingress (Istio HTTPRoute로 처리)
 monitoringIngress:
