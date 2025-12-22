@@ -910,27 +910,18 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 	fi
 	@echo ""
 	@echo "----------------------------------------------"
-	@echo "  [8/8] ArgoCD 설치 (GitOps) - 선택사항"
+	@echo "  [8/8] ArgoCD 설치 (GitOps)"
 	@echo "----------------------------------------------"
 	@echo ""
-	@echo "ArgoCD를 설치하시겠습니까? [Y/n]"
-	@read -r answer; \
-	if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
-		echo ""; \
-		echo "ArgoCD 설치 중..."; \
-		$(MAKE) argo-install-simple; \
-		echo ""; \
-		echo "✅ ArgoCD 설치 완료!"; \
-		echo ""; \
-		echo "📝 ArgoCD 접속 정보:"; \
-		echo "   URL: https://localhost:8079"; \
-		echo "   User: admin"; \
-		echo "   Password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath=\"{.data.password}\" | base64 -d"; \
-	else \
-		echo ""; \
-		echo "ArgoCD 설치를 건너뜁니다."; \
-		echo "나중에 설치: make argo-install-simple"; \
-	fi
+	@echo "ArgoCD 설치 중..."
+	@$(MAKE) argo-install-simple
+	@echo ""
+	@echo "✅ ArgoCD 설치 완료!"
+	@echo ""
+	@echo "📝 ArgoCD 접속 정보:"
+	@echo "   URL: https://localhost:8079"
+	@echo "   User: admin"
+	@echo "   Password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath=\"{.data.password}\" | base64 -d"
 	@echo ""
 	@echo "=============================================="
 	@echo "  🎉 개발 환경 설정 완료!"
