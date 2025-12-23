@@ -32,8 +32,8 @@ data:
       {{- end }}
     server:
       port: 20001
-      # Sub-path for Gateway access via /monitoring/kiali
-      web_root: /monitoring/kiali
+      # Sub-path for Gateway access via /api/monitoring/kiali
+      web_root: /api/monitoring/kiali
 ---
 # Kiali Deployment
 apiVersion: apps/v1
@@ -89,14 +89,14 @@ spec:
           mountPath: /kiali-configuration
         livenessProbe:
           httpGet:
-            path: /monitoring/kiali/healthz
+            path: /api/monitoring/kiali/healthz
             port: api-port
             scheme: HTTP
           initialDelaySeconds: 5
           periodSeconds: 30
         readinessProbe:
           httpGet:
-            path: /monitoring/kiali/healthz
+            path: /api/monitoring/kiali/healthz
             port: api-port
             scheme: HTTP
           initialDelaySeconds: 5
