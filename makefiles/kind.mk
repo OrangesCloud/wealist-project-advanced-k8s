@@ -4,7 +4,7 @@
 
 ##@ Kubernetes (Kind)
 
-.PHONY: kind-setup kind-setup-simple kind-setup-db kind-check-db kind-check-db-setup kind-localhost-setup kind-delete kind-recover kind-info kind-info-update
+.PHONY: kind-setup kind-setup-simple kind-setup-db kind-check-db kind-check-db-setup kind-localhost-setup kind-delete kind-recover kind-info kind-info-update kind-fix-monitoring-subpath
 .PHONY: kind-load-images kind-load-images-ex-db kind-load-images-all kind-load-images-mono
 .PHONY: kind-load-infra kind-load-monitoring kind-load-services
 .PHONY: _setup-db-macos _setup-db-debian _check-db-installed
@@ -1366,6 +1366,36 @@ kind-info-update: ## 클러스터 배포 정보 업데이트 (Git 정보 + 배�
 		--overwrite; \
 	echo ""; \
 	echo "✅ 배포 정보가 업데이트되었습니다!"
+
+kind-fix-monitoring-subpath: ## Kiali/Jaeger subpath 설정 (/monitoring/kiali, /monitoring/jaeger)
+	@echo "=== Kiali/Jaeger subpath 설정 ==="
+	@echo ""
+	@echo "📝 Kiali ConfigMap 패치 (web_root: /monitoring/kiali)..."
+	@kubectl get configmap kiali -n istio-system -o jsonpath='{.data.config\.yaml}' > /tmp/kiali-config.yaml 2>/dev/null || { echo "❌ Kiali ConfigMap not found"; exit 1; }
+	@if ! grep -q "web_root:" /tmp/kiali-config.yaml; then \
+		sed -i 's/server:/server:\n      web_root: "\/monitoring\/kiali"/' /tmp/kiali-config.yaml; \
+		kubectl create configmap kiali -n istio-system --from-file=config.yaml=/tmp/kiali-config.yaml --dry-run=client -o yaml | kubectl apply -f -; \
+		echo "✅ Kiali web_root 설정 완료"; \
+	else \
+		echo "ℹ️  Kiali web_root 이미 설정됨"; \
+	fi
+	@echo ""
+	@echo "📝 Jaeger 환경변수 설정 (QUERY_BASE_PATH: /monitoring/jaeger)..."
+	@kubectl set env deployment/jaeger -n istio-system QUERY_BASE_PATH=/monitoring/jaeger 2>/dev/null && \
+		echo "✅ Jaeger QUERY_BASE_PATH 설정 완료" || \
+		echo "⚠️  Jaeger deployment not found (skip)"
+	@echo ""
+	@echo "🔄 Kiali, Jaeger 재시작..."
+	@kubectl rollout restart deployment/kiali -n istio-system 2>/dev/null || true
+	@kubectl rollout restart deployment/jaeger -n istio-system 2>/dev/null || true
+	@echo ""
+	@echo "⏳ Pod Ready 대기 중..."
+	@kubectl rollout status deployment/kiali -n istio-system --timeout=60s 2>/dev/null || true
+	@kubectl rollout status deployment/jaeger -n istio-system --timeout=60s 2>/dev/null || true
+	@echo ""
+	@echo "✅ 완료! 접속 확인:"
+	@echo "   - Kiali:  https://dev.wealist.co.kr/monitoring/kiali"
+	@echo "   - Jaeger: https://dev.wealist.co.kr/monitoring/jaeger"
 
 ##@ 로컬 도메인 (local.wealist.co.kr)
 
