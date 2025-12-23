@@ -152,11 +152,11 @@ shared:
     ENV: "development"
     LOG_LEVEL: "debug"
     CORS_ORIGINS: "*"
-    S3_PUBLIC_ENDPOINT: "http://localhost:8080/minio"
-    LIVEKIT_WS_URL: "ws://localhost:8080/svc/livekit"
+    S3_PUBLIC_ENDPOINT: "http://localhost:8080/api/minio"
+    LIVEKIT_WS_URL: "ws://localhost:8080/api/svc/livekit"
 
     # OAuth2 리다이렉트 URL (localhost, Kind NodePort 8080)
-    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost:8080/svc/auth/oauth2/callback/google"
+    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost:8080/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "http://localhost:8080/oauth/callback"
 
     # DB 자동 마이그레이션 (내부 DB - 초기 설정 시 활성화)
