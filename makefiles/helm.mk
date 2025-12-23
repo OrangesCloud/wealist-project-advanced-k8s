@@ -5,7 +5,7 @@
 ##@ Helm 차트 (권장)
 
 .PHONY: helm-deps-build helm-lint helm-validate
-.PHONY: helm-install-cert-manager helm-install-infra helm-install-services helm-install-frontend helm-install-istio-config helm-install-monitoring
+.PHONY: helm-install-cert-manager helm-install-infra helm-install-services helm-install-frontend helm-install-istio-config helm-install-istio-addons helm-install-monitoring
 .PHONY: helm-install-all helm-install-all-init helm-upgrade-all helm-uninstall-all
 .PHONY: helm-setup-route53-secret helm-check-secrets helm-check-db
 .PHONY: helm-localhost helm-local-ubuntu helm-dev helm-staging helm-prod
@@ -351,6 +351,18 @@ helm-install-istio-config: ## Istio 설정 설치 (HTTPRoute, DestinationRules �
 	@echo ""
 	@echo "Istio 설정 설치 완료! (HTTPRoute, PeerAuthentication, DestinationRules)"
 
+helm-install-istio-addons: ## Istio Addons 설치 (Kiali, Jaeger - istio-system 네임스페이스)
+	@echo "Istio Addons 설치 중 (Kiali, Jaeger)..."
+	@if grep -q "kiali:" "$(HELM_ENV_VALUES)" 2>/dev/null && grep -A1 "kiali:" "$(HELM_ENV_VALUES)" | grep -q "enabled: true"; then \
+		helm upgrade --install istio-addons ./k8s/helm/charts/istio-addons \
+			-f $(HELM_BASE_VALUES) \
+			-f $(HELM_ENV_VALUES) \
+			-n istio-system; \
+		echo "Istio Addons 설치 완료! (Kiali, Jaeger)"; \
+	else \
+		echo "Istio Addons 건너뜀 ($(ENV) 환경에서 Kiali 비활성화됨)"; \
+	fi
+
 # -----------------------------------------------------------------------------
 # helm-install-all: secrets 체크 → 의존성 → 인프라 → 서비스 → Istio → 모니터링
 # -----------------------------------------------------------------------------
@@ -362,6 +374,8 @@ helm-install-all: helm-check-secrets helm-check-db helm-deps-build helm-install-
 	@$(MAKE) helm-install-frontend ENV=$(ENV)
 	@sleep 3
 	@$(MAKE) helm-install-istio-config ENV=$(ENV)
+	@sleep 2
+	@$(MAKE) helm-install-istio-addons ENV=$(ENV)
 	@sleep 2
 	@$(MAKE) helm-install-monitoring ENV=$(ENV)
 	@echo ""
