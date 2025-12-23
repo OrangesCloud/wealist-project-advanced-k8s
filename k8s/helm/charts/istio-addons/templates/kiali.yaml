@@ -153,12 +153,13 @@ rules:
   - pods
   - pods/log
   - pods/proxy
+  - pods/portforward
   - namespaces
   - nodes
   - secrets
   - services
   - replicationcontrollers
-  verbs: ["get", "list", "watch"]
+  verbs: ["get", "list", "watch", "create"]
 - apiGroups: ["extensions", "apps"]
   resources:
   - daemonsets
