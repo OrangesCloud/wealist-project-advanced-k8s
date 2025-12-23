@@ -272,7 +272,7 @@ prometheus:
     repository: prom/prometheus
     tag: "v2.48.0"
   config:
-    externalUrl: "https://api.dev.wealist.co.kr/monitoring/prometheus"
+    externalUrl: "https://dev.wealist.co.kr/api/monitoring/prometheus"
     routePrefix: "/monitoring/prometheus"
 
 # Loki - 로그 수집
@@ -297,7 +297,7 @@ grafana:
     tag: "10.2.2"
   config:
     allowSignUp: false
-    rootUrl: "https://api.dev.wealist.co.kr/monitoring/grafana"
+    rootUrl: "https://dev.wealist.co.kr/api/monitoring/grafana"
     serveFromSubPath: "true"
 
 # 모니터링 Ingress (Istio HTTPRoute로 처리)
