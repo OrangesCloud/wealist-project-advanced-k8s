@@ -6,7 +6,7 @@
 # - PostgreSQL/Redis: 호스트 PC 외부 DB 사용 (이미지 불필요)
 # - MinIO, LiveKit: 클러스터 내 Pod로 실행
 # - 모니터링: Prometheus, Grafana, Loki, Promtail, Exporters
-# - Backend: GHCR에서 pull
+# - Backend: AWS ECR에서 pull (CI/CD로 자동 빌드)
 #
 # 환경변수:
 #   SKIP_INFRA=true      - 인프라 이미지(MinIO, LiveKit) 건너뛰기
@@ -17,7 +17,6 @@
 # set -e 제거 - 개별 이미지 실패해도 계속 진행
 
 CLUSTER_NAME="wealist"
-GHCR_REGISTRY="ghcr.io/orangescloud"
 
 # 아키텍처 감지
 ARCH=$(uname -m)
@@ -30,7 +29,7 @@ esac
 
 echo "=== dev 환경 인프라 이미지 로드 ==="
 echo ""
-echo "📦 Registry: ${GHCR_REGISTRY}"
+echo "📦 Registry: Docker Hub (인프라 이미지)"
 echo "🖥️  Architecture: ${ARCH} → Platform: ${PLATFORM}"
 echo ""
 
@@ -123,23 +122,10 @@ fi
 echo "ℹ️  dev 환경 구성:"
 echo "   - PostgreSQL: 호스트 PC (외부) - 이미지 불필요"
 echo "   - Redis: 호스트 PC (외부) - 이미지 불필요"
-echo "   - MinIO, LiveKit: 클러스터 내 Pod"
-echo "   - 모니터링: Prometheus, Grafana, Loki, Promtail"
-echo "   - Exporters: PostgreSQL, Redis"
-echo "   - Backend: GHCR 이미지"
-echo ""
-
-# GHCR 인증 확인 (토큰 유효성만 체크, 이미지 존재 여부와 무관)
-echo "🔐 GHCR 인증 확인 중..."
-if docker login ghcr.io --get-login 2>/dev/null | grep -q .; then
-    echo "✅ GHCR 로그인 상태: $(docker login ghcr.io --get-login 2>/dev/null)"
-else
-    echo "⚠️  GHCR 로그인 필요"
-    echo ""
-    echo "   GHCR 로그인:"
-    echo "   echo \$GHCR_TOKEN | docker login ghcr.io -u \$GHCR_USERNAME --password-stdin"
-fi
-
+echo "   - MinIO, LiveKit: 클러스터 내 Pod (Docker Hub)"
+echo "   - 모니터링: Prometheus, Grafana, Loki, Promtail (Docker Hub)"
+echo "   - Exporters: PostgreSQL, Redis (Docker Hub)"
+echo "   - Backend: AWS ECR 이미지 (CI/CD 자동 빌드)"
 echo ""
 echo "--- 인프라 이미지 로드 (Kind 클러스터) ---"
 
@@ -224,46 +210,28 @@ load_to_kind() {
 }
 
 # =============================================================================
-# 인프라 이미지 (GHCR 미러 우선, Docker Hub fallback)
+# 인프라 이미지 (Docker Hub에서 직접 pull)
 # =============================================================================
-# GHCR 미러링: ./scripts/mirror-base-images.sh 실행 필요
-# 미러링 안 된 경우 Docker Hub에서 직접 pull
+# 인프라 이미지는 공식 Docker Hub 레지스트리에서 직접 가져옴
+# 서비스 이미지는 AWS ECR에서 K8s가 직접 pull (이 스크립트와 무관)
 
-GHCR_BASE="ghcr.io/orangescloud/base"
-
-# 이미지 로드 (GHCR 우선, Docker Hub fallback)
-# fallback 시 GHCR 이름으로 태그하여 Helm values와 일치시킴
-load_image_with_fallback() {
-    local ghcr_image=$1
-    local dockerhub_image=$2
-    local name=$3
+# Docker Hub에서 이미지 로드
+load_image_from_dockerhub() {
+    local image=$1
+    local name=$2
 
     echo ""
     echo "📦 ${name} 이미지 로드 중..."
-
-    # GHCR 이미지 시도
-    echo "   GHCR에서 시도: ${ghcr_image}"
-    if docker pull --platform "${PLATFORM}" "${ghcr_image}" 2>/dev/null; then
-        load_to_kind "${ghcr_image}"
-        return 0
-    fi
-
-    # Docker Hub fallback
-    echo "   ⚠️  GHCR 실패, Docker Hub fallback: ${dockerhub_image}"
+    echo "   Docker Hub: ${image}"
 
     # Docker Hub에서 pull
-    if ! docker pull --platform "${PLATFORM}" "${dockerhub_image}"; then
-        echo "   ❌ Docker Hub pull 실패: ${dockerhub_image}"
+    if ! docker pull --platform "${PLATFORM}" "${image}"; then
+        echo "   ❌ Docker Hub pull 실패: ${image}"
         return 1
     fi
 
-    # GHCR 이름으로 태그 (Helm values와 일치)
-    # ghcr.io/orangescloud/base/prometheus-v2.48.0 → :latest 태그
-    echo "   🏷️  Tagging: ${dockerhub_image} → ${ghcr_image}:latest"
-    docker tag "${dockerhub_image}" "${ghcr_image}:latest"
-
-    # 태그된 이미지를 Kind에 로드
-    load_to_kind "${ghcr_image}:latest"
+    # Kind에 로드
+    load_to_kind "${image}"
 }
 
 # =============================================================================
@@ -274,16 +242,10 @@ if [ "${SKIP_INFRA}" != "true" ] && [ "${ONLY_MONITORING}" != "true" ]; then
     echo "--- 인프라 이미지 로드 ---"
 
     # MinIO - S3 호환 스토리지
-    load_image_with_fallback \
-        "${GHCR_BASE}/minio-latest" \
-        "minio/minio:latest" \
-        "MinIO"
+    load_image_from_dockerhub "minio/minio:latest" "MinIO"
 
     # LiveKit - 실시간 통신
-    load_image_with_fallback \
-        "${GHCR_BASE}/livekit-server-latest" \
-        "livekit/livekit-server:latest" \
-        "LiveKit"
+    load_image_from_dockerhub "livekit/livekit-server:latest" "LiveKit"
 else
     echo ""
     echo "--- 인프라 이미지 건너뜀 (SKIP_INFRA=${SKIP_INFRA:-false}, ONLY_MONITORING=${ONLY_MONITORING:-false}) ---"
@@ -297,40 +259,22 @@ if [ "${SKIP_MONITORING}" != "true" ] && [ "${ONLY_INFRA}" != "true" ]; then
     echo "--- 모니터링 이미지 로드 ---"
 
     # Prometheus - 메트릭 수집
-    load_image_with_fallback \
-        "${GHCR_BASE}/prometheus-v2.48.0" \
-        "prom/prometheus:v2.48.0" \
-        "Prometheus"
+    load_image_from_dockerhub "prom/prometheus:v2.48.0" "Prometheus"
 
     # Grafana - 시각화
-    load_image_with_fallback \
-        "${GHCR_BASE}/grafana-10.2.2" \
-        "grafana/grafana:10.2.2" \
-        "Grafana"
+    load_image_from_dockerhub "grafana/grafana:10.2.2" "Grafana"
 
     # Loki - 로그 수집
-    load_image_with_fallback \
-        "${GHCR_BASE}/loki-2.9.2" \
-        "grafana/loki:2.9.2" \
-        "Loki"
+    load_image_from_dockerhub "grafana/loki:2.9.2" "Loki"
 
     # Promtail - 로그 수집 에이전트
-    load_image_with_fallback \
-        "${GHCR_BASE}/promtail-2.9.2" \
-        "grafana/promtail:2.9.2" \
-        "Promtail"
+    load_image_from_dockerhub "grafana/promtail:2.9.2" "Promtail"
 
     # PostgreSQL Exporter - DB 메트릭
-    load_image_with_fallback \
-        "${GHCR_BASE}/postgres-exporter-v0.15.0" \
-        "prometheuscommunity/postgres-exporter:v0.15.0" \
-        "PostgreSQL Exporter"
+    load_image_from_dockerhub "prometheuscommunity/postgres-exporter:v0.15.0" "PostgreSQL Exporter"
 
     # Redis Exporter - 캐시 메트릭
-    load_image_with_fallback \
-        "${GHCR_BASE}/redis_exporter-v1.55.0" \
-        "oliver006/redis_exporter:v1.55.0" \
-        "Redis Exporter"
+    load_image_from_dockerhub "oliver006/redis_exporter:v1.55.0" "Redis Exporter"
 else
     echo ""
     echo "--- 모니터링 이미지 건너뜀 (SKIP_MONITORING=${SKIP_MONITORING:-false}, ONLY_INFRA=${ONLY_INFRA:-false}) ---"
@@ -340,8 +284,8 @@ echo ""
 echo "✅ 인프라 이미지 로드 완료!"
 echo ""
 echo "📝 다음 단계:"
-echo "   1. 서비스 이미지 확인/푸시:"
-echo "      make ghcr-push-all ENV=dev"
+echo "   서비스 이미지는 CI/CD가 AWS ECR에 자동으로 빌드/푸시합니다."
+echo "   (service-deploy-dev 브랜치에 push 시 자동 실행)"
 echo ""
-echo "   2. Helm 배포:"
+echo "   Helm 배포:"
 echo "      make helm-install-all ENV=dev"

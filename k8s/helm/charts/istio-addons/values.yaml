@@ -4,10 +4,9 @@ namespace: istio-system
 # =============================================================================
 # 이미지 레지스트리 설정
 # =============================================================================
-# Docker Hub rate limit 회피를 위해 GHCR 미러 사용 가능
-# 기본값: Docker Hub 직접 사용
-# dev 환경: GHCR 미러 사용 (ghcr.io/orangescloud/base/*)
-imageRegistry: ""  # "" = Docker Hub, "ghcr.io/orangescloud/base" = GHCR 미러
+# 인프라 이미지는 Docker Hub에서 직접 사용
+# 서비스 이미지는 AWS ECR에서 pull (별도 환경 설정)
+imageRegistry: ""  # "" = Docker Hub 직접 사용
 
 # Kiali - Service Mesh Dashboard
 kiali:

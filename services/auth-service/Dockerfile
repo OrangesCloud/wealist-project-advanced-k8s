@@ -11,11 +11,7 @@ ARG GRADLE_IMAGE=gradle:8-jdk21
 ARG JRE_IMAGE=eclipse-temurin:21-jre-jammy
 
 # Build stage
-<<<<<<< Updated upstream
-FROM ${GRADLE_IMAGE} AS builder
-=======
 FROM public.ecr.aws/docker/library/gradle:8-jdk21 AS builder
->>>>>>> Stashed changes
 WORKDIR /home/gradle/src
 
 # Use Gradle Wrapper for consistent builds
@@ -33,11 +29,7 @@ RUN --mount=type=cache,target=/home/gradle/.gradle \
     ./gradlew bootJar --no-daemon
 
 # Runtime stage
-<<<<<<< Updated upstream
-FROM ${JRE_IMAGE} as final
-=======
 FROM public.ecr.aws/docker/library/eclipse-temurin:21-jre-jammy AS final
->>>>>>> Stashed changes
 ENV TZ=Asia/Seoul
 
 # Create a non-root user

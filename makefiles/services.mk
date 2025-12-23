@@ -193,32 +193,29 @@ status-all: ## Show all wealist namespaces
 clean: ## Clean up
 	./docker/scripts/clean.sh
 
-##@ GHCR Push (Cloud Deployment)
+##@ ECR Push (Cloud Deployment)
 
-# Get imageRegistry from environment yaml file
-GHCR_REGISTRY = $(shell grep 'imageRegistry:' $(HELM_ENV_VALUES) 2>/dev/null | awk '{print $$2}')
+# AWS ECR 레지스트리 (환경 변수 또는 aws sts에서 가져옴)
+AWS_REGION ?= ap-northeast-2
+ECR_REGISTRY = $(shell aws sts get-caller-identity --query Account --output text 2>/dev/null).dkr.ecr.$(AWS_REGION).amazonaws.com
 
-.PHONY: ghcr-push-all ghcr-login
+.PHONY: ecr-push-all ecr-login
 
-ghcr-login: ## Login to ghcr.io (requires GHCR_TOKEN env var)
-	@if [ -z "$$GHCR_TOKEN" ]; then \
-		echo "Error: GHCR_TOKEN environment variable not set"; \
-		echo "Usage: GHCR_TOKEN=xxx make ghcr-login"; \
+ecr-login: ## Login to AWS ECR
+	@echo "AWS ECR 로그인 중..."
+	@if ! aws sts get-caller-identity >/dev/null 2>&1; then \
+		echo "❌ AWS 로그인이 필요합니다."; \
+		echo "   aws configure 또는 aws sso login을 실행하세요."; \
 		exit 1; \
 	fi
-	@echo "Logging in to ghcr.io..."
-	@echo "$$GHCR_TOKEN" | docker login ghcr.io -u $(shell echo $(GHCR_REGISTRY) | cut -d'/' -f2) --password-stdin
+	@aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(ECR_REGISTRY)
+	@echo "✅ ECR 로그인 완료: $(ECR_REGISTRY)"
 
-ghcr-push-all: ## Build and push all backend services to ghcr.io (ENV=dev|staging|prod) - Multi-arch (amd64+arm64)
-	@if [ -z "$(GHCR_REGISTRY)" ]; then \
-		echo "Error: Could not read imageRegistry from $(HELM_ENV_VALUES)"; \
-		echo "Make sure ENV is set correctly (dev, staging, prod)"; \
-		exit 1; \
-	fi
-	@echo "=== Pushing backend services to $(GHCR_REGISTRY) ==="
-	@echo "ENV: $(ENV)"
-	@echo "Registry: $(GHCR_REGISTRY)"
-	@echo "Tag: $(IMAGE_TAG)"
+ecr-push-all: ecr-login ## Build and push all backend services to ECR (Multi-arch: amd64+arm64)
+	@echo "=== Pushing backend services to $(ECR_REGISTRY) ==="
+	@echo "AWS Region: $(AWS_REGION)"
+	@echo "Registry: $(ECR_REGISTRY)"
+	@echo "Tag: dev-latest"
 	@echo "Platform: linux/amd64,linux/arm64 (multi-arch)"
 	@echo ""
 	@# buildx 빌더 확인 및 생성
@@ -233,7 +230,7 @@ ghcr-push-all: ## Build and push all backend services to ghcr.io (ENV=dev|stagin
 	@for svc in user-service board-service chat-service noti-service storage-service video-service; do \
 		echo "--- Building $$svc (amd64 + arm64) ---"; \
 		docker buildx build --platform linux/amd64,linux/arm64 \
-			-t $(GHCR_REGISTRY)/$$svc:$(IMAGE_TAG) \
+			-t $(ECR_REGISTRY)/$$svc:dev-latest \
 			-f services/$$svc/docker/Dockerfile \
 			--push . || exit 1; \
 		echo "✅ $$svc pushed"; \
@@ -242,12 +239,12 @@ ghcr-push-all: ## Build and push all backend services to ghcr.io (ENV=dev|stagin
 	@# Build and push auth-service (local context) - Multi-arch
 	@echo "--- Building auth-service (amd64 + arm64) ---"
 	@docker buildx build --platform linux/amd64,linux/arm64 \
-		-t $(GHCR_REGISTRY)/auth-service:$(IMAGE_TAG) \
+		-t $(ECR_REGISTRY)/auth-service:dev-latest \
 		-f services/auth-service/Dockerfile \
 		--push services/auth-service
 	@echo "✅ auth-service pushed"
 	@echo ""
-	@echo "=== All backend services pushed to $(GHCR_REGISTRY) ==="
+	@echo "=== All backend services pushed to $(ECR_REGISTRY) ==="
 	@echo "   ✅ Supported platforms: linux/amd64, linux/arm64"
 	@echo ""
-	@echo "Next: make helm-install-all ENV=$(ENV)"
+	@echo "Next: make helm-install-all ENV=dev"

@@ -5,7 +5,7 @@
 ## 목차
 1. [OS별 DB 호스트 설정](#1-os별-db-호스트-설정)
 2. [Docker 이미지 로드 실패](#2-docker-이미지-로드-실패)
-3. [GHCR 인증 문제](#3-ghcr-인증-문제)
+3. [ECR 인증 문제](#3-ecr-인증-문제)
 4. [PostgreSQL 외부 연결](#4-postgresql-외부-연결)
 5. [Redis 외부 연결](#5-redis-외부-연결)
 6. [멀티 아키텍처 이미지](#6-멀티-아키텍처-이미지)
@@ -103,39 +103,56 @@ docker exec -i wealist-control-plane ctr -n k8s.io images import - < /tmp/image.
 
 ---
 
-## 3. GHCR 인증 문제
+## 3. ECR 인증 문제
 
 ### 문제
-`ImagePullBackOff` 에러 - Kind 클러스터에서 GHCR 이미지를 pull 못함
+`ImagePullBackOff` 에러 - Kind 클러스터에서 ECR 이미지를 pull 못함
 
 **증상:**
 ```
-Failed to pull image "ghcr.io/orangescloud/auth-service:latest":
+Failed to pull image "<AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com/auth-service:dev-latest":
 unauthorized: authentication required
 ```
 
 ### 원인
-Docker Desktop의 credential helper가 토큰을 OS keychain에 저장하여 `~/.docker/config.json`에 실제 토큰이 없음.
-
-**잘못된 방법:**
-```bash
-# Docker config 파일 기반 - 토큰이 없어서 실패
-kubectl create secret generic ghcr-secret \
-    --from-file=.dockerconfigjson=~/.docker/config.json
-```
+1. AWS CLI 로그인이 안 되어 있음
+2. ECR 인증 토큰이 만료됨 (12시간마다 갱신 필요)
+3. ecr-secret이 클러스터에 없음
 
 ### 해결책
+
+**1. AWS CLI 로그인 확인:**
 ```bash
-# 명시적 credentials로 secret 생성
-kubectl create secret docker-registry ghcr-secret \
-    --docker-server=ghcr.io \
-    --docker-username="YOUR_GITHUB_USERNAME" \
-    --docker-password="YOUR_GITHUB_PAT" \
+# AWS 로그인 상태 확인
+aws sts get-caller-identity
+
+# 로그인 안 되어 있으면:
+aws configure sso  # SSO 사용 시
+# 또는
+aws configure     # Access Key 사용 시
+```
+
+**2. ECR 토큰 갱신 및 Secret 재생성:**
+```bash
+# 환경 변수 설정
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+AWS_REGION="ap-northeast-2"
+ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+# 기존 secret 삭제 후 재생성
+kubectl delete secret ecr-secret -n wealist-dev 2>/dev/null || true
+
+ECR_PASSWORD=$(aws ecr get-login-password --region ${AWS_REGION})
+kubectl create secret docker-registry ecr-secret \
+    --docker-server="${ECR_REGISTRY}" \
+    --docker-username=AWS \
+    --docker-password="${ECR_PASSWORD}" \
     -n wealist-dev
 ```
 
 ### 적용 위치
-- `makefiles/kind.mk` - `kind-dev-setup` 6단계
+- `k8s/helm/scripts/dev/0.setup-cluster.sh` - 클러스터 셋업 시 자동 생성
+- `makefiles/kind.mk` - `kind-dev-setup` 타겟
 
 ---
 
@@ -259,8 +276,14 @@ Failed to pull image: no match for platform in manifest: not found
 
 **확인 방법:**
 ```bash
-docker manifest inspect ghcr.io/orangescloud/auth-service:latest
-# "architecture": "arm64" 만 있으면 문제
+# AWS 환경 변수 설정
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com"
+
+# ECR 이미지 아키텍처 확인
+aws ecr describe-images --repository-name auth-service \
+    --image-ids imageTag=dev-latest --region ap-northeast-2
+# imageManifestMediaType에서 multi-arch 여부 확인
 ```
 
 ### 해결책
@@ -270,18 +293,28 @@ docker manifest inspect ghcr.io/orangescloud/auth-service:latest
 # buildx 빌더 생성 (최초 1회)
 docker buildx create --name multiarch-builder --use --bootstrap
 
+# 환경 변수 설정
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com"
+
+# ECR 로그인
+aws ecr get-login-password --region ap-northeast-2 | \
+    docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
 # 멀티 플랫폼 빌드 및 푸시
 docker buildx build --platform linux/amd64,linux/arm64 \
-    -t ghcr.io/orangescloud/auth-service:latest \
+    -t ${ECR_REGISTRY}/auth-service:dev-latest \
     --push .
 ```
 
 ### 적용 위치
-- `makefiles/services.mk` - `ghcr-push-all` 타겟
+- `makefiles/services.mk` - `ecr-push-all` 타겟
+- GitHub Actions CI/CD (service-deploy-dev 브랜치)
 
-**사용법:**
+**CI/CD 사용:**
 ```bash
-make ghcr-push-all ENV=dev
+# service-deploy-dev 브랜치에 push하면 자동으로 ECR에 빌드/푸시
+git push origin service-deploy-dev
 ```
 
 ---
@@ -313,7 +346,7 @@ stty echo 2>/dev/null || true
 ```
 
 ### 적용 위치
-- `makefiles/kind.mk` - GHCR 로그인 토큰 입력 부분
+- `makefiles/kind.mk` - AWS 로그인 확인 부분
 
 ---
 

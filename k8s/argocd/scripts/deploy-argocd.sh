@@ -30,32 +30,11 @@ echo "   Root:    $PROJECT_ROOT"
 echo ""
 
 # ============================================
-<<<<<<< Updated upstream
-# 0. GHCR 설정 확인
-# ============================================
-echo -e "${YELLOW}🔍 Step 0: Checking GHCR configuration...${NC}"
-
-GHCR_CONFIGURED=false
-if kubectl get secret ghcr-secret -n wealist-dev &>/dev/null; then
-    echo -e "${GREEN}✅ GHCR secret already exists${NC}"
-    # ServiceAccount 연결 확인
-    SA_CONFIG=$(kubectl get sa default -n wealist-dev -o jsonpath='{.imagePullSecrets}' 2>/dev/null || echo "[]")
-    if echo "$SA_CONFIG" | grep -q "ghcr-secret"; then
-        echo -e "${GREEN}✅ GHCR already configured in ServiceAccount${NC}"
-        GHCR_CONFIGURED=true
-    else
-        echo -e "${YELLOW}⚠️  GHCR secret exists but not linked to ServiceAccount${NC}"
-    fi
-else
-    echo -e "${YELLOW}⚠️  GHCR secret not found${NC}"
-fi
-=======
 # 0. ECR 설정 확인 (AWS EKS)
 # ============================================
 echo -e "${YELLOW}🔍 Step 0: Checking ECR configuration...${NC}"
 echo -e "${GREEN}   ECR uses IAM authentication (IRSA or Node IAM Role)${NC}"
 echo -e "${GREEN}   No imagePullSecrets required for EKS nodes${NC}"
->>>>>>> Stashed changes
 echo ""
 
 # ============================================
@@ -176,89 +155,6 @@ fi
 echo ""
 
 # ============================================
-<<<<<<< Updated upstream
-# 9. GHCR 설정 (필요한 경우에만)
-# ============================================
-if [ "$GHCR_CONFIGURED" = false ]; then
-    echo -e "${YELLOW}🐳 Step 9: Setting up GitHub Container Registry access...${NC}"
-    echo ""
-    echo "GHCR is not configured. Setting up now..."
-    echo ""
-    read -p "Enter your GitHub username: " GITHUB_USERNAME
-    echo -n "Enter your GitHub Personal Access Token (with repo and read:packages permissions): "
-    read -s GITHUB_TOKEN
-    echo ""
-    echo ""
-
-    # 입력값 검증
-    if [ -z "$GITHUB_USERNAME" ] || [ -z "$GITHUB_TOKEN" ]; then
-        echo -e "${RED}❌ GitHub credentials are required${NC}"
-        exit 1
-    fi
-
-    # wealist-dev 네임스페이스에 GHCR secret 생성
-    kubectl create secret docker-registry ghcr-secret \
-      --docker-server=ghcr.io \
-      --docker-username="$GITHUB_USERNAME" \
-      --docker-password="$GITHUB_TOKEN" \
-      --docker-email="$GITHUB_USERNAME@users.noreply.github.com" \
-      --namespace=wealist-dev \
-      --dry-run=client -o yaml | kubectl apply -f -
-
-    # default ServiceAccount에 imagePullSecrets 추가
-    kubectl patch serviceaccount default \
-      -p '{"imagePullSecrets": [{"name": "ghcr-secret"}]}' \
-      -n wealist-dev
-
-    echo -e "${GREEN}✅ GHCR access configured${NC}"
-    echo ""
-else
-    echo -e "${YELLOW}⏭️  Step 9: GHCR already configured${NC}"
-    # GitHub 정보 가져오기 (저장소 설정용)
-    echo ""
-    read -p "Enter your GitHub username: " GITHUB_USERNAME
-    echo -n "Enter your GitHub Personal Access Token: "
-    read -s GITHUB_TOKEN
-    echo ""
-    echo ""
-fi
-
-# GHCR 접근 테스트
-echo -e "${YELLOW}🧪 Testing GHCR access...${NC}"
-TEST_POD=$(cat <<EOFTEST
-apiVersion: v1
-kind: Pod
-metadata:
-  name: ghcr-test
-  namespace: wealist-dev
-spec:
-  restartPolicy: Never
-  containers:
-  - name: test
-    image: ghcr.io/orangescloud/auth-service:latest
-    command: ['echo', 'GHCR access test successful']
-  imagePullSecrets:
-  - name: ghcr-secret
-EOFTEST
-)
-
-echo "$TEST_POD" | kubectl apply -f - 2>/dev/null || true
-sleep 5
-
-# 테스트 결과 확인
-if kubectl get pod ghcr-test -n wealist-dev &>/dev/null; then
-    POD_STATUS=$(kubectl get pod ghcr-test -n wealist-dev -o jsonpath='{.status.phase}')
-    if [ "$POD_STATUS" = "Succeeded" ] || [ "$POD_STATUS" = "Running" ]; then
-        echo -e "${GREEN}✅ GHCR access test successful${NC}"
-    else
-        echo -e "${YELLOW}⚠️  GHCR test inconclusive (Status: $POD_STATUS)${NC}"
-        echo "   Check with: kubectl describe pod ghcr-test -n wealist-dev"
-    fi
-    kubectl delete pod ghcr-test -n wealist-dev 2>/dev/null || true
-else
-    echo -e "${YELLOW}⚠️  GHCR test pod not found${NC}"
-fi
-=======
 # 9. GitHub 저장소 인증 정보 수집
 # ============================================
 echo -e "${YELLOW}🔗 Step 9: Collecting GitHub repository credentials...${NC}"
@@ -281,7 +177,6 @@ echo ""
 echo -e "${YELLOW}📝 ECR Information:${NC}"
 echo "   ECR images will be pulled using AWS IAM authentication"
 echo "   Ensure EKS nodes have proper IAM permissions or IRSA is configured"
->>>>>>> Stashed changes
 echo ""
 
 # ============================================
@@ -470,34 +365,17 @@ else
 fi
 echo ""
 echo "🐳 Container Registry:"
-<<<<<<< Updated upstream
-echo "   Registry:   ghcr.io (GitHub Container Registry)"
-if [ -n "$GITHUB_USERNAME" ]; then
-    echo "   Username:   $GITHUB_USERNAME"
-fi
-echo "   Secret:     ghcr-secret (wealist-dev)"
-echo "   Status:     ✅ Configured"
-=======
 echo "   Registry:   Amazon ECR (ap-northeast-2)"
 echo "   Auth:       AWS IAM (IRSA or Node Instance Profile)"
 echo "   Note:       Ensure EKS nodes have AmazonEC2ContainerRegistryReadOnly policy"
->>>>>>> Stashed changes
 echo ""
 echo "🔍 Verification Commands:"
 echo "   kubectl get applications -n argocd"
 echo "   kubectl get pods -n wealist-dev"
-<<<<<<< Updated upstream
-echo "   kubectl get secret ghcr-secret -n wealist-dev"
-echo "   kubectl describe sa default -n wealist-dev"
-echo ""
-echo "🧪 Test Container Registry:"
-echo "   kubectl run test-ghcr --image=ghcr.io/orangescloud/auth-service:latest -n wealist-dev"
-=======
 echo "   aws ecr describe-repositories"
 echo ""
 echo "🧪 Test Container Registry:"
 echo "   ECR images are pulled automatically with proper IAM permissions"
->>>>>>> Stashed changes
 echo ""
 echo "📊 Application Status:"
 kubectl get applications -n argocd 2>/dev/null || echo "   No applications found"

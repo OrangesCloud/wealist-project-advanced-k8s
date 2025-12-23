@@ -2,7 +2,7 @@
 # ArgoCD Makefile
 # ============================================
 .PHONY: argo-help cluster-up cluster-down bootstrap deploy argo-clean argo-status helm-install-infra all
-.PHONY: setup-local-argocd kind-setup-ghcr load-infra-images-ghcr build-and-push-ghcr
+.PHONY: setup-local-argocd kind-setup-ecr load-infra-images-ecr
 
 # 색상
 GREEN  := \033[0;32m
@@ -64,6 +64,7 @@ all-simple: cluster-up bootstrap ## 전체 프로세스 (클러스터 → Helm I
 
 cluster-up: ## Kind 클러스터 + 로컬 레지스트리 + 이미지 준비
 	@echo -e "$(YELLOW)📦 Kind 클러스터 + 로컬 환경 설정 중...$(NC)"
+	@echo -e "$(YELLOW)ℹ️  'make kind-dev-setup' 사용을 권장합니다.$(NC)"
 	@if kind get clusters | grep -q "$(CLUSTER_NAME)"; then \
 		echo -e "$(YELLOW)⚠️  클러스터가 이미 존재합니다: $(CLUSTER_NAME)$(NC)"; \
 		read -p "삭제하고 다시 만들까요? (y/N): " answer; \
@@ -75,40 +76,21 @@ cluster-up: ## Kind 클러스터 + 로컬 레지스트리 + 이미지 준비
 			exit 0; \
 		fi; \
 	fi
-	@echo -e "$(YELLOW)🏗️  Step 1: 클러스터 + 레지스트리 생성...$(NC)"
-	@if [ -f "k8s/installShell/0.setup-cluster.sh" ]; then \
-		chmod +x k8s/installShell/0.setup-cluster.sh; \
-		cd k8s/installShell && ./0.setup-cluster.sh; \
-	else \
-		echo -e "$(RED)❌ 0.setup-cluster.sh not found$(NC)"; \
-		exit 1; \
-	fi
+	@echo -e "$(YELLOW)🏗️  Step 1: 클러스터 생성...$(NC)"
+	@$(MAKE) kind-dev-setup
 	@kubectl cluster-info
 	@echo -e "$(GREEN)✅ 클러스터 + 로컬 환경 준비 완료$(NC)"
 
-load-images-only: ## 이미지만 로드 (기존 클러스터용)
+load-images-only: ## 인프라 이미지만 로드 (기존 클러스터용)
 	@echo -e "$(YELLOW)📦 인프라 이미지 로드...$(NC)"
-	@if [ -f "k8s/installShell/1.load_infra_images.sh" ]; then \
-		chmod +x k8s/installShell/1.load_infra_images.sh; \
-		cd k8s/installShell && ./1.load_infra_images.sh; \
-	fi
-	@echo -e "$(YELLOW)🔨 서비스 이미지 빌드 및 로드...$(NC)"
-	@if [ -f "k8s/installShell/2.build_services_and_load.sh" ]; then \
-		chmod +x k8s/installShell/2.build_services_and_load.sh; \
-		cd k8s/installShell && ./2.build_services_and_load.sh; \
+	@if [ -f "k8s/helm/scripts/dev/1.load_infra_images.sh" ]; then \
+		chmod +x k8s/helm/scripts/dev/1.load_infra_images.sh; \
+		./k8s/helm/scripts/dev/1.load_infra_images.sh; \
+	else \
+		echo -e "$(RED)❌ 1.load_infra_images.sh not found$(NC)"; \
 	fi
 	@echo -e "$(GREEN)✅ 이미지 로드 완료$(NC)"
-	@echo -e "$(YELLOW)� 인프클라 이미지 로드...$(NC)"
-	@if [ -f "k8s/installShell/1.load_infra_images.sh" ]; then \
-		chmod +x k8s/installShell/1.load_infra_images.sh; \
-		cd k8s/installShell && ./1.load_infra_images.sh; \
-	fi
-	@echo -e "$(YELLOW)🔨 서비스 이미지 빌드 및 로드...$(NC)"
-	@if [ -f "k8s/installShell/2.build_services_and_load.sh" ]; then \
-		chmod +x k8s/installShell/2.build_services_and_load.sh; \
-		cd k8s/installShell && ./2.build_services_and_load.sh; \
-	fi
-	@echo -e "$(GREEN)✅ 이미지 로드 완료$(NC)"
+	@echo -e "$(YELLOW)ℹ️  서비스 이미지는 AWS ECR에서 직접 pull됩니다.$(NC)"
 
 cluster-down: ## Kind 클러스터 삭제
 	@echo -e "$(YELLOW)🗑️  클러스터 삭제 중...$(NC)"
@@ -375,47 +357,35 @@ verify-secrets: ## Secrets 복호화 확인
 # 로컬 개발 (Kind + Registry) - ArgoCD용
 # ============================================
 # NOTE: kind-setup은 kind.mk에서 정의됨 (Istio Ambient + 로컬 레지스트리)
-# 아래는 GHCR 직접 연결이 필요한 ArgoCD 환경용
+# 아래는 ECR 직접 연결이 필요한 ArgoCD 환경용
 
-setup-local-argocd: ## [ArgoCD] 로컬 개발 환경 전체 설정 (GHCR + Bootstrap)
-	$(MAKE) kind-setup-ghcr
-	$(MAKE) load-infra-images-ghcr
-	$(MAKE) build-and-push-ghcr
+setup-local-argocd: ## [ArgoCD] 로컬 개발 환경 전체 설정 (ECR + Bootstrap)
+	$(MAKE) kind-setup-ecr
+	$(MAKE) load-infra-images-ecr
 	$(MAKE) bootstrap
 	$(MAKE) deploy
 
-kind-setup-ghcr: ## [ArgoCD] Kind 클러스터 + GHCR 직접 연결
-	@echo -e "$(YELLOW)🏗️  Kind 클러스터 + GHCR 설정...$(NC)"
-	@if [ -f "k8s/installShell/0.setup-cluster.sh" ]; then \
-		chmod +x k8s/installShell/0.setup-cluster.sh; \
-		cd k8s/installShell && ./0.setup-cluster.sh; \
+kind-setup-ecr: ## [ArgoCD] Kind 클러스터 + ECR 직접 연결
+	@echo -e "$(YELLOW)🏗️  Kind 클러스터 + ECR 설정...$(NC)"
+	@if [ -f "k8s/helm/scripts/dev/0.setup-cluster.sh" ]; then \
+		chmod +x k8s/helm/scripts/dev/0.setup-cluster.sh; \
+		./k8s/helm/scripts/dev/0.setup-cluster.sh; \
 	else \
 		echo -e "$(RED)❌ 0.setup-cluster.sh not found$(NC)"; \
 		exit 1; \
 	fi
-	@echo -e "$(GREEN)✅ Kind 클러스터 + GHCR 준비 완료$(NC)"
+	@echo -e "$(GREEN)✅ Kind 클러스터 + ECR 준비 완료$(NC)"
 
-load-infra-images-ghcr: ## [ArgoCD] 인프라 이미지 로드 (GHCR에서)
+load-infra-images-ecr: ## [ArgoCD] 인프라 이미지 로드
 	@echo -e "$(YELLOW)📦 인프라 이미지 로드 중...$(NC)"
-	@if [ -f "k8s/installShell/1.load_infra_images.sh" ]; then \
-		chmod +x k8s/installShell/1.load_infra_images.sh; \
-		cd k8s/installShell && ./1.load_infra_images.sh; \
+	@if [ -f "k8s/helm/scripts/dev/1.load_infra_images.sh" ]; then \
+		chmod +x k8s/helm/scripts/dev/1.load_infra_images.sh; \
+		./k8s/helm/scripts/dev/1.load_infra_images.sh; \
 	else \
 		echo -e "$(RED)❌ 1.load_infra_images.sh not found$(NC)"; \
 		exit 1; \
 	fi
 	@echo -e "$(GREEN)✅ 인프라 이미지 로드 완료$(NC)"
-
-build-and-push-ghcr: ## [ArgoCD] 서비스 이미지 빌드 및 GHCR 푸시
-	@echo -e "$(YELLOW)🔨 서비스 이미지 빌드 및 푸시...$(NC)"
-	@if [ -f "k8s/installShell/2.build_services_and_load.sh" ]; then \
-		chmod +x k8s/installShell/2.build_services_and_load.sh; \
-		cd k8s/installShell && ./2.build_services_and_load.sh; \
-	else \
-		echo -e "$(RED)❌ 2.build_services_and_load.sh not found$(NC)"; \
-		exit 1; \
-	fi
-	@echo -e "$(GREEN)✅ 서비스 이미지 빌드 완료$(NC)"
 
 check-images: ## 로컬 레지스트리 이미지 확인
 	@echo -e "$(YELLOW)🔍 로컬 레지스트리 이미지 확인...$(NC)"
@@ -469,8 +439,8 @@ cluster-up-simple: ## Kind 클러스터만 생성 (Registry 없이)
 			exit 0; \
 		fi; \
 	fi
-	@if [ -f "k8s/installShell/kind-config.yaml" ]; then \
-		kind create cluster --name $(CLUSTER_NAME) --config k8s/installShell/kind-config.yaml; \
+	@if [ -f "k8s/helm/scripts/dev/kind-config.yaml" ]; then \
+		kind create cluster --name $(CLUSTER_NAME) --config k8s/helm/scripts/dev/kind-config.yaml; \
 	else \
 		kind create cluster --name $(CLUSTER_NAME); \
 	fi

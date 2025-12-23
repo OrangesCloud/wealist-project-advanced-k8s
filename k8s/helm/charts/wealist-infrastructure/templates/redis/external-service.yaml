@@ -1,5 +1,10 @@
 {{- if and (not .Values.redis.enabled) .Values.redis.external.enabled }}
-# External Redis Service - routes traffic to host machine
+{{- $host := .Values.redis.external.host }}
+{{- $port := .Values.redis.external.port | default 6379 }}
+{{- $isIP := regexMatch "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$" $host }}
+
+{{- if $isIP }}
+# External Redis Service (IP-based) - routes traffic to host machine
 apiVersion: v1
 kind: Service
 metadata:
@@ -12,12 +17,12 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: {{ .Values.redis.external.port | default 6379 }}
-      targetPort: {{ .Values.redis.external.port | default 6379 }}
+    - port: {{ $port }}
+      targetPort: {{ $port }}
       protocol: TCP
       name: redis
 ---
-# Endpoints pointing to external Redis
+# Endpoints pointing to external Redis (IP address)
 apiVersion: v1
 kind: Endpoints
 metadata:
@@ -28,8 +33,29 @@ metadata:
     external: "true"
 subsets:
   - addresses:
-      - ip: {{ .Values.redis.external.host | quote }}
+      - ip: {{ $host | quote }}
     ports:
-      - port: {{ .Values.redis.external.port | default 6379 }}
+      - port: {{ $port }}
         name: redis
+{{- else }}
+# External Redis Service (DNS-based) - routes traffic via ExternalName
+# Used for hostnames like host.docker.internal or ElastiCache endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "wealist-infrastructure.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+    external: "true"
+spec:
+  type: ExternalName
+  externalName: {{ $host }}
+  ports:
+    - port: {{ $port }}
+      targetPort: {{ $port }}
+      protocol: TCP
+      name: redis
+{{- end }}
 {{- end }}

@@ -17,19 +17,12 @@ spec:
         - ../../environments/base.yaml
         - ../../environments/dev.yaml
       parameters:
-<<<<<<< Updated upstream
-        - name: image.tag
-          value: "service-deploy-dev-79620c2"  # ← CI가 여기 업데이트
-        - name: image.repository
-          value: "ghcr.io/orangescloud/auth-service"
-=======
         - name: global.imageRegistry
           value: "<AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com"  # ← CI가 여기 업데이트
         - name: image.repository
           value: "auth-service"
         - name: image.tag
           value: "dev-latest"  # ← CI가 여기 업데이트
->>>>>>> Stashed changes
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-dev 
