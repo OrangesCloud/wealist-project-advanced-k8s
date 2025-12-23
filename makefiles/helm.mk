@@ -354,6 +354,13 @@ helm-install-istio-config: ## Istio 설정 설치 (HTTPRoute, DestinationRules �
 helm-install-istio-addons: ## Istio Addons 설치 (Kiali, Jaeger - istio-system 네임스페이스)
 	@echo "Istio Addons 설치 중 (Kiali, Jaeger)..."
 	@if grep -q "kiali:" "$(HELM_ENV_VALUES)" 2>/dev/null && grep -A1 "kiali:" "$(HELM_ENV_VALUES)" | grep -q "enabled: true"; then \
+		echo "기존 Kiali/Jaeger 리소스 정리 중 (setup 스크립트로 설치된 경우)..."; \
+		kubectl delete deployment,service,serviceaccount,configmap -l app=kiali -n istio-system --ignore-not-found 2>/dev/null || true; \
+		kubectl delete clusterrole,clusterrolebinding kiali --ignore-not-found 2>/dev/null || true; \
+		kubectl delete clusterrole,clusterrolebinding kiali-viewer --ignore-not-found 2>/dev/null || true; \
+		kubectl delete deployment,service -l app=jaeger -n istio-system --ignore-not-found 2>/dev/null || true; \
+		kubectl delete deployment,service tracing -n istio-system --ignore-not-found 2>/dev/null || true; \
+		echo "Helm으로 Istio Addons 설치 중..."; \
 		helm upgrade --install istio-addons ./k8s/helm/charts/istio-addons \
 			-f $(HELM_BASE_VALUES) \
 			-f $(HELM_ENV_VALUES) \
