@@ -364,6 +364,8 @@ helm-install-istio-addons: ## Istio Addons 설치 (Kiali, Jaeger - istio-system 
 		helm upgrade --install istio-addons ./k8s/helm/charts/istio-addons \
 			-f $(HELM_BASE_VALUES) \
 			-f $(HELM_ENV_VALUES) \
+			--set prometheus.enabled=false \
+			--set grafana.enabled=false \
 			-n istio-system; \
 		echo "Istio Addons 설치 완료! (Kiali, Jaeger)"; \
 	else \
