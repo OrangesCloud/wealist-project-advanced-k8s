@@ -30,6 +30,10 @@ prometheus:
     enabled: true
     storageClass: ""
     size: 10Gi
+    # Kind/로컬 환경용 hostPath 설정
+    hostPath:
+      enabled: false
+      path: /data/prometheus
 
   resources:
     requests:

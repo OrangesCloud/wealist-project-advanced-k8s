@@ -69,14 +69,19 @@ spec:
           configMap:
             name: prometheus-config
         - name: data
-          {{- if .Values.prometheus.persistence.enabled }}
+          {{- if .Values.prometheus.persistence.hostPath.enabled }}
+          # Kind/로컬 환경: 호스트 디렉토리에 데이터 저장
+          hostPath:
+            path: {{ .Values.prometheus.persistence.hostPath.path }}
+            type: DirectoryOrCreate
+          {{- else if .Values.prometheus.persistence.enabled }}
           persistentVolumeClaim:
             claimName: prometheus-pvc
           {{- else }}
           emptyDir: {}
           {{- end }}
 ---
-{{- if .Values.prometheus.persistence.enabled }}
+{{- if and .Values.prometheus.persistence.enabled (not .Values.prometheus.persistence.hostPath.enabled) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
