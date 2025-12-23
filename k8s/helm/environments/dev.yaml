@@ -273,7 +273,7 @@ prometheus:
     tag: "v2.48.0"
   config:
     externalUrl: "https://dev.wealist.co.kr/api/monitoring/prometheus"
-    routePrefix: "/monitoring/prometheus"
+    routePrefix: "/api/monitoring/prometheus"
 
 # Loki - 로그 수집
 loki:

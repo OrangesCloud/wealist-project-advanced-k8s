@@ -162,19 +162,14 @@ spec:
     {{- end }}
 
     # ==========================================================================
-    # Monitoring routes (/api/monitoring/* → rewrite to /monitoring/*)
+    # Monitoring routes (/api/monitoring/* → pass through, no rewrite)
+    # 각 서비스가 /api/monitoring/* 경로를 직접 처리하도록 설정
     # ==========================================================================
     {{- if .Values.istio.httpRoute.monitoring.enabled }}
     - matches:
         - path:
             type: PathPrefix
             value: /api/monitoring/grafana
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: {{ .Values.istio.httpRoute.monitoring.grafana.prefix }}
       backendRefs:
         - name: {{ .Values.istio.httpRoute.monitoring.grafana.host }}
           port: {{ .Values.istio.httpRoute.monitoring.grafana.port }}
@@ -183,12 +178,6 @@ spec:
         - path:
             type: PathPrefix
             value: /api/monitoring/prometheus
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: {{ .Values.istio.httpRoute.monitoring.prometheus.prefix }}
       backendRefs:
         - name: {{ .Values.istio.httpRoute.monitoring.prometheus.host }}
           port: {{ .Values.istio.httpRoute.monitoring.prometheus.port }}
@@ -197,12 +186,6 @@ spec:
         - path:
             type: PathPrefix
             value: /api/monitoring/loki
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: {{ .Values.istio.httpRoute.monitoring.loki.prefix }}
       backendRefs:
         - name: {{ .Values.istio.httpRoute.monitoring.loki.host }}
           port: {{ .Values.istio.httpRoute.monitoring.loki.port }}
@@ -213,12 +196,6 @@ spec:
         - path:
             type: PathPrefix
             value: /api/monitoring/kiali
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: {{ .Values.istio.httpRoute.monitoring.kiali.prefix }}
       backendRefs:
         - name: {{ .Values.istio.httpRoute.monitoring.kiali.host }}
           namespace: {{ .Values.istio.httpRoute.monitoring.kiali.namespace }}
@@ -231,12 +208,6 @@ spec:
         - path:
             type: PathPrefix
             value: /api/monitoring/jaeger
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: {{ .Values.istio.httpRoute.monitoring.jaeger.prefix }}
       backendRefs:
         - name: {{ .Values.istio.httpRoute.monitoring.jaeger.host }}
           namespace: {{ .Values.istio.httpRoute.monitoring.jaeger.namespace }}

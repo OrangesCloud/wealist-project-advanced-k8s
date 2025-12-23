@@ -316,7 +316,7 @@ prometheus:
     tag: "v2.48.0"
   config:
     externalUrl: "http://localhost:8080/api/monitoring/prometheus"
-    routePrefix: "/monitoring/prometheus"
+    routePrefix: "/api/monitoring/prometheus"
 
 # Loki - 로그 수집
 loki:
