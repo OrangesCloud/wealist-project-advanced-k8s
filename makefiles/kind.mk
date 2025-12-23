@@ -972,10 +972,10 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → ECR 이미지 사
 	@echo "  🌐 Gateway: localhost:80 (또는 :8080)"
 	@echo ""
 	@echo "  📊 모니터링 (helm-install-all 후 접근 가능):"
-	@echo "    - Grafana:    http://localhost:8080/monitoring/grafana"
-	@echo "    - Prometheus: http://localhost:8080/monitoring/prometheus"
-	@echo "    - Kiali:      http://localhost:8080/monitoring/kiali"
-	@echo "    - Jaeger:     http://localhost:8080/monitoring/jaeger"
+	@echo "    - Grafana:    http://localhost:8080/api/monitoring/grafana"
+	@echo "    - Prometheus: http://localhost:8080/api/monitoring/prometheus"
+	@echo "    - Kiali:      http://localhost:8080/api/monitoring/kiali"
+	@echo "    - Jaeger:     http://localhost:8080/api/monitoring/jaeger"
 	@echo ""
 	@echo "  다음 단계:"
 	@echo "    make helm-install-all ENV=dev"
@@ -1396,8 +1396,8 @@ kind-fix-monitoring-subpath: ## Kiali/Jaeger subpath 설정 (/monitoring/kiali, 
 	@kubectl rollout status deployment/jaeger -n istio-system --timeout=60s 2>/dev/null || true
 	@echo ""
 	@echo "✅ 완료! 접속 확인:"
-	@echo "   - Kiali:  https://dev.wealist.co.kr/monitoring/kiali"
-	@echo "   - Jaeger: https://dev.wealist.co.kr/monitoring/jaeger"
+	@echo "   - Kiali:  https://dev.wealist.co.kr/api/monitoring/kiali"
+	@echo "   - Jaeger: https://dev.wealist.co.kr/api/monitoring/jaeger"
 
 ##@ 로컬 도메인 (local.wealist.co.kr)
 
