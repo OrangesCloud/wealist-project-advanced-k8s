@@ -12,16 +12,15 @@ global:
   namespace: wealist-dev
   environment: development
   domain: dev.wealist.co.kr
-  # imageRegistry는 ArgoCD Application parameters에서 ECR URL로 덮어씁니다
-  # 예: <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
-  # Kind 로컬 테스트 시: ghcr.io/orangescloud 또는 localhost:5001
-  imageRegistry: ""
+  # AWS ECR 레지스트리 (Kind-dev, EKS 모두 사용)
+  # TODO: <AWS_ACCOUNT_ID>를 실제 AWS 계정 ID로 교체하세요
+  imageRegistry: "<AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com"
 
 # imagePullSecrets
-# - EKS + ECR: IRSA 사용으로 불필요 (빈 배열)
-# - Kind + GHCR: ghcr-secret 필요
-# - Kind + localhost: 불필요
-imagePullSecrets: []
+# - Kind + ECR: ecr-secret 필요 (aws ecr get-login-password로 생성)
+# - EKS + ECR: IRSA 사용 시 불필요 (빈 배열로 변경)
+imagePullSecrets:
+  - name: ecr-secret
 
 # -----------------------------------------------------------------------------
 # cert-manager Configuration (Disabled - CloudFront handles SSL termination)
@@ -39,10 +38,9 @@ certManager:
 # with wealist-infrastructure chart
 
 image:
-  # 로컬 빌드: IfNotPresent (Kind에 로드된 이미지 사용)
-  # ECR/ArgoCD: Always (최신 이미지 pull)
-  pullPolicy: IfNotPresent
-  tag: "latest"
+  # ECR 이미지 사용 - 항상 최신 pull
+  pullPolicy: Always
+  tag: "dev-latest"
 
 # -----------------------------------------------------------------------------
 # Security (Standard)
