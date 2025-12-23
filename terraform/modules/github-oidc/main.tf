@@ -37,6 +37,23 @@ locals {
 # -----------------------------------------------------------------------------
 # IAM Role for GitHub Actions
 # -----------------------------------------------------------------------------
+locals {
+  # Branch-based claims (for push events)
+  branch_claims = [
+    for branch in var.allowed_branches :
+    "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/${branch}"
+  ]
+
+  # Environment-based claims (for workflow jobs with environment)
+  environment_claims = [
+    for env in var.allowed_environments :
+    "repo:${var.github_org}/${var.github_repo}:environment:${env}"
+  ]
+
+  # Combined claims
+  all_claims = concat(local.branch_claims, local.environment_claims)
+}
+
 resource "aws_iam_role" "github_actions" {
   name = var.role_name
   path = "/github-actions/"
@@ -55,10 +72,7 @@ resource "aws_iam_role" "github_actions" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = [
-              for branch in var.allowed_branches :
-              "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/${branch}"
-            ]
+            "token.actions.githubusercontent.com:sub" = local.all_claims
           }
         }
       }

@@ -29,6 +29,12 @@ variable "allowed_branches" {
   default     = ["main"]
 }
 
+variable "allowed_environments" {
+  description = "List of GitHub Environments allowed to assume the role"
+  type        = list(string)
+  default     = []
+}
+
 variable "role_name" {
   description = "Name of the IAM role for GitHub Actions"
   type        = string

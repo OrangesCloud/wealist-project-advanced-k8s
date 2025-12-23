@@ -15,8 +15,8 @@ service_names = [
   "chat-service",
   "noti-service",
   "storage-service",
-  "video-service",
-  "frontend"
+  "video-service"
+  # frontend는 S3/CloudFront로 배포 (ECR 불필요)
 ]
 
 # 리포지토리당 유지할 최대 이미지 수

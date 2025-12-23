@@ -65,3 +65,9 @@ variable "backend_branches" {
     "k8s-deploy-prod"
   ]
 }
+
+variable "backend_environments" {
+  description = "List of GitHub Environments allowed to assume the backend role"
+  type        = list(string)
+  default     = ["dev", "prod"]
+}

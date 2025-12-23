@@ -116,7 +116,7 @@ jobs:
         run: |
           # go.work 설정 (공통 패키지 연결)
           cat > go.work << 'EOF'
-          go 1.24
+          go 1.24.0
 
           use (
               ./packages/wealist-advanced-go-pkg
@@ -125,9 +125,9 @@ jobs:
           EOF
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: latest
+          version: v2.0.2
           working-directory: services/${{ matrix.service }}
           args: --timeout=5m
 
@@ -157,7 +157,7 @@ jobs:
       - name: Setup Go workspace
         run: |
           cat > go.work << 'EOF'
-          go 1.24
+          go 1.24.0
 
           use (
               ./packages/wealist-advanced-go-pkg

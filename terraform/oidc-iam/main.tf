@@ -71,12 +71,13 @@ module "github_oidc_frontend" {
 module "github_oidc_backend" {
   source = "../modules/github-oidc"
 
-  aws_account_id   = var.aws_account_id
-  aws_region       = var.aws_region
-  github_org       = var.github_org
-  github_repo      = var.github_repo
-  allowed_branches = var.backend_branches
-  role_name        = "${var.role_name_prefix}-backend"
+  aws_account_id       = var.aws_account_id
+  aws_region           = var.aws_region
+  github_org           = var.github_org
+  github_repo          = var.github_repo
+  allowed_branches     = var.backend_branches
+  allowed_environments = var.backend_environments
+  role_name            = "${var.role_name_prefix}-backend"
 
   create_oidc_provider = false
 
