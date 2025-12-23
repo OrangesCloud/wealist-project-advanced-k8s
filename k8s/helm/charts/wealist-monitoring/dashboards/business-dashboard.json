@@ -185,7 +185,7 @@
       "gridPos": {"h": 5, "w": 6, "x": 12, "y": 16},
       "id": 12,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "floor(max(sum(increase(board_service_project_created_total[24h])))) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "floor(max(increase(board_service_project_created_total[24h]))) or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "오늘 프로젝트 생성",
       "description": "24시간 내 생성된 프로젝트 수",
       "type": "stat"
@@ -198,7 +198,7 @@
       "gridPos": {"h": 5, "w": 6, "x": 18, "y": 16},
       "id": 13,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "floor(max(sum(increase(board_service_board_created_total[24h])))) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "targets": [{"expr": "floor(max(increase(board_service_board_created_total[24h]))) or vector(0)", "legendFormat": "", "refId": "A"}],
       "title": "오늘 보드 생성",
       "description": "24시간 내 생성된 보드 수",
       "type": "stat"
@@ -216,8 +216,8 @@
       "id": 14,
       "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "floor(sum(increase(board_service_project_created_total[5m]))) or vector(0)", "legendFormat": "프로젝트 생성 (5분)", "refId": "A"},
-        {"expr": "floor(sum(increase(board_service_board_created_total[5m]))) or vector(0)", "legendFormat": "보드 생성 (5분)", "refId": "B"}
+        {"expr": "floor(max(increase(board_service_project_created_total[5m]))) or vector(0)", "legendFormat": "프로젝트 생성 (5분)", "refId": "A"},
+        {"expr": "floor(max(increase(board_service_board_created_total[5m]))) or vector(0)", "legendFormat": "보드 생성 (5분)", "refId": "B"}
       ],
       "title": "프로젝트/보드 생성 추이",
       "type": "timeseries"
