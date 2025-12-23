@@ -219,13 +219,20 @@ else
     exit 1
 fi
 
-# 9. dev.yaml에 AWS Account ID 업데이트 안내
+# 9. dev.yaml에 AWS Account ID 자동 업데이트
 DEV_YAML="${HELM_DIR}/environments/dev.yaml"
 if grep -q "<AWS_ACCOUNT_ID>" "${DEV_YAML}" 2>/dev/null; then
-    echo ""
-    echo "⚠️  dev.yaml에 AWS Account ID를 업데이트해주세요:"
-    echo "   sed -i 's/<AWS_ACCOUNT_ID>/${AWS_ACCOUNT_ID}/g' ${DEV_YAML}"
-    echo ""
+    echo "🔧 dev.yaml에 AWS Account ID 자동 업데이트 중..."
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS (BSD sed)
+        sed -i '' "s/<AWS_ACCOUNT_ID>/${AWS_ACCOUNT_ID}/g" "${DEV_YAML}"
+    else
+        # Linux (GNU sed)
+        sed -i "s/<AWS_ACCOUNT_ID>/${AWS_ACCOUNT_ID}/g" "${DEV_YAML}"
+    fi
+    echo "✅ dev.yaml 업데이트 완료: imageRegistry → ${ECR_REGISTRY}"
+else
+    echo "✅ dev.yaml: AWS Account ID 이미 설정됨"
 fi
 
 echo ""
@@ -243,15 +250,12 @@ echo "   - Kiali:      https://api.dev.wealist.co.kr/monitoring/kiali"
 echo "   - Jaeger:     https://api.dev.wealist.co.kr/monitoring/jaeger"
 echo ""
 echo "📝 다음 단계:"
-echo "   1. dev.yaml에 AWS Account ID 설정 (아직 안했다면):"
-echo "      sed -i 's/<AWS_ACCOUNT_ID>/${AWS_ACCOUNT_ID}/g' ${DEV_YAML}"
-echo ""
-echo "   2. Helm 배포:"
+echo "   1. Helm 배포:"
 echo "      make helm-install-all ENV=dev"
 echo ""
-echo "   3. 또는 ArgoCD로 GitOps 배포:"
+echo "   2. 또는 ArgoCD로 GitOps 배포:"
 echo "      make argo-bootstrap && make argo-deploy"
 echo ""
-echo "   4. 접근:"
+echo "   3. 접근:"
 echo "      https://api.dev.wealist.co.kr/"
 echo "=============================================="

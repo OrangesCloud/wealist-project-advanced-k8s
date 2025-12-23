@@ -965,6 +965,7 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → ECR 이미지 사
 	@echo "  ✅ 설치 완료:"
 	@echo "    - Kind 클러스터 + Istio Ambient"
 	@echo "    - ECR Secret (ecr-secret)"
+	@echo "    - dev.yaml AWS Account ID 자동 설정 완료"
 	@echo "    - Kiali, Jaeger (Istio 관측성)"
 	@echo "    - ArgoCD (GitOps)"
 	@echo ""
