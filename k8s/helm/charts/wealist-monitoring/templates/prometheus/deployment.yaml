@@ -35,6 +35,10 @@ spec:
             - "--web.enable-lifecycle"
             {{- if .Values.prometheus.config.externalUrl }}
             - "--web.external-url={{ .Values.prometheus.config.externalUrl }}"
+            {{- end }}
+            {{- if .Values.prometheus.config.routePrefix }}
+            - "--web.route-prefix={{ .Values.prometheus.config.routePrefix }}"
+            {{- else }}
             - "--web.route-prefix=/"
             {{- end }}
           ports:
