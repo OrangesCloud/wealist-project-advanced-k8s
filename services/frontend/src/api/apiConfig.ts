@@ -33,15 +33,15 @@ const getInjectedApiBaseUrl = (): string | undefined => {
 // ingress가 /svc/{service}/* 로 라우팅하고, rewrite로 prefix 제거
 // ⚠️ 프론트엔드 호출이 이미 /api를 포함하면 baseURL에서 제외
 const getIngressServicePrefix = (path: string): string => {
-  if (path?.includes('/api/auth')) return '/svc/auth';            // auth: 프론트가 /api/auth 포함
-  if (path?.includes('/api/users')) return '/svc/user';           // user: 프론트가 /api/users 포함
-  if (path?.includes('/api/workspaces')) return '/svc/user';      // user: 프론트가 /api/workspaces 포함
-  if (path?.includes('/api/profiles')) return '/svc/user';        // user: 프론트가 /api/profiles 포함
-  if (path?.includes('/api/boards')) return '/svc/board/api';      // board: 프론트가 /projects 호출
-  if (path?.includes('/api/chats')) return '/svc/chat/api/chats'; // chat: 프론트가 /my만 호출 (basePath 필요)
-  if (path?.includes('/api/notifications')) return '/svc/noti';   // noti: 프론트가 /api/notifications 포함
-  if (path?.includes('/api/storage')) return '/svc/storage';      // storage: 프론트가 /api/storage 포함
-  if (path?.includes('/api/video')) return '/svc/video';          // video: 프론트가 /api/video 포함
+  if (path?.includes('/api/auth')) return '/api/svc/auth';            // auth: 프론트가 /api/auth 포함
+  if (path?.includes('/api/users')) return '/api/svc/user';           // user: 프론트가 /api/users 포함
+  if (path?.includes('/api/workspaces')) return '/api/svc/user';      // user: 프론트가 /api/workspaces 포함
+  if (path?.includes('/api/profiles')) return '/api/svc/user';        // user: 프론트가 /api/profiles 포함
+  if (path?.includes('/api/boards')) return '/api/svc/board/api';      // board: 프론트가 /projects 호출
+  if (path?.includes('/api/chats')) return '/api/svc/chat/api/chats'; // chat: 프론트가 /my만 호출 (basePath 필요)
+  if (path?.includes('/api/notifications')) return '/api/svc/noti';   // noti: 프론트가 /api/notifications 포함
+  if (path?.includes('/api/storage')) return '/api/svc/storage';      // storage: 프론트가 /api/storage 포함
+  if (path?.includes('/api/video')) return '/api/svc/video';          // video: 프론트가 /api/video 포함
   return ''; // 매칭 안 되면 prefix 없이
 };
 
@@ -50,8 +50,8 @@ const getApiBaseUrl = (path: string): string => {
   const injectedApiBaseUrl = getInjectedApiBaseUrl();
 
   // K8s ingress 모드: 서비스 prefix만 반환 (axios가 path를 붙임)
-  // 예: getApiBaseUrl('/api/users') → '/svc/user'
-  //     axios.get('/api/workspaces/all') → '/svc/user/api/workspaces/all'
+  // 예: getApiBaseUrl('/api/users') → '/api/svc/user'
+  //     axios.get('/api/workspaces/all') → '/api/svc/user/api/workspaces/all'
   if (isIngressMode) {
     const hostname = window.location.hostname;
     // Kind 로컬 개발 환경 (localhost): Istio Gateway 사용
@@ -63,15 +63,15 @@ const getApiBaseUrl = (path: string): string => {
       // HTTPRoute가 /svc/{service}/ → / 로 리라이트하므로,
       // 백엔드 basePath를 포함해야 올바른 경로로 도달
       // ⚠️ 단, 프론트엔드 호출이 이미 /api를 포함하면 baseURL에서 제외
-      if (path?.includes('/api/auth')) return `${localBaseUrl}/svc/auth`;           // auth: Java, 프론트가 /api/auth 포함
-      if (path?.includes('/api/users')) return `${localBaseUrl}/svc/user`;          // user: 프론트가 /api/users 포함
-      if (path?.includes('/api/workspaces')) return `${localBaseUrl}/svc/user`;     // user: 프론트가 /api/workspaces 포함
-      if (path?.includes('/api/profiles')) return `${localBaseUrl}/svc/user`;       // user: 프론트가 /api/profiles 포함
-      if (path?.includes('/api/boards')) return `${localBaseUrl}/svc/board/api`;  // board: 프론트가 /projects 호출, 백엔드는 /api/projects
-      if (path?.includes('/api/chats')) return `${localBaseUrl}/svc/chat/api/chats`; // chat: 프론트가 /my만 호출 (basePath 필요)
-      if (path?.includes('/api/notifications')) return `${localBaseUrl}/svc/noti`;  // noti: 프론트가 /api/notifications 포함
-      if (path?.includes('/api/storage')) return `${localBaseUrl}/svc/storage`;     // storage: 프론트가 /api/storage 포함
-      if (path?.includes('/api/video')) return `${localBaseUrl}/svc/video`;         // video: 프론트가 /api/video 포함
+      if (path?.includes('/api/auth')) return `${localBaseUrl}/api/svc/auth`;           // auth: Java, 프론트가 /api/auth 포함
+      if (path?.includes('/api/users')) return `${localBaseUrl}/api/svc/user`;          // user: 프론트가 /api/users 포함
+      if (path?.includes('/api/workspaces')) return `${localBaseUrl}/api/svc/user`;     // user: 프론트가 /api/workspaces 포함
+      if (path?.includes('/api/profiles')) return `${localBaseUrl}/api/svc/user`;       // user: 프론트가 /api/profiles 포함
+      if (path?.includes('/api/boards')) return `${localBaseUrl}/api/svc/board/api`;  // board: 프론트가 /projects 호출, 백엔드는 /api/projects
+      if (path?.includes('/api/chats')) return `${localBaseUrl}/api/svc/chat/api/chats`; // chat: 프론트가 /my만 호출 (basePath 필요)
+      if (path?.includes('/api/notifications')) return `${localBaseUrl}/api/svc/noti`;  // noti: 프론트가 /api/notifications 포함
+      if (path?.includes('/api/storage')) return `${localBaseUrl}/api/svc/storage`;     // storage: 프론트가 /api/storage 포함
+      if (path?.includes('/api/video')) return `${localBaseUrl}/api/svc/video`;         // video: 프론트가 /api/video 포함
       return localBaseUrl;
     }
     return getIngressServicePrefix(path);
@@ -381,13 +381,13 @@ export const getChatWebSocketUrl = (chatId: string, token: string): string => {
   // CloudFront → api.dev.wealist.co.kr → ingress → chat-service
   if (isIngressMode) {
     const protocol = getWebSocketProtocol();
-    return `${protocol}//${window.location.host}/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
+    return `${protocol}//${window.location.host}/api/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
   // Kind 로컬 개발 - Istio Gateway를 통해 WebSocket 프록시
   if (injectedApiBaseUrl?.includes('localhost')) {
     const port = window.location.port || '80';
-    return `ws://localhost:${port}/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
+    return `ws://localhost:${port}/api/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
@@ -401,7 +401,7 @@ export const getChatWebSocketUrl = (chatId: string, token: string): string => {
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
     const port = window.location.port || '80';
-    return `ws://localhost:${port}/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
+    return `ws://localhost:${port}/api/svc/chat/api/chats/ws/${chatId}?token=${encodedToken}`;
   }
 
   return `wss://api.wealist.co.kr/api/chats/ws/${chatId}?token=${encodedToken}`;
@@ -420,13 +420,13 @@ export const getPresenceWebSocketUrl = (token: string): string => {
   // CloudFront → api.dev.wealist.co.kr → ingress → chat-service
   if (isIngressMode) {
     const protocol = getWebSocketProtocol();
-    return `${protocol}//${window.location.host}/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
+    return `${protocol}//${window.location.host}/api/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
   }
 
   // Kind 로컬 개발 - Istio Gateway를 통해 WebSocket 프록시
   if (injectedApiBaseUrl?.includes('localhost')) {
     const port = window.location.port || '80';
-    return `ws://localhost:${port}/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
+    return `ws://localhost:${port}/api/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
@@ -440,7 +440,7 @@ export const getPresenceWebSocketUrl = (token: string): string => {
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
     const port = window.location.port || '80';
-    return `ws://localhost:${port}/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
+    return `ws://localhost:${port}/api/svc/chat/api/chats/ws/presence?token=${encodedToken}`;
   }
 
   return `wss://api.wealist.co.kr/api/chats/ws/presence?token=${encodedToken}`;
@@ -461,13 +461,13 @@ export const getBoardWebSocketUrl = (projectId: string, token: string): string =
   // CloudFront → api.dev.wealist.co.kr → ingress → board-service
   if (isIngressMode) {
     const protocol = getWebSocketProtocol();
-    return `${protocol}//${window.location.host}/svc/board/ws/project/${projectId}?token=${encodedToken}`;
+    return `${protocol}//${window.location.host}/api/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   // Kind 로컬 개발 - Istio Gateway를 통해 WebSocket 프록시
   if (injectedApiBaseUrl?.includes('localhost')) {
     const port = window.location.port || '80';
-    return `ws://localhost:${port}/svc/board/ws/project/${projectId}?token=${encodedToken}`;
+    return `ws://localhost:${port}/api/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   // 운영 환경 (ALB 라우팅)
@@ -481,7 +481,7 @@ export const getBoardWebSocketUrl = (projectId: string, token: string): string =
   const host = window.location.host;
   if (host.includes('localhost') || host.includes('127.0.0.1')) {
     const port = window.location.port || '80';
-    return `ws://localhost:${port}/svc/board/ws/project/${projectId}?token=${encodedToken}`;
+    return `ws://localhost:${port}/api/svc/board/ws/project/${projectId}?token=${encodedToken}`;
   }
 
   return `wss://api.wealist.co.kr/ws/project/${projectId}?token=${encodedToken}`;
@@ -500,13 +500,13 @@ export const getNotificationSSEUrl = (token?: string): string => {
   // K8s ingress 모드 - CloudFront를 통해 SSE 연결
   // CloudFront → api.dev.wealist.co.kr → ingress → noti-service
   if (isIngressMode) {
-    return `${window.location.origin}/svc/noti/api/notifications/stream?token=${encodedToken}`;
+    return `${window.location.origin}/api/svc/noti/api/notifications/stream?token=${encodedToken}`;
   }
 
   // Kind 로컬 개발 - Istio Gateway를 통해 SSE 프록시
   if (injectedApiBaseUrl?.includes('localhost')) {
     const port = window.location.port || '80';
-    return `http://localhost:${port}/svc/noti/api/notifications/stream?token=${encodedToken}`;
+    return `http://localhost:${port}/api/svc/noti/api/notifications/stream?token=${encodedToken}`;
   }
 
   // 운영 환경 또는 Fallback
@@ -524,18 +524,18 @@ export const getOAuthBaseUrl = (): string => {
   // K8s ingress 모드
   if (isIngressMode) {
     const hostname = window.location.hostname;
-    // dev 환경: CloudFront가 /oauth2/* 경로를 api.dev.wealist.co.kr 오리진으로 라우팅
+    // dev 환경: CloudFront /api/* → ALB → Istio HTTPRoute /api/oauth2/* → auth-service
     if (hostname === 'dev.wealist.co.kr') {
-      return 'https://api.dev.wealist.co.kr';
+      return 'https://api.dev.wealist.co.kr/api';
     }
-    // prod 환경: CloudFront가 /oauth2/* 경로를 api.wealist.co.kr 오리진으로 라우팅
+    // prod 환경: CloudFront /api/* → ALB → Istio HTTPRoute /api/oauth2/* → auth-service
     if (hostname === 'wealist.co.kr' || hostname === 'www.wealist.co.kr') {
-      return 'https://api.wealist.co.kr';
+      return 'https://api.wealist.co.kr/api';
     }
     // Kind 개발 환경 (localhost): Istio Gateway 사용
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       const port = window.location.port || '80';
-      return `http://localhost:${port}/svc/auth`;
+      return `http://localhost:${port}/api`;
     }
     return '';
   }

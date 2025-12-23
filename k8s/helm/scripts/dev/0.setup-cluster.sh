@@ -119,7 +119,24 @@ kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.24/samp
     kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/kiali.yaml
 kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/addons/jaeger.yaml 2>/dev/null || \
     kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/jaeger.yaml
-echo "✅ Kiali, Jaeger 설치 완료"
+
+# 4-2. Kiali/Jaeger subpath 설정 (HTTPRoute /monitoring/* 경로용)
+echo "⏳ Kiali/Jaeger subpath 설정 중..."
+
+# Kiali ConfigMap 패치 - web_root를 /monitoring/kiali로 변경
+# 기본 Istio addon은 web_root: /kiali로 설정됨 → /monitoring/kiali로 변경 필요
+kubectl get configmap kiali -n istio-system -o yaml | \
+    sed 's|web_root: /kiali|web_root: /monitoring/kiali|g' | \
+    kubectl apply -f - 2>/dev/null || true
+
+# Jaeger 환경변수 설정 (QUERY_BASE_PATH)
+kubectl set env deployment/jaeger -n istio-system QUERY_BASE_PATH=/monitoring/jaeger 2>/dev/null || true
+
+# Kiali, Jaeger 재시작 (설정 적용)
+kubectl rollout restart deployment/kiali -n istio-system 2>/dev/null || true
+kubectl rollout restart deployment/jaeger -n istio-system 2>/dev/null || true
+
+echo "✅ Kiali, Jaeger 설치 완료 (subpath: /monitoring/kiali, /monitoring/jaeger)"
 
 # 5. Istio Ingress Gateway 설치 (외부 트래픽용)
 echo "⏳ Istio Ingress Gateway 설치 중..."
@@ -244,10 +261,10 @@ echo "🔐 Registry: ${ECR_REGISTRY} (AWS ECR)"
 echo "🌐 Istio Gateway: localhost:80 (또는 :8080)"
 echo ""
 echo "📊 모니터링 (helm-install-all 후 접근 가능):"
-echo "   - Grafana:    https://api.dev.wealist.co.kr/monitoring/grafana"
-echo "   - Prometheus: https://api.dev.wealist.co.kr/monitoring/prometheus"
-echo "   - Kiali:      https://api.dev.wealist.co.kr/monitoring/kiali"
-echo "   - Jaeger:     https://api.dev.wealist.co.kr/monitoring/jaeger"
+echo "   - Grafana:    https://dev.wealist.co.kr/api/monitoring/grafana"
+echo "   - Prometheus: https://dev.wealist.co.kr/api/monitoring/prometheus"
+echo "   - Kiali:      https://dev.wealist.co.kr/api/monitoring/kiali"
+echo "   - Jaeger:     https://dev.wealist.co.kr/api/monitoring/jaeger"
 echo ""
 echo "📝 다음 단계:"
 echo "   1. Helm 배포:"

@@ -4,7 +4,7 @@
 
 ##@ Kubernetes (Kind)
 
-.PHONY: kind-setup kind-setup-simple kind-setup-db kind-check-db kind-check-db-setup kind-localhost-setup kind-delete kind-recover
+.PHONY: kind-setup kind-setup-simple kind-setup-db kind-check-db kind-check-db-setup kind-localhost-setup kind-delete kind-recover kind-info kind-info-update kind-fix-monitoring-subpath
 .PHONY: kind-load-images kind-load-images-ex-db kind-load-images-all kind-load-images-mono
 .PHONY: kind-load-infra kind-load-monitoring kind-load-services
 .PHONY: _setup-db-macos _setup-db-debian _check-db-installed
@@ -972,10 +972,10 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → ECR 이미지 사
 	@echo "  🌐 Gateway: localhost:80 (또는 :8080)"
 	@echo ""
 	@echo "  📊 모니터링 (helm-install-all 후 접근 가능):"
-	@echo "    - Grafana:    http://localhost:8080/monitoring/grafana"
-	@echo "    - Prometheus: http://localhost:8080/monitoring/prometheus"
-	@echo "    - Kiali:      http://localhost:8080/monitoring/kiali"
-	@echo "    - Jaeger:     http://localhost:8080/monitoring/jaeger"
+	@echo "    - Grafana:    http://localhost:8080/api/monitoring/grafana"
+	@echo "    - Prometheus: http://localhost:8080/api/monitoring/prometheus"
+	@echo "    - Kiali:      http://localhost:8080/api/monitoring/kiali"
+	@echo "    - Jaeger:     http://localhost:8080/api/monitoring/jaeger"
 	@echo ""
 	@echo "  다음 단계:"
 	@echo "    make helm-install-all ENV=dev"
@@ -1293,6 +1293,111 @@ kind-recover: ## 재부팅 후 클러스터 복구
 	@until kubectl get nodes >/dev/null 2>&1; do sleep 5; done
 	@echo "클러스터 복구 완료!"
 	@kubectl get nodes
+
+kind-info: ## 클러스터 배포 정보 (Git 레포/브랜치/배포자) 확인
+	@echo "=============================================="
+	@echo "  클러스터 배포 정보 ($(K8S_NAMESPACE))"
+	@echo "=============================================="
+	@echo ""
+	@if kubectl get namespace $(K8S_NAMESPACE) >/dev/null 2>&1; then \
+		GIT_REPO=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.annotations.wealist\.io/git-repo}' 2>/dev/null); \
+		GIT_BRANCH=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.annotations.wealist\.io/git-branch}' 2>/dev/null); \
+		GIT_COMMIT=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.annotations.wealist\.io/git-commit}' 2>/dev/null); \
+		DEPLOYED_BY=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.annotations.wealist\.io/deployed-by}' 2>/dev/null); \
+		DEPLOYED_BY_EMAIL=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.annotations.wealist\.io/deployed-by-email}' 2>/dev/null); \
+		DEPLOY_TIME=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.annotations.wealist\.io/deploy-time}' 2>/dev/null); \
+		ISTIO_MODE=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.labels.istio\.io/dataplane-mode}' 2>/dev/null); \
+		echo "  📦 Git Repository"; \
+		echo "    - Repo:     https://github.com/$${GIT_REPO:-unknown}"; \
+		echo "    - Branch:   $${GIT_BRANCH:-unknown}"; \
+		echo "    - Commit:   $${GIT_COMMIT:-unknown}"; \
+		echo ""; \
+		echo "  👤 배포자 정보"; \
+		echo "    - Name:     $${DEPLOYED_BY:-unknown}"; \
+		echo "    - Email:    $${DEPLOYED_BY_EMAIL:-unknown}"; \
+		echo "    - Time:     $${DEPLOY_TIME:-unknown}"; \
+		echo ""; \
+		echo "  🔧 클러스터 설정"; \
+		echo "    - Namespace: $(K8S_NAMESPACE)"; \
+		echo "    - Istio:     $${ISTIO_MODE:-disabled}"; \
+		echo ""; \
+	else \
+		echo "  ❌ 네임스페이스 $(K8S_NAMESPACE)가 존재하지 않습니다."; \
+		echo "     먼저 클러스터를 설정하세요: make kind-dev-setup"; \
+	fi
+	@echo "=============================================="
+
+kind-info-update: ## 클러스터 배포 정보 업데이트 (Git 정보 + 배포자)
+	@echo "=== 클러스터 배포 정보 업데이트 ==="
+	@if ! kubectl get namespace $(K8S_NAMESPACE) >/dev/null 2>&1; then \
+		echo "❌ 네임스페이스 $(K8S_NAMESPACE)가 존재하지 않습니다."; \
+		exit 1; \
+	fi
+	@GIT_USER=$$(git config --get user.name 2>/dev/null); \
+	GIT_EMAIL=$$(git config --get user.email 2>/dev/null); \
+	GIT_REPO=$$(git remote get-url origin 2>/dev/null | sed 's|.*github.com[:/]||' | sed 's|\.git$$||'); \
+	GIT_BRANCH=$$(git rev-parse --abbrev-ref HEAD 2>/dev/null); \
+	GIT_COMMIT=$$(git rev-parse --short HEAD 2>/dev/null); \
+	DEPLOY_TIME=$$(date -u +"%Y-%m-%dT%H:%M:%SZ"); \
+	if [ -z "$$GIT_USER" ]; then \
+		echo "⚠️  git config user.name이 설정되지 않았습니다."; \
+		echo "   설정: git config --global user.name \"Your Name\""; \
+		exit 1; \
+	fi; \
+	if [ -z "$$GIT_EMAIL" ]; then \
+		echo "⚠️  git config user.email이 설정되지 않았습니다."; \
+		echo "   설정: git config --global user.email \"your@email.com\""; \
+		exit 1; \
+	fi; \
+	echo "📝 업데이트 내용:"; \
+	echo "   - Repo:    $$GIT_REPO"; \
+	echo "   - Branch:  $$GIT_BRANCH"; \
+	echo "   - Commit:  $$GIT_COMMIT"; \
+	echo "   - Name:    $$GIT_USER"; \
+	echo "   - Email:   $$GIT_EMAIL"; \
+	echo ""; \
+	kubectl annotate namespace $(K8S_NAMESPACE) \
+		"wealist.io/git-repo=$$GIT_REPO" \
+		"wealist.io/git-branch=$$GIT_BRANCH" \
+		"wealist.io/git-commit=$$GIT_COMMIT" \
+		"wealist.io/deployed-by=$$GIT_USER" \
+		"wealist.io/deployed-by-email=$$GIT_EMAIL" \
+		"wealist.io/deploy-time=$$DEPLOY_TIME" \
+		--overwrite; \
+	echo ""; \
+	echo "✅ 배포 정보가 업데이트되었습니다!"
+
+kind-fix-monitoring-subpath: ## Kiali/Jaeger subpath 설정 (/monitoring/kiali, /monitoring/jaeger)
+	@echo "=== Kiali/Jaeger subpath 설정 ==="
+	@echo ""
+	@echo "📝 Kiali ConfigMap 패치 (web_root: /monitoring/kiali)..."
+	@kubectl get configmap kiali -n istio-system -o yaml > /tmp/kiali-cm.yaml 2>/dev/null || { echo "❌ Kiali ConfigMap not found"; exit 1; }
+	@if grep -q "web_root: /monitoring/kiali" /tmp/kiali-cm.yaml; then \
+		echo "ℹ️  Kiali web_root 이미 올바르게 설정됨"; \
+	else \
+		echo "🔧 web_root 값 수정 중..."; \
+		sed -i 's|web_root: /kiali|web_root: /monitoring/kiali|g' /tmp/kiali-cm.yaml; \
+		sed -i 's|web_root: ""|web_root: /monitoring/kiali|g' /tmp/kiali-cm.yaml; \
+		kubectl apply -f /tmp/kiali-cm.yaml; \
+		echo "✅ Kiali web_root 설정 완료"; \
+	fi
+	@echo ""
+	@echo "📝 Jaeger 환경변수 설정 (QUERY_BASE_PATH: /monitoring/jaeger)..."
+	@kubectl set env deployment/jaeger -n istio-system QUERY_BASE_PATH=/monitoring/jaeger 2>/dev/null && \
+		echo "✅ Jaeger QUERY_BASE_PATH 설정 완료" || \
+		echo "⚠️  Jaeger deployment not found (skip)"
+	@echo ""
+	@echo "🔄 Kiali, Jaeger 재시작..."
+	@kubectl rollout restart deployment/kiali -n istio-system 2>/dev/null || true
+	@kubectl rollout restart deployment/jaeger -n istio-system 2>/dev/null || true
+	@echo ""
+	@echo "⏳ Pod Ready 대기 중..."
+	@kubectl rollout status deployment/kiali -n istio-system --timeout=60s 2>/dev/null || true
+	@kubectl rollout status deployment/jaeger -n istio-system --timeout=60s 2>/dev/null || true
+	@echo ""
+	@echo "✅ 완료! 접속 확인:"
+	@echo "   - Kiali:  https://dev.wealist.co.kr/api/monitoring/kiali"
+	@echo "   - Jaeger: https://dev.wealist.co.kr/api/monitoring/jaeger"
 
 ##@ 로컬 도메인 (local.wealist.co.kr)
 
