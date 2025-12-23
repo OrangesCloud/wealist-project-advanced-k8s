@@ -524,18 +524,18 @@ export const getOAuthBaseUrl = (): string => {
   // K8s ingress 모드
   if (isIngressMode) {
     const hostname = window.location.hostname;
-    // dev 환경: CloudFront가 /oauth2/* 경로를 api.dev.wealist.co.kr 오리진으로 라우팅
+    // dev 환경: CloudFront /api/* → ALB → Istio HTTPRoute /api/oauth2/* → auth-service
     if (hostname === 'dev.wealist.co.kr') {
-      return 'https://api.dev.wealist.co.kr';
+      return 'https://api.dev.wealist.co.kr/api';
     }
-    // prod 환경: CloudFront가 /oauth2/* 경로를 api.wealist.co.kr 오리진으로 라우팅
+    // prod 환경: CloudFront /api/* → ALB → Istio HTTPRoute /api/oauth2/* → auth-service
     if (hostname === 'wealist.co.kr' || hostname === 'www.wealist.co.kr') {
-      return 'https://api.wealist.co.kr';
+      return 'https://api.wealist.co.kr/api';
     }
     // Kind 개발 환경 (localhost): Istio Gateway 사용
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       const port = window.location.port || '80';
-      return `http://localhost:${port}/api/svc/auth`;
+      return `http://localhost:${port}/api`;
     }
     return '';
   }
