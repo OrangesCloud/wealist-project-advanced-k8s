@@ -678,7 +678,11 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → ECR 이미지 사
 		echo "  ✅ PostgreSQL 연결 성공!"; \
 		echo ""; \
 		echo "🔧 PostgreSQL 데이터베이스 초기화 중..."; \
-		sudo ./scripts/init-local-postgres.sh; \
+		if [ "$$(uname)" = "Darwin" ]; then \
+			./scripts/init-local-postgres.sh; \
+		else \
+			sudo ./scripts/init-local-postgres.sh; \
+		fi; \
 	else \
 		echo "  ❌ PostgreSQL 연결 실패"; \
 		echo ""; \
@@ -755,7 +759,11 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → ECR 이미지 사
 				echo "  ✅ PostgreSQL 연결 성공!"; \
 				echo ""; \
 				echo "🔧 PostgreSQL 데이터베이스 초기화 중..."; \
-				sudo ./scripts/init-local-postgres.sh; \
+				if [ "$$(uname)" = "Darwin" ]; then \
+					./scripts/init-local-postgres.sh; \
+				else \
+					sudo ./scripts/init-local-postgres.sh; \
+				fi; \
 			else \
 				echo "  ❌ 여전히 연결 실패"; \
 				echo ""; \
@@ -1321,9 +1329,14 @@ init-local-db: ## 로컬 PostgreSQL/Redis 초기화 (Ubuntu, ENV=local-ubuntu)
 	@echo "  - PostgreSQL 설치: sudo apt install postgresql postgresql-contrib"
 	@echo "  - Redis 설치: sudo apt install redis-server"
 	@echo ""
-	@echo "sudo로 스크립트 실행 중..."
-	@sudo ./scripts/init-local-postgres.sh
-	@sudo ./scripts/init-local-redis.sh
+	@echo "스크립트 실행 중..."
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		./scripts/init-local-postgres.sh; \
+		./scripts/init-local-redis.sh; \
+	else \
+		sudo ./scripts/init-local-postgres.sh; \
+		sudo ./scripts/init-local-redis.sh; \
+	fi
 	@echo ""
 	@echo "로컬 데이터베이스 초기화 완료!"
 	@echo ""
