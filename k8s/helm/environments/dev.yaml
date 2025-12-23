@@ -148,6 +148,11 @@ istio:
     # Frontend Pod 라우팅 (비활성화 - CDN 사용)
     frontend:
       enabled: false
+    # MinIO 라우팅
+    minio:
+      enabled: true
+      host: minio
+      port: 9000
     # Monitoring routes (활성화 - localhost:8080/monitoring/*)
     monitoring:
       enabled: true

@@ -16,6 +16,10 @@ istio:
       - "*"
     frontend:
       enabled: true
+    minio:
+      enabled: false  # localhost에서는 minio 비활성화
+      host: minio
+      port: 9000
     monitoring:
       enabled: true
       grafana:
