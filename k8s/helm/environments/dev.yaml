@@ -145,6 +145,7 @@ istio:
     hosts:
       - "dev.wealist.co.kr"
       - "api.dev.wealist.co.kr"
+      - "localhost"
     # Frontend Pod 라우팅 (비활성화 - CDN 사용)
     frontend:
       enabled: false
