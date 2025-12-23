@@ -4,7 +4,7 @@
 
 ##@ Kubernetes (Kind)
 
-.PHONY: kind-setup kind-setup-simple kind-setup-db kind-check-db kind-check-db-setup kind-localhost-setup kind-delete kind-recover kind-info
+.PHONY: kind-setup kind-setup-simple kind-setup-db kind-check-db kind-check-db-setup kind-localhost-setup kind-delete kind-recover kind-info kind-info-update
 .PHONY: kind-load-images kind-load-images-ex-db kind-load-images-all kind-load-images-mono
 .PHONY: kind-load-infra kind-load-monitoring kind-load-services
 .PHONY: _setup-db-macos _setup-db-debian _check-db-installed
@@ -1326,6 +1326,46 @@ kind-info: ## 클러스터 배포 정보 (Git 레포/브랜치/배포자) 확인
 		echo "     먼저 클러스터를 설정하세요: make kind-dev-setup"; \
 	fi
 	@echo "=============================================="
+
+kind-info-update: ## 클러스터 배포 정보 업데이트 (Git 정보 + 배포자)
+	@echo "=== 클러스터 배포 정보 업데이트 ==="
+	@if ! kubectl get namespace $(K8S_NAMESPACE) >/dev/null 2>&1; then \
+		echo "❌ 네임스페이스 $(K8S_NAMESPACE)가 존재하지 않습니다."; \
+		exit 1; \
+	fi
+	@GIT_USER=$$(git config --get user.name 2>/dev/null); \
+	GIT_EMAIL=$$(git config --get user.email 2>/dev/null); \
+	GIT_REPO=$$(git remote get-url origin 2>/dev/null | sed 's|.*github.com[:/]||' | sed 's|\.git$$||'); \
+	GIT_BRANCH=$$(git rev-parse --abbrev-ref HEAD 2>/dev/null); \
+	GIT_COMMIT=$$(git rev-parse --short HEAD 2>/dev/null); \
+	DEPLOY_TIME=$$(date -u +"%Y-%m-%dT%H:%M:%SZ"); \
+	if [ -z "$$GIT_USER" ]; then \
+		echo "⚠️  git config user.name이 설정되지 않았습니다."; \
+		echo "   설정: git config --global user.name \"Your Name\""; \
+		exit 1; \
+	fi; \
+	if [ -z "$$GIT_EMAIL" ]; then \
+		echo "⚠️  git config user.email이 설정되지 않았습니다."; \
+		echo "   설정: git config --global user.email \"your@email.com\""; \
+		exit 1; \
+	fi; \
+	echo "📝 업데이트 내용:"; \
+	echo "   - Repo:    $$GIT_REPO"; \
+	echo "   - Branch:  $$GIT_BRANCH"; \
+	echo "   - Commit:  $$GIT_COMMIT"; \
+	echo "   - Name:    $$GIT_USER"; \
+	echo "   - Email:   $$GIT_EMAIL"; \
+	echo ""; \
+	kubectl annotate namespace $(K8S_NAMESPACE) \
+		"wealist.io/git-repo=$$GIT_REPO" \
+		"wealist.io/git-branch=$$GIT_BRANCH" \
+		"wealist.io/git-commit=$$GIT_COMMIT" \
+		"wealist.io/deployed-by=$$GIT_USER" \
+		"wealist.io/deployed-by-email=$$GIT_EMAIL" \
+		"wealist.io/deploy-time=$$DEPLOY_TIME" \
+		--overwrite; \
+	echo ""; \
+	echo "✅ 배포 정보가 업데이트되었습니다!"
 
 ##@ 로컬 도메인 (local.wealist.co.kr)
 
