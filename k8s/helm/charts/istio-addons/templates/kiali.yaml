@@ -15,6 +15,13 @@ data:
     deployment:
       accessible_namespaces:
       - '**'
+    # Kubernetes Gateway API 설정 (Istio Ambient 모드용)
+    kubernetes:
+      gateway_api_classes:
+        - class_name: istio
+          name: Istio Gateway
+        - class_name: istio-waypoint
+          name: Istio Waypoint
     external_services:
       prometheus:
         # wealist-monitoring의 Prometheus (cross-namespace, routePrefix 포함)

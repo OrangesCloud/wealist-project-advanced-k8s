@@ -1,0 +1,109 @@
+{{- if .Values.minio.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: minio
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/component: storage
+spec:
+  replicas: {{ .Values.minio.replicas }}
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+        app.kubernetes.io/name: minio
+        # Ambient 모드에서 제외 - 외부에서 plain HTTP로 접근 가능하도록
+        istio.io/dataplane-mode: none
+    spec:
+      containers:
+        - name: minio
+          image: "{{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag }}"
+          imagePullPolicy: {{ .Values.minio.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /data/{{ .Values.minio.config.defaultBucket }}
+              minio server /data --console-address ":9001"
+          env:
+            - name: MINIO_ROOT_USER
+              value: {{ .Values.minio.config.rootUser | quote }}
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret
+                  key: root-password
+          ports:
+            - name: api
+              containerPort: 9000
+              protocol: TCP
+            - name: console
+              containerPort: 9001
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: api
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.minio.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          {{- if .Values.minio.persistence.hostPath.enabled }}
+          # Kind/로컬 환경: 호스트 디렉토리에 데이터 저장
+          hostPath:
+            path: {{ .Values.minio.persistence.hostPath.path }}
+            type: DirectoryOrCreate
+          {{- else if .Values.minio.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: minio-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+---
+{{- if and .Values.minio.persistence.enabled (not .Values.minio.persistence.hostPath.enabled) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pvc
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: minio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.minio.persistence.storageClass }}
+  storageClassName: {{ .Values.minio.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.minio.persistence.size }}
+{{- end }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-secret
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: minio
+type: Opaque
+data:
+  root-password: {{ .Values.minio.config.rootPassword | b64enc | quote }}
+{{- end }}
