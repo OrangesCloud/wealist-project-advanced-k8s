@@ -216,6 +216,26 @@ endif
 helm-install-services: ## 모든 서비스 차트 설치
 	@echo "서비스 설치 중 (ENV=$(ENV), NS=$(K8S_NAMESPACE), EXTERNAL_DB=$(EXTERNAL_DB))..."
 	@echo "설치할 서비스: $(HELM_SERVICES)"
+	@# dev 환경: AWS Account ID 자동 확인 및 설정
+ifeq ($(ENV),dev)
+	@if grep -q "<AWS_ACCOUNT_ID>" "$(HELM_ENV_VALUES)" 2>/dev/null; then \
+		echo "⚠️  dev.yaml에 <AWS_ACCOUNT_ID> 플레이스홀더가 남아있습니다."; \
+		if command -v aws >/dev/null 2>&1 && aws sts get-caller-identity >/dev/null 2>&1; then \
+			AWS_ACCOUNT_ID=$$(aws sts get-caller-identity --query Account --output text); \
+			echo "🔧 AWS Account ID 자동 업데이트 중: $$AWS_ACCOUNT_ID"; \
+			if [ "$$(uname)" = "Darwin" ]; then \
+				sed -i '' "s/<AWS_ACCOUNT_ID>/$$AWS_ACCOUNT_ID/g" "$(HELM_ENV_VALUES)"; \
+			else \
+				sed -i "s/<AWS_ACCOUNT_ID>/$$AWS_ACCOUNT_ID/g" "$(HELM_ENV_VALUES)"; \
+			fi; \
+			echo "✅ dev.yaml 업데이트 완료!"; \
+		else \
+			echo "❌ AWS CLI 로그인이 필요합니다."; \
+			echo "   aws sso login 또는 aws configure 후 다시 시도하세요."; \
+			exit 1; \
+		fi; \
+	fi
+endif
 ifeq ($(EXTERNAL_DB),true)
 	@echo "EXTERNAL_DB=true: 외부 DB 사용"
 	@if [ -f /tmp/kind_db_host.env ]; then \

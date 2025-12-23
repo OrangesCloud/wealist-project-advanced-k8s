@@ -25,8 +25,9 @@ spec:
     - from:
         - source:
             namespaces: ["istio-system"]
+{{- if .Values.istio.authorizationPolicy.allowSameNamespace }}
 ---
-# 같은 네임스페이스 내 서비스 간 통신 허용
+# 같은 네임스페이스 내 서비스 간 통신 허용 (localhost 전용)
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
@@ -40,6 +41,7 @@ spec:
     - from:
         - source:
             namespaces: ["{{ .Values.global.namespace }}"]
+{{- end }}
 {{- else }}
 # 개발 환경: 모든 트래픽 허용
 apiVersion: security.istio.io/v1

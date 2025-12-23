@@ -24,13 +24,14 @@
 
 ### 2. 로컬 레지스트리 설정
 
-다음 스크립트들을 순서대로 실행합니다:
+다음 명령어로 클러스터를 설정합니다:
 
 ```bash
-# k8s/installShell/ 디렉토리에서 실행
-./00-*.sh
-./01-*.sh
-./02-*.sh
+# localhost 환경 (로컬 레지스트리 사용)
+make kind-localhost-setup
+
+# dev 환경 (AWS ECR 사용)
+make kind-dev-setup
 ```
 
 ### 3. 이미지 업로드 확인

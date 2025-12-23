@@ -386,19 +386,19 @@ kind-localhost-setup: ## 🏠 통합 환경: 클러스터 생성 → 모든 이�
 # -----------------------------------------------------------------------------
 # kind-dev-setup: 개발 환경 (외부 DB + Istio)
 # -----------------------------------------------------------------------------
-kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미지 로드 (외부 DB 사용)
+kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → ECR 이미지 사용 (외부 DB 사용)
 	@echo "=============================================="
-	@echo "  weAlist Kind 개발 환경 설정"
+	@echo "  weAlist Kind 개발 환경 설정 (AWS ECR)"
 	@echo "=============================================="
 	@echo ""
 	@echo "이 명령어는 다음을 순서대로 실행합니다:"
-	@echo "  1. 필수 도구 확인 (kubectl, kind, helm, istioctl)"
+	@echo "  1. 필수 도구 확인 (kubectl, kind, helm, istioctl, aws)"
 	@echo "  2. Secrets 파일 확인/생성"
-	@echo "  3. GHCR 로그인"
-	@echo "  4. Kind 클러스터 생성 + Istio Ambient"
+	@echo "  3. AWS 로그인 확인"
+	@echo "  4. Kind 클러스터 생성 + Istio Ambient + ECR Secret"
 	@echo "  5. 외부 DB 확인 + 연결 테스트 (172.18.0.1)"
-	@echo "  6. GHCR Secret + 인프라 이미지 로드"
-	@echo "  7. GHCR 서비스 이미지 확인"
+	@echo "  6. 인프라 이미지 로드"
+	@echo "  7. ECR 서비스 이미지 확인"
 	@echo "  8. ArgoCD 설치 (선택)"
 	@echo ""
 	@echo "※ dev 환경은 호스트 PC의 PostgreSQL/Redis를 사용합니다."
@@ -528,49 +528,87 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 	fi
 	@echo ""
 	@echo "----------------------------------------------"
-	@echo "  [3/8] GHCR (GitHub Container Registry) 로그인"
+	@echo "  [3/8] AWS 로그인 확인"
 	@echo "----------------------------------------------"
 	@echo ""
-	@echo "dev 환경은 ghcr.io/orangescloud에서 이미지를 pull합니다."
-	@echo "GHCR 로그인이 필요합니다."
+	@echo "dev 환경은 AWS ECR에서 이미지를 pull합니다."
+	@echo "AWS 로그인이 필요합니다."
 	@echo ""
-	@# GHCR 로그인 확인 및 credential 저장
-	@rm -f /tmp/ghcr_credentials.env; \
-	GHCR_LOGGED_IN=false; \
-	if docker login ghcr.io --get-login 2>/dev/null | grep -q .; then \
-		echo "✅ GHCR: Docker에 로그인됨"; \
+	@# AWS CLI 확인 및 설치
+	@if ! command -v aws >/dev/null 2>&1; then \
+		echo "❌ AWS CLI: 미설치"; \
 		echo ""; \
-		echo "⚠️  Kubernetes Secret 생성을 위해 토큰 재입력이 필요합니다."; \
-		echo "   (Docker credential helper는 토큰을 직접 저장하지 않음)"; \
+		echo "AWS CLI를 자동 설치하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "AWS CLI 설치 중..."; \
+			if [ "$$(uname)" = "Darwin" ]; then \
+				brew install awscli; \
+			else \
+				curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"; \
+				cd /tmp && unzip -q -o awscliv2.zip && sudo ./aws/install --update; \
+				rm -rf /tmp/aws /tmp/awscliv2.zip; \
+			fi; \
+			echo ""; \
+			echo "✅ AWS CLI 설치 완료!"; \
+		else \
+			echo ""; \
+			echo "AWS CLI 없이는 진행할 수 없습니다."; \
+			exit 1; \
+		fi; \
 	else \
-		echo "❌ GHCR: 로그인 필요"; \
-	fi; \
-	echo ""; \
-	echo "GitHub Personal Access Token (PAT)이 필요합니다."; \
-	echo "  - GitHub → Settings → Developer settings → Personal access tokens"; \
-	echo "  - 권한: read:packages (최소)"; \
-	echo ""; \
-	printf "GitHub 사용자명: "; \
-	read GITHUB_USER; \
-	printf "GitHub Personal Access Token: "; \
-	stty -echo 2>/dev/null || true; \
-	read GITHUB_TOKEN; \
-	stty echo 2>/dev/null || true; \
-	echo ""; \
-	echo "GHCR 로그인 중..."; \
-	if echo "$$GITHUB_TOKEN" | docker login ghcr.io -u "$$GITHUB_USER" --password-stdin; then \
-		echo ""; \
-		echo "✅ GHCR 로그인 성공!"; \
-		echo "GITHUB_USER=$$GITHUB_USER" > /tmp/ghcr_credentials.env; \
-		echo "GITHUB_TOKEN=$$GITHUB_TOKEN" >> /tmp/ghcr_credentials.env; \
-		chmod 600 /tmp/ghcr_credentials.env; \
-		echo "✅ Credentials 저장됨 (Secret 생성에 사용)"; \
-	else \
-		echo ""; \
-		echo "❌ GHCR 로그인 실패"; \
-		echo "   토큰 권한을 확인하세요 (read:packages 필요)"; \
-		exit 1; \
+		echo "✅ AWS CLI: $$(aws --version 2>/dev/null | cut -d' ' -f1)"; \
 	fi
+	@echo ""
+	@# AWS 로그인 확인
+	@if ! aws sts get-caller-identity >/dev/null 2>&1; then \
+		echo "❌ AWS: 로그인 필요"; \
+		echo ""; \
+		echo "AWS 자격증명을 설정하시겠습니까? [Y/n]"; \
+		read -r answer; \
+		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
+			echo ""; \
+			echo "AWS 자격증명 설정 방법을 선택하세요:"; \
+			echo "  1. Access Key 설정 (aws configure)"; \
+			echo "  2. SSO 로그인 (aws sso login)"; \
+			echo ""; \
+			printf "선택 [1/2]: "; \
+			read -r choice; \
+			if [ "$$choice" = "2" ]; then \
+				echo ""; \
+				echo "SSO 프로필이 설정되어 있지 않다면 먼저 'aws configure sso'를 실행하세요."; \
+				printf "SSO 프로필명 (기본: default): "; \
+				read -r profile; \
+				profile=$${profile:-default}; \
+				aws sso login --profile $$profile; \
+				export AWS_PROFILE=$$profile; \
+			else \
+				echo ""; \
+				echo "AWS Access Key를 입력하세요."; \
+				echo "(IAM → 사용자 → 보안 자격 증명 → 액세스 키에서 생성)"; \
+				echo ""; \
+				aws configure; \
+			fi; \
+			echo ""; \
+			if aws sts get-caller-identity >/dev/null 2>&1; then \
+				echo "✅ AWS 로그인 성공!"; \
+			else \
+				echo "❌ AWS 로그인 실패. 자격증명을 확인하세요."; \
+				exit 1; \
+			fi; \
+		else \
+			echo ""; \
+			echo "AWS 로그인 없이는 진행할 수 없습니다."; \
+			exit 1; \
+		fi; \
+	fi; \
+	AWS_ACCOUNT_ID=$$(aws sts get-caller-identity --query Account --output text); \
+	AWS_REGION=$${AWS_REGION:-ap-northeast-2}; \
+	echo "✅ AWS 로그인 확인!"; \
+	echo "   계정 ID: $$AWS_ACCOUNT_ID"; \
+	echo "   리전: $$AWS_REGION"; \
+	echo "   ECR: $$AWS_ACCOUNT_ID.dkr.ecr.$$AWS_REGION.amazonaws.com"
 	@echo ""
 	@echo "----------------------------------------------"
 	@echo "  [4/8] Kind 클러스터 생성"
@@ -640,7 +678,11 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 		echo "  ✅ PostgreSQL 연결 성공!"; \
 		echo ""; \
 		echo "🔧 PostgreSQL 데이터베이스 초기화 중..."; \
-		sudo ./scripts/init-local-postgres.sh; \
+		if [ "$$(uname)" = "Darwin" ]; then \
+			./scripts/init-local-postgres.sh; \
+		else \
+			sudo ./scripts/init-local-postgres.sh; \
+		fi; \
 	else \
 		echo "  ❌ PostgreSQL 연결 실패"; \
 		echo ""; \
@@ -717,7 +759,11 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 				echo "  ✅ PostgreSQL 연결 성공!"; \
 				echo ""; \
 				echo "🔧 PostgreSQL 데이터베이스 초기화 중..."; \
-				sudo ./scripts/init-local-postgres.sh; \
+				if [ "$$(uname)" = "Darwin" ]; then \
+					./scripts/init-local-postgres.sh; \
+				else \
+					sudo ./scripts/init-local-postgres.sh; \
+				fi; \
 			else \
 				echo "  ❌ 여전히 연결 실패"; \
 				echo ""; \
@@ -835,78 +881,67 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 	@echo "✅ DB 연결 테스트 완료!"
 	@echo ""
 	@echo "----------------------------------------------"
-	@echo "  [6/8] GHCR Secret + 인프라 이미지 로드"
+	@echo "  [6/8] 인프라 이미지 로드"
 	@echo "----------------------------------------------"
 	@echo ""
-	@echo "Kubernetes에서 GHCR 이미지를 pull하려면 Secret이 필요합니다."
-	@# ghcr-secret 생성 (저장된 credentials 사용)
-	@if kubectl get secret ghcr-secret -n wealist-dev >/dev/null 2>&1; then \
-		echo "⚠️  ghcr-secret 이미 존재 - 재생성합니다..."; \
-		kubectl delete secret ghcr-secret -n wealist-dev; \
-	fi; \
-	if [ -f /tmp/ghcr_credentials.env ]; then \
-		. /tmp/ghcr_credentials.env; \
-		echo "ghcr-secret 생성 중 (user: $$GITHUB_USER)..."; \
-		kubectl create secret docker-registry ghcr-secret \
-			--docker-server=ghcr.io \
-			--docker-username="$$GITHUB_USER" \
-			--docker-password="$$GITHUB_TOKEN" \
-			-n wealist-dev; \
-		echo "✅ ghcr-secret 생성 완료!"; \
-		rm -f /tmp/ghcr_credentials.env; \
+	@echo "※ ECR Secret은 클러스터 셋업 스크립트에서 자동 생성됩니다."
+	@echo ""
+	@# ECR Secret 확인
+	@if kubectl get secret ecr-secret -n wealist-dev >/dev/null 2>&1; then \
+		echo "✅ ecr-secret 존재 확인"; \
 	else \
-		echo "❌ GHCR credentials를 찾을 수 없습니다."; \
-		echo "   다시 setup을 실행하세요."; \
-		exit 1; \
+		echo "⚠️  ecr-secret이 없습니다. 클러스터 셋업이 제대로 완료되지 않았을 수 있습니다."; \
 	fi
 	@echo ""
 	@# 인프라 이미지 로드
 	@./k8s/helm/scripts/dev/1.load_infra_images.sh
 	@echo ""
 	@echo "----------------------------------------------"
-	@echo "  [7/8] GHCR 서비스 이미지 확인"
+	@echo "  [7/8] ECR 서비스 이미지 확인"
 	@echo "----------------------------------------------"
 	@echo ""
-	@echo "GHCR에 서비스 이미지가 있는지 확인합니다..."
+	@echo "ECR에 서비스 이미지가 있는지 확인합니다..."
 	@echo ""
-	@# 서비스 이미지 존재 여부 확인
-	@MISSING_IMAGES=""; \
+	@# AWS 정보 가져오기
+	@AWS_ACCOUNT_ID=$$(aws sts get-caller-identity --query Account --output text 2>/dev/null); \
+	AWS_REGION=$${AWS_REGION:-ap-northeast-2}; \
+	ECR_REGISTRY="$$AWS_ACCOUNT_ID.dkr.ecr.$$AWS_REGION.amazonaws.com"; \
+	echo "ECR Registry: $$ECR_REGISTRY"; \
+	echo ""; \
+	MISSING_IMAGES=""; \
 	for svc in auth-service user-service board-service chat-service noti-service storage-service video-service; do \
-		if docker manifest inspect ghcr.io/orangescloud/$$svc:latest >/dev/null 2>&1; then \
-			echo "✅ $$svc: 존재"; \
+		if aws ecr describe-images --repository-name $$svc --image-ids imageTag=dev-latest --region $$AWS_REGION >/dev/null 2>&1; then \
+			echo "✅ $$svc:dev-latest 존재"; \
 		else \
-			echo "❌ $$svc: 없음"; \
+			echo "❌ $$svc:dev-latest 없음"; \
 			MISSING_IMAGES="$$MISSING_IMAGES $$svc"; \
 		fi; \
 	done; \
 	echo ""; \
 	if [ -n "$$MISSING_IMAGES" ]; then \
-		echo "⚠️  일부 이미지가 GHCR에 없습니다:$$MISSING_IMAGES"; \
+		echo "⚠️  일부 이미지가 ECR에 없습니다:$$MISSING_IMAGES"; \
 		echo ""; \
-		echo "이미지를 빌드하고 GHCR에 푸시하시겠습니까? [Y/n]"; \
+		echo "서비스 이미지는 GitHub Actions CI/CD를 통해 자동 빌드됩니다."; \
+		echo ""; \
+		echo "수동 빌드가 필요한 경우:"; \
+		echo "  1. 서비스 코드를 service-deploy-dev 브랜치에 push"; \
+		echo "  2. GitHub Actions가 자동으로 ECR에 push"; \
+		echo ""; \
+		echo "또는 로컬에서 빌드 후 ECR push:"; \
+		echo "  aws ecr get-login-password --region $$AWS_REGION | docker login --username AWS --password-stdin $$ECR_REGISTRY"; \
+		echo "  docker build -t $$ECR_REGISTRY/<service>:dev-latest ."; \
+		echo "  docker push $$ECR_REGISTRY/<service>:dev-latest"; \
+		echo ""; \
+		echo "계속 진행하시겠습니까? (이미지 없이) [Y/n]"; \
 		read -r answer; \
-		if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
-			echo ""; \
-			echo "이미지 빌드 및 푸시 중... (시간이 걸릴 수 있습니다)"; \
-			$(MAKE) ghcr-push-all ENV=dev || { \
-				echo ""; \
-				echo "❌ 이미지 빌드/푸시 실패"; \
-				echo "   수동으로 실행: make ghcr-push-all ENV=dev"; \
-				echo ""; \
-				echo "계속 진행하시겠습니까? (이미지 없이) [y/N]"; \
-				read -r cont; \
-				if [ "$$cont" != "y" ] && [ "$$cont" != "Y" ]; then \
-					exit 1; \
-				fi; \
-			}; \
-		else \
-			echo ""; \
-			echo "⚠️  이미지 없이 진행합니다."; \
-			echo "   helm-install-all 시 ImagePullBackOff 발생할 수 있습니다."; \
-			echo "   나중에 빌드: make ghcr-push-all ENV=dev"; \
+		if [ "$$answer" = "n" ] || [ "$$answer" = "N" ]; then \
+			exit 1; \
 		fi; \
+		echo ""; \
+		echo "⚠️  이미지 없이 진행합니다."; \
+		echo "   helm-install-all 시 ImagePullBackOff 발생할 수 있습니다."; \
 	else \
-		echo "✅ 모든 서비스 이미지가 GHCR에 존재합니다!"; \
+		echo "✅ 모든 서비스 이미지가 ECR에 존재합니다!"; \
 	fi
 	@echo ""
 	@echo "----------------------------------------------"
@@ -929,6 +964,8 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 	@echo ""
 	@echo "  ✅ 설치 완료:"
 	@echo "    - Kind 클러스터 + Istio Ambient"
+	@echo "    - ECR Secret (ecr-secret)"
+	@echo "    - dev.yaml AWS Account ID 자동 설정 완료"
 	@echo "    - Kiali, Jaeger (Istio 관측성)"
 	@echo "    - ArgoCD (GitOps)"
 	@echo ""
@@ -944,7 +981,7 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → 서비스 이미�
 	@echo "    make helm-install-all ENV=dev"
 	@echo ""
 	@echo "  이후 개발 사이클:"
-	@echo "    git push → GitHub Actions → GHCR → ArgoCD 자동 배포"
+	@echo "    git push (service-deploy-dev) → GitHub Actions → ECR → ArgoCD 자동 배포"
 	@echo ""
 	@echo "=============================================="
 
@@ -969,7 +1006,8 @@ endif
 
 kind-setup-simple: ## 클러스터 생성 + nginx ingress (Istio 없음, 단순 테스트용)
 	@echo "=== Kind 클러스터 + nginx ingress (simple 모드) 생성 ==="
-	./k8s/installShell/0.setup-cluster-simple.sh
+	@echo "⚠️  이 타겟은 deprecated 되었습니다."
+	@echo "   대신 'make kind-localhost-setup' 또는 'make kind-dev-setup'을 사용하세요."
 	@echo ""
 	@echo "클러스터 준비 완료! 다음: make kind-load-images"
 
@@ -1293,9 +1331,14 @@ init-local-db: ## 로컬 PostgreSQL/Redis 초기화 (Ubuntu, ENV=local-ubuntu)
 	@echo "  - PostgreSQL 설치: sudo apt install postgresql postgresql-contrib"
 	@echo "  - Redis 설치: sudo apt install redis-server"
 	@echo ""
-	@echo "sudo로 스크립트 실행 중..."
-	@sudo ./scripts/init-local-postgres.sh
-	@sudo ./scripts/init-local-redis.sh
+	@echo "스크립트 실행 중..."
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		./scripts/init-local-postgres.sh; \
+		./scripts/init-local-redis.sh; \
+	else \
+		sudo ./scripts/init-local-postgres.sh; \
+		sudo ./scripts/init-local-redis.sh; \
+	fi
 	@echo ""
 	@echo "로컬 데이터베이스 초기화 완료!"
 	@echo ""

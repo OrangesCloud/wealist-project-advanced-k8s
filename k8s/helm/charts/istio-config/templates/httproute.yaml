@@ -24,6 +24,18 @@ spec:
   {{- end }}
   rules:
     # ==========================================================================
+    # OAuth2 Callback (Google OAuth redirects here - must be before /svc/auth)
+    # Path: /oauth2/callback/google → auth-service (no rewrite)
+    # ==========================================================================
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /oauth2
+      backendRefs:
+        - name: auth-service
+          port: 8080
+
+    # ==========================================================================
     # API Services (구체적인 경로를 먼저 정의해야 함!)
     # 각 서비스의 실제 포트를 사용해야 함!
     # ==========================================================================

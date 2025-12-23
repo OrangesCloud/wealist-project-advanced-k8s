@@ -267,6 +267,7 @@ istio:
   authorizationPolicy:
     enabled: true
     denyAll: false  # localhost: 기본 허용 (개발 편의)
+    allowSameNamespace: true  # localhost: 같은 네임스페이스 내 통신 허용
 
   # 서비스별 호출 권한 (L7 정책)
   serviceAuthorization:
