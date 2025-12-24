@@ -199,6 +199,58 @@ kubectl annotate namespace wealist-localhost \
 
 echo "✅ 네임스페이스에 Ambient 모드 + Git 정보 라벨 적용 완료"
 
+# 11. External Secrets Operator 설치 (선택 사항 - AWS SSM 사용 시)
+# USE_AWS_SSM=true 환경변수로 활성화
+if [ "${USE_AWS_SSM}" = "true" ]; then
+    echo "🔐 External Secrets Operator 설치 중 (AWS SSM 모드)..."
+    helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null || true
+    helm repo update external-secrets 2>/dev/null || true
+
+    if helm list -n external-secrets 2>/dev/null | grep -q "external-secrets"; then
+        echo "✅ External Secrets Operator 이미 설치됨"
+    else
+        helm install external-secrets external-secrets/external-secrets \
+            -n external-secrets --create-namespace \
+            --wait --timeout=120s
+        echo "✅ External Secrets Operator 설치 완료"
+    fi
+
+    # AWS 자격증명 Secret 생성
+    AWS_ACCESS_KEY="${AWS_ACCESS_KEY_ID:-}"
+    AWS_SECRET_KEY="${AWS_SECRET_ACCESS_KEY:-}"
+    AWS_REGION="${AWS_REGION:-ap-northeast-2}"
+
+    if [ -z "${AWS_ACCESS_KEY}" ] && command -v aws &> /dev/null; then
+        AWS_ACCESS_KEY=$(aws configure get aws_access_key_id 2>/dev/null || true)
+        AWS_SECRET_KEY=$(aws configure get aws_secret_access_key 2>/dev/null || true)
+    fi
+
+    if [ -n "${AWS_ACCESS_KEY}" ] && [ -n "${AWS_SECRET_KEY}" ]; then
+        kubectl delete secret aws-credentials -n wealist-localhost 2>/dev/null || true
+        kubectl create secret generic aws-credentials \
+            -n wealist-localhost \
+            --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY}" \
+            --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_KEY}"
+        echo "✅ AWS 자격증명 Secret 생성 완료"
+
+        # External Secrets Chart 배포
+        if [ -d "${HELM_DIR}/charts/external-secrets" ]; then
+            helm upgrade --install external-secrets-config "${HELM_DIR}/charts/external-secrets" \
+                -n wealist-localhost \
+                --set global.namespace=wealist-localhost \
+                --set aws.region=${AWS_REGION} \
+                --set ssmParameters.googleOAuth.clientId=/wealist/localhost/google-oauth/client-id \
+                --set ssmParameters.googleOAuth.clientSecret=/wealist/localhost/google-oauth/client-secret \
+                --wait --timeout=60s 2>/dev/null || echo "⚠️ External Secrets 설정 배포 실패"
+            echo "✅ External Secrets 설정 배포 완료"
+        fi
+    else
+        echo "⚠️ AWS 자격증명 없음. 수동으로 설정하세요."
+    fi
+else
+    echo "ℹ️  AWS SSM 연동 비활성화 (USE_AWS_SSM=true로 활성화)"
+fi
+
 echo ""
 echo "=============================================="
 echo "  ✅ localhost 클러스터 준비 완료!"

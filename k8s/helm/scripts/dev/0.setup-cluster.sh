@@ -236,7 +236,68 @@ else
     exit 1
 fi
 
-# 9. dev.yaml에 AWS Account ID 자동 업데이트
+# 9. External Secrets Operator 설치 (AWS SSM Parameter Store 연동)
+echo "🔐 External Secrets Operator 설치 중..."
+helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null || true
+helm repo update external-secrets 2>/dev/null || true
+
+# ESO가 이미 설치되어 있는지 확인
+if helm list -n external-secrets 2>/dev/null | grep -q "external-secrets"; then
+    echo "✅ External Secrets Operator 이미 설치됨"
+else
+    helm install external-secrets external-secrets/external-secrets \
+        -n external-secrets --create-namespace \
+        --wait --timeout=120s
+    echo "✅ External Secrets Operator 설치 완료"
+fi
+
+# AWS 자격증명 Secret 생성 (ESO용)
+echo "🔐 AWS 자격증명 Secret 생성 중 (External Secrets용)..."
+
+# AWS 자격증명 가져오기 (환경변수 또는 프로필에서)
+AWS_ACCESS_KEY=""
+AWS_SECRET_KEY=""
+
+if [ -n "${AWS_ACCESS_KEY_ID}" ] && [ -n "${AWS_SECRET_ACCESS_KEY}" ]; then
+    # 환경변수에서 가져오기
+    AWS_ACCESS_KEY="${AWS_ACCESS_KEY_ID}"
+    AWS_SECRET_KEY="${AWS_SECRET_ACCESS_KEY}"
+elif command -v aws &> /dev/null; then
+    # AWS CLI 설정에서 가져오기
+    AWS_ACCESS_KEY=$(aws configure get aws_access_key_id 2>/dev/null || true)
+    AWS_SECRET_KEY=$(aws configure get aws_secret_access_key 2>/dev/null || true)
+fi
+
+if [ -n "${AWS_ACCESS_KEY}" ] && [ -n "${AWS_SECRET_KEY}" ]; then
+    kubectl delete secret aws-credentials -n wealist-dev 2>/dev/null || true
+    kubectl create secret generic aws-credentials \
+        -n wealist-dev \
+        --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY}" \
+        --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_KEY}"
+    echo "✅ AWS 자격증명 Secret 생성 완료"
+
+    # External Secrets Chart 배포
+    echo "⏳ External Secrets 설정 배포 중..."
+    if [ -d "${HELM_DIR}/charts/external-secrets" ]; then
+        helm upgrade --install external-secrets-config "${HELM_DIR}/charts/external-secrets" \
+            -n wealist-dev \
+            --set global.namespace=wealist-dev \
+            --set aws.region=${AWS_REGION} \
+            --wait --timeout=60s 2>/dev/null || echo "⚠️ External Secrets 설정 배포 실패 (나중에 수동 배포 가능)"
+        echo "✅ External Secrets 설정 배포 완료"
+    else
+        echo "⚠️ External Secrets chart 없음: ${HELM_DIR}/charts/external-secrets"
+        echo "   나중에 수동으로 배포하세요: helm install external-secrets-config k8s/helm/charts/external-secrets -n wealist-dev"
+    fi
+else
+    echo "⚠️ AWS 자격증명을 찾을 수 없습니다."
+    echo "   SSM Parameter Store 연동을 사용하려면 수동으로 설정하세요:"
+    echo "   kubectl create secret generic aws-credentials -n wealist-dev \\"
+    echo "     --from-literal=AWS_ACCESS_KEY_ID=<your-key> \\"
+    echo "     --from-literal=AWS_SECRET_ACCESS_KEY=<your-secret>"
+fi
+
+# 10. dev.yaml에 AWS Account ID 자동 업데이트
 DEV_YAML="${HELM_DIR}/environments/dev.yaml"
 if grep -q "<AWS_ACCOUNT_ID>" "${DEV_YAML}" 2>/dev/null; then
     echo "🔧 dev.yaml에 AWS Account ID 자동 업데이트 중..."
@@ -258,6 +319,7 @@ echo "  ✅ dev 클러스터 준비 완료!"
 echo "=============================================="
 echo ""
 echo "🔐 Registry: ${ECR_REGISTRY} (AWS ECR)"
+echo "🔐 Secrets: AWS SSM Parameter Store (External Secrets Operator)"
 echo "🌐 Istio Gateway: localhost:80 (또는 :8080)"
 echo ""
 echo "📊 모니터링 (helm-install-all 후 접근 가능):"
@@ -265,6 +327,10 @@ echo "   - Grafana:    https://dev.wealist.co.kr/api/monitoring/grafana"
 echo "   - Prometheus: https://dev.wealist.co.kr/api/monitoring/prometheus"
 echo "   - Kiali:      https://dev.wealist.co.kr/api/monitoring/kiali"
 echo "   - Jaeger:     https://dev.wealist.co.kr/api/monitoring/jaeger"
+echo ""
+echo "🔑 시크릿 확인:"
+echo "   kubectl get externalsecrets -n wealist-dev"
+echo "   kubectl get secrets -n wealist-dev"
 echo ""
 echo "📝 다음 단계:"
 echo "   1. Helm 배포:"
