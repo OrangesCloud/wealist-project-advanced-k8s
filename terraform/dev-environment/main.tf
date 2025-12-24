@@ -20,6 +20,14 @@ terraform {
       version = "~> 5.0"
     }
   }
+
+  backend "s3" {
+    bucket         = "wealist-tfstate-bucket"
+    key            = "advanced/dev/terraform.tfstate"
+    region         = "ap-northeast-2"
+    dynamodb_table = "wealist-terraform-locks"
+    encrypt        = true
+  }
 }
 
 # -----------------------------------------------------------------------------
