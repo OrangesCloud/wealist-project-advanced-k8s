@@ -5,7 +5,7 @@
 ##@ Helm 차트 (권장)
 
 .PHONY: helm-deps-build helm-lint helm-validate
-.PHONY: helm-install-cert-manager helm-install-infra helm-install-services helm-install-frontend helm-install-istio-config helm-install-istio-addons helm-install-monitoring
+.PHONY: helm-install-cert-manager helm-install-infra helm-install-external-secrets helm-install-services helm-install-frontend helm-install-istio-config helm-install-istio-addons helm-install-monitoring
 .PHONY: helm-install-all helm-install-all-init helm-upgrade-all helm-uninstall-all
 .PHONY: helm-setup-route53-secret helm-check-secrets helm-check-db
 .PHONY: helm-localhost helm-local-ubuntu helm-dev helm-staging helm-prod
@@ -207,6 +207,54 @@ else
 endif
 	@echo "인프라 설치 완료!"
 
+helm-install-external-secrets: ## External Secrets 설정 설치 (ESO → K8s Secret 동기화)
+	@echo "External Secrets 설정 설치 중 (ENV=$(ENV), NS=$(K8S_NAMESPACE))..."
+	@echo ""
+	@# ESO가 설치되어 있는지 확인
+	@if ! kubectl get crd externalsecrets.external-secrets.io >/dev/null 2>&1; then \
+		echo "⚠️  External Secrets Operator CRD가 없습니다."; \
+		echo "   클러스터 셋업을 먼저 실행하세요: make kind-localhost-setup"; \
+		exit 1; \
+	fi
+	@# AWS 자격증명 확인
+	@if [ -z "$$AWS_ACCESS_KEY_ID" ] && ! aws sts get-caller-identity >/dev/null 2>&1; then \
+		echo "⚠️  AWS 자격증명이 설정되지 않았습니다."; \
+		echo "   ESO가 SSM에서 시크릿을 가져올 수 없습니다."; \
+		echo ""; \
+		echo "   설정 방법:"; \
+		echo "   1. 환경변수: export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=..."; \
+		echo "   2. AWS CLI: aws configure"; \
+		exit 1; \
+	fi
+	@# AWS Region 결정
+	@AWS_REGION=$${AWS_REGION:-$$(aws configure get region 2>/dev/null || echo "ap-northeast-2")}; \
+	echo "AWS Region: $$AWS_REGION"; \
+	echo ""; \
+	echo "🔐 External Secrets 설정 배포 중..."; \
+	helm upgrade --install external-secrets-config ./k8s/helm/charts/external-secrets \
+		-n $(K8S_NAMESPACE) \
+		--set global.namespace=$(K8S_NAMESPACE) \
+		--set aws.region=$$AWS_REGION \
+		--set externalSecrets.wealistSharedSecret.parameterPathPrefix=/wealist/dev
+	@echo ""
+	@echo "⏳ 시크릿 동기화 대기 중 (최대 30초)..."
+	@for i in 1 2 3 4 5 6; do \
+		if kubectl get secret wealist-shared-secret -n $(K8S_NAMESPACE) >/dev/null 2>&1; then \
+			echo "✅ wealist-shared-secret 동기화 완료!"; \
+			break; \
+		fi; \
+		echo "   대기 중... ($$i/6)"; \
+		sleep 5; \
+	done
+	@if ! kubectl get secret wealist-shared-secret -n $(K8S_NAMESPACE) >/dev/null 2>&1; then \
+		echo "⚠️  wealist-shared-secret이 아직 생성되지 않았습니다."; \
+		echo "   ExternalSecret 상태를 확인하세요:"; \
+		echo "   kubectl get externalsecrets -n $(K8S_NAMESPACE)"; \
+		echo "   kubectl describe externalsecret wealist-shared-secret -n $(K8S_NAMESPACE)"; \
+	fi
+	@echo ""
+	@echo "External Secrets 설정 완료!"
+
 helm-install-services: ## 모든 서비스 차트 설치
 	@echo "서비스 설치 중 (ENV=$(ENV), NS=$(K8S_NAMESPACE), EXTERNAL_DB=$(EXTERNAL_DB))..."
 	@echo "설치할 서비스: $(HELM_SERVICES)"
@@ -371,7 +419,9 @@ helm-install-istio-addons: ## Istio Addons 설치 (Kiali, Jaeger - istio-system 
 # -----------------------------------------------------------------------------
 # Note: Istio Gateway는 0.setup-cluster.sh에서 생성, HTTPRoute는 여기서 설치
 helm-install-all: helm-check-secrets helm-check-db helm-deps-build helm-install-cert-manager helm-install-infra ## 전체 차트 설치 (인프라 + 서비스 + 프론트엔드 + Istio + 모니터링)
-	@sleep 5
+	@sleep 3
+	@$(MAKE) helm-install-external-secrets ENV=$(ENV)
+	@sleep 2
 	@$(MAKE) helm-install-services ENV=$(ENV)
 	@sleep 2
 	@$(MAKE) helm-install-frontend ENV=$(ENV)
@@ -391,7 +441,9 @@ helm-install-all: helm-check-secrets helm-check-db helm-deps-build helm-install-
 	@echo "=============================================="
 
 helm-install-all-init: helm-check-secrets helm-deps-build helm-install-cert-manager helm-install-infra ## DB 마이그레이션 포함 전체 설치 (최초 설치용)
-	@sleep 5
+	@sleep 3
+	@$(MAKE) helm-install-external-secrets ENV=$(ENV)
+	@sleep 2
 	@echo "DB 마이그레이션 활성화하여 서비스 설치 중 (최초 설정)..."
 	@echo "설치할 서비스: $(HELM_SERVICES)"
 ifeq ($(EXTERNAL_DB),true)
