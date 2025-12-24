@@ -8,13 +8,15 @@ weAlist 프로젝트의 AWS 인프라를 관리하는 Terraform 설정입니다.
 terraform/
 ├── modules/                    # 재사용 가능한 모듈
 │   ├── github-oidc/           # GitHub OIDC Provider + IAM Role
-│   └── ecr/                   # ECR 리포지토리
+│   ├── ecr/                   # ECR 리포지토리
+│   └── ssm-parameter/         # SSM Parameter Store (시크릿 저장)
 │
 ├── oidc-iam/                  # [독립 실행] GitHub Actions용 OIDC/IAM
 │   └── GitHub Actions → AWS 인증 설정
 │
 └── dev-environment/           # [독립 실행] 로컬 PC Dev 환경
-    └── ECR 리포지토리 + IAM User
+    ├── ECR 리포지토리 + IAM User
+    └── SSM Parameter Store (시크릿)
 ```
 
 ## 사전 요구사항
@@ -55,6 +57,7 @@ cd terraform/dev-environment
 
 # 변수 파일 복사 및 편집
 cp terraform.tfvars.example terraform.tfvars
+# terraform.tfvars에 시크릿 값 설정 (Google OAuth, JWT 등)
 
 # Terraform 실행
 terraform init
@@ -69,6 +72,37 @@ terraform output -raw dev_user_secret_access_key
 aws configure --profile wealist-dev
 # Access Key ID, Secret Access Key 입력
 # Default region: ap-northeast-2
+```
+
+### 3. SSM Parameter Store (시크릿 관리)
+
+dev-environment에 SSM Parameter Store로 시크릿을 저장합니다.
+External Secrets Operator가 Kind 클러스터에서 이 값들을 K8s Secret으로 동기화합니다.
+
+```bash
+cd terraform/dev-environment
+
+# 시크릿만 생성/업데이트
+terraform apply -target=module.parameters
+
+# SSM 파라미터 확인
+aws ssm get-parameters-by-path --path "/wealist/dev" --recursive --with-decryption
+```
+
+**생성되는 SSM 파라미터:**
+```
+/wealist/dev/google-oauth/client-id
+/wealist/dev/google-oauth/client-secret
+/wealist/dev/jwt/secret
+/wealist/dev/database/superuser-password
+/wealist/dev/database/user-password
+/wealist/dev/redis/password
+/wealist/dev/minio/root-password
+/wealist/dev/minio/access-key
+/wealist/dev/minio/secret-key
+/wealist/dev/livekit/api-key
+/wealist/dev/livekit/api-secret
+/wealist/dev/internal/api-key
 ```
 
 ### ECR 로그인 (로컬 PC)
@@ -95,16 +129,28 @@ ECR 리포지토리 생성:
 - 이미지 스캐닝 활성화
 - 라이프사이클 정책 (선택)
 
+### ssm-parameter
+
+SSM Parameter Store 시크릿 관리:
+- SecureString 타입으로 암호화 저장
+- AWS 기본 KMS 키 사용 (무료)
+- External Secrets Operator와 연동
+
 ## 보안 주의사항
 
 1. **절대 git에 올리면 안 되는 파일**:
    - `*.tfstate` - Terraform 상태 파일
-   - `terraform.tfvars` - 실제 변수값
+   - `terraform.tfvars` - 실제 변수값 (시크릿 포함!)
 
 2. **Access Key 관리**:
    - 로컬 PC에만 저장
    - 정기적으로 키 로테이션
    - 필요시 AWS SSO로 전환 가능
+
+3. **시크릿 관리**:
+   - `terraform.tfvars`에 시크릿 저장 (gitignore됨)
+   - SSM Parameter Store에 암호화 저장
+   - K8s에서는 External Secrets Operator가 동기화
 
 ## 리소스 삭제
 
