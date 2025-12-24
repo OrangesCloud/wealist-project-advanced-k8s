@@ -1,0 +1,11 @@
+apiVersion: v2
+name: external-secrets-config
+description: External Secrets Operator configuration for AWS SSM Parameter Store
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+# Note: This chart creates ClusterSecretStore and ExternalSecret resources.
+# External Secrets Operator itself must be installed separately:
+#   helm repo add external-secrets https://charts.external-secrets.io
+#   helm install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace

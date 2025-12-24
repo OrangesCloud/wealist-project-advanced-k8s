@@ -1,0 +1,80 @@
+# =============================================================================
+# External Secrets Configuration
+# =============================================================================
+# AWS SSM Parameter Store를 사용하여 K8s Secrets를 자동 동기화
+#
+# 사전 요구사항:
+#   1. External Secrets Operator 설치됨
+#   2. AWS 자격 증명 (IRSA 또는 Access Key)
+#   3. SSM Parameter Store에 시크릿 생성됨
+
+global:
+  namespace: wealist-dev
+
+# -----------------------------------------------------------------------------
+# AWS Configuration
+# -----------------------------------------------------------------------------
+aws:
+  region: ap-northeast-2
+
+  # Authentication method: "irsa" or "accessKey"
+  # - irsa: EKS에서 IAM Role for Service Accounts 사용 (권장)
+  # - accessKey: Kind/로컬 클러스터에서 Access Key 사용
+  authMethod: accessKey
+
+  # Access Key 인증 (authMethod: accessKey인 경우)
+  # Secret 이름: aws-credentials (미리 생성 필요)
+  accessKeySecret:
+    name: aws-credentials
+    accessKeyId: AWS_ACCESS_KEY_ID
+    secretAccessKey: AWS_SECRET_ACCESS_KEY
+
+# -----------------------------------------------------------------------------
+# ClusterSecretStore Configuration
+# -----------------------------------------------------------------------------
+secretStore:
+  name: aws-ssm-parameter-store
+  # ClusterSecretStore는 클러스터 전체에서 사용 가능
+  # SecretStore는 특정 네임스페이스에서만 사용 가능
+
+# -----------------------------------------------------------------------------
+# External Secrets (SSM → K8s Secret 매핑)
+# -----------------------------------------------------------------------------
+externalSecrets:
+  # wealist-shared-secret: 서비스들이 공유하는 시크릿
+  wealistSharedSecret:
+    enabled: true
+    name: wealist-shared-secret
+    refreshInterval: 1h
+    # SSM Parameter path prefix
+    parameterPathPrefix: /wealist/dev
+
+# -----------------------------------------------------------------------------
+# SSM Parameter Paths
+# -----------------------------------------------------------------------------
+# 테라폼에서 생성한 SSM 파라미터 경로
+ssmParameters:
+  googleOAuth:
+    clientId: /wealist/dev/google-oauth/client-id
+    clientSecret: /wealist/dev/google-oauth/client-secret
+  jwt:
+    secret: /wealist/dev/jwt/secret
+  database:
+    superuserPassword: /wealist/dev/database/superuser-password
+    userPassword: /wealist/dev/database/user-password
+    boardPassword: /wealist/dev/database/board-password
+    chatPassword: /wealist/dev/database/chat-password
+    notiPassword: /wealist/dev/database/noti-password
+    storagePassword: /wealist/dev/database/storage-password
+    videoPassword: /wealist/dev/database/video-password
+  redis:
+    password: /wealist/dev/redis/password
+  minio:
+    rootPassword: /wealist/dev/minio/root-password
+    accessKey: /wealist/dev/minio/access-key
+    secretKey: /wealist/dev/minio/secret-key
+  livekit:
+    apiKey: /wealist/dev/livekit/api-key
+    apiSecret: /wealist/dev/livekit/api-secret
+  internal:
+    apiKey: /wealist/dev/internal/api-key

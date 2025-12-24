@@ -1,0 +1,54 @@
+External Secrets Configuration Deployed!
+
+=============================================================================
+사전 설정 (아직 안했다면)
+=============================================================================
+
+1. External Secrets Operator 설치:
+   helm repo add external-secrets https://charts.external-secrets.io
+   helm install external-secrets external-secrets/external-secrets \
+     -n external-secrets --create-namespace
+
+2. AWS 자격 증명 Secret 생성 (Kind 클러스터용):
+   kubectl create secret generic aws-credentials \
+     -n {{ .Values.global.namespace }} \
+     --from-literal=AWS_ACCESS_KEY_ID=<your-access-key> \
+     --from-literal=AWS_SECRET_ACCESS_KEY=<your-secret-key>
+
+=============================================================================
+생성된 리소스
+=============================================================================
+
+ClusterSecretStore: {{ .Values.secretStore.name }}
+  - AWS SSM Parameter Store ({{ .Values.aws.region }})
+
+ExternalSecrets:
+  - {{ .Values.externalSecrets.wealistSharedSecret.name }} (서비스 공유 시크릿)
+  - postgres-secret (PostgreSQL 비밀번호)
+  - minio-secret (MinIO 자격 증명)
+
+=============================================================================
+동기화 확인
+=============================================================================
+
+# ExternalSecret 상태 확인
+kubectl get externalsecrets -n {{ .Values.global.namespace }}
+
+# 생성된 Secret 확인
+kubectl get secrets -n {{ .Values.global.namespace }}
+
+# Secret 값 확인 (base64 디코딩)
+kubectl get secret {{ .Values.externalSecrets.wealistSharedSecret.name }} -n {{ .Values.global.namespace }} -o jsonpath='{.data.GOOGLE_CLIENT_ID}' | base64 -d
+
+=============================================================================
+SSM 파라미터 경로
+=============================================================================
+
+{{ .Values.ssmParameters.googleOAuth.clientId }}
+{{ .Values.ssmParameters.googleOAuth.clientSecret }}
+{{ .Values.ssmParameters.jwt.secret }}
+{{ .Values.ssmParameters.database.superuserPassword }}
+{{ .Values.ssmParameters.redis.password }}
+{{ .Values.ssmParameters.minio.accessKey }}
+{{ .Values.ssmParameters.minio.secretKey }}
+{{ .Values.ssmParameters.internal.apiKey }}
