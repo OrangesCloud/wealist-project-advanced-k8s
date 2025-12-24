@@ -62,9 +62,13 @@ endif
 # Helm values file paths
 HELM_BASE_VALUES = ./k8s/helm/environments/base.yaml
 HELM_ENV_VALUES = ./k8s/helm/environments/$(ENV).yaml
+
+# (선택사항) 로컬 secrets.yaml 파일 - ESO가 기본 시크릿 관리를 담당
+# 시크릿은 AWS SSM Parameter Store → External Secrets Operator로 자동 동기화됨
+# 이 파일은 ESO 외의 추가 시크릿이 필요한 경우에만 사용
 HELM_SECRETS_VALUES = ./k8s/helm/environments/secrets.yaml
 
-# Conditionally add secrets file if it exists
+# Conditionally add secrets file if it exists (optional override)
 HELM_SECRETS_FLAG = $(shell test -f $(HELM_SECRETS_VALUES) && echo "-f $(HELM_SECRETS_VALUES)")
 
 # Services list (all microservices)

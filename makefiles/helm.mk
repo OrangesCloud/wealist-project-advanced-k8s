@@ -48,35 +48,29 @@ helm-validate: ## Helm 종합 검증 실행
 ##@ Helm 설치
 
 # -----------------------------------------------------------------------------
-# secrets 파일 체크 (로컬 환경 공통)
+# ESO (External Secrets Operator) 시크릿 확인
 # -----------------------------------------------------------------------------
-helm-check-secrets: ## secrets.yaml 파일 존재 여부 확인
+helm-check-secrets: ## External Secrets 동기화 상태 확인
 	@echo "=============================================="
-	@echo "  시크릿 파일 확인 중"
+	@echo "  시크릿 확인 (External Secrets Operator)"
 	@echo "=============================================="
-	@if [ "$(ENV)" = "dev" ] || [ "$(ENV)" = "localhost" ] || [ "$(ENV)" = "staging" ] || [ "$(ENV)" = "prod" ]; then \
-		if [ ! -f "./k8s/helm/environments/secrets.yaml" ]; then \
-			echo ""; \
-			echo "❌ 오류: 시크릿 파일이 없습니다!"; \
-			echo ""; \
-			echo "다음 명령어로 시크릿 파일을 생성하세요:"; \
-			echo ""; \
-			echo "  cp ./k8s/helm/environments/secrets.example.yaml ./k8s/helm/environments/secrets.yaml"; \
-			echo ""; \
-			echo "그 후 secrets.yaml 파일을 열어 다음 값들을 설정하세요:"; \
-			echo "  - GOOGLE_CLIENT_ID: Google OAuth 클라이언트 ID"; \
-			echo "  - GOOGLE_CLIENT_SECRET: Google OAuth 클라이언트 시크릿"; \
-			echo "  - JWT_SECRET: JWT 서명용 비밀키 (64자 이상 권장)"; \
-			echo ""; \
-			echo "※ 시크릿 파일은 .gitignore에 포함되어 있어 커밋되지 않습니다."; \
-			echo ""; \
-			exit 1; \
-		else \
-			echo "✅ 시크릿 파일 확인됨: ./k8s/helm/environments/secrets.yaml"; \
-		fi; \
+	@echo ""
+	@echo "ℹ️  시크릿은 AWS SSM Parameter Store에서 ESO를 통해 자동 동기화됩니다."
+	@echo ""
+	@# ExternalSecret 리소스 확인
+	@if kubectl get externalsecrets -n $(K8S_NAMESPACE) >/dev/null 2>&1; then \
+		echo "📋 ExternalSecret 상태:"; \
+		kubectl get externalsecrets -n $(K8S_NAMESPACE) 2>/dev/null || echo "   (아직 생성되지 않음)"; \
+		echo ""; \
+		echo "📋 동기화된 Secret:"; \
+		kubectl get secrets -n $(K8S_NAMESPACE) -l 'reconcile.external-secrets.io/created-by' 2>/dev/null || \
+		kubectl get secrets wealist-shared-secret postgres-secret minio-secret -n $(K8S_NAMESPACE) 2>/dev/null || \
+		echo "   (아직 동기화되지 않음)"; \
 	else \
-		echo "ℹ️  $(ENV) 환경은 시크릿 파일이 선택사항입니다."; \
+		echo "⚠️  ExternalSecret CRD가 없습니다. ESO가 설치되지 않았을 수 있습니다."; \
+		echo "   클러스터 셋업 시 자동으로 설치됩니다: make kind-localhost-setup"; \
 	fi
+	@echo ""
 
 # -----------------------------------------------------------------------------
 # DB 연결 체크 (외부 DB 사용 시 필수, localhost는 내부 Pod 사용으로 스킵)
