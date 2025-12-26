@@ -80,13 +80,13 @@ shared:
     CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
     # S3/MinIO Configuration
     S3_ENDPOINT: "http://minio:9000"
-    S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/minio"
+    S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/api/minio"
     S3_BUCKET: "wealist-files"
     S3_REGION: "ap-northeast-2"
-    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/svc/livekit"
+    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/api/svc/livekit"
     # OAuth2 Redirect URLs
     # Google redirects here after user authenticates (must match Google Console)
-    OAUTH2_CLIENT_REDIRECT_URI: "https://api.dev.wealist.co.kr/oauth2/callback/google"
+    OAUTH2_CLIENT_REDIRECT_URI: "https://api.dev.wealist.co.kr/api/oauth2/callback/google"
     # auth-service redirects here (frontend) after processing OAuth
     OAUTH2_REDIRECT_URL_ENV: "https://dev.wealist.co.kr/oauth/callback"
 
@@ -110,6 +110,21 @@ redis:
   external:
     enabled: true  # 외부 Redis (AWS ElastiCache 등) 사용
     # host/port는 secrets.yaml에서 설정
+
+# -----------------------------------------------------------------------------
+# MinIO 설정 (S3 호환 오브젝트 스토리지)
+# -----------------------------------------------------------------------------
+minio:
+  enabled: true
+  image:
+    repository: minio/minio
+    tag: "latest"
+  # Kind 클러스터: 호스트 머신에 데이터 영속화
+  persistence:
+    enabled: true
+    hostPath:
+      enabled: true
+      path: /data/minio
 
 # -----------------------------------------------------------------------------
 # 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)
@@ -148,21 +163,34 @@ istio:
     # Frontend Pod 라우팅 (비활성화 - CDN 사용)
     frontend:
       enabled: false
-    # Monitoring routes (활성화 - dev.wealist.co.kr/monitoring/*)
+    # MinIO 라우팅
+    minio:
+      enabled: true
+      host: minio
+      port: 9000
+    # Monitoring routes (/api/monitoring/* → 각 서비스로 직접 전달, rewrite 없음)
     monitoring:
       enabled: true
       grafana:
-        prefix: /monitoring/grafana
         host: grafana
         port: 3000
       prometheus:
-        prefix: /monitoring/prometheus
         host: prometheus
         port: 9090
       loki:
-        prefix: /monitoring/loki
         host: loki
         port: 3100
+      # Istio 관측성 도구 (istio-system 네임스페이스)
+      kiali:
+        enabled: true
+        host: kiali
+        namespace: istio-system
+        port: 20001
+      jaeger:
+        enabled: true
+        host: tracing
+        namespace: istio-system
+        port: 80
 
   # mTLS - 서비스 간 암호화
   mtls:
@@ -211,11 +239,11 @@ istio:
       minHealthPercent: 30
 
   # 서비스 간 통신 제어
-  # dev: Zero Trust 정책 적용
+  # dev: Zero Trust 정책 적용 (외부 트래픽만 제한)
   authorizationPolicy:
     enabled: true
     denyAll: true  # dev: 기본 거부 (Zero Trust)
-    allowSameNamespace: false  # dev: 같은 네임스페이스 내 자동 허용 비활성화
+    allowSameNamespace: true  # dev: 같은 네임스페이스 내 서비스 간 통신 허용
 
   # 서비스별 호출 권한 (L7 정책)
   serviceAuthorization:
@@ -254,7 +282,15 @@ prometheus:
     repository: prom/prometheus
     tag: "v2.48.0"
   config:
-    externalUrl: "https://api.dev.wealist.co.kr/monitoring/prometheus"
+    externalUrl: "https://dev.wealist.co.kr/api/monitoring/prometheus"
+    routePrefix: "/api/monitoring/prometheus"
+  # Kind 클러스터: 호스트 머신에 데이터 영속화 (클러스터 재생성 시에도 유지)
+  # Kind extraMounts: /home/musemy/wealist-data → /data (클러스터 재생성 필요)
+  persistence:
+    enabled: true
+    hostPath:
+      enabled: true
+      path: /data/prometheus
 
 # Loki - 로그 수집
 loki:
@@ -278,7 +314,7 @@ grafana:
     tag: "10.2.2"
   config:
     allowSignUp: false
-    rootUrl: "https://api.dev.wealist.co.kr/monitoring/grafana"
+    rootUrl: "https://dev.wealist.co.kr/api/monitoring/grafana"
     serveFromSubPath: "true"
 
 # 모니터링 Ingress (Istio HTTPRoute로 처리)

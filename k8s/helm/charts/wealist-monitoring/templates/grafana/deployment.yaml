@@ -18,6 +18,8 @@ spec:
       labels:
         app: grafana
         app.kubernetes.io/name: grafana
+        # Ambient 모드에서 제외 - Kiali/외부에서 plain HTTP로 접근 가능하도록
+        istio.io/dataplane-mode: none
       annotations:
         checksum/datasources: {{ include (print $.Template.BasePath "/grafana/configmap.yaml") . | sha256sum }}
     spec:

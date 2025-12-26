@@ -21,6 +21,13 @@ terraform {
       version = "~> 5.0"
     }
   }
+  backend "s3" {
+    bucket         = "wealist-tf-state-advanced-k8s"
+    key            = "oidc-iam/terraform.tfstate" # 폴더마다 달라야합니다.
+    region         = "ap-northeast-2"
+    dynamodb_table = "terraform-lock"
+    encrypt        = true
+  }
 }
 
 # -----------------------------------------------------------------------------

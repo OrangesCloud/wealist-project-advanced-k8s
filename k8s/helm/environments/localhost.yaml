@@ -152,11 +152,11 @@ shared:
     ENV: "development"
     LOG_LEVEL: "debug"
     CORS_ORIGINS: "*"
-    S3_PUBLIC_ENDPOINT: "http://localhost:8080/minio"
-    LIVEKIT_WS_URL: "ws://localhost:8080/svc/livekit"
+    S3_PUBLIC_ENDPOINT: "http://localhost:8080/api/minio"
+    LIVEKIT_WS_URL: "ws://localhost:8080/api/svc/livekit"
 
     # OAuth2 리다이렉트 URL (localhost, Kind NodePort 8080)
-    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost:8080/svc/auth/oauth2/callback/google"
+    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost:8080/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "http://localhost:8080/oauth/callback"
 
     # DB 자동 마이그레이션 (내부 DB - 초기 설정 시 활성화)
@@ -209,21 +209,29 @@ istio:
     # Frontend Pod 라우팅 (localhost 환경)
     frontend:
       enabled: true
+    # MinIO 라우팅 (localhost에서는 비활성화)
+    minio:
+      enabled: false
+      host: minio
+      port: 9000
     # Monitoring routes (Grafana, Prometheus, Loki)
+    # HTTPRoute에서 /api/monitoring/* 경로를 그대로 전달 (rewrite 없음)
     monitoring:
       enabled: true
       grafana:
-        prefix: /monitoring/grafana
         host: grafana
         port: 3000
       prometheus:
-        prefix: /monitoring/prometheus
         host: prometheus
         port: 9090
       loki:
-        prefix: /monitoring/loki
         host: loki
         port: 3100
+      # Kiali/Jaeger: localhost에서는 비활성화 (볼 트래픽 없음)
+      kiali:
+        enabled: false
+      jaeger:
+        enabled: false
 
   # mTLS - 서비스 간 암호화
   mtls:
@@ -305,7 +313,8 @@ prometheus:
     repository: localhost:5001/prometheus
     tag: "v2.48.0"
   config:
-    externalUrl: "http://localhost:8080/monitoring/prometheus"
+    externalUrl: "http://localhost:8080/api/monitoring/prometheus"
+    routePrefix: "/api/monitoring/prometheus"
 
 # Loki - 로그 수집
 loki:
@@ -332,7 +341,7 @@ grafana:
     port: 3000
   config:
     allowSignUp: false
-    rootUrl: "http://localhost:8080/monitoring/grafana"
+    rootUrl: "http://localhost:8080/api/monitoring/grafana"
     serveFromSubPath: "true"
 
 # 모니터링 Ingress (nginx - 비활성화)

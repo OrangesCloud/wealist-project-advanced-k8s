@@ -17,11 +17,12 @@ data:
 
     datasources:
       # Prometheus - 메트릭 데이터
+      # routePrefix 설정으로 인해 /api/monitoring/prometheus 경로 필요
       - name: Prometheus
         type: prometheus
         uid: prometheus
         access: proxy
-        url: http://prometheus:9090
+        url: http://prometheus:9090{{ .Values.prometheus.config.routePrefix }}
         isDefault: true
         editable: false
         jsonData:

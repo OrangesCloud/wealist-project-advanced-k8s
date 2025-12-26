@@ -18,6 +18,8 @@ spec:
       labels:
         app: loki
         app.kubernetes.io/name: loki
+        # Ambient 모드에서 제외 - Grafana/외부에서 plain HTTP로 접근 가능하도록
+        istio.io/dataplane-mode: none
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/loki/configmap.yaml") . | sha256sum }}
     spec:

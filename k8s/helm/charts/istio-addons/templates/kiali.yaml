@@ -15,14 +15,24 @@ data:
     deployment:
       accessible_namespaces:
       - '**'
+    # Kubernetes Gateway API 설정 (Istio Ambient 모드용)
+    kubernetes:
+      gateway_api_classes:
+        - class_name: istio
+          name: Istio Gateway
+        - class_name: istio-waypoint
+          name: Istio Waypoint
     external_services:
       prometheus:
-        url: {{ .Values.kiali.prometheus.url }}
+        # wealist-monitoring의 Prometheus (cross-namespace, routePrefix 포함)
+        {{- $monitoringNs := .Values.monitoringNamespace | default .Values.global.namespace | default "wealist-dev" }}
+        url: http://prometheus.{{ $monitoringNs }}:9090/api/monitoring/prometheus
       {{- if .Values.kiali.grafana.enabled }}
       grafana:
         enabled: true
-        url: {{ .Values.kiali.grafana.url }}
-        in_cluster_url: {{ .Values.kiali.grafana.url }}
+        # wealist-monitoring의 Grafana (cross-namespace)
+        url: http://grafana.{{ $monitoringNs }}:3000
+        in_cluster_url: http://grafana.{{ $monitoringNs }}:3000
       {{- end }}
       {{- if .Values.kiali.tracing.enabled }}
       tracing:
@@ -32,8 +42,8 @@ data:
       {{- end }}
     server:
       port: 20001
-      # Sub-path for Gateway access via /monitoring/kiali
-      web_root: /monitoring/kiali
+      # Sub-path for Gateway access via /api/monitoring/kiali
+      web_root: /api/monitoring/kiali
 ---
 # Kiali Deployment
 apiVersion: apps/v1
@@ -89,14 +99,14 @@ spec:
           mountPath: /kiali-configuration
         livenessProbe:
           httpGet:
-            path: /monitoring/kiali/healthz
+            path: /api/monitoring/kiali/healthz
             port: api-port
             scheme: HTTP
           initialDelaySeconds: 5
           periodSeconds: 30
         readinessProbe:
           httpGet:
-            path: /monitoring/kiali/healthz
+            path: /api/monitoring/kiali/healthz
             port: api-port
             scheme: HTTP
           initialDelaySeconds: 5
@@ -150,12 +160,13 @@ rules:
   - pods
   - pods/log
   - pods/proxy
+  - pods/portforward
   - namespaces
   - nodes
   - secrets
   - services
   - replicationcontrollers
-  verbs: ["get", "list", "watch"]
+  verbs: ["get", "list", "watch", "create"]
 - apiGroups: ["extensions", "apps"]
   resources:
   - daemonsets

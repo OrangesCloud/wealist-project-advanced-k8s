@@ -18,6 +18,8 @@ spec:
       labels:
         app: prometheus
         app.kubernetes.io/name: prometheus
+        # Ambient 모드에서 제외 - Kiali/외부에서 plain HTTP로 접근 가능하도록
+        istio.io/dataplane-mode: none
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/prometheus/configmap.yaml") . | sha256sum }}
     spec:
@@ -35,6 +37,10 @@ spec:
             - "--web.enable-lifecycle"
             {{- if .Values.prometheus.config.externalUrl }}
             - "--web.external-url={{ .Values.prometheus.config.externalUrl }}"
+            {{- end }}
+            {{- if .Values.prometheus.config.routePrefix }}
+            - "--web.route-prefix={{ .Values.prometheus.config.routePrefix }}"
+            {{- else }}
             - "--web.route-prefix=/"
             {{- end }}
           ports:
@@ -43,13 +49,13 @@ spec:
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /-/healthy
+              path: {{ .Values.prometheus.config.routePrefix | default "" }}/-/healthy
               port: http
             initialDelaySeconds: 30
             periodSeconds: 15
           readinessProbe:
             httpGet:
-              path: /-/ready
+              path: {{ .Values.prometheus.config.routePrefix | default "" }}/-/ready
               port: http
             initialDelaySeconds: 5
             periodSeconds: 5
@@ -65,14 +71,19 @@ spec:
           configMap:
             name: prometheus-config
         - name: data
-          {{- if .Values.prometheus.persistence.enabled }}
+          {{- if .Values.prometheus.persistence.hostPath.enabled }}
+          # Kind/로컬 환경: 호스트 디렉토리에 데이터 저장
+          hostPath:
+            path: {{ .Values.prometheus.persistence.hostPath.path }}
+            type: DirectoryOrCreate
+          {{- else if .Values.prometheus.persistence.enabled }}
           persistentVolumeClaim:
             claimName: prometheus-pvc
           {{- else }}
           emptyDir: {}
           {{- end }}
 ---
-{{- if .Values.prometheus.persistence.enabled }}
+{{- if and .Values.prometheus.persistence.enabled (not .Values.prometheus.persistence.hostPath.enabled) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

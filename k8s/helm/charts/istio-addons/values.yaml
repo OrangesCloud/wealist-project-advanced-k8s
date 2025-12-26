@@ -8,6 +8,13 @@ namespace: istio-system
 # 서비스 이미지는 AWS ECR에서 pull (별도 환경 설정)
 imageRegistry: ""  # "" = Docker Hub 직접 사용
 
+# =============================================================================
+# 모니터링 네임스페이스 (wealist-monitoring이 설치된 곳)
+# =============================================================================
+# 환경별로 다름: wealist-dev, wealist-localhost 등
+# 환경 파일(dev.yaml, localhost.yaml)에서 global.namespace로 오버라이드됨
+monitoringNamespace: wealist-dev
+
 # Kiali - Service Mesh Dashboard
 kiali:
   enabled: true
@@ -19,11 +26,14 @@ kiali:
     port: 20001
   auth:
     strategy: anonymous  # anonymous, token, openid
+  # wealist-monitoring의 Prometheus 참조 (cross-namespace)
+  # Note: Prometheus has routePrefix configured
   prometheus:
-    url: "http://prometheus:9090"
+    url: ""  # 템플릿에서 동적 생성
+  # wealist-monitoring의 Grafana 참조 (cross-namespace)
   grafana:
     enabled: true
-    url: "http://grafana:3000"
+    url: ""  # 템플릿에서 동적 생성
   tracing:
     enabled: true
     url: "http://jaeger-query:16686"
@@ -51,8 +61,10 @@ jaeger:
     #   port: 9200
 
 # Prometheus - Metrics (Istio telemetry)
+# 참고: wealist-monitoring에서 이미 Prometheus를 설치하므로 여기서는 비활성화
+# Kiali는 wealist-monitoring의 Prometheus를 참조함
 prometheus:
-  enabled: true
+  enabled: false
   image:
     repository: prom/prometheus
     tag: v2.48.0
@@ -62,8 +74,9 @@ prometheus:
   scrapeInterval: 15s
 
 # Grafana - Visualization
+# 참고: wealist-monitoring에서 이미 Grafana를 설치하므로 여기서는 비활성화
 grafana:
-  enabled: true
+  enabled: false
   image:
     repository: grafana/grafana
     tag: "10.2.2"

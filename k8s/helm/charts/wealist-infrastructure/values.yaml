@@ -96,6 +96,44 @@ redis:
       memory: "256Mi"
       cpu: "200m"
 
+# MinIO configuration (S3-compatible object storage)
+minio:
+  enabled: true
+
+  image:
+    repository: minio/minio
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  service:
+    type: ClusterIP
+    port: 9000        # S3 API
+    consolePort: 9001 # Web Console
+
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 10Gi
+    # Kind/로컬 환경용 hostPath 설정
+    hostPath:
+      enabled: false
+      path: /data/minio
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  config:
+    rootUser: "minioadmin"
+    rootPassword: "minioadmin"  # Override in production!
+    defaultBucket: "wealist-files"
+
 # Ingress configuration
 # Note: These are LOCAL/DEV defaults. Production settings should be in
 # helm/environments/prod.yaml or staging.yaml.

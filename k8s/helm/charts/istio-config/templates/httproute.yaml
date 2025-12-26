@@ -24,25 +24,30 @@ spec:
   {{- end }}
   rules:
     # ==========================================================================
-    # OAuth2 Callback (Google OAuth redirects here - must be before /svc/auth)
-    # Path: /oauth2/callback/google → auth-service (no rewrite)
+    # OAuth2 Callback (Google OAuth redirects here)
+    # Path: /api/oauth2/* → rewrite to /oauth2/* → auth-service
     # ==========================================================================
     - matches:
         - path:
             type: PathPrefix
-            value: /oauth2
+            value: /api/oauth2
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /oauth2
       backendRefs:
         - name: auth-service
           port: 8080
 
     # ==========================================================================
-    # API Services (구체적인 경로를 먼저 정의해야 함!)
-    # 각 서비스의 실제 포트를 사용해야 함!
+    # API Services (/api/svc/* → rewrite strip /api/svc/{service} to /)
     # ==========================================================================
     - matches:
         - path:
             type: PathPrefix
-            value: /svc/auth
+            value: /api/svc/auth
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -56,7 +61,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /svc/user
+            value: /api/svc/user
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -70,7 +75,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /svc/board
+            value: /api/svc/board
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -84,7 +89,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /svc/chat
+            value: /api/svc/chat
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -98,7 +103,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /svc/noti
+            value: /api/svc/noti
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -112,7 +117,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /svc/storage
+            value: /api/svc/storage
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -126,7 +131,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /svc/video
+            value: /api/svc/video
       filters:
         - type: URLRewrite
           urlRewrite:
@@ -137,12 +142,34 @@ spec:
         - name: video-service
           port: 8004
 
-    # Monitoring routes
+    # ==========================================================================
+    # MinIO Storage (/api/minio/* → rewrite to /minio/* → minio)
+    # ==========================================================================
+    {{- if .Values.istio.httpRoute.minio.enabled }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/minio
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: {{ .Values.istio.httpRoute.minio.host }}
+          port: {{ .Values.istio.httpRoute.minio.port }}
+    {{- end }}
+
+    # ==========================================================================
+    # Monitoring routes (/api/monitoring/* → pass through, no rewrite)
+    # 각 서비스가 /api/monitoring/* 경로를 직접 처리하도록 설정
+    # ==========================================================================
     {{- if .Values.istio.httpRoute.monitoring.enabled }}
     - matches:
         - path:
             type: PathPrefix
-            value: {{ .Values.istio.httpRoute.monitoring.grafana.prefix }}
+            value: /api/monitoring/grafana
       backendRefs:
         - name: {{ .Values.istio.httpRoute.monitoring.grafana.host }}
           port: {{ .Values.istio.httpRoute.monitoring.grafana.port }}
@@ -150,7 +177,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: {{ .Values.istio.httpRoute.monitoring.prometheus.prefix }}
+            value: /api/monitoring/prometheus
       backendRefs:
         - name: {{ .Values.istio.httpRoute.monitoring.prometheus.host }}
           port: {{ .Values.istio.httpRoute.monitoring.prometheus.port }}
@@ -158,7 +185,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: {{ .Values.istio.httpRoute.monitoring.loki.prefix }}
+            value: /api/monitoring/loki
       backendRefs:
         - name: {{ .Values.istio.httpRoute.monitoring.loki.host }}
           port: {{ .Values.istio.httpRoute.monitoring.loki.port }}
@@ -168,7 +195,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: {{ .Values.istio.httpRoute.monitoring.kiali.prefix }}
+            value: /api/monitoring/kiali
       backendRefs:
         - name: {{ .Values.istio.httpRoute.monitoring.kiali.host }}
           namespace: {{ .Values.istio.httpRoute.monitoring.kiali.namespace }}
@@ -180,7 +207,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: {{ .Values.istio.httpRoute.monitoring.jaeger.prefix }}
+            value: /api/monitoring/jaeger
       backendRefs:
         - name: {{ .Values.istio.httpRoute.monitoring.jaeger.host }}
           namespace: {{ .Values.istio.httpRoute.monitoring.jaeger.namespace }}
