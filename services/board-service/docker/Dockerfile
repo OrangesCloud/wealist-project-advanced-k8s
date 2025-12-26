@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1.4
 # Builder stage - optimized layer caching (2025-12-18)
 FROM public.ecr.aws/docker/library/golang:1.24-bookworm AS builder
-
 # Install build dependencies (cached layer)
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
 

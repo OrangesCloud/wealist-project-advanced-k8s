@@ -4,19 +4,19 @@ name: Build and Push Images to ECR
 on:
   push:
     branches:
-      - service-deploy-dev   # dev 환경 배포
-      - service-deploy-prod  # prod 환경 배포
+      - service-deploy-dev # dev 환경 배포
+      - service-deploy-prod # prod 환경 배포
     paths:
-      - 'services/**'
-      - 'packages/wealist-advanced-go-pkg/**'  # 공통 모듈 변경 감지
+      - "services/**"
+      - "packages/wealist-advanced-go-pkg/**" # 공통 모듈 변경 감지
   workflow_dispatch:
     inputs:
       services:
-        description: 'Services to build (comma-separated, e.g., user-service,board-service). Leave empty for all services.'
+        description: "Services to build (comma-separated, e.g., user-service,board-service). Leave empty for all services."
         required: false
         type: string
       environment:
-        description: 'Target environment'
+        description: "Target environment"
         required: true
         type: choice
         options:
@@ -24,7 +24,7 @@ on:
           - prod
         default: dev
       skip_gitops:
-        description: 'Skip GitOps update trigger'
+        description: "Skip GitOps update trigger"
         required: false
         type: boolean
         default: false
@@ -156,9 +156,9 @@ jobs:
       fail-fast: false
 
     permissions:
-      id-token: write  # OIDC 인증용
+      id-token: write # OIDC 인증용
       contents: read
-      security-events: write  # Trivy 결과를 Security 탭에 올리기 위해 필요
+      security-events: write # Trivy 결과를 Security 탭에 올리기 위해 필요
 
     steps:
       - uses: actions/checkout@v4

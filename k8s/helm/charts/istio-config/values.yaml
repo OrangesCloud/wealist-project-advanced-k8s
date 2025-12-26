@@ -1,0 +1,94 @@
+# Default values for istio-config
+global:
+  namespace: wealist-localhost
+
+istio:
+  enabled: true
+  namespace: wealist-localhost
+
+  httpRoute:
+    enabled: true
+    gatewayRef:
+      name: istio-ingressgateway
+      namespace: istio-system
+    hosts:
+      - "localhost"
+      - "*"
+    frontend:
+      enabled: true
+    minio:
+      enabled: false  # localhost에서는 minio 비활성화
+      host: minio
+      port: 9000
+    monitoring:
+      enabled: true
+      grafana:
+        prefix: /monitoring/grafana
+        host: grafana
+        port: 3000
+      prometheus:
+        prefix: /monitoring/prometheus
+        host: prometheus
+        port: 9090
+      loki:
+        prefix: /monitoring/loki
+        host: loki
+        port: 3100
+      # Istio Observability (istio-system 네임스페이스, setup 시 자동 설치됨)
+      kiali:
+        enabled: true
+        prefix: /monitoring/kiali
+        host: kiali
+        port: 20001
+        namespace: istio-system
+      jaeger:
+        enabled: true
+        prefix: /monitoring/jaeger
+        host: tracing
+        port: 80
+        namespace: istio-system
+
+  mtls:
+    enabled: true
+    mode: PERMISSIVE
+
+  database:
+    postgres:
+      disableMtls: true
+    redis:
+      disableMtls: true
+
+  destinationRules:
+    enabled: true
+    loadBalancer:
+      simple: ROUND_ROBIN
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 10s
+      http:
+        h2UpgradePolicy: DO_NOT_UPGRADE
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 100
+        maxRetries: 3
+    outlierDetection:
+      consecutive5xxErrors: 5
+      consecutiveGatewayErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+
+  authorizationPolicy:
+    enabled: true
+    denyAll: false
+
+  serviceAuthorization:
+    enabled: false
+
+  ambient:
+    enabled: true
+    waypoint:
+      enabled: true
+      name: wealist-waypoint

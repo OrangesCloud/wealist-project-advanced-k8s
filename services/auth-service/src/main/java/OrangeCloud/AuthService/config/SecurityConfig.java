@@ -13,6 +13,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.ForwardedHeaderFilter;
 
 import java.util.Arrays;
 import java.util.List;
@@ -73,5 +74,14 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    /**
+     * X-Forwarded-* 헤더를 처리하여 프록시 뒤에서 HTTPS 스킴을 올바르게 인식
+     * CloudFront/ALB 뒤에서 OAuth2 리다이렉트 URL이 HTTP로 생성되는 문제 해결
+     */
+    @Bean
+    public ForwardedHeaderFilter forwardedHeaderFilter() {
+        return new ForwardedHeaderFilter();
     }
 }
