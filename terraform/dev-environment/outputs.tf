@@ -50,3 +50,39 @@ output "aws_configure_commands" {
 
   EOT
 }
+
+# =============================================================================
+# SSM Parameter Store Outputs
+# =============================================================================
+output "parameter_arns" {
+  description = "Map of parameter names to their ARNs"
+  value       = module.parameters.parameter_arns
+}
+
+output "parameter_names" {
+  description = "List of created parameter names"
+  value       = module.parameters.parameter_names
+}
+
+output "ssm_usage_info" {
+  description = "Information on how to use the SSM parameters"
+  value       = <<-EOT
+
+    # =============================================================================
+    # AWS SSM Parameter Store - 생성된 파라미터
+    # =============================================================================
+
+    파라미터 목록:
+    ${join("\n    ", module.parameters.parameter_names)}
+
+    # AWS CLI로 파라미터 값 확인:
+    aws ssm get-parameter --name "/wealist/dev/google-oauth/client-id" --with-decryption --query Parameter.Value --output text
+
+    # 특정 경로의 모든 파라미터 조회:
+    aws ssm get-parameters-by-path --path "/wealist/dev" --recursive --with-decryption
+
+    # External Secrets Operator에서 사용:
+    # k8s/helm/charts/external-secrets/ 참조
+
+  EOT
+}

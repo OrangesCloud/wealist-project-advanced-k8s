@@ -24,3 +24,54 @@ max_image_count = 30
 
 # 로컬 개발용 IAM User 이름
 iam_user_name = "wealist-dev-ecr-user"
+
+# =============================================================================
+# Secrets - AWS Secrets Manager에 저장될 값들
+# =============================================================================
+# ⚠️ 실제 값으로 교체 후 terraform.tfvars로 저장하세요
+# ⚠️ terraform.tfvars는 절대 git에 커밋하지 마세요!
+
+# -----------------------------------------------------------------------------
+# Google OAuth (https://console.cloud.google.com/apis/credentials)
+# -----------------------------------------------------------------------------
+google_client_id     = "your-google-client-id.apps.googleusercontent.com"
+google_client_secret = "your-google-client-secret"
+
+# -----------------------------------------------------------------------------
+# JWT (최소 32자 이상)
+# -----------------------------------------------------------------------------
+jwt_secret = "your-super-secret-jwt-key-change-this-in-production-min-32-chars"
+
+# -----------------------------------------------------------------------------
+# Database Passwords
+# -----------------------------------------------------------------------------
+db_superuser_password = "postgres_super_password"
+db_user_password      = "user_service_password"
+db_board_password     = "board_service_password"
+db_chat_password      = "chat_service_password"
+db_noti_password      = "noti_service_password"
+db_storage_password   = "storage_service_password"
+db_video_password     = "video_service_password"
+
+# -----------------------------------------------------------------------------
+# Redis
+# -----------------------------------------------------------------------------
+redis_password = "redis_password"
+
+# -----------------------------------------------------------------------------
+# MinIO / S3
+# -----------------------------------------------------------------------------
+minio_root_password = "minioadmin"
+s3_access_key       = "minioadmin"
+s3_secret_key       = "minioadmin"
+
+# -----------------------------------------------------------------------------
+# LiveKit (Video Calls)
+# -----------------------------------------------------------------------------
+livekit_api_key    = "devkey"
+livekit_api_secret = "devsecretkey1234567890abcdefghijk"
+
+# -----------------------------------------------------------------------------
+# Internal API Key (서비스 간 통신)
+# -----------------------------------------------------------------------------
+internal_api_key = "internal-api-key-change-this-in-production"
