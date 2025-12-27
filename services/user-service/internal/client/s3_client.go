@@ -43,9 +43,10 @@ func NewS3Client(cfg *internalConfig.S3Config) (*S3Client, error) {
 				cfg.SecretKey,
 				"",
 			)),
+			//nolint:staticcheck // AWS SDK v2 endpoint resolver deprecation - TODO: migrate to BaseEndpoint
 			config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
-				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-					return aws.Endpoint{
+				func(service, region string, options ...interface{}) (aws.Endpoint, error) { //nolint:staticcheck
+					return aws.Endpoint{ //nolint:staticcheck
 						URL:               cfg.Endpoint,
 						HostnameImmutable: true,
 						SigningRegion:     cfg.Region,
@@ -84,9 +85,10 @@ func NewS3Client(cfg *internalConfig.S3Config) (*S3Client, error) {
 				cfg.SecretKey,
 				"",
 			)),
+			//nolint:staticcheck // AWS SDK v2 endpoint resolver deprecation - TODO: migrate to BaseEndpoint
 			config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
-				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-					return aws.Endpoint{
+				func(service, region string, options ...interface{}) (aws.Endpoint, error) { //nolint:staticcheck
+					return aws.Endpoint{ //nolint:staticcheck
 						URL:               cfg.PublicEndpoint,
 						HostnameImmutable: true,
 						SigningRegion:     cfg.Region,
