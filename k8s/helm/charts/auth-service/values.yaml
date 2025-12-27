@@ -46,6 +46,10 @@ service:
 # Note: Common config (ENV, LOG_LEVEL, REDIS_HOST, REDIS_PORT, CORS_ORIGINS, etc.)
 # comes from helm/environments/*.yaml via shared.config section.
 # Only service-specific values should be defined here.
+#
+# IMPORTANT: SPRING_REDIS_HOST and SPRING_REDIS_PORT are NOT defined here.
+# - Production: Comes from ExternalSecret (AWS Secrets Manager)
+# - Localhost: Comes from localhost.yaml shared.config
 config:
   # Server (service-specific port)
   PORT: "8080"
@@ -53,10 +57,6 @@ config:
 
   # Spring Boot specific
   SPRING_PROFILES_ACTIVE: "production"
-
-  # Redis (Spring Boot uses SPRING_REDIS_* naming convention)
-  SPRING_REDIS_HOST: "redis"
-  SPRING_REDIS_PORT: "6379"
 
   # JWT configuration (service-specific)
   JWT_EXPIRATION: "3600000"  # 1 hour in milliseconds

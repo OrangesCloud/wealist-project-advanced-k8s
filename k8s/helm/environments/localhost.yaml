@@ -169,6 +169,9 @@ shared:
     DB_SSLMODE: "disable"
     REDIS_HOST: "redis"
     REDIS_PORT: "6379"
+    # Spring Boot auth-service uses SPRING_REDIS_* naming convention
+    SPRING_REDIS_HOST: "redis"
+    SPRING_REDIS_PORT: "6379"
 
   # 시크릿 (localhost 환경용)
   secrets:
