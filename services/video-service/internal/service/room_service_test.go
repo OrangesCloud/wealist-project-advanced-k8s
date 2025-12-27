@@ -75,13 +75,7 @@ func TestRoomService_CreateRoomRequest_Validation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// 유효성 검사 로직 테스트
-			hasError := false
-			if tt.req.WorkspaceID == "" {
-				hasError = true
-			}
-			if tt.req.Name == "" {
-				hasError = true
-			}
+			hasError := tt.req.WorkspaceID == "" || tt.req.Name == ""
 
 			assert.Equal(t, tt.wantErr, hasError)
 		})
@@ -310,7 +304,9 @@ func TestRoomService_RoomCodeGeneration(t *testing.T) {
 			return false
 		}
 		for _, c := range code {
-			if !((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+			isUpperAlpha := c >= 'A' && c <= 'Z'
+			isDigit := c >= '0' && c <= '9'
+			if !isUpperAlpha && !isDigit {
 				return false
 			}
 		}

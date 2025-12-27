@@ -28,31 +28,37 @@ externalSecrets:
 # Deployment Settings (Production)
 # -----------------------------------------------------------------------------
 auth-service:
-  replicaCount: 3
+  replicaCount: 2  # Redis only, no DB
+
 board-service:
-  replicaCount: 3
+  replicaCount: 2
   config:
-    DATABASE_URL: "postgresql://board_service:postgres@postgres:5432/wealist_board_service_db?sslmode=require"
+    DB_NAME: "board_db"
+
 user-service:
-  replicaCount: 3
+  replicaCount: 2
   config:
-    DATABASE_URL: "postgresql://user_service:postgres@postgres:5432/wealist_user_service_db?sslmode=require"
+    DB_NAME: "user_db"
+
 chat-service:
-  replicaCount: 3
+  replicaCount: 2
   config:
-    DATABASE_URL: "postgresql://chat_service:postgres@postgres:5432/wealist_chat_service_db?sslmode=require"
+    DB_NAME: "chat_db"
+
 noti-service:
-  replicaCount: 2
+  replicaCount: 1
   config:
-    DATABASE_URL: "postgresql://noti_service:postgres@postgres:5432/wealist_noti_service_db?sslmode=require"
+    DB_NAME: "noti_db"
+
 storage-service:
-  replicaCount: 2
+  replicaCount: 1
   config:
-    DATABASE_URL: "postgresql://storage_service:postgres@postgres:5432/wealist_storage_service_db?sslmode=require"
+    DB_NAME: "storage_db"
+
 video-service:
-  replicaCount: 2
+  replicaCount: 1
   config:
-    DATABASE_URL: "postgresql://video_service:postgres@postgres:5432/wealist_video_service_db?sslmode=require"
+    DB_NAME: "video_db"
 
 image:
   pullPolicy: IfNotPresent
@@ -120,8 +126,15 @@ shared:
   config:
     ENV: "production"
     LOG_LEVEL: "info"
+    # Database - RDS PostgreSQL (hosts from ExternalSecret)
+    POSTGRES_PORT: "5432"
+    DB_PORT: "5432"
+    DB_USER: "wealist_admin"
     DB_AUTO_MIGRATE: "false"  # Production: No auto migration
     DB_SSL_MODE: "require"    # RDS는 SSL 연결 필요
+    DB_SSLMODE: "require"
+    # Redis (hosts from ExternalSecret)
+    REDIS_PORT: "6379"
     CORS_ORIGINS: "https://wealist.co.kr,https://api.wealist.co.kr"
     # Rate Limiting (Application Level - Redis 기반)
     RATE_LIMIT_ENABLED: "true"
@@ -149,23 +162,23 @@ ingress:
 # -----------------------------------------------------------------------------
 # 데이터베이스 설정 (외부 DB 사용 - AWS RDS/ElastiCache)
 # -----------------------------------------------------------------------------
-# host는 prod-secrets.yaml에서 설정 (gitignored)
-# Terraform outputs 참조:
-#   - terraform output -raw rds_address (prod/foundation)
-#   - terraform output -raw redis_endpoint (prod/foundation)
+# DB/Redis 호스트는 AWS Secrets Manager에서 ExternalSecret으로 가져옴
 postgres:
   enabled: false   # 내부 PostgreSQL 비활성화
   external:
     enabled: true  # AWS RDS 사용
     port: 5432
-    # host: prod-secrets.yaml에서 설정
+    # host: ExternalSecret (wealist-shared-secret.DB_HOST)
 
 redis:
   enabled: false   # 내부 Redis 비활성화
   external:
     enabled: true  # AWS ElastiCache 사용
     port: 6379
-    # host: prod-secrets.yaml에서 설정
+    # host: ExternalSecret (wealist-shared-secret.REDIS_HOST)
+
+minio:
+  enabled: false   # S3 사용 (AWS)
 
 # -----------------------------------------------------------------------------
 # 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)

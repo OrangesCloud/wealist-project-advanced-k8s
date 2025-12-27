@@ -55,6 +55,8 @@ func NewChatService(
 // ============================================================
 
 // validateWorkspaceMember는 사용자가 워크스페이스 멤버인지 검증합니다.
+//
+//nolint:unused // Reserved for future workspace validation implementation
 func (s *ChatService) validateWorkspaceMember(ctx context.Context, workspaceID, userID uuid.UUID, token string) error {
 	if s.userClient == nil {
 		s.logger.Warn("UserClient가 설정되지 않음, 워크스페이스 검증 건너뜀")
@@ -322,7 +324,7 @@ func (s *ChatService) SendMessage(ctx context.Context, chatID, userID uuid.UUID,
 	}
 
 	// 채팅방 타임스탬프 업데이트
-	s.chatRepo.UpdateTimestamp(chatID)
+	_ = s.chatRepo.UpdateTimestamp(chatID)
 
 	// 📊 메트릭: 메시지 전송 카운트 증가
 	if s.metrics != nil {

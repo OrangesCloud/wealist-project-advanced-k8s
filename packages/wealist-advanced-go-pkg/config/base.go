@@ -2,6 +2,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -27,6 +28,12 @@ type ServerConfig struct {
 // DatabaseConfig contains database connection configuration.
 type DatabaseConfig struct {
 	URL         string `yaml:"url"`
+	Host        string `yaml:"host"`
+	Port        string `yaml:"port"`
+	User        string `yaml:"user"`
+	Password    string `yaml:"password"`
+	DBName      string `yaml:"dbname"`
+	SSLMode     string `yaml:"sslmode"`
 	AutoMigrate bool   `yaml:"auto_migrate"`
 }
 
@@ -93,9 +100,31 @@ func (c *BaseConfig) LoadFromEnv() {
 		c.Server.LogLevel = logLevel
 	}
 
-	// Database config
+	// Database config - individual components
+	if dbHost := os.Getenv("DB_HOST"); dbHost != "" {
+		c.Database.Host = dbHost
+	}
+	if dbPort := os.Getenv("DB_PORT"); dbPort != "" {
+		c.Database.Port = dbPort
+	}
+	if dbUser := os.Getenv("DB_USER"); dbUser != "" {
+		c.Database.User = dbUser
+	}
+	if dbPassword := os.Getenv("DB_PASSWORD"); dbPassword != "" {
+		c.Database.Password = dbPassword
+	}
+	if dbName := os.Getenv("DB_NAME"); dbName != "" {
+		c.Database.DBName = dbName
+	}
+	if dbSSLMode := os.Getenv("DB_SSLMODE"); dbSSLMode != "" {
+		c.Database.SSLMode = dbSSLMode
+	}
+	// DATABASE_URL takes precedence over individual components
 	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
 		c.Database.URL = dbURL
+	} else if c.Database.Host != "" && c.Database.DBName != "" {
+		// Build DATABASE_URL from individual components
+		c.Database.URL = c.Database.BuildURL()
 	}
 	if autoMigrate := os.Getenv("DB_AUTO_MIGRATE"); autoMigrate != "" {
 		c.Database.AutoMigrate = autoMigrate == "true"
@@ -180,4 +209,18 @@ func GetEnvDuration(key string, defaultValue time.Duration) time.Duration {
 		}
 	}
 	return defaultValue
+}
+
+// BuildURL constructs a PostgreSQL connection URL from individual components.
+func (d *DatabaseConfig) BuildURL() string {
+	port := d.Port
+	if port == "" {
+		port = "5432"
+	}
+	sslmode := d.SSLMode
+	if sslmode == "" {
+		sslmode = "disable"
+	}
+	return fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s",
+		d.User, d.Password, d.Host, port, d.DBName, sslmode)
 }

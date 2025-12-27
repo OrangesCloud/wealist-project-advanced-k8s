@@ -3,7 +3,41 @@
 # =============================================================================
 # External Secrets Operator가 참조할 시크릿들
 # 기존: RDS (자동), Redis AUTH (elasticache.tf)
-# 신규: JWT, Internal API Key, OAuth2, LiveKit
+# 신규: JWT, Internal API Key, OAuth2, LiveKit, DB/Redis Endpoints
+
+# -----------------------------------------------------------------------------
+# Database Endpoint (RDS 호스트 주소)
+# -----------------------------------------------------------------------------
+resource "aws_secretsmanager_secret" "database_endpoint" {
+  name       = "wealist/prod/database/endpoint"
+  kms_key_id = module.kms.key_arn
+
+  tags = local.common_tags
+}
+
+resource "aws_secretsmanager_secret_version" "database_endpoint" {
+  secret_id = aws_secretsmanager_secret.database_endpoint.id
+  secret_string = jsonencode({
+    host = module.rds.db_instance_address
+  })
+}
+
+# -----------------------------------------------------------------------------
+# Redis Endpoint (ElastiCache 호스트 주소)
+# -----------------------------------------------------------------------------
+resource "aws_secretsmanager_secret" "redis_endpoint" {
+  name       = "wealist/prod/redis/endpoint"
+  kms_key_id = module.kms.key_arn
+
+  tags = local.common_tags
+}
+
+resource "aws_secretsmanager_secret_version" "redis_endpoint" {
+  secret_id = aws_secretsmanager_secret.redis_endpoint.id
+  secret_string = jsonencode({
+    host = aws_elasticache_replication_group.redis.primary_endpoint_address
+  })
+}
 
 # -----------------------------------------------------------------------------
 # JWT Secret (자동 생성)

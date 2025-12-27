@@ -116,14 +116,11 @@ shared:
     ENV: "production"
     LOG_LEVEL: "info"
 
-    # Infrastructure URLs (K8s internal DNS)
-    POSTGRES_HOST: "postgres"
+    # Infrastructure URLs - Environment-specific
+    # DB_HOST, REDIS_HOST: Set in environment files (localhost.yaml) or ExternalSecret (prod)
+    # These are NOT set here to avoid overriding ExternalSecret values in prod
     POSTGRES_PORT: "5432"
-    DB_HOST: "postgres"
     DB_PORT: "5432"
-    DB_USER: "postgres"
-    DB_SSLMODE: "disable"
-    REDIS_HOST: "redis"
     REDIS_PORT: "6379"
 
     # Service URLs

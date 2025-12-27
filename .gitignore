@@ -24,6 +24,11 @@ configs/config.yaml
 !configs/config.yaml.example
 
 # ============================================
+# Local Documentation (Issue Tracking)
+# ============================================
+PROD_DEPLOYMENT_ISSUES.md
+
+# ============================================
 # Kubernetes Secrets
 # ============================================
 # Plain text secrets (NEVER commit)

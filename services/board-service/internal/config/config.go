@@ -243,6 +243,9 @@ func (c *Config) overrideFromEnv() {
 	if dbname := os.Getenv("DB_NAME"); dbname != "" {
 		c.Database.DBName = dbname
 	}
+	if sslmode := os.Getenv("DB_SSLMODE"); sslmode != "" {
+		c.Database.SSLMode = sslmode
+	}
 
 	// Database auto-migration
 	if autoMigrate := os.Getenv("DB_AUTO_MIGRATE"); autoMigrate != "" {

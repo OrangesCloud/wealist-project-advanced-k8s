@@ -165,34 +165,6 @@ output "livekit_secret_arn" {
 }
 
 # =============================================================================
-# Bastion Outputs
-# =============================================================================
-output "bastion_instance_id" {
-  description = "Bastion EC2 instance ID for SSM access"
-  value       = aws_instance.bastion.id
-}
-
-output "bastion_private_ip" {
-  description = "Bastion private IP address"
-  value       = aws_instance.bastion.private_ip
-}
-
-output "ssm_start_session_command" {
-  description = "Command to start SSM session to bastion"
-  value       = "aws ssm start-session --target ${aws_instance.bastion.id}"
-}
-
-output "ssm_port_forward_rds_command" {
-  description = "Command to port forward RDS through bastion"
-  value       = "aws ssm start-session --target ${aws_instance.bastion.id} --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters '{\"host\":[\"${module.rds.db_instance_address}\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"5432\"]}'"
-}
-
-output "ssm_port_forward_redis_command" {
-  description = "Command to port forward Redis through bastion"
-  value       = "aws ssm start-session --target ${aws_instance.bastion.id} --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters '{\"host\":[\"${aws_elasticache_replication_group.redis.primary_endpoint_address}\"],\"portNumber\":[\"6379\"],\"localPortNumber\":[\"6379\"]}'"
-}
-
-# =============================================================================
 # Summary for prod/compute
 # =============================================================================
 output "summary" {
@@ -222,10 +194,6 @@ output "summary" {
 
     KMS:
       Key ARN: ${module.kms.key_arn}
-
-    Bastion:
-      Instance ID: ${aws_instance.bastion.id}
-      SSM 접속: aws ssm start-session --target ${aws_instance.bastion.id}
 
     # prod/compute에서 remote_state로 참조:
     # data "terraform_remote_state" "foundation" {
