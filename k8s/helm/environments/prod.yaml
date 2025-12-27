@@ -12,10 +12,11 @@ global:
   namespace: wealist-prod
   environment: production
   domain: wealist.co.kr
-  # imageRegistry는 ArgoCD Application parameters에서 ECR URL로 덮어씁니다
-  # 예: <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
+  # ECR Registry URL - Terraform output 또는 ArgoCD에서 오버라이드
+  # terraform output -raw ecr_registry_url (from prod/foundation)
   imageRegistry: ""
-  # ECR은 IAM 기반 인증 사용 (EKS IRSA)
+  # EKS Pod Identity 사용 - imagePullSecrets 불필요
+imagePullSecrets: []
 
 # -----------------------------------------------------------------------------
 # cert-manager Configuration (Disabled - CloudFront handles SSL termination)
@@ -109,12 +110,14 @@ shared:
     ENV: "production"
     LOG_LEVEL: "info"
     DB_AUTO_MIGRATE: "false"  # Production: No auto migration
+    DB_SSL_MODE: "require"    # RDS는 SSL 연결 필요
     CORS_ORIGINS: "https://wealist.co.kr,https://api.wealist.co.kr"
-    # S3/MinIO Configuration
-    S3_ENDPOINT: ""  # AWS S3 기본 엔드포인트 사용
+    # S3 Configuration (AWS S3 - Terraform: wealist-prod-storage)
+    S3_ENDPOINT: ""  # AWS S3 기본 엔드포인트 사용 (비워두면 AWS SDK 기본값)
     S3_PUBLIC_ENDPOINT: "https://cdn.wealist.co.kr"
-    S3_BUCKET: "wealist-prod-files"
+    S3_BUCKET: "wealist-prod-storage"  # Terraform output: s3_bucket_name
     S3_REGION: "ap-northeast-2"
+    # LiveKit (Video Service)
     LIVEKIT_WS_URL: "wss://wealist.co.kr/svc/livekit"
     # OAuth2 Redirect URLs
     OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/oauth2/callback/google"
@@ -129,23 +132,35 @@ ingress:
 # -----------------------------------------------------------------------------
 # 데이터베이스 설정 (외부 DB 사용 - AWS RDS/ElastiCache)
 # -----------------------------------------------------------------------------
+# host는 prod-secrets.yaml에서 설정 (gitignored)
+# Terraform outputs 참조:
+#   - terraform output -raw rds_address (prod/foundation)
+#   - terraform output -raw redis_endpoint (prod/foundation)
 postgres:
   enabled: false   # 내부 PostgreSQL 비활성화
   external:
-    enabled: true  # 외부 DB (AWS RDS 등) 사용
-    # host/port는 secrets.yaml에서 설정
+    enabled: true  # AWS RDS 사용
+    port: 5432
+    # host: prod-secrets.yaml에서 설정
 
 redis:
   enabled: false   # 내부 Redis 비활성화
   external:
-    enabled: true  # 외부 Redis (AWS ElastiCache 등) 사용
-    # host/port는 secrets.yaml에서 설정
+    enabled: true  # AWS ElastiCache 사용
+    port: 6379
+    # host: prod-secrets.yaml에서 설정
 
 # -----------------------------------------------------------------------------
 # 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)
 # -----------------------------------------------------------------------------
 frontend:
   enabled: false  # Frontend pod 비활성화 (CDN 사용)
+
+# -----------------------------------------------------------------------------
+# MinIO 설정 (비활성화 - AWS S3 사용)
+# -----------------------------------------------------------------------------
+minio:
+  enabled: false  # Production: AWS S3 사용
 
 # -----------------------------------------------------------------------------
 # Istio 서비스 메시 설정
@@ -281,13 +296,14 @@ monitoringIngress:
 # -----------------------------------------------------------------------------
 # 데이터베이스 Exporter (외부 DB 메트릭 수집)
 # -----------------------------------------------------------------------------
+# host는 prod-secrets.yaml에서 설정 (postgres/redis와 동일)
 postgresExporter:
   enabled: true
   image:
     repository: public.ecr.aws/bitnami/postgres-exporter
     tag: "0.15.0"
   config:
-    host: ""  # secrets.yaml에서 설정
+    # host: prod-secrets.yaml에서 설정
     port: 5432
 
 redisExporter:
@@ -296,5 +312,5 @@ redisExporter:
     repository: public.ecr.aws/bitnami/redis-exporter
     tag: "1.55.0"
   config:
-    host: ""  # secrets.yaml에서 설정
+    # host: prod-secrets.yaml에서 설정
     port: 6379
