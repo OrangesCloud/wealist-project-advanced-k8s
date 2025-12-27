@@ -129,6 +129,8 @@ func (m *MockMessageRepository) CountAll() (int64, error) {
 // ============================================================
 
 // newTestChatService는 테스트용 ChatService를 생성합니다.
+//
+//nolint:unused // Test helper for future test cases
 func newTestChatService(chatRepo *MockChatRepository, msgRepo *MockMessageRepository) *ChatService {
 	logger, _ := zap.NewDevelopment()
 	m := metrics.NewForTest()

@@ -71,6 +71,8 @@ func parseUUID(idStr string) (uuid.UUID, error) {
 }
 
 // getQueryInt gets an integer query parameter with default value
+//
+//nolint:unused // Reserved for future use in pagination
 func getQueryInt(c *gin.Context, key string, defaultValue int) int {
 	value := c.Query(key)
 	if value == "" {
@@ -92,6 +94,8 @@ func getQueryInt(c *gin.Context, key string, defaultValue int) int {
 }
 
 // parseIntQuery parses int from query string
+//
+//nolint:unused // Used by getQueryInt
 func parseIntQuery(s string) (int, error) {
 	var n int
 	for _, c := range s {
@@ -119,6 +123,8 @@ func handleUnauthorized(c *gin.Context, message string) {
 }
 
 // handleForbidden handles 403 response
+//
+//nolint:unused // Reserved for future use
 func handleForbidden(c *gin.Context, message string) {
 	respondWithError(c, http.StatusForbidden, "FORBIDDEN", message)
 }

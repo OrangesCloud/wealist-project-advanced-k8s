@@ -48,7 +48,7 @@ func main() {
 
 	// Initialize logger
 	logger := initLogger(cfg.Server.Env, cfg.Server.LogLevel)
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 
 	logger.Info("Starting chat service",
 		zap.String("env", cfg.Server.Env),
@@ -63,7 +63,7 @@ func main() {
 	}
 
 	sqlDB, _ := db.DB()
-	defer sqlDB.Close()
+	defer func() { _ = sqlDB.Close() }()
 
 	// Initialize Redis (for rate limiting)
 	if err := database.InitRedis(logger); err != nil {
@@ -71,7 +71,7 @@ func main() {
 	}
 	redisClient := database.GetRedis()
 	if redisClient != nil {
-		defer redisClient.Close()
+		defer func() { _ = redisClient.Close() }()
 	}
 
 	// Setup router
