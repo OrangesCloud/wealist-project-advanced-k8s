@@ -15,7 +15,7 @@ spec:
   project: wealist-prod
   source:
     repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
-    targetRevision: main
+    targetRevision: k8s-deploy-prod
     path: k8s/helm/charts/db-init
     helm:
       valueFiles:
