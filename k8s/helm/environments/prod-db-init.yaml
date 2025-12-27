@@ -1,0 +1,35 @@
+# =============================================================================
+# DB Init - Production Values
+# =============================================================================
+# RDS PostgreSQL 초기화 설정
+
+database:
+  host: "wealist-prod-postgres.chig8i0o4a8g.ap-northeast-2.rds.amazonaws.com"
+  port: 5432
+  adminUser: wealist_admin
+  adminDatabase: wealist
+
+# 생성할 데이터베이스 목록
+databases:
+  - name: board_db
+    owner: wealist_admin
+  - name: user_db
+    owner: wealist_admin
+  - name: chat_db
+    owner: wealist_admin
+  - name: noti_db
+    owner: wealist_admin
+  - name: storage_db
+    owner: wealist_admin
+  - name: video_db
+    owner: wealist_admin
+
+# PostgreSQL 확장
+extensions:
+  - pg_stat_statements
+  - uuid-ossp
+
+# Secret 참조 (External Secrets에서 생성)
+secretRef:
+  name: wealist-shared-secret
+  passwordKey: DB_PASSWORD

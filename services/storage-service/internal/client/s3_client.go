@@ -35,6 +35,7 @@ func NewS3Client(cfg *internalConfig.S3Config) (*S3Client, error) {
 	// Check if using local MinIO (endpoint is set)
 	if cfg.Endpoint != "" {
 		// MinIO configuration with internal endpoint
+		//nolint:staticcheck // AWS SDK v2 endpoint resolver deprecation - TODO: migrate to BaseEndpoint
 		awsCfg, err = config.LoadDefaultConfig(ctx,
 			config.WithRegion(cfg.Region),
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
@@ -43,8 +44,8 @@ func NewS3Client(cfg *internalConfig.S3Config) (*S3Client, error) {
 				"",
 			)),
 			config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
-				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-					return aws.Endpoint{
+				func(service, region string, options ...interface{}) (aws.Endpoint, error) { //nolint:staticcheck
+					return aws.Endpoint{ //nolint:staticcheck
 						URL:               cfg.Endpoint,
 						HostnameImmutable: true,
 						SigningRegion:     cfg.Region,
@@ -75,6 +76,7 @@ func NewS3Client(cfg *internalConfig.S3Config) (*S3Client, error) {
 	// Create separate presign client with public endpoint for browser-accessible URLs
 	var presignClient *s3.Client
 	if cfg.PublicEndpoint != "" && cfg.Endpoint != "" {
+		//nolint:staticcheck // AWS SDK v2 endpoint resolver deprecation - TODO: migrate to BaseEndpoint
 		publicAwsCfg, err := config.LoadDefaultConfig(ctx,
 			config.WithRegion(cfg.Region),
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
@@ -83,8 +85,8 @@ func NewS3Client(cfg *internalConfig.S3Config) (*S3Client, error) {
 				"",
 			)),
 			config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
-				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-					return aws.Endpoint{
+				func(service, region string, options ...interface{}) (aws.Endpoint, error) { //nolint:staticcheck
+					return aws.Endpoint{ //nolint:staticcheck
 						URL:               cfg.PublicEndpoint,
 						HostnameImmutable: true,
 						SigningRegion:     cfg.Region,

@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: noti-service-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: wealist-dev
+  source:
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-dev
+    path: k8s/helm/charts/noti-service
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../environments/base.yaml
+        - ../../environments/dev.yaml
+      parameters:
+        - name: global.imageRegistry
+<<<<<<< HEAD:k8s/argocd/apps/noti-service.yaml
+          value: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"  # ← CI가 ECR URL로 업데이트
+        - name: image.repository
+          value: "noti-service"
+        - name: image.tag
+          value: "dev-b0cebee"  # ← CI가 여기 업데이트
+=======
+          value: "<AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com"
+        - name: image.repository
+          value: "noti-service"
+        - name: image.tag
+          value: "dev-latest"
+>>>>>>> main:k8s/argocd/apps/dev/noti-service.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wealist-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

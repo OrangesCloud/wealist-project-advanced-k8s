@@ -1,0 +1,51 @@
+{{- if and .Values.istio.enabled .Values.istio.destinationRules.enabled }}
+{{- range .Values.istio.services }}
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: {{ .name }}-dr
+  namespace: {{ $.Values.global.namespace }}
+  labels:
+    {{- include "istio-config.labels" $ | nindent 4 }}
+spec:
+  host: {{ .name }}
+  trafficPolicy:
+    {{- /* Ambient 모드에서는 ztunnel이 mTLS 처리, DestinationRule에서 설정 불필요 */}}
+    {{- if and $.Values.istio.mtls.enabled (not $.Values.istio.ambient.enabled) }}
+    tls:
+      mode: ISTIO_MUTUAL
+    {{- end }}
+    {{- if $.Values.istio.destinationRules.loadBalancer }}
+    loadBalancer:
+      simple: {{ $.Values.istio.destinationRules.loadBalancer.simple }}
+    {{- end }}
+    connectionPool:
+      tcp:
+        maxConnections: {{ $.Values.istio.destinationRules.connectionPool.tcp.maxConnections }}
+        {{- if $.Values.istio.destinationRules.connectionPool.tcp.connectTimeout }}
+        connectTimeout: {{ $.Values.istio.destinationRules.connectionPool.tcp.connectTimeout }}
+        {{- end }}
+      http:
+        h2UpgradePolicy: {{ $.Values.istio.destinationRules.connectionPool.http.h2UpgradePolicy }}
+        http1MaxPendingRequests: {{ $.Values.istio.destinationRules.connectionPool.http.http1MaxPendingRequests }}
+        http2MaxRequests: {{ $.Values.istio.destinationRules.connectionPool.http.http2MaxRequests }}
+        {{- if $.Values.istio.destinationRules.connectionPool.http.maxRequestsPerConnection }}
+        maxRequestsPerConnection: {{ $.Values.istio.destinationRules.connectionPool.http.maxRequestsPerConnection }}
+        {{- end }}
+        {{- if $.Values.istio.destinationRules.connectionPool.http.maxRetries }}
+        maxRetries: {{ $.Values.istio.destinationRules.connectionPool.http.maxRetries }}
+        {{- end }}
+    outlierDetection:
+      consecutive5xxErrors: {{ $.Values.istio.destinationRules.outlierDetection.consecutive5xxErrors }}
+      {{- if $.Values.istio.destinationRules.outlierDetection.consecutiveGatewayErrors }}
+      consecutiveGatewayErrors: {{ $.Values.istio.destinationRules.outlierDetection.consecutiveGatewayErrors }}
+      {{- end }}
+      interval: {{ $.Values.istio.destinationRules.outlierDetection.interval }}
+      baseEjectionTime: {{ $.Values.istio.destinationRules.outlierDetection.baseEjectionTime }}
+      maxEjectionPercent: {{ $.Values.istio.destinationRules.outlierDetection.maxEjectionPercent }}
+      {{- if $.Values.istio.destinationRules.outlierDetection.minHealthPercent }}
+      minHealthPercent: {{ $.Values.istio.destinationRules.outlierDetection.minHealthPercent }}
+      {{- end }}
+{{- end }}
+{{- end }}

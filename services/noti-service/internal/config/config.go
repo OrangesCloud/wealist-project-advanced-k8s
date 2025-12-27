@@ -56,7 +56,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Override with environment variables (common config)
-	cfg.BaseConfig.LoadFromEnv()
+	cfg.LoadFromEnv()
 
 	// Service-specific environment variables
 	if apiKey := os.Getenv("INTERNAL_API_KEY"); apiKey != "" {

@@ -4,6 +4,11 @@
 # shared.config are defined in helm/environments/*.yaml files, NOT here.
 # This file contains only infrastructure-specific configuration (postgres, redis, ingress).
 
+# External Secrets Operator configuration
+# When enabled, secrets are fetched from AWS Secrets Manager instead of Helm values
+externalSecrets:
+  enabled: false  # Enable in prod.yaml for AWS Secrets Manager integration
+
 # PostgreSQL configuration
 postgres:
   enabled: true

@@ -75,13 +75,13 @@ func NewHub(
 func (h *Hub) subscribeToRedis() {
 	ctx := context.Background()
 	pubsub := h.redis.PSubscribe(ctx, "chat:*")
-	defer pubsub.Close()
+	defer func() { _ = pubsub.Close() }()
 
 	ch := pubsub.Channel()
 	for msg := range ch {
 		// Parse chat ID from channel name
 		var chatIDStr string
-		fmt.Sscanf(msg.Channel, "chat:%s", &chatIDStr)
+		_, _ = fmt.Sscanf(msg.Channel, "chat:%s", &chatIDStr)
 		chatID, err := uuid.Parse(chatIDStr)
 		if err != nil {
 			continue
@@ -147,7 +147,7 @@ func (h *Hub) HandleChatWebSocket(c *gin.Context) {
 	h.registerClient(client)
 
 	// Set user online
-	h.presenceService.SetUserOnline(c.Request.Context(), userID, chat.WorkspaceID)
+	_ = h.presenceService.SetUserOnline(c.Request.Context(), userID, chat.WorkspaceID)
 
 	go client.writePump()
 	go client.readPump()
@@ -193,7 +193,7 @@ func (h *Hub) unregisterClient(client *Client) {
 		if len(clients) == 0 {
 			delete(h.userConnections, client.UserID)
 			// User has no more connections, set offline
-			h.presenceService.SetUserOffline(context.Background(), client.UserID, client.WorkspaceID)
+			_ = h.presenceService.SetUserOffline(context.Background(), client.UserID, client.WorkspaceID)
 		}
 	}
 
@@ -238,13 +238,13 @@ func (h *Hub) SendToUser(userID uuid.UUID, message []byte) {
 func (c *Client) readPump() {
 	defer func() {
 		c.Hub.unregisterClient(c)
-		c.Conn.Close()
+		_ = c.Conn.Close()
 	}()
 
 	c.Conn.SetReadLimit(512 * 1024) // 512KB
-	c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	_ = c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	c.Conn.SetPongHandler(func(string) error {
-		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		_ = c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
 
@@ -265,15 +265,15 @@ func (c *Client) writePump() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
 		ticker.Stop()
-		c.Conn.Close()
+		_ = c.Conn.Close()
 	}()
 
 	for {
 		select {
 		case message, ok := <-c.Send:
-			c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			_ = c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if !ok {
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				_ = c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
@@ -281,11 +281,11 @@ func (c *Client) writePump() {
 			if err != nil {
 				return
 			}
-			w.Write(message)
-			w.Close()
+			_, _ = w.Write(message)
+			_ = w.Close()
 
 		case <-ticker.C:
-			c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			_ = c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -362,8 +362,8 @@ func (c *Client) handleMessage(data []byte) {
 			return
 		}
 
-		c.Hub.chatService.MarkMessagesAsRead(ctx, []uuid.UUID{messageID}, c.UserID)
-		c.Hub.chatService.UpdateLastReadAt(ctx, c.ChatID, c.UserID)
+		_ = c.Hub.chatService.MarkMessagesAsRead(ctx, []uuid.UUID{messageID}, c.UserID)
+		_ = c.Hub.chatService.UpdateLastReadAt(ctx, c.ChatID, c.UserID)
 
 		response, _ := json.Marshal(map[string]interface{}{
 			"type":      "MESSAGE_READ",
@@ -424,7 +424,7 @@ func (h *Hub) HandlePresenceWebSocket(c *gin.Context) {
 	h.registerPresenceClient(client)
 
 	// Set user online (with nil workspaceID for global presence)
-	h.presenceService.SetUserOnline(c.Request.Context(), userID, uuid.Nil)
+	_ = h.presenceService.SetUserOnline(c.Request.Context(), userID, uuid.Nil)
 
 	h.logger.Info("Presence client connected", zap.String("userId", userID.String()))
 
@@ -457,7 +457,7 @@ func (h *Hub) unregisterPresenceClient(client *PresenceClient) {
 		if len(clients) == 0 {
 			delete(presenceClients.clients, client.UserID)
 			// User has no more presence connections, set offline
-			h.presenceService.SetUserOffline(context.Background(), client.UserID, uuid.Nil)
+			_ = h.presenceService.SetUserOffline(context.Background(), client.UserID, uuid.Nil)
 			h.logger.Info("Presence client disconnected - user now offline", zap.String("userId", client.UserID.String()))
 		}
 	}
@@ -468,13 +468,13 @@ func (h *Hub) unregisterPresenceClient(client *PresenceClient) {
 func (pc *PresenceClient) presenceReadPump() {
 	defer func() {
 		pc.Hub.unregisterPresenceClient(pc)
-		pc.Conn.Close()
+		_ = pc.Conn.Close()
 	}()
 
 	pc.Conn.SetReadLimit(512 * 1024) // 512KB
-	pc.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	_ = pc.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	pc.Conn.SetPongHandler(func(string) error {
-		pc.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		_ = pc.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
 
@@ -494,7 +494,7 @@ func (pc *PresenceClient) presenceReadPump() {
 		if err := json.Unmarshal(message, &msg); err == nil {
 			if msg.Type == "heartbeat" {
 				// Refresh presence
-				pc.Hub.presenceService.SetUserOnline(context.Background(), pc.UserID, uuid.Nil)
+				_ = pc.Hub.presenceService.SetUserOnline(context.Background(), pc.UserID, uuid.Nil)
 				// Send pong
 				response, _ := json.Marshal(map[string]string{"type": "pong"})
 				select {
@@ -510,15 +510,15 @@ func (pc *PresenceClient) presenceWritePump() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
 		ticker.Stop()
-		pc.Conn.Close()
+		_ = pc.Conn.Close()
 	}()
 
 	for {
 		select {
 		case message, ok := <-pc.Send:
-			pc.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			_ = pc.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if !ok {
-				pc.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				_ = pc.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
@@ -526,11 +526,11 @@ func (pc *PresenceClient) presenceWritePump() {
 			if err != nil {
 				return
 			}
-			w.Write(message)
-			w.Close()
+			_, _ = w.Write(message)
+			_ = w.Close()
 
 		case <-ticker.C:
-			pc.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			_ = pc.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := pc.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}

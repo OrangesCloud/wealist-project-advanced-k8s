@@ -1,0 +1,14 @@
+# =============================================================================
+# Production ECR Registry Configuration (Example)
+# =============================================================================
+# 이 파일을 prod-registry.yaml로 복사하고 실제 값을 입력하세요.
+# prod-registry.yaml은 gitignored입니다.
+#
+# AWS Account ID 확인:
+#   aws sts get-caller-identity --query Account --output text
+#
+# ECR 레지스트리 URL 형식:
+#   <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
+
+global:
+  imageRegistry: "<AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com"

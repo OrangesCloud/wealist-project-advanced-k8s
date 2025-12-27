@@ -1,0 +1,142 @@
+{{- if and .Values.enabled .Values.virtualService.enabled }}
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: wealist-routes
+  namespace: {{ include "istio-config.namespace" . }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  hosts:
+  {{- range .Values.virtualService.hosts }}
+  - {{ . | quote }}
+  {{- end }}
+  gateways:
+  - {{ .Values.gateway.name }}
+  http:
+  # Auth Service routes (OAuth paths)
+  - match:
+    - uri:
+        prefix: /oauth2
+    - uri:
+        prefix: /login/oauth2
+    route:
+    - destination:
+        host: {{ .Values.virtualService.routes.auth.host }}
+        port:
+          number: {{ .Values.virtualService.routes.auth.port }}
+    timeout: {{ .Values.virtualService.routes.auth.timeout }}
+    retries:
+      attempts: {{ .Values.retryPolicy.attempts }}
+      perTryTimeout: {{ .Values.retryPolicy.perTryTimeout }}
+      retryOn: {{ .Values.retryPolicy.retryOn }}
+
+  # Auth Service
+  - match:
+    - uri:
+        prefix: {{ .Values.virtualService.routes.auth.prefix }}
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: {{ .Values.virtualService.routes.auth.host }}
+        port:
+          number: {{ .Values.virtualService.routes.auth.port }}
+    timeout: {{ .Values.virtualService.routes.auth.timeout }}
+    retries:
+      attempts: {{ .Values.retryPolicy.attempts }}
+      perTryTimeout: {{ .Values.retryPolicy.perTryTimeout }}
+      retryOn: {{ .Values.retryPolicy.retryOn }}
+
+  # User Service
+  - match:
+    - uri:
+        prefix: {{ .Values.virtualService.routes.user.prefix }}
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: {{ .Values.virtualService.routes.user.host }}
+        port:
+          number: {{ .Values.virtualService.routes.user.port }}
+    timeout: {{ .Values.virtualService.routes.user.timeout }}
+    retries:
+      attempts: {{ .Values.retryPolicy.attempts }}
+      perTryTimeout: {{ .Values.retryPolicy.perTryTimeout }}
+      retryOn: {{ .Values.retryPolicy.retryOn }}
+
+  # Board Service (WebSocket support)
+  - match:
+    - uri:
+        prefix: {{ .Values.virtualService.routes.board.prefix }}
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: {{ .Values.virtualService.routes.board.host }}
+        port:
+          number: {{ .Values.virtualService.routes.board.port }}
+    timeout: {{ .Values.virtualService.routes.board.timeout }}
+
+  # Chat Service (WebSocket support)
+  - match:
+    - uri:
+        prefix: {{ .Values.virtualService.routes.chat.prefix }}
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: {{ .Values.virtualService.routes.chat.host }}
+        port:
+          number: {{ .Values.virtualService.routes.chat.port }}
+    timeout: {{ .Values.virtualService.routes.chat.timeout }}
+
+  # Noti Service (SSE support)
+  - match:
+    - uri:
+        prefix: {{ .Values.virtualService.routes.noti.prefix }}
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: {{ .Values.virtualService.routes.noti.host }}
+        port:
+          number: {{ .Values.virtualService.routes.noti.port }}
+    timeout: {{ .Values.virtualService.routes.noti.timeout }}
+
+  # Storage Service
+  - match:
+    - uri:
+        prefix: {{ .Values.virtualService.routes.storage.prefix }}
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: {{ .Values.virtualService.routes.storage.host }}
+        port:
+          number: {{ .Values.virtualService.routes.storage.port }}
+    timeout: {{ .Values.virtualService.routes.storage.timeout }}
+
+  # Video Service
+  - match:
+    - uri:
+        prefix: {{ .Values.virtualService.routes.video.prefix }}
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: {{ .Values.virtualService.routes.video.host }}
+        port:
+          number: {{ .Values.virtualService.routes.video.port }}
+    timeout: {{ .Values.virtualService.routes.video.timeout }}
+
+  # Frontend (catch-all - must be last)
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: frontend
+        port:
+          number: 80
+{{- end }}

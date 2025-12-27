@@ -1,0 +1,76 @@
+{{- if and .Values.enabled .Values.jwtAuth.enabled }}
+{{- $namespace := include "istio-config.namespace" . }}
+
+# JWT Authentication at mesh level
+# This validates JWT tokens issued by auth-service
+apiVersion: security.istio.io/v1
+kind: RequestAuthentication
+metadata:
+  name: jwt-auth
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  # Apply to all workloads in namespace (not just labeled ones)
+  jwtRules:
+  - issuer: {{ .Values.jwtAuth.issuer | quote }}
+    {{- if .Values.jwtAuth.jwksUri }}
+    jwksUri: {{ .Values.jwtAuth.jwksUri | quote }}
+    {{- end }}
+    # Forward the original token to upstream services
+    forwardOriginalToken: true
+    # Output JWT payload to header for services to use
+    outputPayloadToHeader: x-jwt-payload
+    # Where to look for JWT (Authorization: Bearer <token>)
+    fromHeaders:
+    - name: Authorization
+      prefix: "Bearer "
+    # Also check cookies for WebSocket connections
+    fromCookies:
+    - access_token
+
+---
+# JWT enforcement policy for protected services
+# Services that require valid JWT must have label: istio-jwt=enabled
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: require-jwt-protected
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      istio-jwt: enabled
+  action: ALLOW
+  rules:
+  # Allow requests with valid JWT from our issuer
+  - from:
+    - source:
+        requestPrincipals:
+        - "{{ .Values.jwtAuth.issuer }}/*"
+  # Allow public paths without JWT (health checks, auth endpoints)
+  {{- if .Values.jwtAuth.excludePaths }}
+  - to:
+    - operation:
+        paths:
+        {{- range .Values.jwtAuth.excludePaths }}
+        - {{ . | quote }}
+        {{- end }}
+  {{- end }}
+  # Allow internal service-to-service calls (mTLS authenticated)
+  - from:
+    - source:
+        namespaces:
+        - {{ $namespace }}
+
+---
+# Note: To enable JWT validation for a service, add this label:
+#   metadata:
+#     labels:
+#       istio-jwt: enabled
+#
+# Services without this label will NOT require JWT validation at Istio level
+# (they still need to validate tokens in their own code)
+{{- end }}

@@ -45,7 +45,7 @@ argo-help: ## [ArgoCD] 도움말 표시
 	@echo "  SEALED_SECRETS_KEY=$(SEALED_SECRETS_KEY)"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-all-simple: cluster-up bootstrap ## 전체 프로세스 (클러스터 → Helm Infra → Bootstrap → 배포)
+argo-setup:  bootstrap ## argocd만 설치
 	@echo ""
 	@echo -e "$(GREEN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
 	@echo -e "$(GREEN)✅ 전체 배포 완료!$(NC)"

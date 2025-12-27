@@ -12,38 +12,58 @@ global:
   namespace: wealist-prod
   environment: production
   domain: wealist.co.kr
-  # imageRegistry는 ArgoCD Application parameters에서 ECR URL로 덮어씁니다
-  # 예: <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
-  imageRegistry: ""
-  # ECR은 IAM 기반 인증 사용 (EKS IRSA)
+  # ECR Registry URL
+  imageRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
+  # EKS Pod Identity 사용 - imagePullSecrets 불필요
+imagePullSecrets: []
 
 # -----------------------------------------------------------------------------
-# cert-manager Configuration (Disabled - CloudFront handles SSL termination)
+# External Secrets Operator (AWS Secrets Manager 연동)
 # -----------------------------------------------------------------------------
-certManager:
-  enabled: false
-  # Note: SSL is handled by CloudFront, K8s receives HTTP only
+# Production 환경에서는 ESO를 통해 AWS Secrets Manager에서 시크릿 가져옴
+externalSecrets:
+  enabled: true
 
 # -----------------------------------------------------------------------------
 # Deployment Settings (Production)
 # -----------------------------------------------------------------------------
 auth-service:
-  replicaCount: 3
+  replicaCount: 1  # Redis only, reduced for resource constraints
+  config:
+    SPRING_DATA_REDIS_SSL_ENABLED: "true"  # ElastiCache TLS
+
 board-service:
-  replicaCount: 3
+  replicaCount: 2
+  config:
+    DB_NAME: "board_db"
+
 user-service:
-  replicaCount: 3
+  replicaCount: 2
+  config:
+    DB_NAME: "user_db"
+
 chat-service:
-  replicaCount: 3
+  replicaCount: 2
+  config:
+    DB_NAME: "chat_db"
+
 noti-service:
-  replicaCount: 2
+  replicaCount: 1
+  config:
+    DB_NAME: "noti_db"
+
 storage-service:
-  replicaCount: 2
+  replicaCount: 1
+  config:
+    DB_NAME: "storage_db"
+
 video-service:
-  replicaCount: 2
+  replicaCount: 1
+  config:
+    DB_NAME: "video_db"
 
 image:
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: "latest"
 
 # -----------------------------------------------------------------------------
@@ -108,13 +128,28 @@ shared:
   config:
     ENV: "production"
     LOG_LEVEL: "info"
+    # Database - RDS PostgreSQL (hosts from ExternalSecret)
+    POSTGRES_PORT: "5432"
+    DB_PORT: "5432"
+    DB_USER: "wealist_admin"
     DB_AUTO_MIGRATE: "false"  # Production: No auto migration
+    DB_SSL_MODE: "require"    # RDS는 SSL 연결 필요
+    DB_SSLMODE: "require"
+    # Redis (hosts from ExternalSecret)
+    REDIS_PORT: "6379"
     CORS_ORIGINS: "https://wealist.co.kr,https://api.wealist.co.kr"
-    # S3/MinIO Configuration
-    S3_ENDPOINT: ""  # AWS S3 기본 엔드포인트 사용
+    # Rate Limiting (Application Level - Redis 기반)
+    RATE_LIMIT_ENABLED: "true"
+    RATE_LIMIT_PER_MINUTE: "60"
+    RATE_LIMIT_BURST: "10"
+    # Istio JWT Mode (Istio가 JWT 검증, Go 서비스는 파싱만)
+    ISTIO_JWT_MODE: "true"
+    # S3 Configuration (AWS S3 - Terraform: wealist-prod-storage)
+    S3_ENDPOINT: ""  # AWS S3 기본 엔드포인트 사용 (비워두면 AWS SDK 기본값)
     S3_PUBLIC_ENDPOINT: "https://cdn.wealist.co.kr"
-    S3_BUCKET: "wealist-prod-files"
+    S3_BUCKET: "wealist-prod-storage"  # Terraform output: s3_bucket_name
     S3_REGION: "ap-northeast-2"
+    # LiveKit (Video Service)
     LIVEKIT_WS_URL: "wss://wealist.co.kr/svc/livekit"
     # OAuth2 Redirect URLs
     OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/oauth2/callback/google"
@@ -129,17 +164,23 @@ ingress:
 # -----------------------------------------------------------------------------
 # 데이터베이스 설정 (외부 DB 사용 - AWS RDS/ElastiCache)
 # -----------------------------------------------------------------------------
+# DB/Redis 호스트는 AWS Secrets Manager에서 ExternalSecret으로 가져옴
 postgres:
   enabled: false   # 내부 PostgreSQL 비활성화
   external:
-    enabled: true  # 외부 DB (AWS RDS 등) 사용
-    # host/port는 secrets.yaml에서 설정
+    enabled: true  # AWS RDS 사용
+    port: 5432
+    # host: ExternalSecret (wealist-shared-secret.DB_HOST)
 
 redis:
   enabled: false   # 내부 Redis 비활성화
   external:
-    enabled: true  # 외부 Redis (AWS ElastiCache 등) 사용
-    # host/port는 secrets.yaml에서 설정
+    enabled: true  # AWS ElastiCache 사용
+    port: 6379
+    # host: ExternalSecret (wealist-shared-secret.REDIS_HOST)
+
+minio:
+  enabled: false   # S3 사용 (AWS)
 
 # -----------------------------------------------------------------------------
 # 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)
@@ -281,13 +322,14 @@ monitoringIngress:
 # -----------------------------------------------------------------------------
 # 데이터베이스 Exporter (외부 DB 메트릭 수집)
 # -----------------------------------------------------------------------------
+# host는 prod-secrets.yaml에서 설정 (postgres/redis와 동일)
 postgresExporter:
   enabled: true
   image:
     repository: public.ecr.aws/bitnami/postgres-exporter
     tag: "0.15.0"
   config:
-    host: ""  # secrets.yaml에서 설정
+    # host: prod-secrets.yaml에서 설정
     port: 5432
 
 redisExporter:
@@ -296,5 +338,5 @@ redisExporter:
     repository: public.ecr.aws/bitnami/redis-exporter
     tag: "1.55.0"
   config:
-    host: ""  # secrets.yaml에서 설정
+    # host: prod-secrets.yaml에서 설정
     port: 6379

@@ -1,43 +1,97 @@
-
 # Terraform Infrastructure
 
-weAlist 프로젝트의 AWS 인프라를 관리하는 Terraform 설정입니다.
-**협업을 위해 Terraform State를 S3 Backend로 관리**하며, 프론트엔드 및 백엔드 리소스를 계층별로 분리하여 구성합니다.
+weAlist 프로젝트의 AWS 인프라를 관리하는 Terraform 구성입니다.
 
-## 📂 디렉토리 구조
-
+## 디렉토리 구조
 
 ```
-
 terraform/
-├── modules/                    # [재사용 모듈]
-│   ├── github-oidc/           # GitHub OIDC Provider + IAM Role
-│   ├── ecr/                   # ECR 리포지토리
-│   └── ssm-parameter/         # SSM Parameter Store (시크릿 저장)
-│
-├── oidc-iam/                  # [1단계: 인증] GitHub Actions용 OIDC/IAM
-│   └── GitHub Actions가 AWS에 접근하기 위한 인증 설정 (S3 Backend)
-│
-├── dev-environment/           # [2단계: 개발환경] 로컬 PC Dev 환경
-│   ├── 개발자용 ECR 접근 권한(IAM User) + 리포지토리 생성 (S3 Backend)
-│   └── SSM Parameter Store (시크릿)
-│
-└── web-infra/                 # [3단계: 프론트엔드] 정적 웹 호스팅
-    └── S3 + CloudFront (OAC) + Route53 (S3 Backend)
+├── modules/                    # 재사용 가능한 Terraform 모듈
+│   ├── ecr/                    # ECR 저장소 모듈
+│   ├── github-oidc/            # GitHub Actions OIDC 인증 모듈
+│   ├── pod-identity/           # EKS Pod Identity 모듈
+│   └── ssm-parameter/          # SSM Parameter Store 모듈
+├── global/                     # 전역 리소스 (환경 간 공유)
+│   └── oidc-iam/               # GitHub Actions OIDC IAM 역할
+├── dev/                        # 개발 환경
+│   └── foundation/             # ECR 저장소
+├── prod/                       # 프로덕션 환경
+│   ├── foundation/             # VPC, RDS, Redis, ECR, S3, KMS
+│   └── compute/                # EKS, Node Groups, Pod Identity
+└── web-infra/                  # 정적 웹사이트 인프라
 ```
 
-## ✅ 사전 요구사항
+## 환경별 설명
 
-1.  **Terraform** >= 1.0
-2.  **AWS CLI** (AdministratorAccess 권한이 있는 프로필 필수)
-3.  **Terraform State 저장용 S3 버킷** (최초 1회 생성 필요)
+| 환경 | 용도 | 주요 리소스 |
+|------|------|-------------|
+| global | 환경 간 공유 리소스 | GitHub OIDC IAM |
+| dev | 개발 환경 | ECR 저장소 |
+| prod | 프로덕션 환경 | VPC, EKS, RDS, Redis, S3 |
 
----
+## 배포 순서
 
-## 🚀 초기 설정 (One-time Setup)
+### 1. 전역 리소스 배포
 
-Terraform 상태 파일(`terraform.tfstate`)을 팀원들과 공유하기 위해 S3 버킷이 필요합니다.
-추후 다른 AWS환경에서 최초 실행시 **관리자 권한**으로 아래 명령어를 1회만 실행해주세요.
+```bash
+cd terraform/global/oidc-iam
+terraform init
+terraform plan
+terraform apply
+```
+
+### 2. 프로덕션 Foundation 배포 (약 15-20분)
+
+```bash
+cd terraform/prod/foundation
+terraform init
+terraform plan
+terraform apply
+```
+
+### 3. 프로덕션 Compute 배포 (약 15-20분)
+
+```bash
+cd terraform/prod/compute
+terraform init
+terraform plan
+terraform apply
+```
+
+### 4. Post-Terraform 설정
+
+EKS 클러스터 생성 후 추가 설정:
+
+```bash
+# kubeconfig 설정
+aws eks update-kubeconfig --name wealist-prod-eks --region ap-northeast-2
+
+# Gateway API CRDs 설치 (Istio Ambient 필수)
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+
+# Istio Ambient 설치
+istioctl install --set profile=ambient -y
+
+# 네임스페이스 생성 및 Ambient 활성화
+kubectl create namespace wealist-prod
+kubectl label namespace wealist-prod istio.io/dataplane-mode=ambient
+```
+
+## State 관리
+
+모든 Terraform 상태는 S3에 저장됩니다:
+
+| 디렉토리 | State 경로 |
+|----------|-----------|
+| global/oidc-iam | `s3://wealist-tf-state-advanced-k8s/global/oidc-iam/terraform.tfstate` |
+| dev/foundation | `s3://wealist-tf-state-advanced-k8s/dev/foundation/terraform.tfstate` |
+| prod/foundation | `s3://wealist-tf-state-advanced-k8s/prod/foundation/terraform.tfstate` |
+| prod/compute | `s3://wealist-tf-state-advanced-k8s/prod/compute/terraform.tfstate` |
+
+### 초기 설정 (One-time Setup)
+
+Terraform 상태 파일을 팀원들과 공유하기 위해 S3 버킷이 필요합니다.
+**관리자 권한**으로 아래 명령어를 1회만 실행해주세요.
 
 ```bash
 # 1. 상태 저장용 S3 버킷 생성 (이름은 고유해야 함)
@@ -53,164 +107,143 @@ aws dynamodb create-table \
     --key-schema AttributeName=LockID,KeyType=HASH \
     --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
     --region ap-northeast-2
-    
 ```
 
----
-
-## 🛠️ 사용 방법
-
-> **⚠️ 중요:** 인프라 배포(`terraform apply`)는 권한이 있는 **관리자(Default) 프로필**로 실행해야 합니다. (`wealist-dev` 프로필은 개발용입니다.)
-
-### 1. OIDC/IAM 설정 (GitHub Actions용)
-
-GitHub Actions에서 AWS에 접근하기 위한 권한(OIDC Provider, IAM Role)을 생성합니다.
+### State 백업
 
 ```bash
-cd terraform/oidc-iam
-
-# 1. 변수 파일 생성 및 편집 (aws_account_id 입력)
-cp terraform.tfvars.example terraform.tfvars
-
-# 2. Terraform 실행
-terraform init  # S3 Backend 연결
-terraform apply
-
-# 3. [GitHub Secrets 등록] 출력된 값을 GitHub Repo Settings에 등록
-# AWS_ROLE_ARN: terraform output github_actions_role_arn
-# AWS_ACCOUNT_ID: 본인 AWS Account ID
-
+# 전체 백업
+aws s3 cp s3://wealist-tf-state-advanced-k8s/ ./terraform-state-backup/ --recursive
 ```
 
-### 2. Dev 환경 설정 (개발자 ECR 접근용)
+## 예상 비용 (월간)
 
-개발자가 로컬 PC에서 ECR에 이미지를 푸시할 때 사용할 IAM 유저(`wealist-dev`)를 생성합니다.
+### 프로덕션 환경 (~$193/월)
+
+| 리소스 | 스펙 | 예상 비용 |
+|--------|------|----------|
+| EKS Control Plane | - | $73 |
+| NAT Gateway | 1개 (단일) | ~$32 |
+| RDS PostgreSQL | db.t4g.small (Single-AZ) | ~$23 |
+| ElastiCache Redis | cache.t4g.small (1노드) | ~$20 |
+| EC2 Spot | 3 x t3.medium | ~$30 |
+| EBS 스토리지 | 50GB x 3 노드 | ~$15 |
+
+### 비용 최적화 결정 사항
+
+1. **NAT Gateway**: 단일 NAT Gateway 사용 (SPOF 주의)
+2. **RDS**: Single-AZ 배포 (추후 Multi-AZ 전환 가능)
+3. **Redis**: 단일 노드 (복제 없음)
+4. **노드**: 전체 Spot 인스턴스 (다양한 타입으로 가용성 확보)
+
+## Istio Ambient 지원
+
+### 필수 설정
+
+prod/compute의 EKS 구성에 Istio Ambient 모드를 위한 설정이 포함되어 있습니다:
+
+1. **VPC CNI 설정**
+   ```hcl
+   POD_SECURITY_GROUP_ENFORCING_MODE = "standard"
+   ```
+
+2. **Security Group 포트**
+   - TCP 15008: HBONE tunnel (ztunnel + Waypoint)
+   - TCP 15001-15006: Traffic redirect
+   - TCP 15012: XDS (istiod 통신)
+   - TCP 15020-15021: Metrics, readiness
+
+### Istio 설치
 
 ```bash
-cd terraform/dev-environment
+# Istio Ambient 프로필 설치
+istioctl install --set profile=ambient -y
 
-# 1. 변수 파일 생성
-cp terraform.tfvars.example terraform.tfvars
-# terraform.tfvars에 시크릿 값 설정 (Google OAuth, JWT 등)
-
-# 2. Terraform 실행
-terraform init
-terraform apply
-
-# 3. [중요] 출력된 Access Key 확인
-# terraform output dev_user_access_key_id
-# terraform output -raw dev_user_secret_access_key
-
+# 상태 확인
+istioctl proxy-status
+kubectl get pods -n istio-system
 ```
 
-#### 👨‍💻 개발자 로컬 PC 설정 (wealist-dev 프로필)
+## 모듈 문서
 
-위에서 얻은 키를 사용하여 개발자 PC에 프로필을 등록합니다.
+각 모듈과 환경의 상세 문서:
 
-```bash
-aws configure --profile wealist-dev
-# Access Key ID: (위에서 출력된 값)
-# Secret Access Key: (위에서 출력된 값)
-# Region: ap-northeast-2
+| 문서 | 설명 |
+|------|------|
+| [modules/pod-identity/README.md](modules/pod-identity/README.md) | Pod Identity 모듈 사용법 |
+| [global/oidc-iam/README.md](global/oidc-iam/README.md) | GitHub OIDC 설정 |
+| [dev/foundation/README.md](dev/foundation/README.md) | 개발 환경 리소스 |
+| [prod/foundation/README.md](prod/foundation/README.md) | 프로덕션 인프라 |
+| [prod/compute/README.md](prod/compute/README.md) | EKS 클러스터 설정 |
 
-```
-
-### 3. SSM Parameter Store (시크릿 관리)
-
-dev-environment에 SSM Parameter Store로 시크릿을 저장합니다.
-External Secrets Operator가 Kind 클러스터에서 이 값들을 K8s Secret으로 동기화합니다.
-
-```bash
-cd terraform/dev-environment
-
-# 시크릿만 생성/업데이트
-terraform apply -target=module.parameters
-
-# SSM 파라미터 확인
-aws ssm get-parameters-by-path --path "/wealist/dev" --recursive --with-decryption
-```
-
-**생성되는 SSM 파라미터:**
-```
-/wealist/dev/google-oauth/client-id
-/wealist/dev/google-oauth/client-secret
-/wealist/dev/jwt/secret
-/wealist/dev/database/superuser-password
-/wealist/dev/database/user-password
-/wealist/dev/redis/password
-/wealist/dev/minio/root-password
-/wealist/dev/minio/access-key
-/wealist/dev/minio/secret-key
-/wealist/dev/livekit/api-key
-/wealist/dev/livekit/api-secret
-/wealist/dev/internal/api-key
-```
-
-### 4. Web Infra 설정 (프론트엔드 배포)
-
-정적 웹사이트를 배포하기 위한 S3와 CloudFront를 구축합니다.
-
-```bash
-cd terraform/web-infra
-
-# 1. 변수 파일 생성 (기존 버킷 이름 등 입력)
-cp terraform.tfvars.example terraform.tfvars
-
-# 2. Terraform 실행
-terraform init
-terraform apply
-
-# 3. 배포된 도메인 확인
-# terraform output cloudfront_domain_name
-
-```
-
----
-
-## 🏗️ 아키텍처 및 모듈 설명
-
-### Backend Strategy (S3 Remote State)
-
-* S3: 모든 인프라 상태(terraform.tfstate)를 중앙 저장소에 저장해 팀원 간 상태를 공유합니다.
-* DynamoDB: `terraform apply` 실행시 state에 Lock을 걸어 동시에 여러 명이 배포해 상태가 꺠지는것을 방지합니다. 
-
-### 주요 컴포넌트
-
-1. **github-oidc (Module)**: Key가 없는 안전한 인증 방식(OIDC)을 사용하여 GitHub Actions에 임시 자격 증명을 부여합니다.
-2. **ecr (Module)**: 마이크로서비스용 컨테이너 리포지토리를 생성하고 수명 주기 정책을 관리합니다.
-3. **ssm-parameter (Module)**: SSM Parameter Store 시크릿 관리 - SecureString 타입으로 암호화 저장, External Secrets Operator와 연동
-4. **web-infra**:
-   * **S3**: 정적 파일 호스팅 (직접 접근 차단)
-   * **CloudFront**: 전역 캐싱 및 HTTPS 제공, OAC(Origin Access Control)를 통한 보안 접근
-   * **Route53**: 커스텀 도메인 연결 (선택 사항)
-
-
----
-
-## 🔒 보안 가이드라인
+## 보안 가이드라인
 
 1. **Git 업로드 절대 금지**:
-   * `terraform.tfvars` (실제 비밀번호/키 값 포함)
-   * `.terraform/` (임시 플러그인 폴더)
-   * `*.tfstate*` (혹시 로컬에 생성된 백업 파일)
+   - `terraform.tfvars` (실제 비밀번호/키 값 포함)
+   - `.terraform/` (임시 플러그인 폴더)
+   - `*.tfstate*` (혹시 로컬에 생성된 백업 파일)
 
 2. **권한 분리 원칙 (Least Privilege)**:
-   * **인프라 관리자**: `default` 프로필 사용. VPC, IAM, CloudFront 등 리소스 생성/삭제 권한.
-   * **서비스 개발자**: `wealist-dev` 프로필 사용. ECR Push, EKS 접근 등 개발 활동에 필요한 최소 권한.
+   - **인프라 관리자**: `default` 프로필 사용. VPC, IAM, CloudFront 등 리소스 생성/삭제 권한.
+   - **서비스 개발자**: `wealist-dev` 프로필 사용. ECR Push, EKS 접근 등 개발 활동에 필요한 최소 권한.
 
 3. **시크릿 관리**:
-   * `terraform.tfvars`에 시크릿 저장 (gitignore됨)
-   * SSM Parameter Store에 암호화 저장
-   * K8s에서는 External Secrets Operator가 동기화
+   - RDS, Redis 비밀번호: Secrets Manager 자동 관리
+   - SSM Parameter Store: 애플리케이션 시크릿 저장
+   - K8s: External Secrets Operator가 동기화
 
-## 🗑️ 리소스 삭제
+## 주의사항
 
-과금이 걱정되거나 프로젝트를 종료할 때 사용합니다.
+1. **terraform apply 직접 실행**: 모든 apply는 사용자가 직접 실행해야 합니다
+2. **순서 준수**: foundation → compute 순서로 배포 (의존성)
+3. **State 백업**: 중요 변경 전 항상 State 백업
+
+## 트러블슈팅
+
+### EKS 클러스터 접근 불가
 
 ```bash
-# 각 디렉토리(web-infra, dev-environment 등)로 이동하여 수행
-terraform destroy
+# kubeconfig 재설정
+aws eks update-kubeconfig --name wealist-prod-eks --region ap-northeast-2
 
+# IAM 권한 확인
+aws sts get-caller-identity
 ```
 
+### Terraform State 잠금
+
+```bash
+# DynamoDB 잠금 해제 (주의: 다른 작업 확인 필요)
+aws dynamodb delete-item \
+  --table-name terraform-lock \
+  --key '{"LockID":{"S":"wealist-tf-state-advanced-k8s/prod/compute/terraform.tfstate"}}'
+```
+
+### Add-on 업데이트 실패
+
+```bash
+# Add-on 상태 확인
+aws eks describe-addon --cluster-name wealist-prod-eks --addon-name vpc-cni
+
+# 강제 업데이트
+aws eks update-addon --cluster-name wealist-prod-eks --addon-name vpc-cni --resolve-conflicts OVERWRITE
+```
+
+## 리소스 삭제
+
+과금이 걱정되거나 프로젝트를 종료할 때 사용합니다.
+**순서 주의**: compute → foundation → global 순으로 삭제해야 합니다.
+
+```bash
+# 1. Compute 삭제 (EKS)
+cd terraform/prod/compute
+terraform destroy
+
+# 2. Foundation 삭제 (VPC, RDS, Redis)
+cd terraform/prod/foundation
+terraform destroy
+
+# 3. Global 삭제 (OIDC IAM)
+cd terraform/global/oidc-iam
+terraform destroy
 ```

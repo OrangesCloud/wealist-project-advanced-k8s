@@ -76,3 +76,18 @@ variable "create_oidc_provider" {
   type        = bool
   default     = true
 }
+
+# -----------------------------------------------------------------------------
+# EKS Access (for kubectl/Helm deployments in CI/CD)
+# -----------------------------------------------------------------------------
+variable "enable_eks_access" {
+  description = "Enable EKS access for kubectl/Helm deployments"
+  type        = bool
+  default     = false
+}
+
+variable "eks_cluster_arns" {
+  description = "List of EKS cluster ARNs to grant access (e.g., arn:aws:eks:region:account:cluster/name)"
+  type        = list(string)
+  default     = []
+}

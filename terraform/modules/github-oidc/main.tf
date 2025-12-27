@@ -182,3 +182,31 @@ resource "aws_iam_role_policy" "cloudfront_access" {
     ]
   })
 }
+
+# -----------------------------------------------------------------------------
+# IAM Policy - EKS Access (kubectl/Helm deployments)
+# -----------------------------------------------------------------------------
+resource "aws_iam_role_policy" "eks_access" {
+  count = var.enable_eks_access ? 1 : 0
+
+  name = "eks-access"
+  role = aws_iam_role.github_actions.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EKSDescribe"
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListClusters",
+          "eks:DescribeNodegroup",
+          "eks:ListNodegroups",
+          "eks:AccessKubernetesApi"
+        ]
+        Resource = length(var.eks_cluster_arns) > 0 ? var.eks_cluster_arns : ["arn:aws:eks:${var.aws_region}:${var.aws_account_id}:cluster/*"]
+      }
+    ]
+  })
+}

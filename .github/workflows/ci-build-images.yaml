@@ -88,11 +88,14 @@ jobs:
           echo "Environment: ${ENV}"
           echo "K8s Branch: k8s-deploy-${ENV}"
 
-      # Push 이벤트: 자동 감지
+      # Push 이벤트: 자동 감지 (push된 커밋의 변경사항 비교)
       - uses: dorny/paths-filter@v2
         if: github.event_name == 'push'
         id: filter
         with:
+          # push 이벤트에서는 before...after 커밋 비교 (merge 시에도 변경사항 감지)
+          base: ${{ github.event.before }}
+          ref: ${{ github.sha }}
           filters: |
             common-package:
               - 'packages/wealist-advanced-go-pkg/**'

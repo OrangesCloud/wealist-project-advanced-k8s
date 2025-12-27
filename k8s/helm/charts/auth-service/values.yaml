@@ -46,6 +46,10 @@ service:
 # Note: Common config (ENV, LOG_LEVEL, REDIS_HOST, REDIS_PORT, CORS_ORIGINS, etc.)
 # comes from helm/environments/*.yaml via shared.config section.
 # Only service-specific values should be defined here.
+#
+# IMPORTANT: SPRING_REDIS_HOST and SPRING_REDIS_PORT are NOT defined here.
+# - Production: Comes from ExternalSecret (AWS Secrets Manager)
+# - Localhost: Comes from localhost.yaml shared.config
 config:
   # Server (service-specific port)
   PORT: "8080"
@@ -53,10 +57,6 @@ config:
 
   # Spring Boot specific
   SPRING_PROFILES_ACTIVE: "production"
-
-  # Redis (Spring Boot uses SPRING_REDIS_* naming convention)
-  SPRING_REDIS_HOST: "redis"
-  SPRING_REDIS_PORT: "6379"
 
   # JWT configuration (service-specific)
   JWT_EXPIRATION: "3600000"  # 1 hour in milliseconds
@@ -67,24 +67,6 @@ config:
   # - OAUTH2_CLIENT_REDIRECT_URI: Where Google redirects after auth
   # - OAUTH2_REDIRECT_URL_ENV: Where auth-service redirects frontend
   # Do NOT define them here to avoid overriding environment values.
-
-# -----------------------------------------------------------------------------
-# External Secrets (for production credentials)
-# -----------------------------------------------------------------------------
-externalSecrets:
-  enabled: false  # Enable in production
-  secretStore: aws-secrets-manager
-  secretStoreKind: ClusterSecretStore
-  refreshInterval: 1h
-  secrets:
-    - key: auth-service/jwt-secret
-      property: JWT_SECRET
-    - key: auth-service/oauth2-client-id
-      property: OAUTH2_CLIENT_ID
-    - key: auth-service/oauth2-client-secret
-      property: OAUTH2_CLIENT_SECRET
-    - key: auth-service/redis-password
-      property: REDIS_PASSWORD
 
 # -----------------------------------------------------------------------------
 # Health Check Configuration (Spring Boot Actuator)
@@ -186,38 +168,6 @@ podDisruptionBudget:
   # maxUnavailable: 1  # Alternative: allow max 1 pod down
 
 # -----------------------------------------------------------------------------
-# Network Policy (Optional - enable for network segmentation)
-# -----------------------------------------------------------------------------
-networkPolicy:
-  enabled: false  # Enable in production if using network policies
-  policyTypes:
-    - Ingress
-    - Egress
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: wealist
-      ports:
-        - protocol: TCP
-          port: 8080
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              name: wealist
-      ports:
-        - protocol: TCP
-          port: 6379  # Redis only (no database)
-    - to:  # DNS
-        - namespaceSelector:
-            matchLabels:
-              name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
-
-# -----------------------------------------------------------------------------
 # Monitoring and Metrics
 # -----------------------------------------------------------------------------
 metrics:
@@ -246,27 +196,3 @@ affinity:
                 values:
                   - auth-service
           topologyKey: kubernetes.io/hostname
-
-# -----------------------------------------------------------------------------
-# Persistence (for Spring Boot temp files if needed)
-# -----------------------------------------------------------------------------
-persistence:
-  enabled: false
-  storageClass: ""
-  accessMode: ReadWriteOnce
-  size: 1Gi
-  mountPath: /tmp
-
-# -----------------------------------------------------------------------------
-# Additional Configuration
-# -----------------------------------------------------------------------------
-extraEnv: []
-# - name: CUSTOM_VAR
-#   value: "custom-value"
-
-extraEnvFrom: []
-# - configMapRef:
-#     name: extra-config
-
-extraVolumes: []
-extraVolumeMounts: []

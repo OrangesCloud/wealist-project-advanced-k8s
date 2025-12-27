@@ -16,7 +16,7 @@ PROJECT_ROOT="$(dirname "$(dirname "$ARGOCD_DIR")")"  # 프로젝트 루트
 
 # GitHub 저장소 정보
 REPO_URL="https://github.com/OrangesCloud/wealist-project-advanced-k8s.git"
-SEALED_SECRETS_KEY="${1:-$SCRIPT_DIR/sealed-secrets-dev-20251218-152119.key}"
+SEALED_SECRETS_KEY="${1:-$SCRIPT_DIR/sealed-secrets-dev-20251227-220912.key}"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -54,7 +54,7 @@ else
     echo ""
     read -p "Choose (1/2): " -n 1 -r
     echo ""
-    
+
     if [[ $REPLY == "1" ]]; then
         read -p "Enter key file path: " SEALED_SECRETS_KEY
         if [ -f "$SEALED_SECRETS_KEY" ]; then
@@ -86,10 +86,10 @@ echo ""
 # ============================================
 if [ "$USE_EXISTING_KEY" = true ]; then
     echo -e "${YELLOW}🔑 Step 3: Restoring Sealed Secrets key...${NC}"
-    
+
     # 기존 키 삭제 (있다면)
     kubectl delete secret -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-key 2>/dev/null || true
-    
+
     # 키 복원
     kubectl create -f "$SEALED_SECRETS_KEY"
     echo -e "${GREEN}✅ Key restored from backup${NC}"
@@ -188,11 +188,11 @@ SEALED_SECRET_FILE="$ARGOCD_DIR/sealed-secrets/wealist-argocd-secret.yaml"
 if [ -f "$SEALED_SECRET_FILE" ]; then
     kubectl apply -f "$SEALED_SECRET_FILE"
     echo -e "${GREEN}✅ SealedSecret applied${NC}"
-    
+
     # 복호화 확인
     echo "⏳ Waiting for decryption..."
     sleep 15
-    
+
     if kubectl get secret wealist-argocd-secret -n wealist-dev &> /dev/null; then
         echo -e "${GREEN}✅ Secret successfully decrypted!${NC}"
     else
@@ -200,7 +200,7 @@ if [ -f "$SEALED_SECRET_FILE" ]; then
         echo ""
         echo "Checking SealedSecret status..."
         kubectl describe sealedsecret wealist-argocd-secret -n wealist-dev 2>/dev/null || true
-        
+
         if [ "$USE_EXISTING_KEY" = false ]; then
             echo ""
             echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -259,7 +259,7 @@ if [ -f "$PROJECT_FILE" ]; then
 else
     echo -e "${YELLOW}⚠️  Project file not found: $PROJECT_FILE${NC}"
     echo -e "${YELLOW}   Creating default project...${NC}"
-    
+
     cat <<EOFPROJECT | kubectl apply -f -
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -279,7 +279,7 @@ spec:
     - group: '*'
       kind: '*'
 EOFPROJECT
-    
+
     echo -e "${GREEN}✅ Default AppProject created${NC}"
 fi
 echo ""
@@ -288,7 +288,7 @@ echo ""
 # 14. Root Application 생성 (App of Apps)
 # ============================================
 echo -e "${YELLOW}🌟 Step 14: Creating Root Application (App of Apps)...${NC}"
-ROOT_APP_FILE="$ARGOCD_DIR/apps/root-app.yaml"
+ROOT_APP_FILE="$ARGOCD_DIR/apps/dev/root-app.yaml"
 
 if [ -f "$ROOT_APP_FILE" ]; then
     kubectl apply -f "$ROOT_APP_FILE"
@@ -298,7 +298,7 @@ if [ -f "$ROOT_APP_FILE" ]; then
 else
     echo -e "${YELLOW}⚠️  Root app not found: $ROOT_APP_FILE${NC}"
     echo -e "${YELLOW}   Creating individual applications...${NC}"
-    
+
     # Root app이 없으면 개별 application 적용
     APPS_DIR="$ARGOCD_DIR/apps"
     if [ -d "$APPS_DIR" ]; then
@@ -314,7 +314,7 @@ else
                 fi
             fi
         done
-        
+
         if [ $APPLICATION_COUNT -gt 0 ]; then
             echo -e "${GREEN}✅ Created $APPLICATION_COUNT Application(s)${NC}"
         else

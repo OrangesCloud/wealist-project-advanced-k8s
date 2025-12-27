@@ -1,0 +1,23 @@
+{{- if .Values.enabled }}
+{{- if or .Values.telemetry.tracing.enabled .Values.telemetry.accessLogging.enabled }}
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: mesh-default
+  namespace: {{ include "istio-config.namespace" . }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.telemetry.tracing.enabled }}
+  tracing:
+  - providers:
+    - name: {{ .Values.telemetry.tracing.provider }}
+    randomSamplingPercentage: {{ .Values.telemetry.tracing.samplingPercentage }}
+  {{- end }}
+  {{- if .Values.telemetry.accessLogging.enabled }}
+  accessLogging:
+  - providers:
+    - name: {{ .Values.telemetry.accessLogging.provider }}
+  {{- end }}
+{{- end }}
+{{- end }}
