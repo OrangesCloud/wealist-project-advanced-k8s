@@ -4,7 +4,7 @@ metadata:
   name: wealist-apps-dev
   namespace: argocd
 spec:
-  project: wealist-dev
+  project: wealist
   source:
     repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
     targetRevision: k8s-deploy-dev
