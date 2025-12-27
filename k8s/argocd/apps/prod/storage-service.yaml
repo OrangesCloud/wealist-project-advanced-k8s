@@ -16,7 +16,6 @@ spec:
         - values.yaml
         - ../../environments/base.yaml
         - ../../environments/prod.yaml
-        - ../../environments/prod-registry.yaml
       parameters:
         - name: image.repository
           value: "storage-service"

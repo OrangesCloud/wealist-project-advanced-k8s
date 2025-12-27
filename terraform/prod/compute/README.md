@@ -175,9 +175,9 @@ kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/downloa
 ### 3. Istio Ambient 설치
 
 ```bash
-# Istio CLI 설치 (1.24.0+)
-curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.24.0 sh -
-export PATH=$PWD/istio-1.24.0/bin:$PATH
+# Istio CLI 설치 (1.28.2 - EKS 1.34 호환)
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.28.2 sh -
+export PATH=$PWD/istio-1.28.2/bin:$PATH
 
 # Ambient 프로필 설치
 istioctl install --set profile=ambient -y

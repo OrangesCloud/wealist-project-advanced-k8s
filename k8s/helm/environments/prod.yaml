@@ -12,9 +12,8 @@ global:
   namespace: wealist-prod
   environment: production
   domain: wealist.co.kr
-  # ECR Registry URL - Terraform output 또는 ArgoCD에서 오버라이드
-  # terraform output -raw ecr_registry_url (from prod/foundation)
-  imageRegistry: ""
+  # ECR Registry URL
+  imageRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
   # EKS Pod Identity 사용 - imagePullSecrets 불필요
 imagePullSecrets: []
 

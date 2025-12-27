@@ -1,0 +1,57 @@
+# =============================================================================
+# DB Init - Values
+# =============================================================================
+
+# DB 연결 정보 (prod 환경에서 override)
+database:
+  host: ""          # RDS endpoint (e.g., wealist-prod-postgres.xxx.rds.amazonaws.com)
+  port: 5432
+  adminUser: wealist_admin
+  adminDatabase: wealist   # RDS에서 생성된 기본 DB
+
+# 생성할 데이터베이스 목록
+databases:
+  - name: board_db
+    owner: wealist_admin
+  - name: user_db
+    owner: wealist_admin
+  - name: chat_db
+    owner: wealist_admin
+  - name: noti_db
+    owner: wealist_admin
+  - name: storage_db
+    owner: wealist_admin
+  - name: video_db
+    owner: wealist_admin
+
+# PostgreSQL 확장
+extensions:
+  - pg_stat_statements
+  - uuid-ossp
+
+# Job 설정
+job:
+  image:
+    repository: postgres
+    tag: "17-alpine"
+    pullPolicy: IfNotPresent
+
+  # 리소스 제한
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  # ArgoCD hook 설정
+  argocd:
+    enabled: true
+    hook: PreSync
+    hookDeletePolicy: BeforeHookCreation
+
+# Secret 참조 (External Secrets에서 생성된 secret)
+secretRef:
+  name: wealist-shared-secret
+  passwordKey: DB_PASSWORD

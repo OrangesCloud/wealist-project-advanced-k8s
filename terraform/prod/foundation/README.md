@@ -64,7 +64,7 @@
 
 | 설정 | 값 | 비고 |
 |------|-----|------|
-| 엔진 | PostgreSQL 16.3 | 최신 LTS |
+| 엔진 | PostgreSQL 17.7 | 최신 버전 |
 | 인스턴스 | db.t4g.small | 2 vCPU, 2GB RAM |
 | 스토리지 | 20GB (auto-scaling 100GB) | gp3 |
 | Multi-AZ | **비활성화** | 비용 절감 (~$23/월) |

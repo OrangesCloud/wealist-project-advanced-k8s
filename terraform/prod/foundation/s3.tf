@@ -59,6 +59,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "storage" {
     id     = "transition-to-ia"
     status = "Enabled"
 
+    # 모든 객체에 적용
+    filter {}
+
     # 90일 후 Infrequent Access로 이동
     transition {
       days          = 90
@@ -75,6 +78,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "storage" {
   rule {
     id     = "delete-old-versions"
     status = "Enabled"
+
+    # 모든 객체에 적용
+    filter {}
 
     # 이전 버전은 30일 후 삭제
     noncurrent_version_expiration {

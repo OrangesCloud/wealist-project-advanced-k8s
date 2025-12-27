@@ -16,9 +16,9 @@ module "rds" {
   # Engine Configuration
   # -----------------------------------------------------------------------------
   engine               = "postgres"
-  engine_version       = "16.3"
-  family               = "postgres16"
-  major_engine_version = "16"
+  engine_version       = "17.7"
+  family               = "postgres17"
+  major_engine_version = "17"
   instance_class       = var.rds_instance_class
 
   # -----------------------------------------------------------------------------
@@ -74,8 +74,9 @@ module "rds" {
   # -----------------------------------------------------------------------------
   parameters = [
     {
-      name  = "shared_preload_libraries"
-      value = "pg_stat_statements"
+      name         = "shared_preload_libraries"
+      value        = "pg_stat_statements"
+      apply_method = "pending-reboot"  # static parameter
     },
     {
       name  = "log_statement"

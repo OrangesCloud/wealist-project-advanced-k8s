@@ -64,8 +64,7 @@ output "cluster_addons" {
   description = "Map of EKS cluster add-ons"
   value = {
     for k, v in module.eks.cluster_addons : k => {
-      addon_version = v.addon_version
-      status        = v.status
+      addon_version = try(v.addon_version, "unknown")
     }
   }
 }

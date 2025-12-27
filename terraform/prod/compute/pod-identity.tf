@@ -115,7 +115,7 @@ module "pod_identity_external_secrets" {
             "secretsmanager:ListSecrets"
           ]
           Resource = [
-            "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:wealist-*",
+            "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:wealist/*",
             "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:rds!*"
           ]
         },
