@@ -142,6 +142,29 @@ output "kms_key_id" {
 }
 
 # =============================================================================
+# Application Secrets Outputs (for External Secrets Operator)
+# =============================================================================
+output "jwt_secret_arn" {
+  description = "ARN of JWT secret in Secrets Manager"
+  value       = aws_secretsmanager_secret.jwt_secret.arn
+}
+
+output "internal_api_key_secret_arn" {
+  description = "ARN of internal API key secret in Secrets Manager"
+  value       = aws_secretsmanager_secret.internal_api_key.arn
+}
+
+output "oauth_google_secret_arn" {
+  description = "ARN of Google OAuth secret (requires manual update after apply)"
+  value       = aws_secretsmanager_secret.oauth_google.arn
+}
+
+output "livekit_secret_arn" {
+  description = "ARN of LiveKit credentials secret (requires manual update after apply)"
+  value       = aws_secretsmanager_secret.livekit.arn
+}
+
+# =============================================================================
 # Summary for prod/compute
 # =============================================================================
 output "summary" {

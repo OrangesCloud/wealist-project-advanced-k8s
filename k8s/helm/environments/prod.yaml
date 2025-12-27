@@ -19,6 +19,13 @@ global:
 imagePullSecrets: []
 
 # -----------------------------------------------------------------------------
+# External Secrets Operator (AWS Secrets Manager 연동)
+# -----------------------------------------------------------------------------
+# Production 환경에서는 ESO를 통해 AWS Secrets Manager에서 시크릿 가져옴
+externalSecrets:
+  enabled: true
+
+# -----------------------------------------------------------------------------
 # cert-manager Configuration (Disabled - CloudFront handles SSL termination)
 # -----------------------------------------------------------------------------
 certManager:

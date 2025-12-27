@@ -269,6 +269,78 @@ module "pod_identity_storage_service" {
 }
 
 # -----------------------------------------------------------------------------
+# board-service (S3 Presigned URL 생성 - 첨부파일)
+# -----------------------------------------------------------------------------
+module "pod_identity_board_service" {
+  source = "../../modules/pod-identity"
+
+  name            = "${local.name_prefix}-board-service"
+  cluster_name    = module.eks.cluster_name
+  namespace       = "wealist-prod"
+  service_account = "board-service"
+
+  inline_policies = {
+    s3-access = jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Sid    = "S3BucketAccess"
+          Effect = "Allow"
+          Action = [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:DeleteObject",
+            "s3:ListBucket"
+          ]
+          Resource = [
+            data.terraform_remote_state.foundation.outputs.s3_bucket_arn,
+            "${data.terraform_remote_state.foundation.outputs.s3_bucket_arn}/*"
+          ]
+        }
+      ]
+    })
+  }
+
+  tags = local.common_tags
+}
+
+# -----------------------------------------------------------------------------
+# user-service (S3 Presigned URL 생성 - 프로필 이미지)
+# -----------------------------------------------------------------------------
+module "pod_identity_user_service" {
+  source = "../../modules/pod-identity"
+
+  name            = "${local.name_prefix}-user-service"
+  cluster_name    = module.eks.cluster_name
+  namespace       = "wealist-prod"
+  service_account = "user-service"
+
+  inline_policies = {
+    s3-access = jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Sid    = "S3BucketAccess"
+          Effect = "Allow"
+          Action = [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:DeleteObject",
+            "s3:ListBucket"
+          ]
+          Resource = [
+            data.terraform_remote_state.foundation.outputs.s3_bucket_arn,
+            "${data.terraform_remote_state.foundation.outputs.s3_bucket_arn}/*"
+          ]
+        }
+      ]
+    })
+  }
+
+  tags = local.common_tags
+}
+
+# -----------------------------------------------------------------------------
 # Cluster Autoscaler
 # -----------------------------------------------------------------------------
 module "pod_identity_cluster_autoscaler" {
