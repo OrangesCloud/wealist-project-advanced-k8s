@@ -23,6 +23,8 @@ spec:
           value: "prod-latest"
         - name: externalSecrets.enabled
           value: "true"
+        - name: config.SPRING_DATA_REDIS_SSL_ENABLED
+          value: "true"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-prod
