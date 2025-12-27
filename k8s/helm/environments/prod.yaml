@@ -61,7 +61,7 @@ video-service:
     DB_NAME: "video_db"
 
 image:
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: "latest"
 
 # -----------------------------------------------------------------------------

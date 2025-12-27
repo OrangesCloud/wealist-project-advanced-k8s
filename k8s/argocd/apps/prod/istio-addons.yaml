@@ -1,32 +1,31 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: auth-service-prod
+  name: wealist-istio-addons-prod
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "11"  # istio-config 이후에 설치
 spec:
   project: wealist-prod
   source:
     repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
     targetRevision: k8s-deploy-prod
-    path: k8s/helm/charts/auth-service
+    path: k8s/helm/charts/istio-addons
     helm:
       valueFiles:
-        - values.yaml
         - ../../environments/base.yaml
         - ../../environments/prod.yaml
       parameters:
-        - name: image.repository
-          value: "auth-service"
-        - name: image.tag
-          value: "prod-latest"
-        - name: externalSecrets.enabled
-          value: "true"
+        - name: prometheus.enabled
+          value: "false"
+        - name: grafana.enabled
+          value: "false"
   destination:
     server: https://kubernetes.default.svc
-    namespace: wealist-prod
+    namespace: istio-system
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
