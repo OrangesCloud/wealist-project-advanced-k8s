@@ -28,7 +28,9 @@ externalSecrets:
 # Deployment Settings (Production)
 # -----------------------------------------------------------------------------
 auth-service:
-  replicaCount: 2  # Redis only, no DB
+  replicaCount: 1  # Redis only, reduced for resource constraints
+  config:
+    SPRING_DATA_REDIS_SSL_ENABLED: "true"  # ElastiCache TLS
 
 board-service:
   replicaCount: 2
