@@ -63,18 +63,6 @@ secrets: {}
   # DATABASE_URL: ""  # Will be base64 encoded automatically
   # SECRET_KEY: ""
 
-# External Secrets Operator integration (optional)
-externalSecrets:
-  enabled: false
-  secretStore: aws-secrets-manager  # or vault, gcpsm, etc.
-  secretStoreKind: ClusterSecretStore
-  refreshInterval: 1h
-  data: []
-  # - secretKey: DATABASE_URL
-  #   remoteKey: /prod/user-service/database-url
-  # - secretKey: SECRET_KEY
-  #   remoteKey: /prod/user-service/secret-key
-
 # -----------------------------------------------------------------------------
 # Health Checks
 # -----------------------------------------------------------------------------
@@ -165,42 +153,6 @@ serviceAccount:
   # iam.gke.io/gcp-service-account: user-service@project-id.iam.gserviceaccount.com
   name: ""  # Defaults to chart fullname
 
-# Network Policy (optional, enable for enhanced security)
-networkPolicy:
-  enabled: false
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: wealist-dev
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/part-of: wealist
-      ports:
-        - protocol: TCP
-          port: 8081
-  egress:
-    - to:
-        - podSelector:
-            matchLabels:
-              app: postgres
-      ports:
-        - protocol: TCP
-          port: 5432
-    - to:
-        - podSelector:
-            matchLabels:
-              app: redis
-      ports:
-        - protocol: TCP
-          port: 6379
-    # Allow DNS
-    - to:
-        - namespaceSelector: {}
-      ports:
-        - protocol: UDP
-          port: 53
-
 # -----------------------------------------------------------------------------
 # Monitoring & Observability
 # -----------------------------------------------------------------------------
@@ -212,17 +164,6 @@ metrics:
 # Pod annotations (merged with auto-generated annotations)
 podAnnotations: {}
   # Custom annotations here
-
-# -----------------------------------------------------------------------------
-# Environment Variables
-# -----------------------------------------------------------------------------
-# Note: envFrom is automatically configured in wealist-common deployment template
-# to use {service}-config ConfigMap. Additional env vars can be added below.
-
-# Additional environment variables (optional)
-env: []
-  # - name: CUSTOM_VAR
-  #   value: "custom-value"
 
 # -----------------------------------------------------------------------------
 # Pod Disruption Budget (for high availability)
@@ -249,31 +190,3 @@ tolerations: []
 
 # Affinity
 affinity: {}
-  # podAntiAffinity:
-  #   preferredDuringSchedulingIgnoredDuringExecution:
-  #     - weight: 100
-  #       podAffinityTerm:
-  #         labelSelector:
-  #           matchExpressions:
-  #             - key: app.kubernetes.io/name
-  #               operator: In
-  #               values:
-  #                 - user-service
-  #         topologyKey: kubernetes.io/hostname
-
-# Volume mounts (if needed)
-volumeMounts: []
-  # - name: tmp
-  #   mountPath: /tmp
-
-# Volumes (if needed)
-volumes: []
-  # - name: tmp
-  #   emptyDir: {}
-
-# -----------------------------------------------------------------------------
-# Testing & Development
-# -----------------------------------------------------------------------------
-# These are overridden in values-develop-registry-local.yaml
-test:
-  enabled: false

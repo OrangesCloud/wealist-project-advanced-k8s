@@ -51,15 +51,6 @@ config:
   DATABASE_URL: "postgresql://chat_service:postgres@postgres:5432/wealist_chat_service_db?sslmode=disable"
 
 # -----------------------------------------------------------------------------
-# External Secrets
-# -----------------------------------------------------------------------------
-externalSecrets:
-  enabled: false
-  secretStore: aws-secrets-manager
-  secretStoreKind: ClusterSecretStore
-  refreshInterval: 1h
-
-# -----------------------------------------------------------------------------
 # Health Check Configuration
 # -----------------------------------------------------------------------------
 healthCheck:
@@ -156,12 +147,6 @@ podDisruptionBudget:
   minAvailable: 1
 
 # -----------------------------------------------------------------------------
-# Network Policy
-# -----------------------------------------------------------------------------
-networkPolicy:
-  enabled: false
-
-# -----------------------------------------------------------------------------
 # Monitoring
 # -----------------------------------------------------------------------------
 metrics:
@@ -173,8 +158,3 @@ podAnnotations: {}
 nodeSelector: {}
 tolerations: []
 affinity: {}
-
-extraEnv: []
-extraEnvFrom: []
-extraVolumes: []
-extraVolumeMounts: []

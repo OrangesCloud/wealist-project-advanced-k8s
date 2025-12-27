@@ -69,24 +69,6 @@ config:
   # Do NOT define them here to avoid overriding environment values.
 
 # -----------------------------------------------------------------------------
-# External Secrets (for production credentials)
-# -----------------------------------------------------------------------------
-externalSecrets:
-  enabled: false  # Enable in production
-  secretStore: aws-secrets-manager
-  secretStoreKind: ClusterSecretStore
-  refreshInterval: 1h
-  secrets:
-    - key: auth-service/jwt-secret
-      property: JWT_SECRET
-    - key: auth-service/oauth2-client-id
-      property: OAUTH2_CLIENT_ID
-    - key: auth-service/oauth2-client-secret
-      property: OAUTH2_CLIENT_SECRET
-    - key: auth-service/redis-password
-      property: REDIS_PASSWORD
-
-# -----------------------------------------------------------------------------
 # Health Check Configuration (Spring Boot Actuator)
 # -----------------------------------------------------------------------------
 # Note: Spring Boot takes longer to start than Go services.
@@ -186,38 +168,6 @@ podDisruptionBudget:
   # maxUnavailable: 1  # Alternative: allow max 1 pod down
 
 # -----------------------------------------------------------------------------
-# Network Policy (Optional - enable for network segmentation)
-# -----------------------------------------------------------------------------
-networkPolicy:
-  enabled: false  # Enable in production if using network policies
-  policyTypes:
-    - Ingress
-    - Egress
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: wealist
-      ports:
-        - protocol: TCP
-          port: 8080
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              name: wealist
-      ports:
-        - protocol: TCP
-          port: 6379  # Redis only (no database)
-    - to:  # DNS
-        - namespaceSelector:
-            matchLabels:
-              name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
-
-# -----------------------------------------------------------------------------
 # Monitoring and Metrics
 # -----------------------------------------------------------------------------
 metrics:
@@ -246,27 +196,3 @@ affinity:
                 values:
                   - auth-service
           topologyKey: kubernetes.io/hostname
-
-# -----------------------------------------------------------------------------
-# Persistence (for Spring Boot temp files if needed)
-# -----------------------------------------------------------------------------
-persistence:
-  enabled: false
-  storageClass: ""
-  accessMode: ReadWriteOnce
-  size: 1Gi
-  mountPath: /tmp
-
-# -----------------------------------------------------------------------------
-# Additional Configuration
-# -----------------------------------------------------------------------------
-extraEnv: []
-# - name: CUSTOM_VAR
-#   value: "custom-value"
-
-extraEnvFrom: []
-# - configMapRef:
-#     name: extra-config
-
-extraVolumes: []
-extraVolumeMounts: []
