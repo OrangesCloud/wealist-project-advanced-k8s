@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -212,6 +213,7 @@ func GetEnvDuration(key string, defaultValue time.Duration) time.Duration {
 }
 
 // BuildURL constructs a PostgreSQL connection URL from individual components.
+// User and password are URL-encoded to handle special characters.
 func (d *DatabaseConfig) BuildURL() string {
 	port := d.Port
 	if port == "" {
@@ -221,6 +223,9 @@ func (d *DatabaseConfig) BuildURL() string {
 	if sslmode == "" {
 		sslmode = "disable"
 	}
+	// URL-encode user and password to handle special characters
+	encodedUser := url.QueryEscape(d.User)
+	encodedPassword := url.QueryEscape(d.Password)
 	return fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?sslmode=%s",
-		d.User, d.Password, d.Host, port, d.DBName, sslmode)
+		encodedUser, encodedPassword, d.Host, port, d.DBName, sslmode)
 }
