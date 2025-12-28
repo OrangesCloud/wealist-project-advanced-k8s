@@ -372,111 +372,15 @@ resource "helm_release" "cluster_autoscaler" {
 }
 
 # =============================================================================
-# 4. ArgoCD Bootstrap (App of Apps Pattern)
+# 4. ArgoCD Bootstrap - MOVED TO argocd-apps layer
 # =============================================================================
-# ArgoCD가 설치된 후 자동으로 모든 앱을 관리하도록 설정
-
-# wealist-prod 네임스페이스 생성
-resource "kubernetes_namespace" "wealist_prod" {
-  metadata {
-    name = "wealist-prod"
-    labels = {
-      "istio.io/dataplane-mode" = "ambient"
-    }
-  }
-
-  depends_on = [helm_release.argocd]
-}
-
-# ArgoCD Project 생성 (wealist-prod)
-resource "kubernetes_manifest" "argocd_project_prod" {
-  manifest = {
-    apiVersion = "argoproj.io/v1alpha1"
-    kind       = "AppProject"
-    metadata = {
-      name      = "wealist-prod"
-      namespace = "argocd"
-    }
-    spec = {
-      description = "Wealist Production Environment"
-      sourceRepos = [
-        "https://github.com/OrangesCloud/wealist-project-advanced-k8s.git"
-      ]
-      destinations = [
-        {
-          namespace = "wealist-prod"
-          server    = "https://kubernetes.default.svc"
-        },
-        {
-          namespace = "argocd"
-          server    = "https://kubernetes.default.svc"
-        },
-        {
-          namespace = "external-secrets"
-          server    = "https://kubernetes.default.svc"
-        },
-        {
-          namespace = "istio-system"
-          server    = "https://kubernetes.default.svc"
-        }
-      ]
-      clusterResourceWhitelist = [
-        {
-          group = ""
-          kind  = "Namespace"
-        },
-        {
-          group = "external-secrets.io"
-          kind  = "ClusterSecretStore"
-        }
-      ]
-      namespaceResourceWhitelist = [
-        {
-          group = "*"
-          kind  = "*"
-        }
-      ]
-    }
-  }
-
-  depends_on = [helm_release.argocd]
-}
-
-# ArgoCD Root Application (App of Apps)
-resource "kubernetes_manifest" "argocd_root_app" {
-  manifest = {
-    apiVersion = "argoproj.io/v1alpha1"
-    kind       = "Application"
-    metadata = {
-      name      = "wealist-apps-prod"
-      namespace = "argocd"
-    }
-    spec = {
-      project = "wealist-prod"
-      source = {
-        repoURL        = "https://github.com/OrangesCloud/wealist-project-advanced-k8s.git"
-        targetRevision = "k8s-deploy-prod"
-        path           = "k8s/argocd/apps/prod"
-      }
-      destination = {
-        server    = "https://kubernetes.default.svc"
-        namespace = "argocd"
-      }
-      syncPolicy = {
-        automated = {
-          prune    = true
-          selfHeal = true
-        }
-        syncOptions = [
-          "CreateNamespace=true"
-        ]
-      }
-    }
-  }
-
-  depends_on = [
-    kubernetes_manifest.argocd_project_prod,
-    kubernetes_namespace.wealist_prod,
-    helm_release.external_secrets  # ExternalSecrets 먼저 설치 필요
-  ]
-}
+# ArgoCD Project, Application은 별도 레이어에서 관리
+# 이유: kubernetes_manifest는 plan 시점에 클러스터 연결 필요
+#
+# 배포 순서:
+# 1. compute: EKS + Helm (ArgoCD 설치 포함)
+# 2. argocd-apps: ArgoCD Project + Application
+#
+# 다음 단계:
+# cd ../argocd-apps && terraform apply
+# =============================================================================
