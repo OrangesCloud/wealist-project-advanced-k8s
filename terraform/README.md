@@ -17,8 +17,10 @@ terraform/
 │   └── foundation/             # ECR 저장소
 ├── prod/                       # 프로덕션 환경
 │   ├── foundation/             # VPC, RDS, Redis, ECR, S3, KMS
-│   └── compute/                # EKS, Node Groups, Pod Identity
-└── web-infra/                  # 정적 웹사이트 인프라
+│   └── compute/                # EKS, Node Groups, Pod Identity, IAM Access
+├── web-infra/                  # 정적 웹사이트 인프라 (CloudFront + S3)
+│
+└── dev-environment/            # 현재 사용 중 (state: dev-enviorment/)
 ```
 
 ## 환경별 설명
@@ -26,8 +28,9 @@ terraform/
 | 환경 | 용도 | 주요 리소스 |
 |------|------|-------------|
 | global | 환경 간 공유 리소스 | GitHub OIDC IAM |
-| dev | 개발 환경 | ECR 저장소 |
-| prod | 프로덕션 환경 | VPC, EKS, RDS, Redis, S3 |
+| dev | 개발 환경 | ECR 저장소, IAM User |
+| prod | 프로덕션 환경 | VPC, EKS, RDS, Redis, S3, IAM Groups |
+| web-infra | 정적 웹 호스팅 | CloudFront, S3 |
 
 ## 배포 순서
 
@@ -77,16 +80,80 @@ kubectl create namespace wealist-prod
 kubectl label namespace wealist-prod istio.io/dataplane-mode=ambient
 ```
 
+## EKS 팀원 접근 관리
+
+### 아키텍처
+
+```
+IAM Users (기존) → IAM Groups (Terraform) → IAM Roles → EKS Access
+     ↓                    ↓                      ↓
+  팀원 추가         권한 그룹 정의           클러스터 접근
+(AWS Console)    (자동 생성)             (자동 설정)
+```
+
+### 권한 레벨
+
+| IAM Group | Role | EKS Policy | Scope |
+|-----------|------|------------|-------|
+| `wealist-prod-eks-admin` | eks-admin | ClusterAdminPolicy | 전체 클러스터 |
+| `wealist-prod-eks-developer` | eks-developer | EditPolicy | wealist-prod, argocd |
+| `wealist-prod-eks-readonly` | eks-readonly | ViewPolicy | 전체 조회 |
+
+### 팀원 추가 방법 (AWS Console)
+
+1. AWS Console → IAM → User groups
+2. 해당 그룹 선택 (예: `wealist-prod-eks-developer`)
+3. "Add users" → 팀원 선택
+
+### 팀원 PC 설정
+
+```bash
+# 1. AWS CLI 설정 (본인 Access Key)
+aws configure
+
+# 2. kubeconfig 설정 (권한에 맞는 Role ARN 사용)
+# Admin:
+aws eks update-kubeconfig --name wealist-prod-eks --region ap-northeast-2 \
+  --role-arn arn:aws:iam::<ACCOUNT_ID>:role/wealist-prod-eks-admin
+
+# Developer:
+aws eks update-kubeconfig --name wealist-prod-eks --region ap-northeast-2 \
+  --role-arn arn:aws:iam::<ACCOUNT_ID>:role/wealist-prod-eks-developer
+
+# ReadOnly:
+aws eks update-kubeconfig --name wealist-prod-eks --region ap-northeast-2 \
+  --role-arn arn:aws:iam::<ACCOUNT_ID>:role/wealist-prod-eks-readonly
+
+# 3. 테스트
+kubectl get pods -n wealist-prod
+```
+
+### 관련 Terraform Outputs
+
+```bash
+cd terraform/prod/compute
+
+# Group 이름 확인
+terraform output eks_iam_groups
+
+# 접근 명령어 확인
+terraform output eks_access_commands
+
+# 설정 가이드 확인
+terraform output eks_access_setup_guide
+```
+
 ## State 관리
 
 모든 Terraform 상태는 S3에 저장됩니다:
 
-| 디렉토리 | State 경로 |
-|----------|-----------|
-| global/oidc-iam | `s3://wealist-tf-state-advanced-k8s/global/oidc-iam/terraform.tfstate` |
-| dev/foundation | `s3://wealist-tf-state-advanced-k8s/dev/foundation/terraform.tfstate` |
-| prod/foundation | `s3://wealist-tf-state-advanced-k8s/prod/foundation/terraform.tfstate` |
-| prod/compute | `s3://wealist-tf-state-advanced-k8s/prod/compute/terraform.tfstate` |
+| 디렉토리 | State 경로 | 상태 |
+|----------|-----------|------|
+| global/oidc-iam | `global/oidc-iam/terraform.tfstate` | 사용 중 |
+| dev-environment | `dev-enviorment/terraform.tfstate` | 사용 중 |
+| prod/foundation | `prod/foundation/terraform.tfstate` | 사용 중 |
+| prod/compute | `prod/compute/terraform.tfstate` | 사용 중 |
+| web-infra | `web-infra/terraform.tfstate` | 사용 중 |
 
 ### 초기 설정 (One-time Setup)
 
@@ -246,4 +313,23 @@ terraform destroy
 # 3. Global 삭제 (OIDC IAM)
 cd terraform/global/oidc-iam
 terraform destroy
+```
+
+## 디렉토리 정리
+
+### terraform/dev/foundation/ (새 구조, 미적용)
+
+`dev-environment/`가 현재 사용 중. 마이그레이션하려면:
+
+```bash
+# State 복사 (경로에 오타 있음 주의: dev-enviorment)
+aws s3 cp s3://wealist-tf-state-advanced-k8s/dev-enviorment/terraform.tfstate \
+          s3://wealist-tf-state-advanced-k8s/dev/foundation/terraform.tfstate
+
+cd terraform/dev/foundation
+terraform init
+terraform plan  # 변경사항 없어야 함
+
+# 기존 디렉토리 삭제
+rm -rf terraform/dev-environment/
 ```
