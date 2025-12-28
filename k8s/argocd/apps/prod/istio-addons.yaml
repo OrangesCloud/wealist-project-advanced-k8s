@@ -16,6 +16,10 @@ spec:
         - ../../environments/base.yaml
         - ../../environments/prod.yaml
       parameters:
+        # Kiali/Jaeger가 참조할 모니터링 네임스페이스 (Prometheus, Grafana 위치)
+        - name: monitoringNamespace
+          value: wealist-prod
+        # Prometheus/Grafana는 wealist-monitoring에서 관리
         - name: prometheus.enabled
           value: "false"
         - name: grafana.enabled

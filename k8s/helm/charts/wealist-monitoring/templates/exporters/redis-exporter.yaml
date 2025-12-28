@@ -36,11 +36,28 @@ spec:
               name: metrics
               protocol: TCP
           env:
+            {{- if .Values.externalSecrets.enabled }}
+            # Production: K8s Secret에서 Redis 접속 정보 가져옴
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: wealist-shared-secret
+                  key: REDIS_HOST
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wealist-shared-secret
+                  key: REDIS_PASSWORD
+            - name: REDIS_ADDR
+              value: "rediss://$(REDIS_HOST):{{ .Values.redisExporter.config.port }}"
+            {{- else }}
+            # Local/Dev: values에서 직접 가져옴
             - name: REDIS_ADDR
               value: "redis://{{ .Values.redisExporter.config.host }}:{{ .Values.redisExporter.config.port }}"
             {{- if .Values.shared.secrets.REDIS_PASSWORD }}
             - name: REDIS_PASSWORD
               value: "{{ .Values.shared.secrets.REDIS_PASSWORD }}"
+            {{- end }}
             {{- end }}
           resources:
             {{- toYaml .Values.redisExporter.resources | nindent 12 }}

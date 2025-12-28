@@ -28,7 +28,14 @@ externalSecrets:
 # Deployment Settings (Production)
 # -----------------------------------------------------------------------------
 auth-service:
-  replicaCount: 1  # Redis only, reduced for resource constraints
+  replicaCount: 2  # HA: 가용성 확보, 배포 시 무중단
+  resources:
+    requests:
+      memory: "768Mi"
+      cpu: "250m"
+    limits:
+      memory: "1536Mi"  # 1.5Gi - JVM 힙 ~1.1GB (75%)
+      cpu: "1000m"
   config:
     SPRING_DATA_REDIS_SSL_ENABLED: "true"  # ElastiCache TLS
 
@@ -215,8 +222,30 @@ istio:
       - "api.wealist.co.kr"
     frontend:
       enabled: false
+    # Monitoring routes (VPN/Bastion 통해 접근)
+    # 직접 외부 노출이 아닌 /api/monitoring/* 경로로만 접근 가능
     monitoring:
-      enabled: false  # Production: 모니터링 외부 노출 비활성화
+      enabled: true
+      grafana:
+        host: grafana
+        port: 3000
+      prometheus:
+        host: prometheus
+        port: 9090
+      loki:
+        host: loki
+        port: 3100
+      # Istio 관측성 도구 (istio-system 네임스페이스)
+      kiali:
+        enabled: true
+        host: kiali
+        namespace: istio-system
+        port: 20001
+      jaeger:
+        enabled: true
+        host: tracing
+        namespace: istio-system
+        port: 80
 
   # mTLS - 서비스 간 암호화
   mtls:
@@ -293,6 +322,14 @@ prometheus:
   image:
     repository: public.ecr.aws/prometheus/prometheus
     tag: "v2.48.0"
+  config:
+    externalUrl: "https://api.wealist.co.kr/api/monitoring/prometheus"
+    routePrefix: "/api/monitoring/prometheus"
+  # 프로덕션 알림 규칙 활성화
+  alerting:
+    enabled: true
+    alertmanager:
+      enabled: false  # Alertmanager 별도 구축 시 true로 변경
 
 # Loki - 로그 수집
 loki:
@@ -314,10 +351,19 @@ grafana:
   image:
     repository: public.ecr.aws/grafana/grafana
     tag: "10.2.2"
+  config:
+    allowSignUp: false
+    rootUrl: "https://api.wealist.co.kr/api/monitoring/grafana"
+    serveFromSubPath: "true"
 
 # 모니터링 Ingress
 monitoringIngress:
   enabled: false  # Production: 별도 VPN/Bastion 통해 접근
+
+# ArgoCD 메트릭 수집
+argocd:
+  metrics:
+    enabled: true
 
 # -----------------------------------------------------------------------------
 # 데이터베이스 Exporter (외부 DB 메트릭 수집)
@@ -329,8 +375,11 @@ postgresExporter:
     repository: public.ecr.aws/bitnami/postgres-exporter
     tag: "0.15.0"
   config:
-    # host: prod-secrets.yaml에서 설정
+    # host/password: ExternalSecret (wealist-shared-secret)에서 가져옴
     port: 5432
+    user: "wealist_admin"   # shared.config.DB_USER와 동일
+    database: "postgres"    # 메트릭 수집용 기본 DB
+    sslmode: "require"      # AWS RDS SSL 필수
 
 redisExporter:
   enabled: true
@@ -338,5 +387,5 @@ redisExporter:
     repository: public.ecr.aws/bitnami/redis-exporter
     tag: "1.55.0"
   config:
-    # host: prod-secrets.yaml에서 설정
+    # host/password: ExternalSecret (wealist-shared-secret)에서 가져옴
     port: 6379

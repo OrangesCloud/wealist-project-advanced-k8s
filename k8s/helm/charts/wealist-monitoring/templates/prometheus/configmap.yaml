@@ -20,6 +20,21 @@ data:
       external_labels:
         monitor: 'wealist-k8s-monitor'
 
+    {{- if .Values.prometheus.alerting.enabled }}
+    # Alert Rules 경로
+    rule_files:
+      - /etc/prometheus/rules/*.yml
+
+    # Alertmanager 설정 (선택 사항)
+    {{- if .Values.prometheus.alerting.alertmanager.enabled }}
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - {{ .Values.prometheus.alerting.alertmanager.host }}:{{ .Values.prometheus.alerting.alertmanager.port }}
+    {{- end }}
+    {{- end }}
+
     scrape_configs:
       # Prometheus 자체 메트릭
       # routePrefix 설정으로 인해 /api/monitoring/prometheus/metrics 경로 사용
@@ -226,4 +241,114 @@ data:
           - source_labels: [__meta_kubernetes_pod_name]
             action: replace
             target_label: pod
+
+      # ==========================================================================
+      # ArgoCD 메트릭 수집
+      # ==========================================================================
+      {{- if .Values.argocd.metrics.enabled }}
+      # ArgoCD Application Controller (argocd-metrics)
+      - job_name: 'argocd-application-controller'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - argocd
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: argocd-metrics
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: metrics
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      # ArgoCD Server
+      - job_name: 'argocd-server'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - argocd
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: argocd-server-metrics
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: metrics
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      # ArgoCD Repo Server
+      - job_name: 'argocd-repo-server'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - argocd
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: argocd-repo-server
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: metrics
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      # ArgoCD ApplicationSet Controller
+      - job_name: 'argocd-applicationset-controller'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - argocd
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: argocd-applicationset-controller
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: metrics
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      # ArgoCD Notifications Controller
+      - job_name: 'argocd-notifications-controller'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - argocd
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: argocd-notifications-controller-metrics
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: metrics
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+      {{- end }}
 {{- end }}

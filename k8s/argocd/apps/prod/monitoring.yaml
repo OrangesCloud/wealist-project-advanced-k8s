@@ -15,7 +15,6 @@ spec:
       valueFiles:
         - ../../environments/base.yaml
         - ../../environments/prod.yaml
-        - ../../environments/prod-secrets.yaml
       parameters:
         - name: global.namespace
           value: wealist-prod

@@ -36,8 +36,25 @@ spec:
               name: metrics
               protocol: TCP
           env:
+            {{- if .Values.externalSecrets.enabled }}
+            # Production: K8s Secret에서 DB 접속 정보 가져옴
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: wealist-shared-secret
+                  key: DB_HOST
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wealist-shared-secret
+                  key: DB_PASSWORD
+            - name: DATA_SOURCE_NAME
+              value: "postgresql://{{ .Values.postgresExporter.config.user }}:$(DB_PASSWORD)@$(DB_HOST):{{ .Values.postgresExporter.config.port }}/{{ .Values.postgresExporter.config.database }}?sslmode={{ .Values.postgresExporter.config.sslmode }}"
+            {{- else }}
+            # Local/Dev: values에서 직접 가져옴
             - name: DATA_SOURCE_NAME
               value: "postgresql://{{ .Values.postgresExporter.config.user }}:{{ .Values.shared.secrets.DB_PASSWORD | default "postgres" }}@{{ .Values.postgresExporter.config.host }}:{{ .Values.postgresExporter.config.port }}/{{ .Values.postgresExporter.config.database }}?sslmode={{ .Values.postgresExporter.config.sslmode }}"
+            {{- end }}
           resources:
             {{- toYaml .Values.postgresExporter.resources | nindent 12 }}
           livenessProbe:

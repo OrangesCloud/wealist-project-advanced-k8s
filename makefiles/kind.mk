@@ -511,21 +511,21 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → ECR 이미지 사
 	else \
 		echo "✅ istioctl: $$(istioctl version --short 2>/dev/null || echo '설치됨')"; \
 	fi
-# 	@echo ""
-# 	@echo "----------------------------------------------"
-# 	@echo "  [2/8] Secrets 파일 확인"
-# 	@echo "----------------------------------------------"
-# 	@echo ""
-# 	@if [ ! -f "./k8s/helm/environments/secrets.yaml" ]; then \
-# 		echo "⚠️  secrets.yaml 파일이 없습니다."; \
-# 		echo "   secrets.example.yaml에서 자동 생성합니다..."; \
-# 		echo ""; \
-# 		cp ./k8s/helm/environments/secrets.example.yaml ./k8s/helm/environments/secrets.yaml; \
-# 		echo "✅ secrets.yaml 생성 완료!"; \
-# 		echo ""; \
-# 	else \
-# 		echo "✅ secrets.yaml 파일 존재 확인"; \
-# 	fi
+	@echo ""
+	@echo "----------------------------------------------"
+	@echo "  [2/8] Secrets 파일 확인"
+	@echo "----------------------------------------------"
+	@echo ""
+	@if [ ! -f "./k8s/helm/environments/secrets.yaml" ]; then \
+		echo "⚠️  secrets.yaml 파일이 없습니다."; \
+		echo "   secrets.example.yaml에서 자동 생성합니다..."; \
+		echo ""; \
+		cp ./k8s/helm/environments/secrets.example.yaml ./k8s/helm/environments/secrets.yaml; \
+		echo "✅ secrets.yaml 생성 완료!"; \
+		echo ""; \
+	else \
+		echo "✅ secrets.yaml 파일 존재 확인"; \
+	fi
 	@echo ""
 	@echo "----------------------------------------------"
 	@echo "  [3/8] AWS 로그인 확인"
@@ -943,6 +943,10 @@ kind-dev-setup: ## 🔧 개발 환경: 클러스터 생성 → ECR 이미지 사
 	else \
 		echo "✅ 모든 서비스 이미지가 ECR에 존재합니다!"; \
 	fi
+	@echo ""
+	@echo ""
+# 	@$(MAKE) helm-install-infra ENV=dev
+	@echo ""
 	@echo ""
 	@echo "----------------------------------------------"
 	@echo "  [8/8] ArgoCD 설치 (GitOps)"

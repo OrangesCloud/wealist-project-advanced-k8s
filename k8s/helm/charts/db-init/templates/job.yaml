@@ -31,11 +31,25 @@ spec:
           {{- toYaml .Values.job.resources | nindent 10 }}
         env:
         - name: PGHOST
+          {{- if .Values.secretRef.hostKey }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secretRef.name }}
+              key: {{ .Values.secretRef.hostKey }}
+          {{- else }}
           value: {{ .Values.database.host | quote }}
+          {{- end }}
         - name: PGPORT
           value: {{ .Values.database.port | quote }}
         - name: PGUSER
+          {{- if .Values.secretRef.usernameKey }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secretRef.name }}
+              key: {{ .Values.secretRef.usernameKey }}
+          {{- else }}
           value: {{ .Values.database.adminUser | quote }}
+          {{- end }}
         - name: PGDATABASE
           value: {{ .Values.database.adminDatabase | quote }}
         - name: PGPASSWORD

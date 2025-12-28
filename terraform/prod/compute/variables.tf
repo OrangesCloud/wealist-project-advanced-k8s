@@ -30,10 +30,10 @@ variable "spot_instance_types" {
   description = "Instance types for Spot node group (다양한 타입으로 Spot 가용성 확보)"
   type        = list(string)
   default = [
-    "t3.medium",   # 2 vCPU, 4GB RAM
-    "t3a.medium",  # AMD 버전 (더 저렴)
-    "t3.large",    # Fallback: 2 vCPU, 8GB RAM
-    "t3a.large"    # Fallback AMD 버전
+    "t3.large",    # 2 vCPU, 8GB RAM (기본)
+    "t3a.large",   # AMD 버전 (더 저렴)
+    "t3.xlarge",   # Fallback: 4 vCPU, 16GB RAM
+    "t3a.xlarge"   # Fallback AMD 버전
   ]
 }
 
@@ -46,13 +46,13 @@ variable "spot_min_size" {
 variable "spot_max_size" {
   description = "Maximum number of Spot nodes"
   type        = number
-  default     = 6
+  default     = 4
 }
 
 variable "spot_desired_size" {
-  description = "Desired number of Spot nodes"
+  description = "Desired number of Spot nodes (t3.large 8GB × 2 = 16GB)"
   type        = number
-  default     = 3
+  default     = 2
 }
 
 variable "node_disk_size" {

@@ -39,6 +39,22 @@ data:
         editable: false
         jsonData:
           maxLines: 1000
+
+      {{- if .Values.grafana.additionalDatasources.elasticsearch.enabled }}
+      # Elasticsearch - ELK 스택 로그/검색 데이터
+      - name: Elasticsearch
+        type: elasticsearch
+        uid: elasticsearch
+        access: proxy
+        url: {{ .Values.grafana.additionalDatasources.elasticsearch.url }}
+        editable: false
+        jsonData:
+          index: {{ .Values.grafana.additionalDatasources.elasticsearch.index | default "logstash-*" }}
+          timeField: "@timestamp"
+          esVersion: "8.0.0"
+          logMessageField: message
+          logLevelField: level
+      {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap

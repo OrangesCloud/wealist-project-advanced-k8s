@@ -50,6 +50,14 @@ prometheus:
     # Sub-path configuration (for Gateway access via /monitoring/prometheus)
     externalUrl: "/monitoring/prometheus"
 
+  # Alert 규칙 및 Alertmanager 설정
+  alerting:
+    enabled: false  # Enable in production
+    alertmanager:
+      enabled: false
+      host: alertmanager
+      port: 9093
+
   # 스크래핑 대상 서비스들
   scrapeTargets:
     # Go Services
@@ -192,6 +200,16 @@ grafana:
     rootUrl: "%(protocol)s://%(domain)s:%(http_port)s/monitoring/grafana"
     serveFromSubPath: "true"
 
+  # Additional Datasources (확장용)
+  additionalDatasources:
+    # Elasticsearch (ELK 스택 연동용)
+    elasticsearch:
+      enabled: false  # ELK 배포 시 true로 변경
+      url: "http://elasticsearch:9200"
+      index: "logstash-*"
+      # Production에서는 AWS OpenSearch 사용 가능
+      # url: "https://search-xxx.ap-northeast-2.es.amazonaws.com"
+
 # =============================================================================
 # Monitoring Ingress - External Access via domain/monitoring/*
 # =============================================================================
@@ -258,6 +276,13 @@ redisExporter:
   config:
     host: "172.18.0.1"
     port: 6379
+
+# =============================================================================
+# ArgoCD Metrics
+# =============================================================================
+argocd:
+  metrics:
+    enabled: false  # Enable in prod environment
 
 # =============================================================================
 # Shared Secrets (for exporters)

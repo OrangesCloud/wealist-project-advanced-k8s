@@ -188,6 +188,7 @@ ifeq ($(EXTERNAL_DB),true)
 			--set shared.config.DB_HOST=$$DB_HOST \
 			--set shared.config.POSTGRES_HOST=$$DB_HOST \
 			--set shared.config.REDIS_HOST=$$DB_HOST \
+			--set shared.config.SPRING_REDIS_HOST=$$DB_HOST \
 			-n $(K8S_NAMESPACE) --create-namespace; \
 	else \
 		echo "⚠️  /tmp/kind_db_host.env 없음 - 기본값 사용"; \

@@ -64,6 +64,88 @@ read -sp "JWT_SECRET (for JWT token signing): " JWT_SECRET
 echo ""
 echo ""
 
+# RSA 키 입력 방식 선택
+echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${YELLOW}RSA Key Configuration:${NC}"
+echo ""
+echo "Choose RSA key input method:"
+echo "  1. Use JWT_SECRET for both private and public keys (simple)"
+echo "  2. Enter separate RSA private and public keys (recommended)"
+echo "  3. Generate new RSA key pair automatically"
+echo ""
+read -p "Select option [1/2/3]: " RSA_OPTION
+echo ""
+
+case $RSA_OPTION in
+    2)
+        echo "Enter RSA Private Key (multi-line, end with Ctrl+D on empty line):"
+        echo "Example format:"
+        echo "-----BEGIN RSA PRIVATE KEY-----"
+        echo "MIIEpAIBAAKCAQEA..."
+        echo "-----END RSA PRIVATE KEY-----"
+        echo ""
+        JWT_RSA_PRIVATE_KEY=$(cat)
+        echo ""
+        
+        echo "Enter RSA Public Key (multi-line, end with Ctrl+D on empty line):"
+        echo "Example format:"
+        echo "-----BEGIN PUBLIC KEY-----"
+        echo "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A..."
+        echo "-----END PUBLIC KEY-----"
+        echo ""
+        JWT_RSA_PUBLIC_KEY=$(cat)
+        echo ""
+        ;;
+    3)
+        echo "Generating new RSA key pair (2048 bit)..."
+        TEMP_KEY_DIR="/tmp/wealist-rsa-keys-$$"
+        mkdir -p "$TEMP_KEY_DIR"
+        
+        # Generate private key
+        openssl genrsa -out "$TEMP_KEY_DIR/private.pem" 2048 2>/dev/null
+        # Extract public key
+        openssl rsa -in "$TEMP_KEY_DIR/private.pem" -pubout -out "$TEMP_KEY_DIR/public.pem" 2>/dev/null
+        
+        JWT_RSA_PRIVATE_KEY=$(cat "$TEMP_KEY_DIR/private.pem")
+        JWT_RSA_PUBLIC_KEY=$(cat "$TEMP_KEY_DIR/public.pem")
+        
+        echo -e "${GREEN}✅ RSA key pair generated!${NC}"
+        echo ""
+        echo "Private Key:"
+        echo "$JWT_RSA_PRIVATE_KEY"
+        echo ""
+        echo "Public Key:"
+        echo "$JWT_RSA_PUBLIC_KEY"
+        echo ""
+        
+        # Backup keys
+        BACKUP_KEY_FILE="rsa-keys-backup-$(date +%Y%m%d-%H%M%S).txt"
+        cat > "$BACKUP_KEY_FILE" <<KEYEOF
+# RSA Keys for Wealist ${ENVIRONMENT}
+# Generated: $(date)
+# KEEP THIS FILE SECURE!
+
+=== PRIVATE KEY ===
+$JWT_RSA_PRIVATE_KEY
+
+=== PUBLIC KEY ===
+$JWT_RSA_PUBLIC_KEY
+KEYEOF
+        
+        echo -e "${YELLOW}⚠️  Keys backed up to: ${BACKUP_KEY_FILE}${NC}"
+        echo -e "${RED}   IMPORTANT: Store this file securely and delete after saving!${NC}"
+        echo ""
+        
+        # Clean up temp directory
+        rm -rf "$TEMP_KEY_DIR"
+        ;;
+    *)
+        echo "Using JWT_SECRET for both RSA keys (simple mode)"
+        JWT_RSA_PRIVATE_KEY="${JWT_SECRET}"
+        JWT_RSA_PUBLIC_KEY="${JWT_SECRET}"
+        ;;
+esac
+
 # 4. 임시 평문 Secret 생성
 echo -e "${YELLOW}4️⃣ Creating temporary plain secret...${NC}"
 TEMP_SECRET="/tmp/wealist-argocd-secret-${ENVIRONMENT}-$(date +%s).yaml"
@@ -84,6 +166,10 @@ stringData:
   GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
   GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
   JWT_SECRET: "${JWT_SECRET}"
+  JWT_RSA_PRIVATE_KEY: |
+$(echo "${JWT_RSA_PRIVATE_KEY}" | sed 's/^/    /')
+  JWT_RSA_PUBLIC_KEY: |
+$(echo "${JWT_RSA_PUBLIC_KEY}" | sed 's/^/    /')
 EOF
 
 echo -e "${GREEN}✅ Temporary secret created${NC}"
@@ -183,7 +269,10 @@ echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━
 echo ""
 echo -e "${BLUE}📝 Files Created:${NC}"
 echo "  - ${OUTPUT_FILE} (SealedSecret for cluster)"
-echo "  - ${BACKUP_FILE} (Private key backup - KEEP SECURE!)"
+echo "  - ${BACKUP_FILE} (Sealed Secrets private key - KEEP SECURE!)"
+if [ -n "$BACKUP_KEY_FILE" ]; then
+    echo "  - ${BACKUP_KEY_FILE} (RSA key pair backup - KEEP SECURE!)"
+fi
 echo ""
 echo -e "${BLUE}📝 Next Steps:${NC}"
 echo ""
@@ -195,33 +284,48 @@ echo "   git add ${OUTPUT_FILE}"
 echo "   git commit -m 're-seal secrets for ${ENVIRONMENT} with new cluster key'"
 echo "   git push"
 echo ""
-echo "3. ${RED}CRITICAL: Backup the private key securely!${NC}"
-echo "   File: ${BACKUP_FILE}"
+echo "3. ${RED}CRITICAL: Backup the private keys securely!${NC}"
+echo "   Files:"
+echo "   - ${BACKUP_FILE} (Sealed Secrets controller key)"
+if [ -n "$BACKUP_KEY_FILE" ]; then
+    echo "   - ${BACKUP_KEY_FILE} (JWT RSA keys)"
+fi
 echo ""
 echo "   Recommended secure storage options:"
 echo "   a) Password Manager (1Password/LastPass/Bitwarden)"
 echo "   b) AWS Secrets Manager / Google Secret Manager"
 echo "   c) Encrypted backup:"
 echo "      gpg --symmetric --cipher-algo AES256 ${BACKUP_FILE}"
-echo "      # Store ${BACKUP_FILE}.gpg in secure private location"
-echo "      # Delete unencrypted ${BACKUP_FILE}"
+if [ -n "$BACKUP_KEY_FILE" ]; then
+    echo "      gpg --symmetric --cipher-algo AES256 ${BACKUP_KEY_FILE}"
+fi
+echo "      # Store .gpg files in secure private location"
+echo "      # Delete unencrypted files"
 echo ""
 echo "4. Add key files to .gitignore:"
 echo "   echo '*.key' >> .gitignore"
 echo "   echo 'sealed-secrets-*.key' >> .gitignore"
+echo "   echo 'rsa-keys-backup-*.txt' >> .gitignore"
 echo "   git add .gitignore"
 echo "   git commit -m 'ignore sealed-secrets key files'"
 echo ""
 echo -e "${YELLOW}⚠️  CRITICAL WARNINGS:${NC}"
 echo "   - ${RED}NEVER commit ${BACKUP_FILE} to Git in plain text!${NC}"
-echo "   - Without this key, you cannot decrypt existing SealedSecrets"
-echo "   - You'll need this key when recreating the cluster"
-echo "   - Store it in at least 2 secure locations"
+if [ -n "$BACKUP_KEY_FILE" ]; then
+    echo "   - ${RED}NEVER commit ${BACKUP_KEY_FILE} to Git in plain text!${NC}"
+fi
+echo "   - Without these keys, you cannot decrypt existing secrets"
+echo "   - You'll need these keys when recreating the cluster"
+echo "   - Store them in at least 2 secure locations"
 echo ""
 echo -e "${BLUE}🔍 Verify Everything:${NC}"
 echo "   kubectl get secrets -n ${NAMESPACE}"
 echo "   kubectl get sealedsecrets -n ${NAMESPACE}"
 echo "   kubectl describe sealedsecret wealist-argocd-secret -n ${NAMESPACE}"
+echo ""
+echo "   # Verify RSA keys in secret:"
+echo "   kubectl get secret wealist-argocd-secret -n ${NAMESPACE} -o jsonpath='{.data.JWT_RSA_PRIVATE_KEY}' | base64 -d | head -1"
+echo "   kubectl get secret wealist-argocd-secret -n ${NAMESPACE} -o jsonpath='{.data.JWT_RSA_PUBLIC_KEY}' | base64 -d | head -1"
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""

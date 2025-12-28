@@ -1,0 +1,422 @@
+{{- if and .Values.prometheus.enabled .Values.prometheus.alerting.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alert-rules
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: prometheus
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: alerting
+data:
+  argocd-alerts.yml: |
+    # =============================================================================
+    # ArgoCD Alert Rules
+    # =============================================================================
+    # 프로덕션 환경에서 필수적인 ArgoCD 모니터링 알림 규칙
+    # Reference: https://github.com/adinhodovic/argo-cd-mixin
+
+    groups:
+      - name: argocd.alerts
+        rules:
+          # ---------------------------------------------------------------------
+          # Application Sync Status Alerts
+          # ---------------------------------------------------------------------
+          - alert: ArgoCdAppOutOfSync
+            expr: |
+              argocd_app_info{sync_status!="Synced"} == 1
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: {{ `"ArgoCD Application {{ $labels.name }} is out of sync"` }}
+              description: |
+                Application {{ `{{ $labels.name }}` }} in project {{ `{{ $labels.project }}` }}
+                has been out of sync for more than 15 minutes.
+                Sync Status: {{ `{{ $labels.sync_status }}` }}
+              runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/argocd/argocdappoutsync"
+
+          - alert: ArgoCdAppOutOfSyncCritical
+            expr: |
+              argocd_app_info{sync_status!="Synced"} == 1
+            for: 1h
+            labels:
+              severity: critical
+            annotations:
+              summary: {{ `"ArgoCD Application {{ $labels.name }} out of sync for over 1 hour"` }}
+              description: |
+                Application {{ `{{ $labels.name }}` }} in project {{ `{{ $labels.project }}` }}
+                has been out of sync for more than 1 hour. Immediate action required.
+                Sync Status: {{ `{{ $labels.sync_status }}` }}
+
+          # ---------------------------------------------------------------------
+          # Application Health Status Alerts
+          # ---------------------------------------------------------------------
+          - alert: ArgoCdAppUnhealthy
+            expr: |
+              argocd_app_info{health_status=~"Degraded|Missing"} == 1
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: {{ `"ArgoCD Application {{ $labels.name }} is unhealthy"` }}
+              description: |
+                Application {{ `{{ $labels.name }}` }} in project {{ `{{ $labels.project }}` }}
+                is in {{ `{{ $labels.health_status }}` }} state.
+              runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/argocd/argocdappunhealthy"
+
+          - alert: ArgoCdAppUnhealthyCritical
+            expr: |
+              argocd_app_info{health_status=~"Degraded|Missing"} == 1
+            for: 30m
+            labels:
+              severity: critical
+            annotations:
+              summary: {{ `"ArgoCD Application {{ $labels.name }} unhealthy for over 30 minutes"` }}
+              description: |
+                Application {{ `{{ $labels.name }}` }} in project {{ `{{ $labels.project }}` }}
+                has been in {{ `{{ $labels.health_status }}` }} state for more than 30 minutes.
+                Immediate investigation required.
+
+          # ---------------------------------------------------------------------
+          # Sync Operation Alerts
+          # ---------------------------------------------------------------------
+          - alert: ArgoCdAppSyncFailed
+            expr: |
+              increase(argocd_app_sync_total{phase!="Succeeded"}[10m]) > 0
+            labels:
+              severity: warning
+            annotations:
+              summary: {{ `"ArgoCD Application {{ $labels.name }} sync failed"` }}
+              description: |
+                Application {{ `{{ $labels.name }}` }} sync operation failed.
+                Phase: {{ `{{ $labels.phase }}` }}
+              runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/argocd/argocdappsyncfailed"
+
+          - alert: ArgoCdAppSyncRepeatedFailures
+            expr: |
+              increase(argocd_app_sync_total{phase!="Succeeded"}[1h]) > 3
+            labels:
+              severity: critical
+            annotations:
+              summary: {{ `"ArgoCD Application {{ $labels.name }} has repeated sync failures"` }}
+              description: |
+                Application {{ `{{ $labels.name }}` }} has failed to sync more than 3 times
+                in the last hour. This indicates a persistent configuration issue.
+
+          # ---------------------------------------------------------------------
+          # AutoSync Configuration Alerts
+          # ---------------------------------------------------------------------
+          - alert: ArgoCdAppAutoSyncDisabled
+            expr: |
+              argocd_app_info{autosync_enabled!="true"} == 1
+            for: 24h
+            labels:
+              severity: info
+            annotations:
+              summary: {{ `"ArgoCD Application {{ $labels.name }} has AutoSync disabled"` }}
+              description: |
+                Application {{ `{{ $labels.name }}` }} in project {{ `{{ $labels.project }}` }}
+                has AutoSync disabled for more than 24 hours.
+                This may be intentional but should be reviewed.
+              runbook_url: "https://runbooks.prometheus-operator.dev/runbooks/argocd/argocdappautosyncdisabled"
+
+          # ---------------------------------------------------------------------
+          # Cluster Connection Alerts
+          # ---------------------------------------------------------------------
+          - alert: ArgoCdClusterConnectionFailed
+            expr: |
+              argocd_cluster_connection_status == 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: {{ `"ArgoCD cannot connect to cluster {{ $labels.server }}"` }}
+              description: |
+                ArgoCD has lost connection to the Kubernetes cluster {{ `{{ $labels.server }}` }}.
+                Applications targeting this cluster cannot be synced.
+                This is a critical infrastructure issue.
+
+          # ---------------------------------------------------------------------
+          # Controller Performance Alerts
+          # ---------------------------------------------------------------------
+          - alert: ArgoCdReconciliationTooSlow
+            expr: |
+              histogram_quantile(0.99, sum(rate(argocd_app_reconcile_bucket[10m])) by (le, namespace)) > 300
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: "ArgoCD reconciliation is taking too long"
+              description: |
+                ArgoCD application reconciliation p99 latency is above 5 minutes.
+                This may indicate resource constraints or complex application manifests.
+
+          - alert: ArgoCdControllerHighMemory
+            expr: |
+              (
+                container_memory_working_set_bytes{container="argocd-application-controller"}
+                / on(namespace, pod) group_left
+                kube_pod_container_resource_limits{container="argocd-application-controller", resource="memory"}
+              ) > 0.9
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "ArgoCD Application Controller memory usage is high"
+              description: |
+                ArgoCD Application Controller is using more than 90% of its memory limit.
+                Consider increasing the memory limit or optimizing application configurations.
+
+          # ---------------------------------------------------------------------
+          # Git Repository Alerts
+          # ---------------------------------------------------------------------
+          - alert: ArgoCdGitRequestsFailing
+            expr: |
+              increase(argocd_git_request_total{request_type="fetch", grpc_code!="OK"}[10m]) > 5
+            labels:
+              severity: warning
+            annotations:
+              summary: "ArgoCD Git fetch requests are failing"
+              description: |
+                ArgoCD is experiencing Git fetch failures.
+                This may indicate network issues or repository access problems.
+
+          - alert: ArgoCdGitRequestDurationHigh
+            expr: |
+              histogram_quantile(0.95, sum(rate(argocd_git_request_duration_seconds_bucket[10m])) by (le, repo)) > 30
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: {{ `"ArgoCD Git request duration is high for repo {{ $labels.repo }}"` }}
+              description: |
+                Git operations for repository {{ `{{ $labels.repo }}` }} are taking more than 30 seconds (p95).
+                This may indicate network latency or large repository size.
+
+  # =============================================================================
+  # Istio Ambient Alert Rules
+  # =============================================================================
+  istio-alerts.yml: |
+    groups:
+      - name: istio.alerts
+        rules:
+          # ---------------------------------------------------------------------
+          # ztunnel (L4) Alerts
+          # ---------------------------------------------------------------------
+          - alert: IstioZtunnelDown
+            expr: |
+              absent(up{job="ztunnel"} == 1)
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Istio ztunnel is down"
+              description: |
+                Istio ztunnel (L4 proxy) is not responding.
+                This will affect all L4 mesh traffic.
+
+          - alert: IstioHighTcpConnectionRate
+            expr: |
+              sum(rate(istio_tcp_connections_opened_total[5m])) > 1000
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High TCP connection rate detected"
+              description: |
+                TCP connection open rate is above 1000/s for the last 10 minutes.
+                This may indicate a connection storm or leak.
+
+          # ---------------------------------------------------------------------
+          # Waypoint (L7) Alerts
+          # ---------------------------------------------------------------------
+          - alert: IstioWaypointHighErrorRate
+            expr: |
+              (
+                sum(rate(istio_requests_total{response_code=~"5.*"}[5m]))
+                / sum(rate(istio_requests_total[5m]))
+              ) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High error rate through Istio Waypoint"
+              description: |
+                More than 5% of requests through Waypoint are returning 5xx errors.
+                Service: {{ `{{ $labels.destination_service }}` }}
+
+          - alert: IstioWaypointHighLatency
+            expr: |
+              histogram_quantile(0.99, sum(rate(istio_request_duration_milliseconds_bucket[5m])) by (le, destination_service)) > 5000
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High latency through Istio Waypoint"
+              description: |
+                Request p99 latency to {{ `{{ $labels.destination_service }}` }}
+                is above 5 seconds.
+
+          # ---------------------------------------------------------------------
+          # Control Plane Alerts
+          # ---------------------------------------------------------------------
+          - alert: IstiodDown
+            expr: |
+              absent(up{job="istiod"} == 1)
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Istio control plane (istiod) is down"
+              description: |
+                Istiod is not responding. New proxy configurations cannot be pushed.
+
+          - alert: IstiodXdsPushErrors
+            expr: |
+              increase(pilot_xds_pushes{type="cds"}[5m]) == 0
+              and increase(pilot_k8s_cfg_events[5m]) > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Istio XDS push is stalled"
+              description: |
+                Istiod is receiving Kubernetes events but not pushing configuration updates.
+                This may indicate a configuration issue.
+
+          - alert: IstiodConfigConflict
+            expr: |
+              pilot_conflict_inbound_listener > 0 or pilot_conflict_outbound_listener_tcp_over_current_tcp > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Istio configuration conflict detected"
+              description: |
+                There are conflicting Istio listener configurations.
+                Check VirtualServices and DestinationRules for conflicts.
+
+  # =============================================================================
+  # Service Health Alert Rules
+  # =============================================================================
+  service-alerts.yml: |
+    groups:
+      - name: service.alerts
+        rules:
+          - alert: ServiceDown
+            expr: |
+              up{job=~"user-service|board-service|chat-service|noti-service|storage-service|video-service|auth-service"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: {{ `"Service {{ $labels.job }} is down"` }}
+              description: |
+                Service {{ `{{ $labels.job }}` }} is not responding to health checks.
+                Check pod status and logs.
+
+          - alert: ServiceHighErrorRate
+            expr: |
+              (
+                sum(rate(http_requests_total{status=~"5.."}[5m])) by (job)
+                / sum(rate(http_requests_total[5m])) by (job)
+              ) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: {{ `"Service {{ $labels.job }} has high error rate"` }}
+              description: |
+                Service {{ `{{ $labels.job }}` }} is returning more than 5% 5xx errors.
+
+          - alert: ServiceHighLatency
+            expr: |
+              histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job)) > 2
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: {{ `"Service {{ $labels.job }} has high latency"` }}
+              description: |
+                Service {{ `{{ $labels.job }}` }} p95 latency is above 2 seconds.
+
+  # =============================================================================
+  # Database Exporter Alert Rules
+  # =============================================================================
+  database-alerts.yml: |
+    groups:
+      - name: database.alerts
+        rules:
+          {{- if .Values.postgresExporter.enabled }}
+          - alert: PostgresExporterDown
+            expr: |
+              up{job="postgres-exporter"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "PostgreSQL Exporter is down"
+              description: |
+                Cannot collect PostgreSQL metrics. Check exporter pod and database connectivity.
+
+          - alert: PostgresHighConnections
+            expr: |
+              pg_stat_activity_count / pg_settings_max_connections > 0.8
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "PostgreSQL connection usage is high"
+              description: |
+                PostgreSQL is using more than 80% of max_connections.
+                Consider increasing the limit or optimizing connection pooling.
+
+          - alert: PostgresDeadlocks
+            expr: |
+              increase(pg_stat_database_deadlocks[5m]) > 0
+            labels:
+              severity: warning
+            annotations:
+              summary: "PostgreSQL deadlocks detected"
+              description: |
+                Deadlocks have occurred in the PostgreSQL database.
+                Review application transaction logic.
+          {{- end }}
+
+          {{- if .Values.redisExporter.enabled }}
+          - alert: RedisExporterDown
+            expr: |
+              up{job="redis-exporter"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Redis Exporter is down"
+              description: |
+                Cannot collect Redis metrics. Check exporter pod and Redis connectivity.
+
+          - alert: RedisHighMemoryUsage
+            expr: |
+              redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Redis memory usage is high"
+              description: |
+                Redis is using more than 90% of maxmemory.
+                Consider scaling or optimizing cache usage.
+
+          - alert: RedisRejectedConnections
+            expr: |
+              increase(redis_rejected_connections_total[5m]) > 0
+            labels:
+              severity: warning
+            annotations:
+              summary: "Redis is rejecting connections"
+              description: |
+                Redis has rejected connections in the last 5 minutes.
+                Check maxclients setting and connection usage.
+          {{- end }}
+{{- end }}

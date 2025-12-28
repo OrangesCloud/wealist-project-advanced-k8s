@@ -2,11 +2,11 @@
 # DB Init - Production Values
 # =============================================================================
 # RDS PostgreSQL 초기화 설정
+# Host, Username, Password는 모두 ExternalSecret에서 동적으로 가져옴
 
 database:
-  host: "wealist-prod-postgres.chig8i0o4a8g.ap-northeast-2.rds.amazonaws.com"
+  # host와 adminUser는 secretRef에서 가져옴 (아래 설정 참조)
   port: 5432
-  adminUser: wealist_admin
   adminDatabase: wealist
 
 # 생성할 데이터베이스 목록
@@ -30,6 +30,9 @@ extensions:
   - uuid-ossp
 
 # Secret 참조 (External Secrets에서 생성)
+# Terraform이 wealist/prod/database/endpoint에 host, username, password를 모두 저장
 secretRef:
   name: wealist-shared-secret
-  passwordKey: DB_PASSWORD
+  hostKey: DB_HOST          # Terraform → Secrets Manager → ExternalSecret
+  usernameKey: DB_USERNAME  # Terraform → Secrets Manager → ExternalSecret
+  passwordKey: DB_PASSWORD  # Terraform → Secrets Manager → ExternalSecret
