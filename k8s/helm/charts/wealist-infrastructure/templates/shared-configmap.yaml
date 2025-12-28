@@ -22,6 +22,8 @@ data:
   LIVEKIT_WS_URL: {{ .Values.shared.config.LIVEKIT_WS_URL | quote }}
 
   # Infrastructure URLs
+  DB_HOST: {{ .Values.shared.config.POSTGRES_HOST | quote }}
+  DB_PORT: {{ .Values.shared.config.POSTGRES_PORT | quote }}
   POSTGRES_HOST: {{ .Values.shared.config.POSTGRES_HOST | quote }}
   POSTGRES_PORT: {{ .Values.shared.config.POSTGRES_PORT | quote }}
   REDIS_HOST: {{ .Values.shared.config.REDIS_HOST | quote }}
