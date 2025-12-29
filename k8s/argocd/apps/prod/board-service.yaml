@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/board-service"
         - name: image.tag
-          value: "44-43dc98b"
+          value: "53-f2eae03"
         - name: externalSecrets.enabled
           value: "true"
         - name: config.DB_NAME
