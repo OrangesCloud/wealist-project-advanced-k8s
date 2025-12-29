@@ -302,7 +302,7 @@ jobs:
     if: |
       needs.detect-changes.outputs.services != '[]' &&
       needs.detect-changes.outputs.services != '' &&
-      needs.detect-changes.outputs.branch != 'service-deploy-prod' &&  #
+      needs.detect-changes.outputs.branch != 'service-deploy-prod' &&  
       success() &&
       github.event.inputs.skip_gitops != 'true'
     runs-on: ubuntu-latest
