@@ -27,45 +27,62 @@ externalSecrets:
 # -----------------------------------------------------------------------------
 # Deployment Settings (Production)
 # -----------------------------------------------------------------------------
+# 핵심 서비스 - 2 replicas 유지 (HA)
 auth-service:
-  replicaCount: 2  # HA: 가용성 확보, 배포 시 무중단
+  replicaCount: 2
+  autoscaling:
+    minReplicas: 2
   resources:
     requests:
-      memory: "768Mi"
-      cpu: "250m"
+      memory: "384Mi"   # 실제 사용량 ~300Mi
+      cpu: "100m"       # 실제 사용량 ~50m
     limits:
-      memory: "1536Mi"  # 1.5Gi - JVM 힙 ~1.1GB (75%)
-      cpu: "1000m"
+      memory: "768Mi"   # Spring Boot 충분
+      cpu: "500m"
   config:
     SPRING_DATA_REDIS_SSL_ENABLED: "true"  # ElastiCache TLS
 
+# 핵심 서비스 - 2 replicas 유지 (HA)
 board-service:
   replicaCount: 2
+  autoscaling:
+    minReplicas: 2
   config:
     DB_NAME: "board_db"
 
 user-service:
   replicaCount: 2
+  autoscaling:
+    minReplicas: 2
   config:
     DB_NAME: "user_db"
 
+# 보조 서비스 - 1 replica (비용 절감, 필요시 HPA로 확장)
 chat-service:
-  replicaCount: 2
+  replicaCount: 1
+  autoscaling:
+    minReplicas: 1
   config:
     DB_NAME: "chat_db"
 
 noti-service:
   replicaCount: 1
+  autoscaling:
+    minReplicas: 1
   config:
     DB_NAME: "noti_db"
 
 storage-service:
   replicaCount: 1
+  autoscaling:
+    minReplicas: 1
   config:
     DB_NAME: "storage_db"
 
 video-service:
   replicaCount: 1
+  autoscaling:
+    minReplicas: 1
   config:
     DB_NAME: "video_db"
 
@@ -74,15 +91,17 @@ image:
   tag: "latest"
 
 # -----------------------------------------------------------------------------
-# Resources (Production - Higher limits)
+# Resources (Production - Go 서비스용 경량화된 설정)
 # -----------------------------------------------------------------------------
+# Go 서비스는 매우 가벼움 (실제 사용량: CPU ~5m, Memory ~30Mi)
+# 2개 노드로 운영하기 위해 requests 최소화
 resources:
   requests:
-    memory: "256Mi"
-    cpu: "200m"
+    memory: "64Mi"
+    cpu: "25m"
   limits:
-    memory: "1Gi"
-    cpu: "1000m"
+    memory: "256Mi"
+    cpu: "500m"
 
 # -----------------------------------------------------------------------------
 # Health Check
@@ -111,9 +130,10 @@ securityContext:
 # -----------------------------------------------------------------------------
 # Features (Production)
 # -----------------------------------------------------------------------------
+# 기본 HPA 설정 (서비스별 override 가능)
 autoscaling:
   enabled: true
-  minReplicas: 2
+  minReplicas: 1      # 기본값 1, 중요 서비스는 replicaCount: 2로 override
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80

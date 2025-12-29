@@ -24,6 +24,10 @@ resource "kubernetes_namespace" "wealist_prod" {
 # ArgoCD Project 생성 (wealist-prod)
 # -----------------------------------------------------------------------------
 resource "kubernetes_manifest" "argocd_project_prod" {
+  field_manager {
+    force_conflicts = true
+  }
+
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
     kind       = "AppProject"
@@ -41,6 +45,7 @@ resource "kubernetes_manifest" "argocd_project_prod" {
         "https://charts.jetstack.io",
         "https://kubernetes.github.io/autoscaler",
         "https://kubernetes-sigs.github.io/external-dns",
+        "https://kubernetes-sigs.github.io/metrics-server",
         "https://istio-release.storage.googleapis.com/charts"
       ]
       destinations = [

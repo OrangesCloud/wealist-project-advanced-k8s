@@ -29,7 +29,7 @@ resource "kubernetes_manifest" "argocd_app_alb_controller" {
       source = {
         repoURL        = "https://aws.github.io/eks-charts"
         chart          = "aws-load-balancer-controller"
-        targetRevision = "1.7.1"
+        targetRevision = "1.17.0"
         helm = {
           valuesObject = {
             clusterName = local.cluster_name
@@ -74,6 +74,10 @@ resource "kubernetes_manifest" "argocd_app_alb_controller" {
 # External Secrets Operator (sync-wave: -1)
 # -----------------------------------------------------------------------------
 resource "kubernetes_manifest" "argocd_app_external_secrets" {
+  field_manager {
+    force_conflicts = true
+  }
+
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
     kind       = "Application"
@@ -90,7 +94,7 @@ resource "kubernetes_manifest" "argocd_app_external_secrets" {
       source = {
         repoURL        = "https://charts.external-secrets.io"
         chart          = "external-secrets"
-        targetRevision = "0.10.5"  # v1 API 지원 (v0.10.0+)
+        targetRevision = "1.2.0"  # K8s 1.34 호환, v1beta1 API 계속 지원
         helm = {
           valuesObject = {
             installCRDs = true
@@ -138,7 +142,7 @@ resource "kubernetes_manifest" "argocd_app_cert_manager" {
       source = {
         repoURL        = "https://charts.jetstack.io"
         chart          = "cert-manager"
-        targetRevision = "v1.14.3"
+        targetRevision = "v1.19.2"
         helm = {
           valuesObject = {
             installCRDs = true
@@ -248,7 +252,7 @@ resource "kubernetes_manifest" "argocd_app_cluster_autoscaler" {
       source = {
         repoURL        = "https://kubernetes.github.io/autoscaler"
         chart          = "cluster-autoscaler"
-        targetRevision = "9.35.0"
+        targetRevision = "9.53.0"  # K8s 1.34 호환 (App 1.34.2)
         helm = {
           valuesObject = {
             autoDiscovery = {
@@ -261,6 +265,107 @@ resource "kubernetes_manifest" "argocd_app_cluster_autoscaler" {
                 name   = "cluster-autoscaler"
               }
             }
+          }
+        }
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = "kube-system"
+      }
+      syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+        syncOptions = ["ServerSideApply=true"]
+      }
+    }
+  }
+
+  depends_on = [kubernetes_manifest.argocd_app_alb_controller]
+}
+
+# -----------------------------------------------------------------------------
+# Metrics Server (sync-wave: -1)
+# -----------------------------------------------------------------------------
+# kubectl top, HPA (Horizontal Pod Autoscaler) 필수
+resource "kubernetes_manifest" "argocd_app_metrics_server" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name      = "metrics-server"
+      namespace = "argocd"
+      annotations = {
+        "argocd.argoproj.io/sync-wave" = "-1"
+      }
+      finalizers = ["resources-finalizer.argocd.argoproj.io"]
+    }
+    spec = {
+      project = "wealist-prod"
+      source = {
+        repoURL        = "https://kubernetes-sigs.github.io/metrics-server"
+        chart          = "metrics-server"
+        targetRevision = "3.13.0"
+        helm = {
+          valuesObject = {
+            args = [
+              "--kubelet-insecure-tls",
+              "--kubelet-preferred-address-types=InternalIP"
+            ]
+          }
+        }
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = "kube-system"
+      }
+      syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+        syncOptions = ["ServerSideApply=true"]
+      }
+    }
+  }
+
+  depends_on = [kubernetes_manifest.argocd_app_alb_controller]
+}
+
+# -----------------------------------------------------------------------------
+# AWS Node Termination Handler (sync-wave: -1)
+# -----------------------------------------------------------------------------
+# Spot 인스턴스 중단 시 graceful shutdown 보장
+# EC2 Spot Interruption, Scheduled Events, Rebalance Recommendation 처리
+resource "kubernetes_manifest" "argocd_app_node_termination_handler" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name      = "aws-node-termination-handler"
+      namespace = "argocd"
+      annotations = {
+        "argocd.argoproj.io/sync-wave" = "-1"
+      }
+      finalizers = ["resources-finalizer.argocd.argoproj.io"]
+    }
+    spec = {
+      project = "wealist-prod"
+      source = {
+        repoURL        = "https://aws.github.io/eks-charts"
+        chart          = "aws-node-termination-handler"
+        targetRevision = "0.21.0"
+        helm = {
+          valuesObject = {
+            enableSpotInterruptionDraining  = true
+            enableRebalanceMonitoring       = true
+            enableScheduledEventDraining    = true
+            enableRebalanceDraining         = true
+            nodeTerminationGracePeriod      = 120
+            podTerminationGracePeriod       = 60
+            deleteLocalData                 = true
+            ignoreDaemonSets                = true
           }
         }
       }
