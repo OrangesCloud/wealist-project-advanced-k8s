@@ -18,22 +18,13 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Data Source: Node Group ASG 이름 조회
+# Local: Node Group ASG 이름 (모듈 출력에서 직접 가져옴)
 # -----------------------------------------------------------------------------
-data "aws_autoscaling_groups" "eks_node_groups" {
-  count = var.scheduled_scaling_enabled ? 1 : 0
-
-  filter {
-    name   = "tag:eks:cluster-name"
-    values = [module.eks.cluster_name]
-  }
-
-  filter {
-    name   = "tag:eks:nodegroup-name"
-    values = ["${local.name_prefix}-spot*"]
-  }
-
-  depends_on = [module.eks]
+locals {
+  # EKS 모듈의 managed node group에서 ASG 이름 추출
+  spot_asg_name = var.scheduled_scaling_enabled ? (
+    module.eks.eks_managed_node_groups["spot"].node_group_resources[0].autoscaling_groups[0].name
+  ) : ""
 }
 
 # =============================================================================
@@ -47,7 +38,7 @@ resource "aws_autoscaling_schedule" "weekday_scale_down" {
   count = var.scheduled_scaling_enabled ? 1 : 0
 
   scheduled_action_name  = "${local.name_prefix}-weekday-scale-down"
-  autoscaling_group_name = data.aws_autoscaling_groups.eks_node_groups[0].names[0]
+  autoscaling_group_name = local.spot_asg_name
 
   # 16:00 UTC (Sun-Thu) = 01:00 KST (Mon-Fri)
   recurrence = var.weekday_scale_down_schedule
@@ -66,7 +57,7 @@ resource "aws_autoscaling_schedule" "weekday_scale_up" {
   count = var.scheduled_scaling_enabled ? 1 : 0
 
   scheduled_action_name  = "${local.name_prefix}-weekday-scale-up"
-  autoscaling_group_name = data.aws_autoscaling_groups.eks_node_groups[0].names[0]
+  autoscaling_group_name = local.spot_asg_name
 
   # 23:00 UTC (Sun-Thu) = 08:00 KST (Mon-Fri)
   recurrence = var.weekday_scale_up_schedule
@@ -89,7 +80,7 @@ resource "aws_autoscaling_schedule" "weekend_scale_down" {
   count = var.scheduled_scaling_enabled && var.weekend_enabled ? 1 : 0
 
   scheduled_action_name  = "${local.name_prefix}-weekend-scale-down"
-  autoscaling_group_name = data.aws_autoscaling_groups.eks_node_groups[0].names[0]
+  autoscaling_group_name = local.spot_asg_name
 
   # 18:00 UTC (Fri-Sat) = 03:00 KST (Sat-Sun)
   recurrence = var.weekend_scale_down_schedule
@@ -108,7 +99,7 @@ resource "aws_autoscaling_schedule" "weekend_scale_up" {
   count = var.scheduled_scaling_enabled && var.weekend_enabled ? 1 : 0
 
   scheduled_action_name  = "${local.name_prefix}-weekend-scale-up"
-  autoscaling_group_name = data.aws_autoscaling_groups.eks_node_groups[0].names[0]
+  autoscaling_group_name = local.spot_asg_name
 
   # 00:00 UTC (Sat-Sun) = 09:00 KST (Sat-Sun)
   recurrence = var.weekend_scale_up_schedule
