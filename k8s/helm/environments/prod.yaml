@@ -154,7 +154,7 @@ shared:
     # S3 Configuration (AWS S3 - Terraform: wealist-prod-storage)
     S3_ENDPOINT: ""  # AWS S3 기본 엔드포인트 사용 (비워두면 AWS SDK 기본값)
     S3_PUBLIC_ENDPOINT: "https://cdn.wealist.co.kr"
-    S3_BUCKET: "wealist-prod-storage"  # Terraform output: s3_bucket_name
+    S3_BUCKET: "wealist-prod-files-290008131187"
     S3_REGION: "ap-northeast-2"
     # LiveKit (Video Service)
     LIVEKIT_WS_URL: "wss://wealist.co.kr/svc/livekit"
