@@ -457,6 +457,9 @@ kind-staging-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (s
 	@echo -e "$(YELLOW)🚀 ArgoCD 설치 중...$(NC)"
 	$(MAKE) argo-install-simple
 	@echo ""
+	@echo -e "$(YELLOW)🔐 Git 레포지토리 등록 중...$(NC)"
+	$(MAKE) argo-add-repo-auto
+	@echo ""
 	@echo -e "$(YELLOW)🎯 Staging Applications 배포 중...$(NC)"
 	$(MAKE) argo-deploy-staging
 	@echo ""
@@ -469,6 +472,24 @@ kind-staging-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (s
 	@echo "Password: $$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo '(생성 중...)')"
 	@echo ""
 	@echo "상태 확인: make argo-status"
+
+# GitHub 토큰 환경변수: GITHUB_TOKEN, GITHUB_USER
+argo-add-repo-auto: ## Git 레포 자동 등록 (환경변수 GITHUB_TOKEN, GITHUB_USER 필요)
+	@if [ -z "$$GITHUB_TOKEN" ]; then \
+		echo -e "$(RED)❌ GITHUB_TOKEN 환경변수가 설정되지 않았습니다.$(NC)"; \
+		echo "   export GITHUB_TOKEN=ghp_xxxxx"; \
+		echo "   또는: make argo-add-repo (인터랙티브)"; \
+		exit 1; \
+	fi
+	@GITHUB_USER=$${GITHUB_USER:-212clab}; \
+	REPO_URL="https://github.com/OrangesCloud/wealist-project-advanced-k8s.git"; \
+	echo "Git 레포 등록: $$REPO_URL (User: $$GITHUB_USER)"; \
+	kubectl -n argocd create secret generic repo-creds \
+		--from-literal=url=$$REPO_URL \
+		--from-literal=username=$$GITHUB_USER \
+		--from-literal=password=$$GITHUB_TOKEN \
+		--dry-run=client -o yaml | kubectl apply -f -; \
+	echo -e "$(GREEN)✅ Git 레포 등록 완료$(NC)"
 
 load-infra-images-ecr: ## [ArgoCD] 인프라 이미지 로드
 	@echo -e "$(YELLOW)📦 인프라 이미지 로드 중...$(NC)"
