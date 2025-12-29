@@ -3,8 +3,8 @@
 # =============================================================================
 # 설치 순서 (sync-wave):
 #   -2: AWS Load Balancer Controller (webhook 먼저)
-#   -1: External Secrets, cert-manager, Cluster Autoscaler
-#    0: Istio Ingress Gateway (ALB Controller 필요)
+#   -1: External Secrets, cert-manager, External DNS, Cluster Autoscaler
+#    0: Istio Ingress Gateway (Gateway API로 대체됨)
 #    1: External Secrets Config (ClusterSecretStore, ExternalSecret)
 #    2+: 서비스들
 # =============================================================================
@@ -152,6 +152,68 @@ resource "kubernetes_manifest" "argocd_app_cert_manager" {
       destination = {
         server    = "https://kubernetes.default.svc"
         namespace = "cert-manager"
+      }
+      syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+        syncOptions = ["CreateNamespace=true", "ServerSideApply=true"]
+      }
+    }
+  }
+
+  depends_on = [kubernetes_manifest.argocd_app_alb_controller]
+}
+
+# -----------------------------------------------------------------------------
+# External DNS (sync-wave: -1)
+# -----------------------------------------------------------------------------
+# Route53 자동 업데이트: Gateway API 리소스의 annotation 기반으로 DNS 레코드 관리
+resource "kubernetes_manifest" "argocd_app_external_dns" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name      = "external-dns"
+      namespace = "argocd"
+      annotations = {
+        "argocd.argoproj.io/sync-wave" = "-1"
+      }
+      finalizers = ["resources-finalizer.argocd.argoproj.io"]
+    }
+    spec = {
+      project = "wealist-prod"
+      source = {
+        repoURL        = "https://kubernetes-sigs.github.io/external-dns"
+        chart          = "external-dns"
+        targetRevision = "1.14.5"
+        helm = {
+          valuesObject = {
+            provider = "aws"
+            aws = {
+              region = var.aws_region
+            }
+            domainFilters = ["wealist.co.kr"]
+            policy        = "sync"  # create, update, delete records
+            registry      = "txt"
+            txtOwnerId    = "wealist-prod"
+            sources       = ["service", "ingress", "gateway-httproute"]
+            serviceAccount = {
+              create = true
+              name   = "external-dns"
+            }
+            # Gateway API 지원
+            extraArgs = [
+              "--gateway-namespace=istio-system",
+              "--gateway-label-filter=gateway.networking.k8s.io/gateway-name=istio-ingressgateway"
+            ]
+          }
+        }
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = "external-dns"
       }
       syncPolicy = {
         automated = {
