@@ -46,6 +46,11 @@ spec:
     {{- if .Values.istio.k8sGateway.listeners.https.enabled }}
     - name: https
       port: {{ .Values.istio.k8sGateway.listeners.https.port | default 443 }}
+      {{- if .Values.istio.k8sGateway.listeners.https.nlbTermination }}
+      # NLB TLS termination: NLB handles TLS, Gateway receives HTTP
+      protocol: HTTP
+      {{- else }}
+      # Gateway TLS termination: Gateway handles TLS with certificate
       protocol: HTTPS
       {{- if .Values.istio.k8sGateway.listeners.https.hostname }}
       hostname: {{ .Values.istio.k8sGateway.listeners.https.hostname | quote }}
@@ -55,6 +60,7 @@ spec:
         certificateRefs:
           - kind: Secret
             name: {{ .Values.istio.k8sGateway.listeners.https.certificateRef }}
+      {{- end }}
       allowedRoutes:
         namespaces:
           from: {{ .Values.istio.k8sGateway.listeners.https.allowedRoutes.from | default "All" }}

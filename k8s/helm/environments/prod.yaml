@@ -228,13 +228,21 @@ istio:
         # Health check 설정 (Istio Gateway status port)
         service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "15021"
         service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/healthz/ready"
+        # TLS 설정 - ACM 인증서 사용
+        service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:ap-northeast-2:290008131187:certificate/193d87ce-e04a-469d-9196-7624ed113bcc"
+        service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+        service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
     listeners:
       http:
         port: 80
         allowedRoutes:
           from: All
       https:
-        enabled: false  # NLB에서 SSL passthrough 또는 Istio에서 처리
+        enabled: true
+        port: 443
+        nlbTermination: true  # NLB에서 TLS termination, Gateway는 HTTP로 수신
+        allowedRoutes:
+          from: All
 
   # HTTPRoute 설정 (Kubernetes Gateway API)
   httpRoute:
