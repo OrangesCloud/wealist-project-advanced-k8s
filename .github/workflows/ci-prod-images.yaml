@@ -142,31 +142,42 @@ jobs:
             git commit -m "🚀 [PROD] Deploy ${SERVICE} - ${TAG}"
             git push origin "$BRANCH_NAME"
             
+            # PR body를 heredoc으로 저장
+            PR_BODY=$(cat <<'EOF'
+          ## Production Deployment Request
+          
+          **Service:** `SERVICE_PLACEHOLDER`  
+          **Image Tag:** `TAG_PLACEHOLDER`  
+          **ECR Image:** `prod/SERVICE_PLACEHOLDER:TAG_PLACEHOLDER`  
+          **Manifest:** `k8s/argocd/apps/prod/SERVICE_PLACEHOLDER.yaml`
+          
+          ### Pre-deployment Checklist
+          - [ ] Dev/Staging 테스트 완료
+          - [ ] 성능 및 리소스 검토 완료
+          - [ ] 팀원 승인 완료
+          
+          ### Deployment Steps
+          1. 이 PR 리뷰 및 승인
+          2. PR Merge
+          3. ArgoCD UI에서 **SERVICE_PLACEHOLDER-prod** 애플리케이션의 **Sync** 버튼 클릭
+          4. 배포 모니터링 (Discord 알림 확인)
+          
+          ---
+          ⚠️ **주의**: 자동 배포되지 않습니다. ArgoCD에서 수동 Sync 필요
+          
+          Requested by: @ACTOR_PLACEHOLDER
+          EOF
+            )
+            
+            # Placeholder 치환
+            PR_BODY="${PR_BODY//SERVICE_PLACEHOLDER/$SERVICE}"
+            PR_BODY="${PR_BODY//TAG_PLACEHOLDER/$TAG}"
+            PR_BODY="${PR_BODY//ACTOR_PLACEHOLDER/${{ github.actor }}}"
+            
             # PR 생성
             gh pr create \
               --title "🚀 [PROD] Deploy ${SERVICE} - ${TAG}" \
-              --body "## Production Deployment Request
-
-**Service:** \`${SERVICE}\`  
-**Image Tag:** \`${TAG}\`  
-**ECR Image:** \`prod/${SERVICE}:${TAG}\`  
-**Manifest:** \`k8s/argocd/apps/prod/${SERVICE}.yaml\`
-
-### Pre-deployment Checklist
-- [ ] Dev/Staging 테스트 완료
-- [ ] 성능 및 리소스 검토 완료
-- [ ] 팀원 승인 완료
-
-### Deployment Steps
-1. 이 PR 리뷰 및 승인
-2. PR Merge
-3. ArgoCD UI에서 **${SERVICE}-prod** 애플리케이션의 **Sync** 버튼 클릭
-4. 배포 모니터링 (Discord 알림 확인)
-
----
-⚠️ **주의**: 자동 배포되지 않습니다. ArgoCD에서 수동 Sync 필요
-
-Requested by: @${{ github.actor }}" \
+              --body "$PR_BODY" \
               --base k8s-deploy-prod \
               --head "$BRANCH_NAME"
             
@@ -181,8 +192,8 @@ Requested by: @${{ github.actor }}" \
             git add .
             git commit -m "🚀 [PROD] Deploy ${SERVICE} - ${TAG}
 
-Updated by: ${{ github.actor }}
-Manual deployment trigger"
+          Updated by: ${{ github.actor }}
+          Manual deployment trigger"
             
             git push origin k8s-deploy-prod
             
