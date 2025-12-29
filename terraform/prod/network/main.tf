@@ -115,5 +115,6 @@ locals {
   )
 
   # Flag to indicate if ALB can be created
-  alb_enabled = local.vpc_id != null && length(local.public_subnet_ids) > 0
+  # ALB is disabled by default - using NLB via Kubernetes Gateway API (Ambient mode)
+  alb_enabled = var.enable_alb && local.vpc_id != null && length(local.public_subnet_ids) > 0
 }

@@ -96,6 +96,16 @@ resource "kubernetes_manifest" "argocd_project_prod" {
         {
           group = "cert-manager.io"
           kind  = "*"
+        },
+        # AWS Load Balancer Controller requires IngressClass
+        {
+          group = "networking.k8s.io"
+          kind  = "IngressClass"
+        },
+        # Kubernetes Gateway API (for Istio Ambient mode)
+        {
+          group = "gateway.networking.k8s.io"
+          kind  = "*"
         }
       ]
       namespaceResourceWhitelist = [

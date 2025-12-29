@@ -18,7 +18,7 @@ spec:
         - ../../environments/staging.yaml
       parameters:
         - name: global.imageRegistry
-          value: "<AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com"
+          value: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
         - name: image.repository
           value: "chat-service"
         - name: image.tag

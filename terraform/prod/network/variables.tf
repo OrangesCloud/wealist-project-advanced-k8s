@@ -55,6 +55,16 @@ variable "enable_dns" {
 # ALB Configuration
 # -----------------------------------------------------------------------------
 
+variable "enable_alb" {
+  description = <<-EOT
+    Enable ALB and Target Group for Istio Gateway.
+    Set to false when using Kubernetes Gateway API with NLB (recommended for Ambient mode).
+    NLB is automatically provisioned by Istio when using Gateway API.
+  EOT
+  type        = bool
+  default     = false # Disabled: Using NLB via Kubernetes Gateway API
+}
+
 variable "alb_idle_timeout" {
   description = "ALB idle timeout in seconds"
   type        = number

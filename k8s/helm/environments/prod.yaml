@@ -213,18 +213,28 @@ istio:
 
   # Kubernetes Gateway API - Ingress Gateway (Ambient 모드 권장)
   # Istio가 자동으로 Deployment/Service 생성
+  # infrastructure.annotations는 자동 생성되는 Service에 적용됨
   k8sGateway:
     enabled: true
     name: istio-ingressgateway
     namespace: istio-system
     gatewayClassName: istio
+    # AWS NLB 설정 - 자동 생성되는 Service에 적용
+    infrastructure:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "external"
+        service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+        # Health check 설정 (Istio Gateway status port)
+        service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "15021"
+        service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/healthz/ready"
     listeners:
       http:
         port: 80
         allowedRoutes:
           from: All
       https:
-        enabled: false  # ALB에서 SSL 종료
+        enabled: false  # NLB에서 SSL passthrough 또는 Istio에서 처리
 
   # HTTPRoute 설정 (Kubernetes Gateway API)
   httpRoute:
