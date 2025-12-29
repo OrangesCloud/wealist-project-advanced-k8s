@@ -372,8 +372,8 @@ argocd:
 postgresExporter:
   enabled: true
   image:
-    repository: bitnami/postgres-exporter
-    tag: "0.15.0"
+    repository: prometheuscommunity/postgres-exporter
+    tag: "v0.18.1"
   config:
     # host/password: ExternalSecret (wealist-shared-secret)에서 가져옴
     port: 5432
@@ -384,8 +384,8 @@ postgresExporter:
 redisExporter:
   enabled: true
   image:
-    repository: bitnami/redis-exporter
-    tag: "1.55.0"
+    repository: oliver006/redis_exporter
+    tag: "v1.80.1"
   config:
     # host/password: ExternalSecret (wealist-shared-secret)에서 가져옴
     port: 6379
