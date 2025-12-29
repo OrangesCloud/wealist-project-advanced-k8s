@@ -1,6 +1,8 @@
 # Production Network Infrastructure
 
-ALB, CloudFront, Route53 DNS 레코드를 관리하는 Terraform 구성입니다.
+ALB, Route53 API DNS 레코드를 관리하는 Terraform 구성입니다.
+
+> **Note**: CloudFront + S3 (Frontend)는 AWS Console에서 수동 관리 (Flat-Rate Free Plan, 2025년 11월 출시)
 
 ## 아키텍처
 
@@ -13,7 +15,7 @@ ALB, CloudFront, Route53 DNS 레코드를 관리하는 Terraform 구성입니다
                            ▼                    ▼
                     ┌─────────────┐      ┌─────────────┐
                     │ CloudFront  │      │    ALB      │
-                    │ (Frontend)  │      │   (API)     │
+                    │ (Console)   │      │   (API)     │
                     └──────┬──────┘      └──────┬──────┘
                            │                    │
                            ▼                    ▼
@@ -30,13 +32,30 @@ ALB, CloudFront, Route53 DNS 레코드를 관리하는 Terraform 구성입니다
 
 ## 리소스
 
-| 리소스 | 설명 |
-|--------|------|
-| ALB | API Gateway (api.wealist.co.kr) |
-| Target Group | Istio Gateway Pod IP 대상 |
-| CloudFront | 프론트엔드 CDN (wealist.co.kr) |
-| S3 | 프론트엔드 정적 파일 저장소 |
-| Route53 Records | DNS 레코드 (enable_dns 변수로 on/off) |
+| 리소스 | 관리 방식 | 설명 |
+|--------|----------|------|
+| ALB | Terraform | API Gateway (api.wealist.co.kr) |
+| Target Group | Terraform | Istio Gateway Pod IP 대상 |
+| Route53 (API) | Terraform | API DNS 레코드 (enable_dns 변수) |
+| **CloudFront** | **AWS Console** | Flat-Rate Free Plan 사용 |
+| **S3** | **AWS Console** | 프론트엔드 정적 파일 (CloudFront와 함께) |
+| **Route53 (Frontend)** | **AWS Console** | CloudFront와 함께 관리 |
+
+## CloudFront Flat-Rate Free Plan
+
+2025년 11월 AWS에서 출시한 새로운 가격 정책입니다.
+
+| 항목 | Free Plan |
+|------|-----------|
+| 가격 | $0/월 |
+| 요청 | 1M/월 |
+| 데이터 전송 | 100 GB/월 |
+| WAF 규칙 | 5개 포함 |
+| S3 스토리지 | 5 GB 포함 |
+| 초과 시 | 추가 비용 없음 (성능 저하만) |
+
+> **Terraform 미지원**: 현재 Terraform AWS Provider는 Flat-Rate Plan을 지원하지 않습니다.
+> AWS Console에서 CloudFront + S3를 직접 생성해야 합니다.
 
 ## 사전 요구사항
 
@@ -44,25 +63,8 @@ ALB, CloudFront, Route53 DNS 레코드를 관리하는 Terraform 구성입니다
 2. **compute** 배포 완료 (EKS, Istio)
 3. **ACM 인증서** 발급 완료:
    - `ap-northeast-2`: ALB용
-   - `us-east-1`: CloudFront용
 
 ## 배포
-
-### 1. web-infra에서 State 마이그레이션 (최초 1회)
-
-기존 web-infra의 CloudFront/S3가 있다면 State를 마이그레이션합니다:
-
-```bash
-# 백업
-aws s3 cp s3://wealist-tf-state-advanced-k8s/web-infra/terraform.tfstate \
-          s3://wealist-tf-state-advanced-k8s/web-infra/terraform.tfstate.backup
-
-# State 복사
-aws s3 cp s3://wealist-tf-state-advanced-k8s/web-infra/terraform.tfstate \
-          s3://wealist-tf-state-advanced-k8s/prod/network/terraform.tfstate
-```
-
-### 2. Terraform 초기화 및 적용
 
 ```bash
 cd terraform/prod/network
@@ -73,56 +75,38 @@ terraform init
 # 계획 확인
 terraform plan
 
-# 적용 (DNS 없이)
+# 적용
 terraform apply
 
-# 또는 DNS 포함
+# API DNS 포함 (enable_dns=true)
 terraform apply -var="enable_dns=true"
 ```
 
-> **주의**: `enable_dns=true`로 적용하기 전에 수동으로 생성된 Route53 레코드를 삭제하세요!
+> **주의**: `enable_dns=true`로 적용하기 전에 수동으로 생성된 Route53 API 레코드를 삭제하세요!
 
-### 3. ALB → Istio Gateway 연결
+### ALB → Istio Gateway 연결
 
 Terraform apply 후, TargetGroupBinding을 Kubernetes에 적용합니다:
 
 ```bash
 # TargetGroupBinding YAML 생성 및 적용
 terraform output -raw target_group_binding_yaml | kubectl apply -f -
-
-# 또는 수동으로
-cat <<EOF | kubectl apply -f -
-apiVersion: elbv2.k8s.aws/v1beta1
-kind: TargetGroupBinding
-metadata:
-  name: istio-gateway-tgb
-  namespace: istio-system
-spec:
-  serviceRef:
-    name: istio-ingressgateway
-    port: 80
-  targetGroupARN: $(terraform output -raw istio_target_group_arn)
-  targetType: ip
-EOF
 ```
 
 ## 변수
 
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
-| `enable_dns` | `false` | Route53 레코드 생성 여부 |
+| `enable_dns` | `false` | Route53 API 레코드 생성 여부 |
 | `domain_name` | `wealist.co.kr` | 도메인 이름 |
 | `alb_deletion_protection` | `false` | ALB 삭제 보호 |
-| `cloudfront_price_class` | `PriceClass_200` | US, EU, Asia |
 
 ## Outputs
 
 | Output | 설명 |
 |--------|------|
 | `alb_dns_name` | ALB DNS 이름 |
-| `cloudfront_domain_name` | CloudFront 도메인 |
 | `istio_target_group_arn` | Istio Target Group ARN |
-| `frontend_url` | 프론트엔드 URL |
 | `api_url` | API URL |
 
 ```bash
@@ -138,23 +122,22 @@ terraform output -raw target_group_binding_yaml
 
 ### Route53 Hosted Zone
 - Zone ID: `Z0954990337NMPX3FY1D6`
-- Hosted Zone은 Terraform 외부에서 관리됩니다
+- Hosted Zone은 Terraform 외부에서 관리
 
-### Terraform 관리 레코드 (enable_dns=true일 때)
-- `wealist.co.kr` → CloudFront (A, AAAA)
+### Terraform 관리 레코드 (enable_dns=true)
 - `api.wealist.co.kr` → ALB (A)
 
-### Terraform 외부 관리 레코드
+### AWS Console 관리 레코드
+- `wealist.co.kr` → CloudFront (A, AAAA)
 - `dev.wealist.co.kr` → Dev CloudFront
 - `local.wealist.co.kr` → iptime (로컬 개발)
-- ACM 검증 레코드
 
 ## 예상 비용
 
 | 리소스 | 예상 비용 |
 |--------|----------|
 | ALB | ~$16/월 (기본) + LCU |
-| CloudFront | 사용량 기반 |
+| CloudFront | **$0/월** (Free Plan) |
 | Route53 | ~$0.50/월 (레코드) |
 | S3 | 사용량 기반 |
 
@@ -174,33 +157,8 @@ kubectl get pods -n istio-system -l app=istio-ingressgateway
 kubectl get targetgroupbinding -n istio-system
 ```
 
-### CloudFront 403 에러
-
-```bash
-# S3 버킷 정책 확인
-aws s3api get-bucket-policy --bucket wealist-frontend
-
-# OAC 확인
-aws cloudfront get-origin-access-control \
-  --id $(aws cloudfront list-origin-access-controls --query 'OriginAccessControlList.Items[?Name==`wealist-prod-frontend-oac`].Id' --output text)
-```
-
-### DNS 레코드 충돌
-
-`enable_dns=true` 적용 시 에러가 발생하면:
-
-```bash
-# 기존 레코드 확인
-aws route53 list-resource-record-sets \
-  --hosted-zone-id Z0954990337NMPX3FY1D6 \
-  --query "ResourceRecordSets[?Name=='wealist.co.kr.' || Name=='api.wealist.co.kr.']"
-
-# 수동 레코드 삭제 후 재시도
-terraform apply -var="enable_dns=true"
-```
-
 ## 관련 문서
 
 - [ALB Target Group Binding](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.4/guide/targetgroupbinding/targetgroupbinding/)
-- [CloudFront OAC](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html)
+- [CloudFront Flat-Rate Plans](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/flat-rate-pricing-plan.html)
 - [Istio Gateway](https://istio.io/latest/docs/tasks/traffic-management/ingress/gateway-api/)

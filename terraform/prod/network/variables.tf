@@ -68,42 +68,11 @@ variable "alb_deletion_protection" {
 }
 
 # -----------------------------------------------------------------------------
-# CloudFront Configuration
+# Frontend (CloudFront + S3) - Managed manually via AWS Console
 # -----------------------------------------------------------------------------
-
-variable "cloudfront_price_class" {
-  description = "CloudFront price class (PriceClass_100 = US/EU only, cheapest)"
-  type        = string
-  default     = "PriceClass_200" # US, EU, Asia
-}
-
-variable "cloudfront_default_ttl" {
-  description = "Default TTL for CloudFront cache (seconds)"
-  type        = number
-  default     = 86400 # 1 day
-}
-
-variable "cloudfront_min_ttl" {
-  description = "Minimum TTL for CloudFront cache (seconds)"
-  type        = number
-  default     = 0
-}
-
-variable "cloudfront_max_ttl" {
-  description = "Maximum TTL for CloudFront cache (seconds)"
-  type        = number
-  default     = 31536000 # 1 year
-}
-
-# -----------------------------------------------------------------------------
-# S3 Frontend Configuration
-# -----------------------------------------------------------------------------
-
-variable "frontend_bucket_name" {
-  description = "S3 bucket name for frontend static files"
-  type        = string
-  default     = "wealist-frontend"
-}
+# CloudFront uses Flat-Rate Free Plan (November 2025)
+# Terraform does not yet support flat-rate pricing plans
+# Create CloudFront + S3 manually in AWS Console
 
 # -----------------------------------------------------------------------------
 # Target Group Configuration (Istio Gateway)

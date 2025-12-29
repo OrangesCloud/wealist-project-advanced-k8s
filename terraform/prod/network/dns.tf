@@ -22,34 +22,8 @@ data "aws_route53_zone" "main" {
 # =============================================================================
 # Frontend Records (wealist.co.kr → CloudFront)
 # =============================================================================
-
-# A Record (IPv4)
-resource "aws_route53_record" "frontend_a" {
-  count   = var.enable_dns ? 1 : 0
-  zone_id = data.aws_route53_zone.main[0].zone_id
-  name    = var.domain_name
-  type    = "A"
-
-  alias {
-    name                   = aws_cloudfront_distribution.frontend.domain_name
-    zone_id                = aws_cloudfront_distribution.frontend.hosted_zone_id
-    evaluate_target_health = false
-  }
-}
-
-# AAAA Record (IPv6)
-resource "aws_route53_record" "frontend_aaaa" {
-  count   = var.enable_dns ? 1 : 0
-  zone_id = data.aws_route53_zone.main[0].zone_id
-  name    = var.domain_name
-  type    = "AAAA"
-
-  alias {
-    name                   = aws_cloudfront_distribution.frontend.domain_name
-    zone_id                = aws_cloudfront_distribution.frontend.hosted_zone_id
-    evaluate_target_health = false
-  }
-}
+# NOTE: CloudFront is managed manually via AWS Console (Flat-Rate Free Plan)
+# DNS records for frontend are also managed manually or via CloudFront console
 
 # =============================================================================
 # API Records (api.wealist.co.kr → ALB)

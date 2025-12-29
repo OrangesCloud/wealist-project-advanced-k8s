@@ -58,37 +58,16 @@ output "target_group_binding_yaml" {
 }
 
 # -----------------------------------------------------------------------------
-# CloudFront Outputs
+# CloudFront (Managed manually via AWS Console)
 # -----------------------------------------------------------------------------
-
-output "cloudfront_distribution_id" {
-  description = "CloudFront distribution ID"
-  value       = aws_cloudfront_distribution.frontend.id
-}
-
-output "cloudfront_domain_name" {
-  description = "CloudFront distribution domain name"
-  value       = aws_cloudfront_distribution.frontend.domain_name
-}
-
-output "cloudfront_arn" {
-  description = "CloudFront distribution ARN"
-  value       = aws_cloudfront_distribution.frontend.arn
-}
+# CloudFront uses Flat-Rate Free Plan (November 2025)
+# Terraform does not yet support flat-rate pricing plans
+# No outputs here - check AWS Console for CloudFront details
 
 # -----------------------------------------------------------------------------
-# S3 Outputs
+# S3 (Managed manually via AWS Console with CloudFront)
 # -----------------------------------------------------------------------------
-
-output "frontend_bucket_name" {
-  description = "Frontend S3 bucket name"
-  value       = aws_s3_bucket.frontend.id
-}
-
-output "frontend_bucket_arn" {
-  description = "Frontend S3 bucket ARN"
-  value       = aws_s3_bucket.frontend.arn
-}
+# S3 bucket for frontend is created manually with CloudFront Flat-Rate Plan
 
 # -----------------------------------------------------------------------------
 # DNS Status
@@ -104,8 +83,8 @@ output "dns_enabled" {
 # -----------------------------------------------------------------------------
 
 output "frontend_url" {
-  description = "Frontend URL"
-  value       = var.enable_dns ? "https://${var.domain_name}" : "https://${aws_cloudfront_distribution.frontend.domain_name}"
+  description = "Frontend URL (CloudFront managed manually)"
+  value       = "https://${var.domain_name} (CloudFront managed via AWS Console)"
 }
 
 output "api_url" {
@@ -130,9 +109,7 @@ output "summary" {
     "DNS Enabled: ${var.enable_dns}",
     "ALB Enabled: ${local.alb_enabled}",
     "",
-    "Frontend:",
-    "  CloudFront: ${aws_cloudfront_distribution.frontend.domain_name}",
-    "  S3 Bucket: ${aws_s3_bucket.frontend.id}",
+    "Frontend: Managed manually via AWS Console (CloudFront + S3 Flat-Rate Free Plan)",
     "",
     local.alb_enabled ? "API:\n  ALB DNS: ${aws_lb.api[0].dns_name}" : "API: NOT CREATED (VPC required)",
     "",

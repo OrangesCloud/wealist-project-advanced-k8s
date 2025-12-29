@@ -1,6 +1,7 @@
 # =============================================================================
 # Production Network Infrastructure
-# ALB, CloudFront, Route53 DNS Records
+# ALB, S3 (Frontend), Route53 DNS Records
+# CloudFront is managed manually via AWS Console (Flat-Rate Free Plan)
 # =============================================================================
 
 terraform {
@@ -34,15 +35,8 @@ provider "aws" {
   }
 }
 
-# CloudFront requires ACM certificates in us-east-1
-provider "aws" {
-  alias  = "us_east_1"
-  region = "us-east-1"
-
-  default_tags {
-    tags = local.common_tags
-  }
-}
+# NOTE: us-east-1 provider removed
+# CloudFront is managed manually via AWS Console (Flat-Rate Free Plan)
 
 # -----------------------------------------------------------------------------
 # Data Sources - Remote State (Optional)
