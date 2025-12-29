@@ -77,7 +77,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITOPS_PAT }}
+          token: ${{ secrets.GITOPS_PAT || github.token}}
           fetch-depth: 0
       
       - name: Configure Git
