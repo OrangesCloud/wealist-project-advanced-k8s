@@ -120,7 +120,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ -n "${{ github.event.inputs.services }}" ]; then
-              SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -cR 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+              # frontend 제외 (S3/CloudFront로 별도 배포)
+              SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -cR 'split(",") | map(gsub("^\\s+|\\s+$";"")) | map(select(. != "frontend"))')
               echo "Manual trigger with services: ${SERVICES}"
             else
               SERVICES='["auth-service","board-service","chat-service","noti-service","storage-service","user-service","video-service"]'
