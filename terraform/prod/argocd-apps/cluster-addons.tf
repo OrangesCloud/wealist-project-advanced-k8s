@@ -90,7 +90,7 @@ resource "kubernetes_manifest" "argocd_app_external_secrets" {
       source = {
         repoURL        = "https://charts.external-secrets.io"
         chart          = "external-secrets"
-        targetRevision = "0.9.11"
+        targetRevision = "0.10.5"  # v1 API 지원 (v0.10.0+)
         helm = {
           valuesObject = {
             installCRDs = true
