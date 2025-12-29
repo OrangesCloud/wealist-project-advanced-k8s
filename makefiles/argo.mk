@@ -463,6 +463,10 @@ kind-staging-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (s
 	@echo -e "$(YELLOW)🎯 Staging Applications 배포 중...$(NC)"
 	$(MAKE) argo-deploy-staging
 	@echo ""
+	@echo -e "$(YELLOW)🔄 로컬 ArgoCD 앱 적용 중 (DB_HOST 반영)...$(NC)"
+	@for f in k8s/argocd/apps/staging/*-service.yaml; do kubectl apply -f "$$f"; done
+	@echo -e "$(GREEN)✅ 로컬 ArgoCD 앱 적용 완료$(NC)"
+	@echo ""
 	@echo -e "$(GREEN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
 	@echo -e "$(GREEN)✅ Staging 환경 전체 설정 완료!$(NC)"
 	@echo -e "$(GREEN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"

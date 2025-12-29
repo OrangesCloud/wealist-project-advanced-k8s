@@ -225,14 +225,38 @@ echo "🔐 호스트 PostgreSQL 설정 중 (Kind 네트워크 허용)..."
 # pg_hba.conf 찾기
 PG_HBA=$(sudo find /etc/postgresql -name pg_hba.conf 2>/dev/null | head -1)
 if [ -n "${PG_HBA}" ]; then
-    # Kind 네트워크 허용 규칙이 없으면 추가
-    if ! sudo grep -q "192.168.0.0/16" "${PG_HBA}" 2>/dev/null; then
-        echo "  → pg_hba.conf에 Kind 네트워크 허용 추가..."
-        echo "# Kind cluster network access" | sudo tee -a "${PG_HBA}" > /dev/null
-        echo "host    all    all    192.168.0.0/16    md5" | sudo tee -a "${PG_HBA}" > /dev/null
+    PG_CHANGED=false
+
+    # Kind Pod 네트워크 (10.244.0.0/16) - 필수!
+    if ! sudo grep -q "10.244.0.0/16" "${PG_HBA}" 2>/dev/null; then
+        echo "  → pg_hba.conf: Kind Pod 네트워크 (10.244.0.0/16) 허용 추가..."
+        echo "# Kind cluster Pod network" | sudo tee -a "${PG_HBA}" > /dev/null
+        echo "host    all    all    10.244.0.0/16     md5" | sudo tee -a "${PG_HBA}" > /dev/null
+        PG_CHANGED=true
+    fi
+
+    # Docker bridge 네트워크 (172.17.0.0/16, 172.18.0.0/16)
+    if ! sudo grep -q "172.16.0.0/12" "${PG_HBA}" 2>/dev/null; then
+        echo "  → pg_hba.conf: Docker 네트워크 (172.16.0.0/12) 허용 추가..."
         echo "host    all    all    172.16.0.0/12     md5" | sudo tee -a "${PG_HBA}" > /dev/null
+        PG_CHANGED=true
+    fi
+
+    # WSL/Host 네트워크 (192.168.x.x)
+    if ! sudo grep -q "192.168.0.0/16" "${PG_HBA}" 2>/dev/null; then
+        echo "  → pg_hba.conf: WSL/Host 네트워크 (192.168.0.0/16) 허용 추가..."
+        echo "host    all    all    192.168.0.0/16    md5" | sudo tee -a "${PG_HBA}" > /dev/null
+        PG_CHANGED=true
+    fi
+
+    # 넓은 범위 (fallback)
+    if ! sudo grep -q "10.0.0.0/8" "${PG_HBA}" 2>/dev/null; then
+        echo "  → pg_hba.conf: 10.0.0.0/8 네트워크 허용 추가..."
         echo "host    all    all    10.0.0.0/8        md5" | sudo tee -a "${PG_HBA}" > /dev/null
-    else
+        PG_CHANGED=true
+    fi
+
+    if [ "$PG_CHANGED" = false ]; then
         echo "  → pg_hba.conf: Kind 네트워크 이미 허용됨"
     fi
 
@@ -243,18 +267,64 @@ if [ -n "${PG_HBA}" ]; then
             echo "  → postgresql.conf: listen_addresses = '*' 설정..."
             sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" "${PG_CONF}"
             sudo sed -i "s/listen_addresses = 'localhost'/listen_addresses = '*'/" "${PG_CONF}"
+            PG_CHANGED=true
         fi
     fi
 
-    # PostgreSQL 재시작
-    echo "  → PostgreSQL 재시작..."
-    sudo systemctl restart postgresql 2>/dev/null || sudo service postgresql restart 2>/dev/null || true
+    # PostgreSQL 재시작 (변경사항 있으면)
+    if [ "$PG_CHANGED" = true ]; then
+        echo "  → PostgreSQL 재시작..."
+        sudo systemctl restart postgresql 2>/dev/null || sudo service postgresql restart 2>/dev/null || true
+    fi
     echo "✅ PostgreSQL 설정 완료"
 else
     echo "⚠️  PostgreSQL 설정 파일을 찾을 수 없습니다. 수동 설정 필요."
 fi
 
-# 10. staging.yaml에 AWS Account ID 자동 업데이트
+# 10. DB_HOST 동적 감지 (WSL/Linux/macOS)
+echo "🔍 호스트 IP 감지 중..."
+if [ "$(uname)" = "Darwin" ]; then
+    DB_HOST="host.docker.internal"
+    echo "  🖥️  macOS 감지 → DB_HOST: host.docker.internal"
+elif grep -qi microsoft /proc/version 2>/dev/null; then
+    DB_HOST=$(hostname -I | awk '{print $1}')
+    echo "  🖥️  WSL 감지 → DB_HOST: ${DB_HOST} (WSL IP)"
+    echo "  ⚠️  WSL IP는 재부팅 시 변경될 수 있습니다."
+else
+    DB_HOST="172.18.0.1"
+    echo "  🖥️  Linux 감지 → DB_HOST: 172.18.0.1"
+fi
+
+# staging.yaml에 DB_HOST 동적 업데이트
+STAGING_YAML="${HELM_DIR}/environments/staging.yaml"
+echo "  → staging.yaml에 DB_HOST 업데이트: ${DB_HOST}"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s/DB_HOST: .*/DB_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    sed -i '' "s/POSTGRES_HOST: .*/POSTGRES_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    sed -i '' "s/REDIS_HOST: .*/REDIS_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    sed -i '' "s/SPRING_REDIS_HOST: .*/SPRING_REDIS_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+else
+    sed -i "s/DB_HOST: .*/DB_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    sed -i "s/POSTGRES_HOST: .*/POSTGRES_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    sed -i "s/REDIS_HOST: .*/REDIS_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    sed -i "s/SPRING_REDIS_HOST: .*/SPRING_REDIS_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+fi
+echo "✅ DB_HOST 설정 완료"
+
+# ArgoCD Application 파일들에 DB_HOST 업데이트
+ARGOCD_APPS_DIR="${HELM_DIR}/../argocd/apps/staging"
+if [ -d "${ARGOCD_APPS_DIR}" ]; then
+    echo "  → ArgoCD Application 파일들 업데이트 중..."
+    for file in "${ARGOCD_APPS_DIR}"/*-service.yaml; do
+        if [ -f "$file" ]; then
+            # host.docker.internal을 실제 DB_HOST로 교체
+            sed -i "s|value: \"host.docker.internal\"|value: \"${DB_HOST}\"|g" "$file"
+        fi
+    done
+    echo "✅ ArgoCD Application 파일들 업데이트 완료 (DB_HOST: ${DB_HOST})"
+fi
+
+# 11. staging.yaml에 AWS Account ID 자동 업데이트
 STAGING_YAML="${HELM_DIR}/environments/staging.yaml"
 if grep -q "<AWS_ACCOUNT_ID>" "${STAGING_YAML}" 2>/dev/null; then
     echo "🔧 staging.yaml에 AWS Account ID 자동 업데이트 중..."
