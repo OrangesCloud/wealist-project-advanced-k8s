@@ -77,7 +77,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITOPS_PAT || github.token}}
+          token: ${{ secrets.GITOPS_PAT || github.token }}
           fetch-depth: 0
       
       - name: Configure Git
@@ -125,7 +125,7 @@ jobs:
       
       - name: Create PR or commit
         env:
-          GH_TOKEN: ${{ secrets.GITOPS_PAT }}
+          GH_TOKEN: ${{ secrets.GITOPS_PAT || github.token }}
         run: |
           SERVICE="${{ inputs.service }}"
           TAG="${{ inputs.image_tag }}"
