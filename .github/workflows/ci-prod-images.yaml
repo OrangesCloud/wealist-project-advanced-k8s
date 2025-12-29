@@ -203,6 +203,52 @@ jobs:
             echo "Go to ArgoCD and manually sync ${SERVICE}-prod"
           fi
       
+      - name: Send Discord notification
+        if: inputs.create_pr == true
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -n "$DISCORD_WEBHOOK" ]; then
+            curl -H "Content-Type: application/json" \
+                 -X POST \
+                 -d '{
+                   "embeds": [{
+                     "title": "📦 Production Deployment Request",
+                     "description": "New production deployment PR created",
+                     "color": 3447003,
+                     "fields": [
+                       {
+                         "name": "🔧 Service",
+                         "value": "'"${{ inputs.service }}"'",
+                         "inline": true
+                       },
+                       {
+                         "name": "🏷️ Image Tag",
+                         "value": "'"${{ inputs.image_tag }}"'",
+                         "inline": true
+                       },
+                       {
+                         "name": "👤 Requested by",
+                         "value": "'"${{ github.actor }}"'",
+                         "inline": true
+                       },
+                       {
+                         "name": "📋 Next Steps",
+                         "value": "1. Review PR\n2. Merge after approval\n3. Sync in ArgoCD\n4. Monitor deployment",
+                         "inline": false
+                       }
+                     ],
+                     "footer": {
+                       "text": "GitHub Actions • Production Deployment"
+                     },
+                     "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
+                   }]
+                 }' \
+                 "$DISCORD_WEBHOOK"
+          else
+            echo "Discord webhook not configured"
+          fi
+
       - name: Deployment summary
         run: |
           echo "## 🚀 Production Image Tag Update" >> $GITHUB_STEP_SUMMARY

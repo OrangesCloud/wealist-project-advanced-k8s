@@ -5,6 +5,13 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+    # Discord 배포 알림 설정 (Production)
+    notifications.argoproj.io/subscribe.on-deployed.discord: prod-deployment-alerts
+    notifications.argoproj.io/subscribe.on-sync-failed.discord: prod-deployment-alerts
+    notifications.argoproj.io/subscribe.on-sync-running.discord: prod-deployment-alerts
+  labels:
+    environment: production
+    service: board-service
 spec:
   project: wealist-prod
   source:
