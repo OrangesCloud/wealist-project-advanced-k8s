@@ -18,6 +18,12 @@ spring:
       port: ${SPRING_REDIS_PORT:6379}
       password: ${SPRING_REDIS_PASSWORD:}
 
+  # Spring Session Redis 설정 (OAuth2 state 공유)
+  session:
+    store-type: redis
+    redis:
+      namespace: wealist:auth:session
+
   # Google OAuth2 설정
   security:
     oauth2:

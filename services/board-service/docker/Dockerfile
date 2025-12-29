@@ -18,11 +18,11 @@ COPY services/board-service/go.mod services/board-service/go.sum ./
 
 # Add replace directive for local package
 RUN echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packages/wealist-advanced-go-pkg' >> go.mod
-
+    
 # Download dependencies (cached if go.mod/go.sum unchanged)
 RUN --mount=type=cache,target=/go/pkg/mod \
     GOWORK=off go mod download -x
-
+   
 # Copy source code (changes here don't invalidate dependency cache)
 COPY services/board-service/ ./
 

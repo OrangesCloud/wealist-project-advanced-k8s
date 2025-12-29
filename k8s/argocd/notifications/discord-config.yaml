@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  # Discord 서비스 설정
+  service.discord: |
+    token: $discord-token
+  
+  # 배포 성공 템플릿
+  template.app-deployed: |
+    discord:
+      title: "🚀 배포 완료"
+      description: |
+        **애플리케이션**: {{.app.metadata.name}}
+        **환경**: {{.app.metadata.labels.environment}}
+        **상태**: {{.app.status.health.status}}
+        **동기화**: {{.app.status.sync.status}}
+        **리비전**: {{.app.status.sync.revision}}
+        **시간**: {{.app.status.operationState.finishedAt}}
+      color: 3066993
+      fields:
+      - name: "🔗 ArgoCD"
+        value: "[애플리케이션 보기]({{.context.argocdUrl}}/applications/{{.app.metadata.name}})"
+        inline: true
+      - name: "📊 모니터링"
+        value: "[Grafana 대시보드](https://{{.app.metadata.labels.domain}}/api/monitoring/grafana)"
+        inline: true
+
+  # 배포 실패 템플릿
+  template.app-sync-failed: |
+    discord:
+      title: "❌ 배포 실패"
+      description: |
+        **애플리케이션**: {{.app.metadata.name}}
+        **환경**: {{.app.metadata.labels.environment}}
+        **오류**: {{.app.status.operationState.message}}
+        **시간**: {{.app.status.operationState.finishedAt}}
+      color: 15158332
+      fields:
+      - name: "🔗 ArgoCD"
+        value: "[문제 확인하기]({{.context.argocdUrl}}/applications/{{.app.metadata.name}})"
+        inline: true
+
+  # 배포 시작 템플릿
+  template.app-sync-running: |
+    discord:
+      title: "⏳ 배포 시작"
+      description: |
+        **애플리케이션**: {{.app.metadata.name}}
+        **환경**: {{.app.metadata.labels.environment}}
+        **시작 시간**: {{.app.status.operationState.startedAt}}
+      color: 16776960
+
+  # 트리거 설정
+  trigger.on-deployed: |
+    - description: 배포 완료 시 알림
+      send:
+      - app-deployed
+      when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+  
+  trigger.on-sync-failed: |
+    - description: 배포 실패 시 알림
+      send:
+      - app-sync-failed
+      when: app.status.operationState.phase in ['Error', 'Failed']
+  
+  trigger.on-sync-running: |
+    - description: 배포 시작 시 알림
+      send:
+      - app-sync-running
+      when: app.status.operationState.phase in ['Running']
+
+  # 구독 설정 (Production 앱에만 적용)
+  subscriptions: |
+    - recipients:
+      - discord:prod-deployment-alerts
+      triggers:
+      - on-deployed
+      - on-sync-failed
+      - on-sync-running
+      selector: metadata.labels.environment == 'production'
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-notifications-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  # Discord Bot Token (GitHub Secrets에서 가져와야 함)
+  discord-token: "YOUR_DISCORD_BOT_TOKEN"
