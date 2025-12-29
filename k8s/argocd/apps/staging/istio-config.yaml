@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wealist-istio-config-staging
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"  # 서비스들 이후에 설치
+spec:
+  project: wealist-staging
+  source:
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-staging
+    path: k8s/helm/charts/istio-config
+    helm:
+      valueFiles:
+        - ../../environments/base.yaml
+        - ../../environments/staging.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wealist-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

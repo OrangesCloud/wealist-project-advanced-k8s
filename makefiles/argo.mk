@@ -3,6 +3,7 @@
 # ============================================
 .PHONY: argo-help cluster-up cluster-down bootstrap deploy argo-clean argo-status helm-install-infra all
 .PHONY: setup-local-argocd kind-setup-ecr load-infra-images-ecr
+.PHONY: argo-deploy-staging argo-deploy-dev argo-deploy-prod
 
 # 색상
 GREEN  := \033[0;32m
@@ -175,14 +176,39 @@ argo-ui: ## ArgoCD UI 포트 포워딩
 # 배포
 # ============================================
 
-# deploy: ## Applications 배포 (Root App 생성)
-# 	@echo -e "$(YELLOW)🎯 Applications 배포 중...$(NC)"
-# 	@kubectl apply -f k8s/argocd/apps/project.yaml || true
-# 	@kubectl apply -f k8s/argocd/apps/root-app.yaml || true
-# 	@echo -e "$(GREEN)✅ 배포 완료$(NC)"
-# 	@echo ""
-# 	@echo "Applications 확인:"
-# 	@kubectl get applications -n argocd
+argo-deploy-staging: ## [ArgoCD] Staging 환경 Applications 배포 (Root App 생성)
+	@echo -e "$(YELLOW)🎯 Staging Applications 배포 중...$(NC)"
+	@echo ""
+	@echo "1. AppProject 생성..."
+	@kubectl apply -f k8s/argocd/apps/staging/project.yaml || true
+	@kubectl apply -f k8s/argocd/projects/wealist-staging.yaml || true
+	@echo ""
+	@echo "2. Root Application 생성..."
+	@kubectl apply -f k8s/argocd/apps/staging/root-app.yaml || true
+	@echo ""
+	@echo "3. ArgoCD Sync 대기 중..."
+	@sleep 5
+	@echo ""
+	@echo -e "$(GREEN)✅ Staging 배포 완료$(NC)"
+	@echo ""
+	@echo "Applications 확인:"
+	@kubectl get applications -n argocd
+	@echo ""
+	@echo -e "$(YELLOW)📝 ArgoCD가 자동으로 모든 앱을 Sync합니다.$(NC)"
+	@echo "   상태 확인: make argo-status"
+
+argo-deploy-dev: ## [ArgoCD] Dev 환경 Applications 배포
+	@echo -e "$(YELLOW)🎯 Dev Applications 배포 중...$(NC)"
+	@kubectl apply -f k8s/argocd/apps/dev/project.yaml || true
+	@kubectl apply -f k8s/argocd/projects/wealist-dev.yaml || true
+	@kubectl apply -f k8s/argocd/apps/dev/root-app.yaml || true
+	@echo -e "$(GREEN)✅ Dev 배포 완료$(NC)"
+
+argo-deploy-prod: ## [ArgoCD] Prod 환경 Applications 배포
+	@echo -e "$(YELLOW)🎯 Prod Applications 배포 중...$(NC)"
+	@kubectl apply -f k8s/argocd/projects/wealist-prod.yaml || true
+	@kubectl apply -f k8s/argocd/apps/prod/root-app.yaml || true
+	@echo -e "$(GREEN)✅ Prod 배포 완료$(NC)"
 
 # ============================================
 # 상태 확인

@@ -1,0 +1,66 @@
+# =============================================================================
+# Staging Secrets - terraform.tfvars 예시
+# =============================================================================
+# 이 파일을 terraform.tfvars로 복사하고 실제 값을 입력하세요.
+# cp terraform.tfvars.example terraform.tfvars
+#
+# 주의: terraform.tfvars는 .gitignore에 추가하세요!
+
+# -----------------------------------------------------------------------------
+# Database (PostgreSQL)
+# -----------------------------------------------------------------------------
+# Kind 로컬: 172.18.0.1 (호스트 머신)
+# AWS RDS: your-rds-endpoint.region.rds.amazonaws.com
+db_host     = "172.18.0.1"
+db_port     = "5432"
+db_username = "wealist"
+db_password = "your-secure-db-password"
+
+# -----------------------------------------------------------------------------
+# Redis
+# -----------------------------------------------------------------------------
+# Kind 로컬: 172.18.0.1 (호스트 머신)
+# AWS ElastiCache: your-redis.cache.amazonaws.com
+redis_host     = "172.18.0.1"
+redis_port     = "6379"
+redis_password = ""  # 로컬은 보통 비밀번호 없음, ElastiCache는 AUTH 토큰
+
+# -----------------------------------------------------------------------------
+# Application Secrets
+# -----------------------------------------------------------------------------
+# JWT Secret: 최소 32자 이상 권장
+# 생성: openssl rand -base64 32
+jwt_secret = "your-jwt-secret-at-least-32-characters-long"
+
+# Internal API Key: 서비스 간 통신용
+# 생성: openssl rand -hex 32
+internal_api_key = "your-internal-api-key-hex-64-chars"
+
+# -----------------------------------------------------------------------------
+# OAuth2 Google
+# -----------------------------------------------------------------------------
+# Google Cloud Console에서 발급
+# https://console.cloud.google.com/apis/credentials
+google_client_id     = "your-google-client-id.apps.googleusercontent.com"
+google_client_secret = "your-google-client-secret"
+
+# -----------------------------------------------------------------------------
+# LiveKit (실시간 통신)
+# -----------------------------------------------------------------------------
+# LiveKit Cloud 또는 Self-hosted에서 발급
+# https://cloud.livekit.io/
+livekit_api_key    = "your-livekit-api-key"
+livekit_api_secret = "your-livekit-api-secret"
+
+# -----------------------------------------------------------------------------
+# MinIO / S3 (오브젝트 스토리지)
+# -----------------------------------------------------------------------------
+# 로컬 MinIO 기본값
+minio_access_key = "minioadmin"
+minio_secret_key = "minioadmin"
+
+# -----------------------------------------------------------------------------
+# Grafana (모니터링 대시보드)
+# -----------------------------------------------------------------------------
+grafana_admin_user     = "admin"
+grafana_admin_password = "your-grafana-admin-password"
