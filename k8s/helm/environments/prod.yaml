@@ -159,7 +159,7 @@ shared:
     POSTGRES_PORT: "5432"
     DB_PORT: "5432"
     DB_USER: "wealist_admin"
-    DB_AUTO_MIGRATE: "false"  # Production: No auto migration
+    DB_AUTO_MIGRATE: "true"  # TEMPORARY: Creating tables - revert to "false" after deploy
     DB_SSL_MODE: "require"    # RDS는 SSL 연결 필요
     DB_SSLMODE: "require"
     # Redis (hosts from ExternalSecret)
