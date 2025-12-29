@@ -219,7 +219,42 @@ else
     exit 1
 fi
 
-# 9. staging.yaml에 AWS Account ID 자동 업데이트
+# 9. 호스트 PostgreSQL/Redis 설정 (Kind 네트워크 허용)
+echo "🔐 호스트 PostgreSQL 설정 중 (Kind 네트워크 허용)..."
+
+# pg_hba.conf 찾기
+PG_HBA=$(sudo find /etc/postgresql -name pg_hba.conf 2>/dev/null | head -1)
+if [ -n "${PG_HBA}" ]; then
+    # Kind 네트워크 허용 규칙이 없으면 추가
+    if ! sudo grep -q "192.168.0.0/16" "${PG_HBA}" 2>/dev/null; then
+        echo "  → pg_hba.conf에 Kind 네트워크 허용 추가..."
+        echo "# Kind cluster network access" | sudo tee -a "${PG_HBA}" > /dev/null
+        echo "host    all    all    192.168.0.0/16    md5" | sudo tee -a "${PG_HBA}" > /dev/null
+        echo "host    all    all    172.16.0.0/12     md5" | sudo tee -a "${PG_HBA}" > /dev/null
+        echo "host    all    all    10.0.0.0/8        md5" | sudo tee -a "${PG_HBA}" > /dev/null
+    else
+        echo "  → pg_hba.conf: Kind 네트워크 이미 허용됨"
+    fi
+
+    # postgresql.conf에서 listen_addresses 확인
+    PG_CONF=$(dirname "${PG_HBA}")/postgresql.conf
+    if [ -f "${PG_CONF}" ]; then
+        if ! sudo grep -q "listen_addresses = '\*'" "${PG_CONF}" 2>/dev/null; then
+            echo "  → postgresql.conf: listen_addresses = '*' 설정..."
+            sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" "${PG_CONF}"
+            sudo sed -i "s/listen_addresses = 'localhost'/listen_addresses = '*'/" "${PG_CONF}"
+        fi
+    fi
+
+    # PostgreSQL 재시작
+    echo "  → PostgreSQL 재시작..."
+    sudo systemctl restart postgresql 2>/dev/null || sudo service postgresql restart 2>/dev/null || true
+    echo "✅ PostgreSQL 설정 완료"
+else
+    echo "⚠️  PostgreSQL 설정 파일을 찾을 수 없습니다. 수동 설정 필요."
+fi
+
+# 10. staging.yaml에 AWS Account ID 자동 업데이트
 STAGING_YAML="${HELM_DIR}/environments/staging.yaml"
 if grep -q "<AWS_ACCOUNT_ID>" "${STAGING_YAML}" 2>/dev/null; then
     echo "🔧 staging.yaml에 AWS Account ID 자동 업데이트 중..."

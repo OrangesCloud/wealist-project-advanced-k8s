@@ -24,7 +24,7 @@ module "pod_identity_alb_controller" {
       Version = "2012-10-17"
       Statement = [
         {
-          Sid    = "ALBControllerEC2"
+          Sid    = "ALBControllerEC2Describe"
           Effect = "Allow"
           Action = [
             "ec2:DescribeAvailabilityZones",
@@ -33,7 +33,23 @@ module "pod_identity_alb_controller" {
             "ec2:DescribeVpcs",
             "ec2:DescribeAccountAttributes",
             "ec2:DescribeInternetGateways",
-            "ec2:DescribeTags"
+            "ec2:DescribeTags",
+            "ec2:DescribeInstances",
+            "ec2:DescribeNetworkInterfaces",
+            "ec2:DescribeCoipPools",
+            "ec2:GetCoipPoolUsage"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "ALBControllerEC2SecurityGroup"
+          Effect = "Allow"
+          Action = [
+            "ec2:CreateSecurityGroup",
+            "ec2:DeleteSecurityGroup",
+            "ec2:AuthorizeSecurityGroupIngress",
+            "ec2:RevokeSecurityGroupIngress",
+            "ec2:CreateTags"
           ]
           Resource = "*"
         },

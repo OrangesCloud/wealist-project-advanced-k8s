@@ -23,6 +23,8 @@ spec:
           value: "auth-service"
         - name: image.tag
           value: "dev-latest"
+        - name: imagePullSecrets[0].name
+          value: "ecr-secret"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-staging

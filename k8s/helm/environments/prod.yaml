@@ -159,7 +159,7 @@ shared:
     # LiveKit (Video Service)
     LIVEKIT_WS_URL: "wss://wealist.co.kr/svc/livekit"
     # OAuth2 Redirect URLs
-    OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/oauth2/callback/google"
+    OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "https://wealist.co.kr/oauth/callback"
 
 # -----------------------------------------------------------------------------
@@ -219,6 +219,9 @@ istio:
     name: istio-ingressgateway
     namespace: istio-system
     gatewayClassName: istio
+    # ExternalDNS annotation - Route53 자동 업데이트
+    annotations:
+      external-dns.alpha.kubernetes.io/hostname: "api.wealist.co.kr"
     # AWS NLB 설정 - 자동 생성되는 Service에 적용
     infrastructure:
       annotations:
