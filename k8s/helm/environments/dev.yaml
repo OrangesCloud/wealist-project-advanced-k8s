@@ -78,6 +78,11 @@ shared:
     LOG_LEVEL: "debug"
     DB_AUTO_MIGRATE: "true"  # Create tables on startup
     CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
+    # External Database Host (Docker Desktop: host.docker.internal, Linux: 172.18.0.1)
+    DB_HOST: "host.docker.internal"
+    POSTGRES_HOST: "host.docker.internal"
+    REDIS_HOST: "host.docker.internal"
+    SPRING_REDIS_HOST: "host.docker.internal"
     # S3/MinIO Configuration
     S3_ENDPOINT: "http://minio:9000"
     S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/api/minio"
