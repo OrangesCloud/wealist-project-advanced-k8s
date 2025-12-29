@@ -254,7 +254,50 @@ else
     echo "⚠️  PostgreSQL 설정 파일을 찾을 수 없습니다. 수동 설정 필요."
 fi
 
-# 10. staging.yaml에 AWS Account ID 자동 업데이트
+# 10. DB_HOST 동적 감지 (WSL/Linux/macOS)
+echo "🔍 호스트 IP 감지 중..."
+if [ "$(uname)" = "Darwin" ]; then
+    DB_HOST="host.docker.internal"
+    echo "  🖥️  macOS 감지 → DB_HOST: host.docker.internal"
+elif grep -qi microsoft /proc/version 2>/dev/null; then
+    DB_HOST=$(hostname -I | awk '{print $1}')
+    echo "  🖥️  WSL 감지 → DB_HOST: ${DB_HOST} (WSL IP)"
+    echo "  ⚠️  WSL IP는 재부팅 시 변경될 수 있습니다."
+else
+    DB_HOST="172.18.0.1"
+    echo "  🖥️  Linux 감지 → DB_HOST: 172.18.0.1"
+fi
+
+# staging.yaml에 DB_HOST 동적 업데이트
+STAGING_YAML="${HELM_DIR}/environments/staging.yaml"
+echo "  → staging.yaml에 DB_HOST 업데이트: ${DB_HOST}"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s/DB_HOST: .*/DB_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    sed -i '' "s/POSTGRES_HOST: .*/POSTGRES_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    sed -i '' "s/REDIS_HOST: .*/REDIS_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    sed -i '' "s/SPRING_REDIS_HOST: .*/SPRING_REDIS_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+else
+    sed -i "s/DB_HOST: .*/DB_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    sed -i "s/POSTGRES_HOST: .*/POSTGRES_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    sed -i "s/REDIS_HOST: .*/REDIS_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    sed -i "s/SPRING_REDIS_HOST: .*/SPRING_REDIS_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+fi
+echo "✅ DB_HOST 설정 완료"
+
+# ArgoCD Application 파일들에 DB_HOST 업데이트
+ARGOCD_APPS_DIR="${HELM_DIR}/../argocd/apps/staging"
+if [ -d "${ARGOCD_APPS_DIR}" ]; then
+    echo "  → ArgoCD Application 파일들 업데이트 중..."
+    for file in "${ARGOCD_APPS_DIR}"/*-service.yaml; do
+        if [ -f "$file" ]; then
+            # host.docker.internal을 실제 DB_HOST로 교체
+            sed -i "s|value: \"host.docker.internal\"|value: \"${DB_HOST}\"|g" "$file"
+        fi
+    done
+    echo "✅ ArgoCD Application 파일들 업데이트 완료 (DB_HOST: ${DB_HOST})"
+fi
+
+# 11. staging.yaml에 AWS Account ID 자동 업데이트
 STAGING_YAML="${HELM_DIR}/environments/staging.yaml"
 if grep -q "<AWS_ACCOUNT_ID>" "${STAGING_YAML}" 2>/dev/null; then
     echo "🔧 staging.yaml에 AWS Account ID 자동 업데이트 중..."
