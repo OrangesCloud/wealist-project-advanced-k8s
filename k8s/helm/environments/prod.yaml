@@ -27,11 +27,10 @@ externalSecrets:
 # -----------------------------------------------------------------------------
 # Deployment Settings (Production)
 # -----------------------------------------------------------------------------
-# 핵심 서비스 - 2 replicas 유지 (HA)
+# 핵심 서비스 - Spring Boot (Java)
+# 주의: autoscaling 설정은 최상위 레벨에서만 적용됨 (서비스별 override 불가)
 auth-service:
-  replicaCount: 2
-  autoscaling:
-    minReplicas: 2
+  replicaCount: 2  # HPA 비활성화 시 사용
   # Spring Boot용 리소스 (javaResources 키 사용 - Go 서비스의 resources와 분리)
   javaResources:
     requests:
@@ -43,47 +42,35 @@ auth-service:
   config:
     SPRING_DATA_REDIS_SSL_ENABLED: "true"  # ElastiCache TLS
 
-# 핵심 서비스 - 2 replicas 유지 (HA)
+# 핵심 서비스 - 2 replicas (HPA 비활성화 시)
 board-service:
   replicaCount: 2
-  autoscaling:
-    minReplicas: 2
   config:
     DB_NAME: "board_db"
 
 user-service:
   replicaCount: 2
-  autoscaling:
-    minReplicas: 2
   config:
     DB_NAME: "user_db"
 
 # 보조 서비스 - 1 replica (비용 절감, 필요시 HPA로 확장)
 chat-service:
   replicaCount: 1
-  autoscaling:
-    minReplicas: 1
   config:
     DB_NAME: "chat_db"
 
 noti-service:
   replicaCount: 1
-  autoscaling:
-    minReplicas: 1
   config:
     DB_NAME: "noti_db"
 
 storage-service:
   replicaCount: 1
-  autoscaling:
-    minReplicas: 1
   config:
     DB_NAME: "storage_db"
 
 video-service:
   replicaCount: 1
-  autoscaling:
-    minReplicas: 1
   config:
     DB_NAME: "video_db"
 
@@ -131,13 +118,37 @@ securityContext:
 # -----------------------------------------------------------------------------
 # Features (Production)
 # -----------------------------------------------------------------------------
-# 기본 HPA 설정 (서비스별 override 가능)
+# 기본 HPA 설정 (모든 서비스 공통)
+# 주의: 서비스별 autoscaling override는 Helm 구조상 불가능
+#       (auth-service.autoscaling.minReplicas는 .Values.autoscaling.minReplicas와 다른 경로)
 autoscaling:
   enabled: true
-  minReplicas: 1      # 기본값 1, 중요 서비스는 replicaCount: 2로 override
+  minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
+  # 스케일 다운 속도 개선 (기본 5분 → 2분, 더 공격적으로)
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120  # 2분 안정화 (기본 5분에서 단축)
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+        - type: Pods
+          value: 2  # 한 번에 최대 2개 제거 (기본 1개에서 증가)
+          periodSeconds: 60
+      selectPolicy: Max  # 더 공격적으로 스케일 다운 (기본 Min에서 변경)
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 4
+          periodSeconds: 30
+      selectPolicy: Max
 
 serviceAccount:
   create: true
