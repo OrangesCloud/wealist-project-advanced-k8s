@@ -61,6 +61,16 @@ data:
       send:
       - app-sync-running
       when: app.status.operationState.phase in ['Running']
+
+  # 구독 설정 (Production 앱에만 적용)
+  subscriptions: |
+    - recipients:
+      - discord:prod-deployment-alerts
+      triggers:
+      - on-deployed
+      - on-sync-failed
+      - on-sync-running
+      selector: metadata.labels.environment == production
 ---
 apiVersion: v1
 kind: Secret

@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/user-service"
         - name: image.tag
-          value: "prod-latest"
+          value: "42-1d212ae"
         - name: externalSecrets.enabled
           value: "true"
         - name: config.DB_NAME
