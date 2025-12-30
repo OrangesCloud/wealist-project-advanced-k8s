@@ -67,22 +67,22 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 	var authMiddleware gin.HandlerFunc
 	var sseValidator middleware.TokenValidator
 
-	if cfg.BaseConfig.Auth.IstioJWTMode {
+	if cfg.Auth.IstioJWTMode {
 		// K8s + Istio 환경: Istio가 JWT 검증, Go 서비스는 파싱만
 		parser := middleware.NewJWTParser(logger)
 		authMiddleware = middleware.IstioAuthMiddleware(parser)
 		// SSE용 validator는 SmartValidator 사용 (SSE는 query param으로 토큰 전달)
-		sseValidator = middleware.NewSmartValidator(cfg.BaseConfig.Auth.ServiceURL, cfg.BaseConfig.Auth.JWTIssuer, logger)
+		sseValidator = middleware.NewSmartValidator(cfg.Auth.ServiceURL, cfg.Auth.JWTIssuer, logger)
 		logger.Info("Using Istio JWT mode (parse only)",
-			zap.String("auth_service_url", cfg.BaseConfig.Auth.ServiceURL))
+			zap.String("auth_service_url", cfg.Auth.ServiceURL))
 	} else {
 		// Docker Compose / K8s without Istio: SmartValidator로 전체 검증
-		validator := middleware.NewSmartValidator(cfg.BaseConfig.Auth.ServiceURL, cfg.BaseConfig.Auth.JWTIssuer, logger)
+		validator := middleware.NewSmartValidator(cfg.Auth.ServiceURL, cfg.Auth.JWTIssuer, logger)
 		authMiddleware = middleware.AuthMiddleware(validator)
 		sseValidator = validator
 		logger.Info("Using SmartValidator mode (full validation)",
-			zap.String("auth_service_url", cfg.BaseConfig.Auth.ServiceURL),
-			zap.String("jwt_issuer", cfg.BaseConfig.Auth.JWTIssuer))
+			zap.String("auth_service_url", cfg.Auth.ServiceURL),
+			zap.String("jwt_issuer", cfg.Auth.JWTIssuer))
 	}
 
 	notificationHandler := handler.NewNotificationHandler(notificationService, sseService, logger)

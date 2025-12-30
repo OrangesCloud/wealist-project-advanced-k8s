@@ -22,6 +22,8 @@ include makefiles/services.mk
 include makefiles/helm.mk
 include makefiles/branch-based.mk
 include makefiles/argo.mk
+include makefiles/validation.mk
+include makefiles/k6.mk
 
 ##@ General
 

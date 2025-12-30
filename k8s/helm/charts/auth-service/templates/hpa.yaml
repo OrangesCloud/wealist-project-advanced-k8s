@@ -1,1 +1,33 @@
-{{- include "wealist-common.hpa" . }}
+{{/*
+auth-service 전용 HPA - CPU만 체크 (Spring Boot 메모리 특성상)
+Memory는 JVM 힙 크기에 의해 일정하므로 CPU 기반 스케일링이 적합
+*/}}
+{{- if .Values.autoscaling }}
+{{- if .Values.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "wealist-common.fullname" . }}
+  labels:
+    {{- include "wealist-common.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "wealist-common.fullname" . }}
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+  metrics:
+    # CPU만 체크 (Memory 제외 - Spring Boot JVM 특성)
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+  {{- with .Values.autoscaling.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}

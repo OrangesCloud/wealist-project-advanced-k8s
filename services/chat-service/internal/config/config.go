@@ -46,7 +46,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Override with environment variables (common config)
-	cfg.BaseConfig.LoadFromEnv()
+	cfg.LoadFromEnv()
 
 	// Service-specific environment variables
 	if userURL := os.Getenv("USER_SERVICE_URL"); userURL != "" {

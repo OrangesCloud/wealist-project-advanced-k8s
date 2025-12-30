@@ -1,0 +1,35 @@
+# =============================================================================
+# ArgoCD AppProject - Production
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: wealist-prod
+  namespace: argocd
+spec:
+  description: Wealist Production Environment
+
+  # 허용된 소스 레포지토리
+  sourceRepos:
+    - "https://github.com/OrangesCloud/wealist-project-advanced-k8s.git"
+
+  # 허용된 배포 대상
+  destinations:
+    - namespace: wealist-prod
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+    - namespace: external-secrets
+      server: https://kubernetes.default.svc
+
+  # 클러스터 레벨 리소스 허용 (External Secrets용)
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: external-secrets.io
+      kind: ClusterSecretStore
+
+  # 네임스페이스 레벨 리소스 허용
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

@@ -17,11 +17,12 @@ data:
 
     datasources:
       # Prometheus - 메트릭 데이터
+      # routePrefix 설정으로 인해 /api/monitoring/prometheus 경로 필요
       - name: Prometheus
         type: prometheus
         uid: prometheus
         access: proxy
-        url: http://prometheus:9090
+        url: http://prometheus:9090{{ .Values.prometheus.config.routePrefix }}
         isDefault: true
         editable: false
         jsonData:
@@ -38,6 +39,22 @@ data:
         editable: false
         jsonData:
           maxLines: 1000
+
+      {{- if .Values.grafana.additionalDatasources.elasticsearch.enabled }}
+      # Elasticsearch - ELK 스택 로그/검색 데이터
+      - name: Elasticsearch
+        type: elasticsearch
+        uid: elasticsearch
+        access: proxy
+        url: {{ .Values.grafana.additionalDatasources.elasticsearch.url }}
+        editable: false
+        jsonData:
+          index: {{ .Values.grafana.additionalDatasources.elasticsearch.index | default "logstash-*" }}
+          timeField: "@timestamp"
+          esVersion: "8.0.0"
+          logMessageField: message
+          logLevelField: level
+      {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -56,9 +73,10 @@ data:
     apiVersion: 1
 
     providers:
+      # Legacy dashboards (v1)
       - name: 'wealist-dashboards'
         orgId: 1
-        folder: 'weAlist'
+        folder: 'weAlist (Legacy)'
         folderUid: 'wealist'
         type: file
         disableDeletion: false
@@ -66,4 +84,15 @@ data:
         allowUiUpdates: true
         options:
           path: /etc/grafana/provisioning/dashboards/json
+      # V2 dashboards - Production-grade (2025 best practices)
+      - name: 'wealist-dashboards-v2'
+        orgId: 1
+        folder: 'weAlist v2'
+        folderUid: 'wealist-v2'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v2
 {{- end }}

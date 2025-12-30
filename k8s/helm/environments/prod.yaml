@@ -12,50 +12,84 @@ global:
   namespace: wealist-prod
   environment: production
   domain: wealist.co.kr
-  # imageRegistry는 ArgoCD Application parameters에서 ECR URL로 덮어씁니다
-  # 예: <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
-  imageRegistry: ""
-  # ECR은 IAM 기반 인증 사용 (EKS IRSA)
+  # ECR Registry URL
+  imageRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
+  # EKS Pod Identity 사용 - imagePullSecrets 불필요
+imagePullSecrets: []
 
 # -----------------------------------------------------------------------------
-# cert-manager Configuration (Disabled - CloudFront handles SSL termination)
+# External Secrets Operator (AWS Secrets Manager 연동)
 # -----------------------------------------------------------------------------
-certManager:
-  enabled: false
-  # Note: SSL is handled by CloudFront, K8s receives HTTP only
+# Production 환경에서는 ESO를 통해 AWS Secrets Manager에서 시크릿 가져옴
+externalSecrets:
+  enabled: true
 
 # -----------------------------------------------------------------------------
 # Deployment Settings (Production)
 # -----------------------------------------------------------------------------
+# 핵심 서비스 - Spring Boot (Java)
+# 주의: autoscaling 설정은 최상위 레벨에서만 적용됨 (서비스별 override 불가)
 auth-service:
-  replicaCount: 3
+  replicaCount: 2  # HPA 비활성화 시 사용
+  # Spring Boot용 리소스 (javaResources 키 사용 - Go 서비스의 resources와 분리)
+  javaResources:
+    requests:
+      memory: "384Mi"   # 실제 사용량 ~300Mi
+      cpu: "100m"       # 실제 사용량 ~50m
+    limits:
+      memory: "768Mi"   # Spring Boot 충분
+      cpu: "500m"
+  config:
+    SPRING_DATA_REDIS_SSL_ENABLED: "true"  # ElastiCache TLS
+
+# 핵심 서비스 - 2 replicas (HPA 비활성화 시)
 board-service:
-  replicaCount: 3
+  replicaCount: 2
+  config:
+    DB_NAME: "board_db"
+
 user-service:
-  replicaCount: 3
+  replicaCount: 2
+  config:
+    DB_NAME: "user_db"
+
+# 보조 서비스 - 1 replica (비용 절감, 필요시 HPA로 확장)
 chat-service:
-  replicaCount: 3
+  replicaCount: 1
+  config:
+    DB_NAME: "chat_db"
+
 noti-service:
-  replicaCount: 2
+  replicaCount: 1
+  config:
+    DB_NAME: "noti_db"
+
 storage-service:
-  replicaCount: 2
+  replicaCount: 1
+  config:
+    DB_NAME: "storage_db"
+
 video-service:
-  replicaCount: 2
+  replicaCount: 1
+  config:
+    DB_NAME: "video_db"
 
 image:
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: "latest"
 
 # -----------------------------------------------------------------------------
-# Resources (Production - Higher limits)
+# Resources (Production - Go 서비스용 경량화된 설정)
 # -----------------------------------------------------------------------------
+# Go 서비스는 매우 가벼움 (실제 사용량: CPU ~5m, Memory ~30Mi)
+# 2개 노드로 운영하기 위해 requests 최소화
 resources:
   requests:
-    memory: "256Mi"
-    cpu: "200m"
+    memory: "64Mi"
+    cpu: "25m"
   limits:
-    memory: "1Gi"
-    cpu: "1000m"
+    memory: "256Mi"
+    cpu: "500m"
 
 # -----------------------------------------------------------------------------
 # Health Check
@@ -84,12 +118,37 @@ securityContext:
 # -----------------------------------------------------------------------------
 # Features (Production)
 # -----------------------------------------------------------------------------
+# 기본 HPA 설정 (모든 서비스 공통)
+# 주의: 서비스별 autoscaling override는 Helm 구조상 불가능
+#       (auth-service.autoscaling.minReplicas는 .Values.autoscaling.minReplicas와 다른 경로)
 autoscaling:
   enabled: true
-  minReplicas: 2
+  minReplicas: 2  # 핵심 서비스 가용성 보장 (board, user 등)
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
-  targetMemoryUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 90
+  # 스케일 다운 속도 개선 (기본 5분 → 2분, 더 공격적으로)
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120  # 2분 안정화 (기본 5분에서 단축)
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+        - type: Pods
+          value: 2  # 한 번에 최대 2개 제거 (기본 1개에서 증가)
+          periodSeconds: 60
+      selectPolicy: Max  # 더 공격적으로 스케일 다운 (기본 Min에서 변경)
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 4
+          periodSeconds: 30
+      selectPolicy: Max
 
 serviceAccount:
   create: true
@@ -108,16 +167,31 @@ shared:
   config:
     ENV: "production"
     LOG_LEVEL: "info"
+    # Database - RDS PostgreSQL (hosts from ExternalSecret)
+    POSTGRES_PORT: "5432"
+    DB_PORT: "5432"
+    DB_USER: "wealist_admin"
     DB_AUTO_MIGRATE: "false"  # Production: No auto migration
+    DB_SSL_MODE: "require"    # RDS는 SSL 연결 필요
+    DB_SSLMODE: "require"
+    # Redis (hosts from ExternalSecret)
+    REDIS_PORT: "6379"
     CORS_ORIGINS: "https://wealist.co.kr,https://api.wealist.co.kr"
-    # S3/MinIO Configuration
-    S3_ENDPOINT: ""  # AWS S3 기본 엔드포인트 사용
+    # Rate Limiting (Application Level - Redis 기반)
+    RATE_LIMIT_ENABLED: "true"
+    RATE_LIMIT_PER_MINUTE: "60"
+    RATE_LIMIT_BURST: "10"
+    # Istio JWT Mode (Istio가 JWT 검증, Go 서비스는 파싱만)
+    ISTIO_JWT_MODE: "true"
+    # S3 Configuration (AWS S3 - Terraform: wealist-prod-storage)
+    S3_ENDPOINT: ""  # AWS S3 기본 엔드포인트 사용 (비워두면 AWS SDK 기본값)
     S3_PUBLIC_ENDPOINT: "https://cdn.wealist.co.kr"
-    S3_BUCKET: "wealist-prod-files"
+    S3_BUCKET: "wealist-prod-files-290008131187"
     S3_REGION: "ap-northeast-2"
+    # LiveKit (Video Service)
     LIVEKIT_WS_URL: "wss://wealist.co.kr/svc/livekit"
     # OAuth2 Redirect URLs
-    OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/oauth2/callback/google"
+    OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "https://wealist.co.kr/oauth/callback"
 
 # -----------------------------------------------------------------------------
@@ -129,17 +203,23 @@ ingress:
 # -----------------------------------------------------------------------------
 # 데이터베이스 설정 (외부 DB 사용 - AWS RDS/ElastiCache)
 # -----------------------------------------------------------------------------
+# DB/Redis 호스트는 AWS Secrets Manager에서 ExternalSecret으로 가져옴
 postgres:
   enabled: false   # 내부 PostgreSQL 비활성화
   external:
-    enabled: true  # 외부 DB (AWS RDS 등) 사용
-    # host/port는 secrets.yaml에서 설정
+    enabled: true  # AWS RDS 사용
+    port: 5432
+    # host: ExternalSecret (wealist-shared-secret.DB_HOST)
 
 redis:
   enabled: false   # 내부 Redis 비활성화
   external:
-    enabled: true  # 외부 Redis (AWS ElastiCache 등) 사용
-    # host/port는 secrets.yaml에서 설정
+    enabled: true  # AWS ElastiCache 사용
+    port: 6379
+    # host: ExternalSecret (wealist-shared-secret.REDIS_HOST)
+
+minio:
+  enabled: false   # S3 사용 (AWS)
 
 # -----------------------------------------------------------------------------
 # 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)
@@ -155,13 +235,49 @@ istio:
   namespace: wealist-prod
 
   gateway:
-    enabled: false  # EKS ALB Ingress 또는 별도 Gateway 사용
+    enabled: false  # 기존 Istio Gateway API (사용 안 함)
     name: wealist-gateway
     hosts:
       - "wealist.co.kr"
       - "api.wealist.co.kr"
     tls:
-      enabled: false  # CloudFront에서 SSL 처리
+      enabled: false
+
+  # Kubernetes Gateway API - Ingress Gateway (Ambient 모드 권장)
+  # Istio가 자동으로 Deployment/Service 생성
+  # infrastructure.annotations는 자동 생성되는 Service에 적용됨
+  k8sGateway:
+    enabled: true
+    name: istio-ingressgateway
+    namespace: istio-system
+    gatewayClassName: istio
+    # ExternalDNS annotation - Route53 자동 업데이트
+    annotations:
+      external-dns.alpha.kubernetes.io/hostname: "api.wealist.co.kr"
+    # AWS NLB 설정 - 자동 생성되는 Service에 적용
+    infrastructure:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "external"
+        service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+        # Health check 설정 (Istio Gateway status port)
+        service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "15021"
+        service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/healthz/ready"
+        # TLS 설정 - ACM 인증서 사용
+        service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:ap-northeast-2:290008131187:certificate/193d87ce-e04a-469d-9196-7624ed113bcc"
+        service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+        service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
+    listeners:
+      http:
+        port: 80
+        allowedRoutes:
+          from: All
+      https:
+        enabled: true
+        port: 443
+        nlbTermination: true  # NLB에서 TLS termination, Gateway는 HTTP로 수신
+        allowedRoutes:
+          from: All
 
   # HTTPRoute 설정 (Kubernetes Gateway API)
   httpRoute:
@@ -174,8 +290,30 @@ istio:
       - "api.wealist.co.kr"
     frontend:
       enabled: false
+    # Monitoring routes (VPN/Bastion 통해 접근)
+    # 직접 외부 노출이 아닌 /api/monitoring/* 경로로만 접근 가능
     monitoring:
-      enabled: false  # Production: 모니터링 외부 노출 비활성화
+      enabled: true
+      grafana:
+        host: grafana
+        port: 3000
+      prometheus:
+        host: prometheus
+        port: 9090
+      loki:
+        host: loki
+        port: 3100
+      # Istio 관측성 도구 (istio-system 네임스페이스)
+      kiali:
+        enabled: true
+        host: kiali
+        namespace: istio-system
+        port: 20001
+      jaeger:
+        enabled: true
+        host: tracing
+        namespace: istio-system
+        port: 80
 
   # mTLS - 서비스 간 암호화
   mtls:
@@ -250,51 +388,102 @@ istio:
 prometheus:
   enabled: true
   image:
-    repository: public.ecr.aws/prometheus/prometheus
+    repository: prom/prometheus
     tag: "v2.48.0"
+  config:
+    externalUrl: "https://api.wealist.co.kr/api/monitoring/prometheus"
+    routePrefix: "/api/monitoring/prometheus"
+  # 프로덕션 알림 규칙 활성화
+  alerting:
+    enabled: true
+    alertmanager:
+      enabled: false  # Alertmanager 별도 구축 시 true로 변경
 
 # Loki - 로그 수집
 loki:
   enabled: true
   image:
-    repository: public.ecr.aws/grafana/loki
+    repository: grafana/loki
     tag: "2.9.2"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"  # 기본 256Mi → 512Mi (실사용 127Mi, 여유 확보)
+      cpu: "300m"
 
 # Promtail - 로그 수집 에이전트
 promtail:
   enabled: true
   image:
-    repository: public.ecr.aws/grafana/promtail
+    repository: grafana/promtail
     tag: "2.9.2"
 
 # Grafana - 시각화 대시보드
 grafana:
   enabled: true
   image:
-    repository: public.ecr.aws/grafana/grafana
+    repository: grafana/grafana
     tag: "10.2.2"
+  resources:
+    requests:
+      memory: "192Mi"
+      cpu: "100m"
+    limits:
+      memory: "384Mi"  # 기본 256Mi → 384Mi (실사용 123Mi, 여유 확보)
+      cpu: "300m"
+  config:
+    allowSignUp: false
+    rootUrl: "https://api.wealist.co.kr/api/monitoring/grafana"
+    serveFromSubPath: "true"
 
 # 모니터링 Ingress
 monitoringIngress:
   enabled: false  # Production: 별도 VPN/Bastion 통해 접근
 
+# kube-state-metrics (Kubernetes 오브젝트 상태 메트릭)
+# Kubernetes Cluster 대시보드와 Service Health Overview에 필요
+kubeStateMetrics:
+  enabled: true
+  image:
+    repository: registry.k8s.io/kube-state-metrics/kube-state-metrics
+    tag: "v2.10.1"
+
+# node-exporter (노드 시스템 메트릭)
+# Kubernetes Cluster 대시보드의 노드 CPU/메모리 사용률에 필요
+nodeExporter:
+  enabled: true
+  image:
+    repository: prom/node-exporter
+    tag: "v1.7.0"
+
+# ArgoCD 메트릭 수집
+argocd:
+  metrics:
+    enabled: true
+
 # -----------------------------------------------------------------------------
 # 데이터베이스 Exporter (외부 DB 메트릭 수집)
 # -----------------------------------------------------------------------------
+# host는 prod-secrets.yaml에서 설정 (postgres/redis와 동일)
 postgresExporter:
   enabled: true
   image:
-    repository: public.ecr.aws/bitnami/postgres-exporter
-    tag: "0.15.0"
+    repository: prometheuscommunity/postgres-exporter
+    tag: "v0.18.1"
   config:
-    host: ""  # secrets.yaml에서 설정
+    # host/password: ExternalSecret (wealist-shared-secret)에서 가져옴
     port: 5432
+    user: "wealist_admin"   # shared.config.DB_USER와 동일
+    database: "postgres"    # 메트릭 수집용 기본 DB
+    sslmode: "require"      # AWS RDS SSL 필수
 
 redisExporter:
   enabled: true
   image:
-    repository: public.ecr.aws/bitnami/redis-exporter
-    tag: "1.55.0"
+    repository: oliver006/redis_exporter
+    tag: "v1.80.1"
   config:
-    host: ""  # secrets.yaml에서 설정
+    # host/password: ExternalSecret (wealist-shared-secret)에서 가져옴
     port: 6379

@@ -712,11 +712,11 @@ services:
       - JWT_ACCESS_TOKEN_EXPIRATION_MS=${JWT_ACCESS_TOKEN_EXPIRATION_MS}
       - JWT_REFRESH_TOKEN_EXPIRATION_MS=${JWT_REFRESH_TOKEN_EXPIRATION_MS}
 
-      # OAuth Configuration
+      # OAuth Configuration (nginx를 통해 라우팅 - port 80)
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - OAUTH2_CLIENT_REDIRECT_URI=${OAUTH2_CLIENT_REDIRECT_URI:-http://localhost:8080/oauth2/callback/google}
-      - OAUTH2_REDIRECT_URL_ENV=${OAUTH2_REDIRECT_URL:-http://localhost:3000/oauth/callback}
+      - OAUTH2_CLIENT_REDIRECT_URI=${OAUTH2_CLIENT_REDIRECT_URI:-http://localhost/oauth2/callback/google}
+      - OAUTH2_REDIRECT_URL_ENV=${OAUTH2_REDIRECT_URL:-http://localhost/oauth/callback}
 
       # User Service URL (OAuth 로그인 시 유저 조회/생성용)
       - USER_SERVICE_URL=http://user-service:8081
@@ -776,6 +776,8 @@ services:
       # 소스코드 Hot Reload
       - ../../services/frontend:/app
       - /app/node_modules # node_modules는 컨테이너 내부 것 사용
+      # Docker-compose 전용 config.js (API_BASE_URL: http://localhost)
+      - ../config/frontend-config.js:/app/public/config.js:ro
 
     command: pnpm dev --host 0.0.0.0 --port 5173 --strictPort
 

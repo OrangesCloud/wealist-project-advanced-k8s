@@ -29,6 +29,8 @@ spec:
         {{- if .Values.podAnnotations }}
         {{- toYaml .Values.podAnnotations | nindent 8 }}
         {{- end }}
+        {{/* ConfigMap checksum - triggers pod restart on config change */}}
+        checksum/config: {{ include "wealist-common.configChecksum" . }}
         {{/* Auto-add Prometheus annotations if metrics enabled */}}
         {{- if .Values.metrics }}
         {{- if .Values.metrics.enabled }}

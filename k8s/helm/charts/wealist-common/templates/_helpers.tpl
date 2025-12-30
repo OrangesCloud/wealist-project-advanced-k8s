@@ -159,3 +159,13 @@ prometheus.io/scrape: "true"
 prometheus.io/port: {{ .port | quote }}
 prometheus.io/path: {{ .path | default "/metrics" | quote }}
 {{- end }}
+
+{{/*
+ConfigMap checksum for triggering pod restart on config change
+Computes SHA256 of shared config + service config
+*/}}
+{{- define "wealist-common.configChecksum" -}}
+{{- $sharedConfig := .Values.shared.config | default dict | toJson -}}
+{{- $serviceConfig := .Values.config | default dict | toJson -}}
+{{- printf "%s-%s" $sharedConfig $serviceConfig | sha256sum | trunc 16 -}}
+{{- end }}

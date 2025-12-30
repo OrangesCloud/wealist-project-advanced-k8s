@@ -43,7 +43,7 @@ else ifeq ($(ENV),dev)
   EXTERNAL_DB ?= true
 else ifeq ($(ENV),staging)
   K8S_NAMESPACE = wealist-staging
-  DOMAIN = staging.wealist.co.kr
+  DOMAIN = dev.wealist.co.kr
   PROTOCOL = https
   # staging/prod: 외부 DB (RDS 등) 사용
   EXTERNAL_DB ?= true

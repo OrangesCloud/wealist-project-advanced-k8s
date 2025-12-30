@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.5.6'
+	id 'org.springframework.boot' version '3.5.9'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -32,6 +32,9 @@ dependencies {
 
     // Redis (토큰 블랙리스트용)
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // Spring Session Redis (OAuth2 state 공유 - 멀티 pod 환경)
+    implementation 'org.springframework.session:spring-session-data-redis'
 
     // OAuth2 Client (Google 로그인)
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'

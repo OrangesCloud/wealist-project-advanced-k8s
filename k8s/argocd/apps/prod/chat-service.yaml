@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: chat-service-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    # Discord 배포 알림 설정 (Production)
+    notifications.argoproj.io/subscribe.on-deployed.discord: ""
+    notifications.argoproj.io/subscribe.on-sync-failed.discord: ""
+    notifications.argoproj.io/subscribe.on-sync-running.discord: ""
+  labels:
+    environment: production
+    service: chat-service
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-prod
+    path: k8s/helm/charts/chat-service
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../environments/base.yaml
+        - ../../environments/prod.yaml
+      parameters:
+        - name: image.repository
+          value: "prod/chat-service"
+        - name: image.tag
+          value: "42-1d212ae"
+        - name: externalSecrets.enabled
+          value: "true"
+        - name: config.DB_NAME
+          value: "chat_db"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wealist-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

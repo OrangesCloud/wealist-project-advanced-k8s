@@ -5,7 +5,7 @@
 ##@ Helm 차트 (권장)
 
 .PHONY: helm-deps-build helm-lint helm-validate
-.PHONY: helm-install-cert-manager helm-install-infra helm-install-services helm-install-frontend helm-install-istio-config helm-install-monitoring
+.PHONY: helm-install-cert-manager helm-install-infra helm-install-services helm-install-frontend helm-install-istio-config helm-install-istio-addons helm-install-monitoring
 .PHONY: helm-install-all helm-install-all-init helm-upgrade-all helm-uninstall-all
 .PHONY: helm-setup-route53-secret helm-check-secrets helm-check-db
 .PHONY: helm-localhost helm-local-ubuntu helm-dev helm-staging helm-prod
@@ -188,6 +188,7 @@ ifeq ($(EXTERNAL_DB),true)
 			--set shared.config.DB_HOST=$$DB_HOST \
 			--set shared.config.POSTGRES_HOST=$$DB_HOST \
 			--set shared.config.REDIS_HOST=$$DB_HOST \
+			--set shared.config.SPRING_REDIS_HOST=$$DB_HOST \
 			-n $(K8S_NAMESPACE) --create-namespace; \
 	else \
 		echo "⚠️  /tmp/kind_db_host.env 없음 - 기본값 사용"; \
@@ -216,6 +217,26 @@ endif
 helm-install-services: ## 모든 서비스 차트 설치
 	@echo "서비스 설치 중 (ENV=$(ENV), NS=$(K8S_NAMESPACE), EXTERNAL_DB=$(EXTERNAL_DB))..."
 	@echo "설치할 서비스: $(HELM_SERVICES)"
+	@# dev 환경: AWS Account ID 자동 확인 및 설정
+ifeq ($(ENV),dev)
+	@if grep -q "<AWS_ACCOUNT_ID>" "$(HELM_ENV_VALUES)" 2>/dev/null; then \
+		echo "⚠️  dev.yaml에 <AWS_ACCOUNT_ID> 플레이스홀더가 남아있습니다."; \
+		if command -v aws >/dev/null 2>&1 && aws sts get-caller-identity >/dev/null 2>&1; then \
+			AWS_ACCOUNT_ID=$$(aws sts get-caller-identity --query Account --output text); \
+			echo "🔧 AWS Account ID 자동 업데이트 중: $$AWS_ACCOUNT_ID"; \
+			if [ "$$(uname)" = "Darwin" ]; then \
+				sed -i '' "s/<AWS_ACCOUNT_ID>/$$AWS_ACCOUNT_ID/g" "$(HELM_ENV_VALUES)"; \
+			else \
+				sed -i "s/<AWS_ACCOUNT_ID>/$$AWS_ACCOUNT_ID/g" "$(HELM_ENV_VALUES)"; \
+			fi; \
+			echo "✅ dev.yaml 업데이트 완료!"; \
+		else \
+			echo "❌ AWS CLI 로그인이 필요합니다."; \
+			echo "   aws sso login 또는 aws configure 후 다시 시도하세요."; \
+			exit 1; \
+		fi; \
+	fi
+endif
 ifeq ($(EXTERNAL_DB),true)
 	@echo "EXTERNAL_DB=true: 외부 DB 사용"
 	@if [ -f /tmp/kind_db_host.env ]; then \
@@ -311,13 +332,13 @@ endif
 	@echo "=============================================="
 	@echo ""
 	@echo "  📊 모니터링 URL (Ingress 경유):"
-	@echo "    - Grafana:    $(PROTOCOL)://$(DOMAIN)/monitoring/grafana"
-	@echo "    - Prometheus: $(PROTOCOL)://$(DOMAIN)/monitoring/prometheus"
-	@echo "    - Loki:       $(PROTOCOL)://$(DOMAIN)/monitoring/loki"
+	@echo "    - Grafana:    $(PROTOCOL)://$(DOMAIN)/api/monitoring/grafana"
+	@echo "    - Prometheus: $(PROTOCOL)://$(DOMAIN)/api/monitoring/prometheus"
+	@echo "    - Loki:       $(PROTOCOL)://$(DOMAIN)/api/monitoring/loki"
 	@echo ""
 	@echo "  🌐 Istio 관측성 (setup 시 자동 설치됨):"
-	@echo "    - Kiali:      $(PROTOCOL)://$(DOMAIN)/monitoring/kiali"
-	@echo "    - Jaeger:     $(PROTOCOL)://$(DOMAIN)/monitoring/jaeger"
+	@echo "    - Kiali:      $(PROTOCOL)://$(DOMAIN)/api/monitoring/kiali"
+	@echo "    - Jaeger:     $(PROTOCOL)://$(DOMAIN)/api/monitoring/jaeger"
 	@echo ""
 	@echo "  🔐 Grafana 로그인: admin / admin"
 	@echo "=============================================="
@@ -331,6 +352,27 @@ helm-install-istio-config: ## Istio 설정 설치 (HTTPRoute, DestinationRules �
 	@echo ""
 	@echo "Istio 설정 설치 완료! (HTTPRoute, PeerAuthentication, DestinationRules)"
 
+helm-install-istio-addons: ## Istio Addons 설치 (Kiali, Jaeger - istio-system 네임스페이스)
+	@echo "Istio Addons 설치 중 (Kiali, Jaeger)..."
+	@if grep -q "kiali:" "$(HELM_ENV_VALUES)" 2>/dev/null && grep -A1 "kiali:" "$(HELM_ENV_VALUES)" | grep -q "enabled: true"; then \
+		echo "기존 Kiali/Jaeger/Zipkin 리소스 정리 중 (setup 스크립트로 설치된 경우)..."; \
+		kubectl delete deployment,service,serviceaccount,configmap -l app=kiali -n istio-system --ignore-not-found 2>/dev/null || true; \
+		kubectl delete clusterrole,clusterrolebinding kiali --ignore-not-found 2>/dev/null || true; \
+		kubectl delete clusterrole,clusterrolebinding kiali-viewer --ignore-not-found 2>/dev/null || true; \
+		kubectl delete deployment,service -l app=jaeger -n istio-system --ignore-not-found 2>/dev/null || true; \
+		kubectl delete deployment,service tracing zipkin jaeger-query jaeger-collector -n istio-system --ignore-not-found 2>/dev/null || true; \
+		echo "Helm으로 Istio Addons 설치 중..."; \
+		helm upgrade --install istio-addons ./k8s/helm/charts/istio-addons \
+			-f $(HELM_BASE_VALUES) \
+			-f $(HELM_ENV_VALUES) \
+			--set prometheus.enabled=false \
+			--set grafana.enabled=false \
+			-n istio-system; \
+		echo "Istio Addons 설치 완료! (Kiali, Jaeger)"; \
+	else \
+		echo "Istio Addons 건너뜀 ($(ENV) 환경에서 Kiali 비활성화됨)"; \
+	fi
+
 # -----------------------------------------------------------------------------
 # helm-install-all: secrets 체크 → 의존성 → 인프라 → 서비스 → Istio → 모니터링
 # -----------------------------------------------------------------------------
@@ -342,6 +384,8 @@ helm-install-all: helm-check-secrets helm-check-db helm-deps-build helm-install-
 	@$(MAKE) helm-install-frontend ENV=$(ENV)
 	@sleep 3
 	@$(MAKE) helm-install-istio-config ENV=$(ENV)
+	@sleep 2
+	@$(MAKE) helm-install-istio-addons ENV=$(ENV)
 	@sleep 2
 	@$(MAKE) helm-install-monitoring ENV=$(ENV)
 	@echo ""

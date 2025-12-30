@@ -4,19 +4,19 @@ name: Build and Push Images to ECR
 on:
   push:
     branches:
-      - service-deploy-dev   # dev 환경 배포
-      - service-deploy-prod  # prod 환경 배포
+      - service-deploy-dev # dev 환경 배포
+      - service-deploy-prod # prod 환경 배포
     paths:
-      - 'services/**'
-      - 'packages/wealist-advanced-go-pkg/**'  # 공통 모듈 변경 감지
+      - "services/**"
+      - "packages/wealist-advanced-go-pkg/**" # 공통 모듈 변경 감지
   workflow_dispatch:
     inputs:
       services:
-        description: 'Services to build (comma-separated, e.g., user-service,board-service). Leave empty for all services.'
+        description: "Services to build (comma-separated, e.g., user-service,board-service). Leave empty for all services."
         required: false
         type: string
       environment:
-        description: 'Target environment'
+        description: "Target environment"
         required: true
         type: choice
         options:
@@ -24,7 +24,7 @@ on:
           - prod
         default: dev
       skip_gitops:
-        description: 'Skip GitOps update trigger'
+        description: "Skip GitOps update trigger"
         required: false
         type: boolean
         default: false
@@ -88,11 +88,14 @@ jobs:
           echo "Environment: ${ENV}"
           echo "K8s Branch: k8s-deploy-${ENV}"
 
-      # Push 이벤트: 자동 감지
+      # Push 이벤트: 자동 감지 (push된 커밋의 변경사항 비교)
       - uses: dorny/paths-filter@v2
         if: github.event_name == 'push'
         id: filter
         with:
+          # push 이벤트에서는 before...after 커밋 비교 (merge 시에도 변경사항 감지)
+          base: ${{ github.event.before }}
+          ref: ${{ github.sha }}
           filters: |
             common-package:
               - 'packages/wealist-advanced-go-pkg/**'
@@ -117,7 +120,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ -n "${{ github.event.inputs.services }}" ]; then
-              SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -cR 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+              # frontend 제외 (S3/CloudFront로 별도 배포)
+              SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -cR 'split(",") | map(gsub("^\\s+|\\s+$";"")) | map(select(. != "frontend"))')
               echo "Manual trigger with services: ${SERVICES}"
             else
               SERVICES='["auth-service","board-service","chat-service","noti-service","storage-service","user-service","video-service"]'
@@ -156,9 +160,9 @@ jobs:
       fail-fast: false
 
     permissions:
-      id-token: write  # OIDC 인증용
+      id-token: write # OIDC 인증용
       contents: read
-      security-events: write  # Trivy 결과를 Security 탭에 올리기 위해 필요
+      security-events: write # Trivy 결과를 Security 탭에 올리기 위해 필요
 
     steps:
       - uses: actions/checkout@v4
@@ -178,12 +182,28 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # ECR 리포지토리 이름 설정 (prod는 prod/ prefix)
+      - name: Set ECR repository name
+        id: ecr-repo
+        run: |
+          ENV="${{ needs.detect-changes.outputs.environment }}"
+          SERVICE="${{ matrix.service }}"
+
+          if [ "${ENV}" = "prod" ]; then
+            REPO_NAME="prod/${SERVICE}"
+          else
+            REPO_NAME="${SERVICE}"
+          fi
+
+          echo "name=${REPO_NAME}" >> $GITHUB_OUTPUT
+          echo "ECR Repository: ${REPO_NAME}"
+
       # ECR 리포지토리 생성 (없으면)
       - name: Create ECR repository if not exists
         run: |
-          aws ecr describe-repositories --repository-names ${{ matrix.service }} 2>/dev/null || \
+          aws ecr describe-repositories --repository-names ${{ steps.ecr-repo.outputs.name }} 2>/dev/null || \
           aws ecr create-repository \
-            --repository-name ${{ matrix.service }} \
+            --repository-name ${{ steps.ecr-repo.outputs.name }} \
             --image-scanning-configuration scanOnPush=true \
             --encryption-configuration encryptionType=AES256
 
@@ -222,22 +242,34 @@ jobs:
           SHORT_SHA="${{ github.sha }}"
           SHORT_SHA=${SHORT_SHA:0:7}
           ENV="${{ needs.detect-changes.outputs.environment }}"
+          BUILD_NUMBER="${{ github.run_number }}"
           # ECR registry를 직접 구성 (outputs으로 전달 시 secret 마스킹 문제 회피)
           ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
-          SERVICE="${{ matrix.service }}"
+          REPO_NAME="${{ steps.ecr-repo.outputs.name }}"
 
-          # 태그 생성
-          TAG_SHA="${ENV}-${SHORT_SHA}"
-          TAG_LATEST="${ENV}-latest"
+          # 태그 생성: Build Number + SHA (예: 42-abc1234)
+          TAG="${BUILD_NUMBER}-${SHORT_SHA}"
 
-          echo "tag_sha=${TAG_SHA}" >> $GITHUB_OUTPUT
-          echo "tag_latest=${TAG_LATEST}" >> $GITHUB_OUTPUT
-          echo "image_uri=${ECR_REGISTRY}/${SERVICE}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "image_uri=${ECR_REGISTRY}/${REPO_NAME}" >> $GITHUB_OUTPUT
+
+          # prod는 IMMUTABLE이므로 latest 태그 불가
+          if [ "${ENV}" = "prod" ]; then
+            echo "is_immutable=true" >> $GITHUB_OUTPUT
+            TAGS="${ECR_REGISTRY}/${REPO_NAME}:${TAG}"
+          else
+            echo "is_immutable=false" >> $GITHUB_OUTPUT
+            TAGS="${ECR_REGISTRY}/${REPO_NAME}:${TAG},${ECR_REGISTRY}/${REPO_NAME}:latest"
+          fi
+
+          echo "all_tags=${TAGS}" >> $GITHUB_OUTPUT
 
           echo "=== Image Tags ==="
-          echo "SHA Tag: ${TAG_SHA}"
-          echo "Latest Tag: ${TAG_LATEST}"
-          echo "Image URI: ${ECR_REGISTRY}/${SERVICE}"
+          echo "Environment: ${ENV}"
+          echo "Build Number: ${BUILD_NUMBER}"
+          echo "Tag: ${TAG}"
+          echo "Image URI: ${ECR_REGISTRY}/${REPO_NAME}"
+          echo "All Tags: ${TAGS}"
 
       # -------------------------------------------------------------------------
       # 멀티 아키텍처 빌드 및 ECR 푸시
@@ -250,9 +282,7 @@ jobs:
           file: ${{ steps.build-config.outputs.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ${{ steps.tags.outputs.image_uri }}:${{ steps.tags.outputs.tag_sha }}
-            ${{ steps.tags.outputs.image_uri }}:${{ steps.tags.outputs.tag_latest }}
+          tags: ${{ steps.tags.outputs.all_tags }}
           cache-from: type=gha,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
 
@@ -262,9 +292,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Service:** ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** ${{ needs.detect-changes.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** ${{ needs.detect-changes.outputs.branch }}" >> $GITHUB_STEP_SUMMARY
-          echo "**ECR Registry:** ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-northeast-2.amazonaws.com" >> $GITHUB_STEP_SUMMARY
-          echo "**SHA Tag:** ${{ steps.tags.outputs.tag_sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**ECR Repository:** ${{ steps.ecr-repo.outputs.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image URI:** ${{ steps.tags.outputs.image_uri }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ steps.tags.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
           echo "**Platforms:** linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
 
   update-gitops-manifests:
@@ -272,6 +302,7 @@ jobs:
     if: |
       needs.detect-changes.outputs.services != '[]' &&
       needs.detect-changes.outputs.services != '' &&
+      needs.detect-changes.outputs.branch != 'service-deploy-prod' &&  
       success() &&
       github.event.inputs.skip_gitops != 'true'
     runs-on: ubuntu-latest
@@ -291,19 +322,24 @@ jobs:
           SHORT_SHA="${{ github.sha }}"
           SHORT_SHA=${SHORT_SHA:0:7}
           ENV="${{ needs.detect-changes.outputs.environment }}"
-          NEW_TAG="${ENV}-${SHORT_SHA}"
+          BUILD_NUMBER="${{ github.run_number }}"
+          # 태그 형식: Build Number + SHA (예: 42-abc1234)
+          NEW_TAG="${BUILD_NUMBER}-${SHORT_SHA}"
           K8S_BRANCH="${{ needs.detect-changes.outputs.k8s_branch }}"
           # ECR registry를 직접 구성 (outputs으로 전달 시 secret 마스킹 문제 회피)
           ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
 
           echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> $GITHUB_ENV
           echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
           echo "K8S_BRANCH=${K8S_BRANCH}" >> $GITHUB_ENV
           echo "ECR_REGISTRY=${ECR_REGISTRY}" >> $GITHUB_ENV
           echo "NAMESPACE=${{ needs.detect-changes.outputs.namespace }}" >> $GITHUB_ENV
+          echo "ENV=${ENV}" >> $GITHUB_ENV
 
           echo "=== GitOps Config ==="
           echo "Environment: ${ENV}"
+          echo "Build Number: ${BUILD_NUMBER}"
           echo "New Tag: ${NEW_TAG}"
           echo "K8s Branch: ${K8S_BRANCH}"
           echo "ECR Registry: ${ECR_REGISTRY}"
@@ -331,13 +367,27 @@ jobs:
 
           echo "Updating image tags to: ${NEW_TAG}"
           echo "ECR Registry: ${ECR_REGISTRY}"
+          echo "Environment: ${ENV}"
           echo "Services to update: ${SERVICES}"
 
           for service in $(echo $SERVICES | jq -r '.[]'); do
-            MANIFEST_FILE="k8s/argocd/apps/${service}.yaml"
+            # 환경별 경로 사용 (dev/ 또는 prod/)
+            MANIFEST_FILE="k8s/argocd/apps/${ENV}/${service}.yaml"
 
             if [ -f "$MANIFEST_FILE" ]; then
               echo "Updating ${MANIFEST_FILE}"
+
+              # image.repository 업데이트 (prod는 prod/ prefix 추가)
+              if [ "${ENV}" = "prod" ]; then
+                REPO_NAME="prod/${service}"
+              else
+                REPO_NAME="${service}"
+              fi
+
+              sed -i.bak '/- name: image\.repository/{
+                n
+                s|value: ".*"|value: "'"${REPO_NAME}"'"|
+              }' "$MANIFEST_FILE"
 
               # image.tag 업데이트
               sed -i.bak '/- name: image\.tag/{
@@ -353,7 +403,9 @@ jobs:
 
               rm -f "${MANIFEST_FILE}.bak"
 
-              echo "Updated ${service} to tag: ${NEW_TAG}"
+              echo "Updated ${service}:"
+              echo "  - Repository: ${REPO_NAME}"
+              echo "  - Tag: ${NEW_TAG}"
               echo "=== Changes in ${MANIFEST_FILE} ==="
               git diff "$MANIFEST_FILE" || true
               echo "=================================="
@@ -375,11 +427,11 @@ jobs:
           git add .
 
           # 멀티라인 커밋 메시지
-          COMMIT_MSG="🚀 [${NAMESPACE}] Update image tags for services"
+          COMMIT_MSG="🚀 [${NAMESPACE}] Update image tags (Build #${BUILD_NUMBER})"
           COMMIT_MSG="${COMMIT_MSG}"$'\n\n'"Services: ${{ needs.detect-changes.outputs.services }}"
           COMMIT_MSG="${COMMIT_MSG}"$'\n'"Environment: ${{ needs.detect-changes.outputs.environment }}"
-          COMMIT_MSG="${COMMIT_MSG}"$'\n'"ECR Registry: ${ECR_REGISTRY}"
-          COMMIT_MSG="${COMMIT_MSG}"$'\n'"New Tag: ${NEW_TAG}"
+          COMMIT_MSG="${COMMIT_MSG}"$'\n'"Build: #${BUILD_NUMBER}"
+          COMMIT_MSG="${COMMIT_MSG}"$'\n'"Tag: ${NEW_TAG}"
           COMMIT_MSG="${COMMIT_MSG}"$'\n'"Commit: ${{ github.sha }}"
           COMMIT_MSG="${COMMIT_MSG}"$'\n\n'"Updated by: ${{ github.actor }}"
           COMMIT_MSG="${COMMIT_MSG}"$'\n'"Triggered by: ${{ github.event_name }}"
@@ -398,7 +450,7 @@ jobs:
           echo "**Updated Services:** ${{ needs.detect-changes.outputs.services }}" >> $GITHUB_STEP_SUMMARY
           echo "**Target Branch:** ${K8S_BRANCH}" >> $GITHUB_STEP_SUMMARY
           echo "**Namespace:** ${NAMESPACE}" >> $GITHUB_STEP_SUMMARY
-          echo "**ECR Registry:** ${ECR_REGISTRY}" >> $GITHUB_STEP_SUMMARY
-          echo "**New Image Tag:** ${NEW_TAG}" >> $GITHUB_STEP_SUMMARY
+          echo "**Build:** #${BUILD_NUMBER}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** ${NEW_TAG}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**ArgoCD will automatically sync these changes.**" >> $GITHUB_STEP_SUMMARY

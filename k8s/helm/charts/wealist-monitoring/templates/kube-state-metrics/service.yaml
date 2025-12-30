@@ -1,0 +1,28 @@
+{{- if .Values.kubeStateMetrics.enabled }}
+# =============================================================================
+# kube-state-metrics Service
+# =============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-state-metrics
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: kube-state-metrics
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/component: monitoring
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-metrics
+      port: {{ .Values.kubeStateMetrics.service.port }}
+      targetPort: http-metrics
+      protocol: TCP
+    - name: telemetry
+      port: {{ .Values.kubeStateMetrics.telemetryPort }}
+      targetPort: telemetry
+      protocol: TCP
+  selector:
+    app: kube-state-metrics
+{{- end }}

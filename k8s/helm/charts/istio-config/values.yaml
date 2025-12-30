@@ -16,6 +16,10 @@ istio:
       - "*"
     frontend:
       enabled: true
+    minio:
+      enabled: false  # localhost에서는 minio 비활성화
+      host: minio
+      port: 9000
     monitoring:
       enabled: true
       grafana:
@@ -88,3 +92,61 @@ istio:
     waypoint:
       enabled: true
       name: wealist-waypoint
+
+  # Kubernetes Gateway API - Ingress Gateway
+  # Istio automatically provisions Deployment and Service
+  k8sGateway:
+    enabled: false
+    name: istio-ingressgateway
+    namespace: istio-system
+    gatewayClassName: istio
+    annotations: {}
+    listeners:
+      http:
+        port: 80
+        hostname: ""  # Empty means all hosts
+        allowedRoutes:
+          from: All  # All, Same, or Selector
+      https:
+        enabled: false
+        port: 443
+        hostname: ""
+        certificateRef: ""  # Secret name for TLS
+        allowedRoutes:
+          from: All
+
+# VirtualService (legacy - disabled by default for Ambient mode)
+virtualService:
+  enabled: false
+
+# Telemetry (tracing and access logging)
+telemetry:
+  tracing:
+    enabled: false
+    provider: jaeger
+    samplingPercentage: 100
+  accessLogging:
+    enabled: false
+    provider: envoy
+
+# JWT Authentication (RequestAuthentication)
+jwtAuth:
+  enabled: false
+  issuer: ""
+  jwksUri: ""
+
+# Old Istio Gateway API (disabled by default for Ambient mode)
+gateway:
+  enabled: false
+
+# Authorization Policy (root level fallback)
+authorizationPolicy:
+  enabled: false
+  denyAll: false
+
+# Service Authorization (root level fallback)
+serviceAuthorization:
+  enabled: false
+
+# Top-level enabled flag for chart
+enabled: true

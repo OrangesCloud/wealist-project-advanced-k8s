@@ -1,0 +1,25 @@
+{{- if .Values.nodeExporter.enabled }}
+# =============================================================================
+# Node Exporter Service
+# =============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-exporter
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: node-exporter
+    app.kubernetes.io/name: node-exporter
+    app.kubernetes.io/component: monitoring
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service for direct pod access
+  ports:
+    - name: metrics
+      port: {{ .Values.nodeExporter.service.port }}
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app: node-exporter
+{{- end }}

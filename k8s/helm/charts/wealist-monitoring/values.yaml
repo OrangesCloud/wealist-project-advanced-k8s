@@ -10,6 +10,14 @@ global:
   namespace: wealist
 
 # =============================================================================
+# External Secrets (ESO) Configuration
+# =============================================================================
+# enabled: true → ExternalSecret에서 시크릿 가져옴 (dev/prod)
+# enabled: false → values 또는 로컬 Secret 사용 (dev/localhost)
+externalSecrets:
+  enabled: false
+
+# =============================================================================
 # Prometheus - Metrics Collection
 # =============================================================================
 prometheus:
@@ -30,6 +38,10 @@ prometheus:
     enabled: true
     storageClass: ""
     size: 10Gi
+    # Kind/로컬 환경용 hostPath 설정
+    hostPath:
+      enabled: false
+      path: /data/prometheus
 
   resources:
     requests:
@@ -45,6 +57,14 @@ prometheus:
     retentionTime: 7d
     # Sub-path configuration (for Gateway access via /monitoring/prometheus)
     externalUrl: "/monitoring/prometheus"
+
+  # Alert 규칙 및 Alertmanager 설정
+  alerting:
+    enabled: false  # Enable in production
+    alertmanager:
+      enabled: false
+      host: alertmanager
+      port: 9093
 
   # 스크래핑 대상 서비스들
   scrapeTargets:
@@ -188,6 +208,16 @@ grafana:
     rootUrl: "%(protocol)s://%(domain)s:%(http_port)s/monitoring/grafana"
     serveFromSubPath: "true"
 
+  # Additional Datasources (확장용)
+  additionalDatasources:
+    # Elasticsearch (ELK 스택 연동용)
+    elasticsearch:
+      enabled: false  # ELK 배포 시 true로 변경
+      url: "http://elasticsearch:9200"
+      index: "logstash-*"
+      # Production에서는 AWS OpenSearch 사용 가능
+      # url: "https://search-xxx.ap-northeast-2.es.amazonaws.com"
+
 # =============================================================================
 # Monitoring Ingress - External Access via domain/monitoring/*
 # =============================================================================
@@ -256,9 +286,144 @@ redisExporter:
     port: 6379
 
 # =============================================================================
+# kube-state-metrics - Kubernetes Objects State Metrics
+# =============================================================================
+# Generates metrics about Kubernetes objects (pods, nodes, deployments, etc.)
+# Required for Kubernetes Cluster dashboard and Service Health Overview
+kubeStateMetrics:
+  enabled: false  # Enable in prod environment
+
+  image:
+    repository: registry.k8s.io/kube-state-metrics/kube-state-metrics
+    tag: v2.10.1
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 8080
+
+  telemetryPort: 8081
+
+  # Optional: limit to specific namespaces (empty = all namespaces)
+  namespaces: []
+
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# =============================================================================
+# node-exporter - Node System Metrics
+# =============================================================================
+# Exports node-level metrics (CPU, memory, disk, network)
+# Required for node resource usage in Kubernetes Cluster dashboard
+nodeExporter:
+  enabled: false  # Enable in prod environment
+
+  image:
+    repository: prom/node-exporter
+    tag: v1.7.0
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 9100
+
+  resources:
+    requests:
+      memory: "32Mi"
+      cpu: "25m"
+    limits:
+      memory: "64Mi"
+      cpu: "100m"
+
+# =============================================================================
+# ArgoCD Metrics
+# =============================================================================
+argocd:
+  metrics:
+    enabled: false  # Enable in prod environment
+
+# =============================================================================
 # Shared Secrets (for exporters)
 # =============================================================================
 shared:
   secrets:
     DB_PASSWORD: ""
     REDIS_PASSWORD: ""
+
+# =============================================================================
+# k6 Performance Testing Configuration
+# =============================================================================
+# k6 성능 테스트를 Kubernetes에서 실행하기 위한 설정
+# 참고: https://grafana.com/docs/k6/latest/
+k6:
+  enabled: false  # Production에서만 true
+
+  image:
+    repository: grafana/k6
+    tag: "0.49.0"
+    pullPolicy: IfNotPresent
+
+  # k6 Job 리소스 제한
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Prometheus Remote Write 설정
+  # k6 실행 시 --out experimental-prometheus-rw 옵션 사용
+  prometheus:
+    remoteWriteUrl: "http://prometheus:9090/api/v1/write"
+
+  # 테스트 시나리오 기본 설정
+  scenarios:
+    load:
+      enabled: true
+      duration: "5m"
+      vus: 20
+      description: "Normal load test"
+    stress:
+      enabled: true
+      maxVUs: 300
+      duration: "30m"
+      description: "Stress test to find breaking point"
+    spike:
+      enabled: true
+      peakVUs: 500
+      duration: "10m"
+      description: "Spike test for sudden traffic bursts"
+
+  # 테스트 대상 서비스 엔드포인트
+  endpoints:
+    baseUrl: "http://istio-ingressgateway.istio-system.svc.cluster.local"
+    services:
+      - name: board
+        path: /svc/board
+        healthPath: /health/live
+      - name: user
+        path: /svc/user
+        healthPath: /health/live
+      - name: chat
+        path: /svc/chat
+        healthPath: /health/live
+      - name: noti
+        path: /svc/noti
+        healthPath: /health/live
+      - name: storage
+        path: /svc/storage
+        healthPath: /health/live
+      - name: video
+        path: /svc/video
+        healthPath: /health/live
+
+  # SLA 임계값 (Alert과 연동)
+  thresholds:
+    latencyP95Ms: 500
+    latencyP99Ms: 1000
+    errorRatePercent: 1
+    availabilityPercent: 99.9

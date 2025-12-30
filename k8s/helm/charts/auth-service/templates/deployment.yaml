@@ -82,9 +82,15 @@ spec:
           {{- end }}
           {{- end }}
           {{- end }}
-          {{- if .Values.resources }}
+          # Spring Boot는 Go 서비스보다 메모리가 많이 필요하므로 별도 설정
+          # javaResources > resources 순서로 우선 적용
+          {{- $resources := .Values.resources }}
+          {{- if .Values.javaResources }}
+          {{- $resources = .Values.javaResources }}
+          {{- end }}
+          {{- if $resources }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml $resources | nindent 12 }}
           {{- end }}
           envFrom:
             - configMapRef:

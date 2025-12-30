@@ -462,7 +462,10 @@ func TestStorageService_ColorCode_Validation(t *testing.T) {
 			return false
 		}
 		for _, c := range color[1:] {
-			if !((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) {
+			isDigit := c >= '0' && c <= '9'
+			isUpperHex := c >= 'A' && c <= 'F'
+			isLowerHex := c >= 'a' && c <= 'f'
+			if !isDigit && !isUpperHex && !isLowerHex {
 				return false
 			}
 		}

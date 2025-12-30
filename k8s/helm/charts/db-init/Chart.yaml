@@ -1,0 +1,12 @@
+# =============================================================================
+# DB Init Chart
+# =============================================================================
+# RDS PostgreSQL 초기화 (데이터베이스 생성, 확장 설치)
+# ArgoCD PreSync hook으로 서비스 배포 전 실행
+
+apiVersion: v2
+name: db-init
+description: Initialize RDS PostgreSQL databases for weAlist services
+type: application
+version: 0.1.0
+appVersion: "17"

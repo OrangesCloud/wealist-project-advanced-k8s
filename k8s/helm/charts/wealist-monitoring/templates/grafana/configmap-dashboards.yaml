@@ -9,9 +9,49 @@ metadata:
     app.kubernetes.io/name: grafana
     app.kubernetes.io/component: monitoring
 data:
-  # Load dashboards from dashboards directory
+  # Load dashboards from dashboards directory (legacy)
   {{- $files := .Files }}
   {{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
+  {{ base $path }}: |
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
+---
+# =============================================================================
+# Dashboards V2 - Production-grade dashboards following 2025 best practices
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-v2
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+    grafana_dashboard: "1"
+data:
+  # Overview dashboards
+  {{- range $path, $_ := .Files.Glob "dashboards-v2/overview/*.json" }}
+  {{ base $path }}: |
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
+  # SLO/SLI dashboards
+  {{- range $path, $_ := .Files.Glob "dashboards-v2/slo-sli/*.json" }}
+  {{ base $path }}: |
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
+  # Performance dashboards
+  {{- range $path, $_ := .Files.Glob "dashboards-v2/performance/*.json" }}
+  {{ base $path }}: |
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
+  # On-Call dashboards
+  {{- range $path, $_ := .Files.Glob "dashboards-v2/oncall/*.json" }}
+  {{ base $path }}: |
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
+  # Infrastructure dashboards
+  {{- range $path, $_ := .Files.Glob "dashboards-v2/infrastructure/*.json" }}
   {{ base $path }}: |
 {{ $files.Get $path | indent 4 }}
   {{- end }}

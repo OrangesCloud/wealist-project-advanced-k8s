@@ -11,7 +11,7 @@
 
 # Default deny all policy - Zero Trust baseline
 ---
-apiVersion: security.istio.io/v1beta1
+apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
   name: deny-all
@@ -23,7 +23,7 @@ spec:
 
 # Allow traffic from Istio Ingress Gateway to all services
 ---
-apiVersion: security.istio.io/v1beta1
+apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
   name: allow-from-gateway
@@ -41,7 +41,7 @@ spec:
 {{- if .Values.ambient.enabled }}
 # Allow traffic from Waypoint Proxy (L4 - required for mesh traffic flow)
 ---
-apiVersion: security.istio.io/v1beta1
+apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
   name: allow-from-waypoint
@@ -59,7 +59,7 @@ spec:
 
 # Health check policy - allow Kubernetes probes (kubelet doesn't have SPIFFE identity)
 ---
-apiVersion: security.istio.io/v1beta1
+apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
   name: allow-health-checks
@@ -75,7 +75,7 @@ spec:
 
 # Allow internal mesh traffic (service-to-service within namespace)
 ---
-apiVersion: security.istio.io/v1beta1
+apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
   name: allow-mesh-internal
@@ -92,7 +92,7 @@ spec:
 
 # Allow Prometheus scraping
 ---
-apiVersion: security.istio.io/v1beta1
+apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
   name: allow-prometheus-scrape

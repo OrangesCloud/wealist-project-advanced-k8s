@@ -1,0 +1,31 @@
+{
+  "thresholds": {
+    "load": {
+      "http_req_duration": ["p(95)<500", "p(99)<1000"],
+      "http_req_failed": ["rate<0.01"],
+      "errors": ["rate<0.01"]
+    },
+    "stress": {
+      "http_req_duration": ["p(95)<2000"],
+      "http_req_failed": ["rate<0.1"],
+      "errors": ["rate<0.1"]
+    },
+    "spike": {
+      "http_req_duration": ["p(95)<3000"],
+      "http_req_failed": ["rate<0.2"],
+      "errors": ["rate<0.2"]
+    }
+  },
+  "sla": {
+    "latency_p95_ms": 500,
+    "latency_p99_ms": 1000,
+    "error_rate_percent": 1,
+    "availability_percent": 99.9
+  },
+  "endpoints": {
+    "health": "/health/live",
+    "boards": "/svc/board/api/boards",
+    "users": "/svc/user/api/users",
+    "auth": "/svc/auth/api/auth/validate"
+  }
+}

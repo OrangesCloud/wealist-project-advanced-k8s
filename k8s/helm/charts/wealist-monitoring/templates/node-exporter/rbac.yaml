@@ -1,0 +1,15 @@
+{{- if .Values.nodeExporter.enabled }}
+# =============================================================================
+# Node Exporter ServiceAccount
+# =============================================================================
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-exporter
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: node-exporter
+    app.kubernetes.io/name: node-exporter
+    app.kubernetes.io/component: monitoring
+{{- end }}

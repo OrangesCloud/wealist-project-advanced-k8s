@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  # ArgoCD URL 설정
+  context: |
+    argocdUrl: https://argocd.wealist.co.kr
+  
+  # Discord 서비스 설정
+  service.discord: |
+    token: $discord-webhook-url
+  
+  # 배포 성공 템플릿
+  template.app-deployed: |
+    message: |
+      🚀 **배포 완료**
+      
+      **애플리케이션**: {{.app.metadata.name}}
+      **환경**: {{.app.metadata.namespace}}
+      **상태**: {{.app.status.health.status}}
+      **동기화**: {{.app.status.sync.status}}
+      **리비전**: {{.app.status.sync.revision}}
+      **시간**: {{.app.status.operationState.finishedAt}}
+  
+  # 배포 실패 템플릿
+  template.app-sync-failed: |
+    message: |
+      ❌ **배포 실패**
+      
+      **애플리케이션**: {{.app.metadata.name}}
+      **환경**: {{.app.metadata.namespace}}
+      **오류**: {{.app.status.operationState.message}}
+      **시간**: {{.app.status.operationState.finishedAt}}
+  
+  # 배포 시작 템플릿
+  template.app-sync-running: |
+    message: |
+      ⏳ **배포 시작**
+      
+      **애플리케이션**: {{.app.metadata.name}}
+      **환경**: {{.app.metadata.namespace}}
+      **시작 시간**: {{.app.status.operationState.startedAt}}
+  
+  # 트리거 설정
+  trigger.on-deployed: |
+    - description: 배포 완료 시 알림
+      send:
+      - app-deployed
+      when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+  
+  trigger.on-sync-failed: |
+    - description: 배포 실패 시 알림
+      send:
+      - app-sync-failed
+      when: app.status.operationState.phase in ['Error', 'Failed']
+  
+  trigger.on-sync-running: |
+    - description: 배포 시작 시 알림
+      send:
+      - app-sync-running
+      when: app.status.operationState.phase in ['Running']
+---
+# ExternalSecret으로 AWS Secrets Manager에서 가져오기
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: argocd-notifications-secret
+  namespace: argocd
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: aws-secrets-manager
+    kind: ClusterSecretStore
+
+  target:
+    name: argocd-notifications-secret
+    creationPolicy: Owner
+
+  data:
+    - secretKey: discord-webhook-url
+      remoteRef:
+        key: "wealist/prod/notifications/discord"
+        property: webhook_url

@@ -10,6 +10,9 @@ metadata:
     app.kubernetes.io/component: monitoring
 spec:
   replicas: {{ .Values.grafana.replicas }}
+  # Recreate strategy required for PVC-based deployments to avoid lock conflicts
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: grafana
@@ -18,8 +21,12 @@ spec:
       labels:
         app: grafana
         app.kubernetes.io/name: grafana
+        # Ambient 모드에 포함 - mTLS로 Prometheus 데이터 수집
+        # PeerAuthentication에서 PERMISSIVE 설정으로 외부 접근도 허용
       annotations:
-        checksum/datasources: {{ include (print $.Template.BasePath "/grafana/configmap.yaml") . | sha256sum }}
+        # ConfigMap 변경 시 자동 Pod 재시작을 위한 checksum
+        checksum/config: {{ include (print $.Template.BasePath "/grafana/configmap.yaml") . | sha256sum }}
+        checksum/dashboards: {{ include (print $.Template.BasePath "/grafana/configmap-dashboards.yaml") . | sha256sum }}
     spec:
       securityContext:
         fsGroup: 472
@@ -35,6 +42,20 @@ spec:
               containerPort: 3000
               protocol: TCP
           env:
+            {{- if .Values.externalSecrets.enabled }}
+            # Production: ExternalSecret으로 생성된 Secret에서 가져옴
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: wealist-shared-secret
+                  key: GRAFANA_ADMIN_USER
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wealist-shared-secret
+                  key: GRAFANA_ADMIN_PASSWORD
+            {{- else }}
+            # Local/Dev: values에서 직접 가져옴
             - name: GF_SECURITY_ADMIN_USER
               value: {{ .Values.grafana.admin.user | quote }}
             - name: GF_SECURITY_ADMIN_PASSWORD
@@ -42,6 +63,7 @@ spec:
                 secretKeyRef:
                   name: grafana-admin-secret
                   key: password
+            {{- end }}
             - name: GF_USERS_ALLOW_SIGN_UP
               value: {{ .Values.grafana.config.allowSignUp | quote }}
             # Sub-path configuration for Ingress access
@@ -70,6 +92,8 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards
             - name: dashboards-json
               mountPath: /etc/grafana/provisioning/dashboards/json
+            - name: dashboards-v2
+              mountPath: /etc/grafana/provisioning/dashboards/v2
             - name: data
               mountPath: /var/lib/grafana
       volumes:
@@ -82,6 +106,9 @@ spec:
         - name: dashboards-json
           configMap:
             name: grafana-dashboards-json
+        - name: dashboards-v2
+          configMap:
+            name: grafana-dashboards-v2
         - name: data
           {{- if .Values.grafana.persistence.enabled }}
           persistentVolumeClaim:
@@ -108,7 +135,9 @@ spec:
     requests:
       storage: {{ .Values.grafana.persistence.size }}
 {{- end }}
+{{- if not .Values.externalSecrets.enabled }}
 ---
+# Local/Dev 환경용: values에서 직접 Secret 생성
 apiVersion: v1
 kind: Secret
 metadata:
@@ -119,4 +148,5 @@ metadata:
 type: Opaque
 data:
   password: {{ .Values.grafana.admin.password | b64enc | quote }}
+{{- end }}
 {{- end }}

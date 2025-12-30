@@ -1,0 +1,31 @@
+# =============================================================================
+# DB Init - ArgoCD Application
+# =============================================================================
+# RDS PostgreSQL 초기화 (데이터베이스 생성)
+# sync-wave: 2 (External Secrets 이후, 서비스 배포 전)
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: db-init-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-prod
+    path: k8s/helm/charts/db-init
+    helm:
+      valueFiles:
+        - ../../../helm/environments/prod-db-init.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wealist-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

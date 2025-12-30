@@ -1,5 +1,10 @@
 {{- if and (not .Values.postgres.enabled) .Values.postgres.external.enabled }}
-# External PostgreSQL Service - routes traffic to host machine
+{{- $host := .Values.postgres.external.host }}
+{{- $port := .Values.postgres.external.port | default 5432 }}
+{{- $isIP := regexMatch "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$" $host }}
+
+{{- if $isIP }}
+# External PostgreSQL Service (IP-based) - routes traffic to host machine
 apiVersion: v1
 kind: Service
 metadata:
@@ -12,12 +17,12 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: {{ .Values.postgres.external.port | default 5432 }}
-      targetPort: {{ .Values.postgres.external.port | default 5432 }}
+    - port: {{ $port }}
+      targetPort: {{ $port }}
       protocol: TCP
       name: postgresql
 ---
-# Endpoints pointing to external PostgreSQL
+# Endpoints pointing to external PostgreSQL (IP address)
 apiVersion: v1
 kind: Endpoints
 metadata:
@@ -28,8 +33,29 @@ metadata:
     external: "true"
 subsets:
   - addresses:
-      - ip: {{ .Values.postgres.external.host | quote }}
+      - ip: {{ $host | quote }}
     ports:
-      - port: {{ .Values.postgres.external.port | default 5432 }}
+      - port: {{ $port }}
         name: postgresql
+{{- else }}
+# External PostgreSQL Service (DNS-based) - routes traffic via ExternalName
+# Used for hostnames like host.docker.internal or RDS endpoints
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "wealist-infrastructure.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+    external: "true"
+spec:
+  type: ExternalName
+  externalName: {{ $host }}
+  ports:
+    - port: {{ $port }}
+      targetPort: {{ $port }}
+      protocol: TCP
+      name: postgresql
+{{- end }}
 {{- end }}
