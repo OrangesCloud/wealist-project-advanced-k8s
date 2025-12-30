@@ -8,9 +8,9 @@
 # Database
 # -----------------------------------------------------------------------------
 variable "db_host" {
-  description = "Database host (e.g., 172.18.0.1 for Kind, RDS endpoint for AWS)"
+  description = "Database host (e.g., 172.17.0.1 for Kind/WSL, RDS endpoint for AWS)"
   type        = string
-  default     = "172.18.0.1"
+  default     = "172.17.0.1"
 }
 
 variable "db_port" {
@@ -35,9 +35,9 @@ variable "db_password" {
 # Redis
 # -----------------------------------------------------------------------------
 variable "redis_host" {
-  description = "Redis host"
+  description = "Redis host (e.g., 172.17.0.1 for Kind/WSL)"
   type        = string
-  default     = "172.18.0.1"
+  default     = "172.17.0.1"
 }
 
 variable "redis_port" {

@@ -9,9 +9,9 @@
 # -----------------------------------------------------------------------------
 # Database (PostgreSQL)
 # -----------------------------------------------------------------------------
-# Kind 로컬: 172.18.0.1 (호스트 머신)
+# Kind/WSL 로컬: 172.17.0.1 (Docker bridge gateway)
 # AWS RDS: your-rds-endpoint.region.rds.amazonaws.com
-db_host     = "172.18.0.1"
+db_host     = "172.17.0.1"
 db_port     = "5432"
 db_username = "wealist"
 db_password = "your-secure-db-password"
@@ -19,9 +19,9 @@ db_password = "your-secure-db-password"
 # -----------------------------------------------------------------------------
 # Redis
 # -----------------------------------------------------------------------------
-# Kind 로컬: 172.18.0.1 (호스트 머신)
+# Kind/WSL 로컬: 172.17.0.1 (Docker bridge gateway)
 # AWS ElastiCache: your-redis.cache.amazonaws.com
-redis_host     = "172.18.0.1"
+redis_host     = "172.17.0.1"
 redis_port     = "6379"
 redis_password = ""  # 로컬은 보통 비밀번호 없음, ElastiCache는 AUTH 토큰
 

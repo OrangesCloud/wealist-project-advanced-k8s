@@ -1,18 +1,25 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: wealist-apps-staging
+  name: livekit-staging
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   project: wealist-staging
   source:
     repoURL: https://github.com/212clab/wealist-project-advanced-k8s-forked.git
     targetRevision: argo-develop
-    path: k8s/argocd/apps/staging
+    path: k8s/helm/charts/livekit
+    helm:
+      valueFiles:
+        - values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: wealist-staging
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

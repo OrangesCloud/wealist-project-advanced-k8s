@@ -55,3 +55,10 @@ job:
 secretRef:
   name: wealist-shared-secret
   passwordKey: DB_PASSWORD
+
+# PostgreSQL 15+ schema 권한 설정
+# staging 환경처럼 superuser 접근이 가능한 경우 사용
+schemaGrant:
+  enabled: false
+  superuser: postgres
+  superuserPassword: ""

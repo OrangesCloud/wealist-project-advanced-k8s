@@ -32,4 +32,10 @@ data:
   {{ $key }}: {{ $value | quote }}
   {{- end }}
   {{- end }}
+  {{- /* Auto-generate DB_USER and DATABASE_URL_TEMPLATE for Go services if DB_NAME is set */}}
+  {{- if .Values.config.DB_NAME }}
+  {{- $dbName := .Values.config.DB_NAME }}
+  {{- $dbUser := .Values.config.DB_USER | default (regexReplaceAll "wealist_(.*)_db" $dbName "${1}") }}
+  DB_USER: {{ $dbUser | quote }}
+  {{- end }}
 {{- end }}

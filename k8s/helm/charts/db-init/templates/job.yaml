@@ -58,7 +58,7 @@ spec:
               name: {{ .Values.secretRef.name }}
               key: {{ .Values.secretRef.passwordKey }}
         - name: PGSSLMODE
-          value: "require"
+          value: {{ .Values.database.sslMode | default "require" | quote }}
         command:
         - /bin/sh
         - -c
@@ -69,30 +69,62 @@ spec:
           echo "Host: $PGHOST"
           echo "=========================================="
 
+          # 원래 비밀번호 저장
+          ORIGINAL_PGPASSWORD="$PGPASSWORD"
+
           # 연결 테스트
-          echo "[1/4] Testing connection..."
+          echo "[1/5] Testing connection..."
           until pg_isready -h $PGHOST -p $PGPORT -U $PGUSER; do
             echo "Waiting for PostgreSQL..."
             sleep 2
           done
           echo "Connection successful!"
 
+          {{- if .Values.schemaGrant.enabled }}
+          # PostgreSQL 15+ schema 권한 설정 (superuser로)
+          echo "[2/5] Granting schema permissions (PostgreSQL 15+)..."
+          export PGPASSWORD="{{ .Values.schemaGrant.superuserPassword }}"
+          {{- range .Values.databases }}
+          echo "  - Setting schema owner for {{ .name }} to {{ .owner }}..."
+          psql -h $PGHOST -p $PGPORT -U {{ $.Values.schemaGrant.superuser }} -d {{ .name }} -c "ALTER SCHEMA public OWNER TO {{ .owner }};" 2>/dev/null || echo "    (DB may not exist yet, will retry after creation)"
+          psql -h $PGHOST -p $PGPORT -U {{ $.Values.schemaGrant.superuser }} -d {{ .name }} -c "GRANT ALL ON SCHEMA public TO {{ .owner }};" 2>/dev/null || true
+          psql -h $PGHOST -p $PGPORT -U {{ $.Values.schemaGrant.superuser }} -d {{ .name }} -c "GRANT CREATE ON SCHEMA public TO {{ .owner }};" 2>/dev/null || true
+          {{- end }}
+          # 원래 비밀번호로 복원
+          export PGPASSWORD="$ORIGINAL_PGPASSWORD"
+          {{- end }}
+
           # 확장 설치 (기본 DB에)
-          echo "[2/4] Installing extensions..."
+          echo "[3/5] Installing extensions..."
           {{- range .Values.extensions }}
           psql -c "CREATE EXTENSION IF NOT EXISTS \"{{ . }}\";" || true
           {{- end }}
 
           # 데이터베이스 생성
-          echo "[3/4] Creating databases..."
+          echo "[4/5] Creating databases..."
           {{- range .Values.databases }}
           echo "  - Creating {{ .name }}..."
           psql -tc "SELECT 1 FROM pg_database WHERE datname = '{{ .name }}'" | grep -q 1 || \
             psql -c "CREATE DATABASE {{ .name }} OWNER {{ .owner }};"
           {{- end }}
 
+          {{- if .Values.schemaGrant.enabled }}
+          # DB 생성 후 다시 schema 권한 설정
+          echo "[4.5/5] Re-applying schema permissions after DB creation..."
+          export PGPASSWORD="{{ .Values.schemaGrant.superuserPassword }}"
+          {{- range .Values.databases }}
+          echo "  - Ensuring schema permissions for {{ .name }}..."
+          psql -h $PGHOST -p $PGPORT -U {{ $.Values.schemaGrant.superuser }} -d {{ .name }} -c "ALTER SCHEMA public OWNER TO {{ .owner }};" 2>/dev/null || true
+          psql -h $PGHOST -p $PGPORT -U {{ $.Values.schemaGrant.superuser }} -d {{ .name }} -c "GRANT ALL ON SCHEMA public TO {{ .owner }};" 2>/dev/null || true
+          psql -h $PGHOST -p $PGPORT -U {{ $.Values.schemaGrant.superuser }} -d {{ .name }} -c "GRANT CREATE ON SCHEMA public TO {{ .owner }};" 2>/dev/null || true
+          psql -h $PGHOST -p $PGPORT -U {{ $.Values.schemaGrant.superuser }} -d {{ .name }} -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {{ .owner }};" 2>/dev/null || true
+          psql -h $PGHOST -p $PGPORT -U {{ $.Values.schemaGrant.superuser }} -d {{ .name }} -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO {{ .owner }};" 2>/dev/null || true
+          {{- end }}
+          export PGPASSWORD="$ORIGINAL_PGPASSWORD"
+          {{- end }}
+
           # 각 DB에 확장 설치
-          echo "[4/4] Installing extensions in each database..."
+          echo "[5/5] Installing extensions in each database..."
           {{- range .Values.databases }}
           echo "  - Extensions for {{ .name }}..."
           {{- range $.Values.extensions }}
