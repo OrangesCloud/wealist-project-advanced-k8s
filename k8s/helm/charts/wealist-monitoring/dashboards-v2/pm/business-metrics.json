@@ -112,7 +112,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\"}[24h]))",
+          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[24h]))",
           "legendFormat": "Total",
           "refId": "A"
         }
@@ -171,7 +171,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\"}[7d]))",
+          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[7d]))",
           "legendFormat": "Total",
           "refId": "A"
         }
@@ -230,7 +230,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\"}[30d]))",
+          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[30d]))",
           "legendFormat": "Total",
           "refId": "A"
         }
@@ -289,7 +289,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\"}[30d])) / 30",
+          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[30d])) / 30",
           "legendFormat": "Avg",
           "refId": "A"
         }
@@ -392,7 +392,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\"}[1d]))",
+          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[1d]))",
           "legendFormat": "일간 요청 수",
           "refId": "A"
         }
@@ -468,7 +468,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase(board_service_http_requests_total[7d])) or vector(0)",
+          "expr": "sum(increase(board_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[7d])) or vector(0)",
           "legendFormat": "게시판",
           "refId": "A"
         },
@@ -477,7 +477,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase(chat_service_http_requests_total[7d])) or vector(0)",
+          "expr": "sum(increase(chat_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[7d])) or vector(0)",
           "legendFormat": "채팅",
           "refId": "B"
         },
@@ -486,7 +486,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase(user_service_http_requests_total[7d])) or vector(0)",
+          "expr": "sum(increase(user_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[7d])) or vector(0)",
           "legendFormat": "회원관리",
           "refId": "C"
         },
@@ -495,7 +495,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase(storage_service_http_requests_total[7d])) or vector(0)",
+          "expr": "sum(increase(storage_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[7d])) or vector(0)",
           "legendFormat": "파일저장소",
           "refId": "D"
         },
@@ -504,7 +504,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase(noti_service_http_requests_total[7d])) or vector(0)",
+          "expr": "sum(increase(noti_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[7d])) or vector(0)",
           "legendFormat": "알림",
           "refId": "E"
         },
@@ -513,7 +513,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase(video_service_http_requests_total[7d])) or vector(0)",
+          "expr": "sum(increase(video_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[7d])) or vector(0)",
           "legendFormat": "화상회의",
           "refId": "F"
         },
@@ -522,7 +522,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase(auth_service_http_requests_total[7d])) or vector(0)",
+          "expr": "sum(increase(auth_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[7d])) or vector(0)",
           "legendFormat": "로그인/인증",
           "refId": "G"
         }
@@ -612,7 +612,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(board_service_http_requests_total[1h])) * 3600",
+          "expr": "sum(rate(board_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[1h])) * 3600",
           "legendFormat": "게시판",
           "refId": "A"
         },
@@ -621,7 +621,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(chat_service_http_requests_total[1h])) * 3600",
+          "expr": "sum(rate(chat_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[1h])) * 3600",
           "legendFormat": "채팅",
           "refId": "B"
         },
@@ -630,7 +630,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(user_service_http_requests_total[1h])) * 3600",
+          "expr": "sum(rate(user_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[1h])) * 3600",
           "legendFormat": "회원관리",
           "refId": "C"
         },
@@ -639,7 +639,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(storage_service_http_requests_total[1h])) * 3600",
+          "expr": "sum(rate(storage_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[1h])) * 3600",
           "legendFormat": "파일저장소",
           "refId": "D"
         },
@@ -648,7 +648,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(noti_service_http_requests_total[1h])) * 3600",
+          "expr": "sum(rate(noti_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[1h])) * 3600",
           "legendFormat": "알림",
           "refId": "E"
         },
@@ -657,7 +657,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(video_service_http_requests_total[1h])) * 3600",
+          "expr": "sum(rate(video_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[1h])) * 3600",
           "legendFormat": "화상회의",
           "refId": "F"
         }
@@ -784,7 +784,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "topk(10, sum by (method, path) (increase({__name__=~\".*_service_http_requests_total\"}[7d])))",
+          "expr": "topk(10, sum by (method, path) (increase({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[7d])))",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -865,7 +865,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (method) (increase({__name__=~\".*_service_http_requests_total\"}[7d]))",
+          "expr": "sum by (method) (increase({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[7d]))",
           "legendFormat": "{{method}}",
           "refId": "A"
         }
@@ -1214,7 +1214,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * sum(increase({__name__=~\".*_service_http_requests_total\", status=~\"2..\"}[7d])) / sum(increase({__name__=~\".*_service_http_requests_total\"}[7d])) or vector(100)",
+          "expr": "100 * sum(increase({__name__=~\".*_service_http_requests_total\", status=~\"2..\"}[7d])) / sum(increase({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[7d])) or vector(100)",
           "legendFormat": "Success Rate",
           "refId": "A"
         }
@@ -1518,7 +1518,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\"}[1h]))",
+          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[1h]))",
           "legendFormat": "요청 수",
           "refId": "A"
         }

@@ -12,15 +12,15 @@
       }
     ]
   },
-  "description": "System Overview - 5-second diagnosis of entire system health (Golden Signals + SLO)",
+  "description": "시스템 전체 현황 - 5초 안에 시스템 상태 파악 (Golden Signals + SLO)",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
   "links": [
-    { "asDropdown": true, "icon": "external link", "includeVars": true, "keepTime": true, "tags": ["developer"], "targetBlank": true, "title": "Developer Dashboards", "type": "dashboards" },
-    { "asDropdown": true, "icon": "external link", "includeVars": true, "keepTime": true, "tags": ["pm"], "targetBlank": true, "title": "PM Dashboards", "type": "dashboards" },
-    { "asDropdown": true, "icon": "external link", "includeVars": true, "keepTime": true, "tags": ["operations"], "targetBlank": true, "title": "Operations Dashboards", "type": "dashboards" }
+    { "asDropdown": true, "icon": "external link", "includeVars": true, "keepTime": true, "tags": ["developer"], "targetBlank": true, "title": "개발자 대시보드", "type": "dashboards" },
+    { "asDropdown": true, "icon": "external link", "includeVars": true, "keepTime": true, "tags": ["pm"], "targetBlank": true, "title": "PM 대시보드", "type": "dashboards" },
+    { "asDropdown": true, "icon": "external link", "includeVars": true, "keepTime": true, "tags": ["operations"], "targetBlank": true, "title": "운영 대시보드", "type": "dashboards" }
   ],
   "panels": [
     {
@@ -28,7 +28,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 100,
       "panels": [],
-      "title": "Service Status (UP/DOWN)",
+      "title": "🔌 서비스 상태 (UP/DOWN)",
       "type": "row"
     },
     {
@@ -46,7 +46,7 @@
       "id": 1,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "up{job=\"auth-service\"}", "legendFormat": "", "refId": "A" }],
-      "title": "Auth",
+      "title": "인증",
       "type": "stat"
     },
     {
@@ -64,7 +64,7 @@
       "id": 2,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "up{job=\"user-service\"}", "legendFormat": "", "refId": "A" }],
-      "title": "User",
+      "title": "회원",
       "type": "stat"
     },
     {
@@ -82,7 +82,7 @@
       "id": 3,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "up{job=\"board-service\"}", "legendFormat": "", "refId": "A" }],
-      "title": "Board",
+      "title": "게시판",
       "type": "stat"
     },
     {
@@ -100,7 +100,7 @@
       "id": 4,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "up{job=\"chat-service\"}", "legendFormat": "", "refId": "A" }],
-      "title": "Chat",
+      "title": "채팅",
       "type": "stat"
     },
     {
@@ -118,7 +118,7 @@
       "id": 5,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "up{job=\"noti-service\"}", "legendFormat": "", "refId": "A" }],
-      "title": "Noti",
+      "title": "알림",
       "type": "stat"
     },
     {
@@ -136,7 +136,7 @@
       "id": 6,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "up{job=\"storage-service\"}", "legendFormat": "", "refId": "A" }],
-      "title": "Storage",
+      "title": "저장소",
       "type": "stat"
     },
     {
@@ -154,7 +154,7 @@
       "id": 7,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "up{job=\"video-service\"}", "legendFormat": "", "refId": "A" }],
-      "title": "Video",
+      "title": "화상회의",
       "type": "stat"
     },
     {
@@ -162,7 +162,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 4 },
       "id": 101,
       "panels": [],
-      "title": "Golden Signals (RED + Saturation)",
+      "title": "📊 Golden Signals (RED + 포화도)",
       "type": "row"
     },
     {
@@ -179,8 +179,8 @@
       "gridPos": { "h": 5, "w": 6, "x": 0, "y": 5 },
       "id": 10,
       "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5.*\"}[5m])) / sum(rate({__name__=~\".*_service_http_requests_total\"}[5m])) or vector(0)", "legendFormat": "", "refId": "A" }],
-      "title": "Error Rate (5xx)",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5.*\", endpoint!~\"/metrics|/health.*\"}[5m])) / sum(rate({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[5m])) or vector(0)", "legendFormat": "", "refId": "A" }],
+      "title": "에러율 (5xx)",
       "type": "stat"
     },
     {
@@ -197,8 +197,8 @@
       "gridPos": { "h": 5, "w": 6, "x": 6, "y": 5 },
       "id": 11,
       "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.95, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\"}[5m])) by (le)) or vector(0)", "legendFormat": "", "refId": "A" }],
-      "title": "Latency p95",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.95, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", endpoint!~\"/metrics|/health.*\"}[5m])) by (le)) or vector(0)", "legendFormat": "", "refId": "A" }],
+      "title": "응답시간 p95",
       "type": "stat"
     },
     {
@@ -215,8 +215,8 @@
       "gridPos": { "h": 5, "w": 6, "x": 12, "y": 5 },
       "id": 12,
       "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate({__name__=~\".*_service_http_requests_total\"}[5m])) or vector(0)", "legendFormat": "", "refId": "A" }],
-      "title": "Request Rate (RPS)",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[5m])) or vector(0)", "legendFormat": "", "refId": "A" }],
+      "title": "요청률 (RPS)",
       "type": "stat"
     },
     {
@@ -234,7 +234,7 @@
       "id": 13,
       "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100) or vector(0)", "legendFormat": "", "refId": "A" }],
-      "title": "CPU Usage (Avg)",
+      "title": "CPU 사용률 (평균)",
       "type": "stat"
     },
     {
@@ -242,7 +242,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 10 },
       "id": 102,
       "panels": [],
-      "title": "SLO Status",
+      "title": "🎯 SLO 상태",
       "type": "row"
     },
     {
@@ -259,8 +259,8 @@
       "gridPos": { "h": 4, "w": 8, "x": 0, "y": 11 },
       "id": 20,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "(1 - (sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5.*\"}[24h])) / sum(rate({__name__=~\".*_service_http_requests_total\"}[24h])))) * 100 or vector(100)", "legendFormat": "", "refId": "A" }],
-      "title": "Availability (24h) - Target: 99.9%",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "(1 - (sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5.*\", endpoint!~\"/metrics|/health.*\"}[24h])) / sum(rate({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[24h])))) * 100 or vector(100)", "legendFormat": "", "refId": "A" }],
+      "title": "가용성 (24h) - 목표: 99.9%",
       "type": "stat"
     },
     {
@@ -277,8 +277,8 @@
       "gridPos": { "h": 4, "w": 8, "x": 8, "y": 11 },
       "id": 21,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.95, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\"}[24h])) by (le)) or vector(0)", "legendFormat": "", "refId": "A" }],
-      "title": "Latency p95 (24h) - Target: <500ms",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "histogram_quantile(0.95, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", endpoint!~\"/metrics|/health.*\"}[24h])) by (le)) or vector(0)", "legendFormat": "", "refId": "A" }],
+      "title": "응답시간 p95 (24h) - 목표: <500ms",
       "type": "stat"
     },
     {
@@ -295,8 +295,8 @@
       "gridPos": { "h": 4, "w": 8, "x": 16, "y": 11 },
       "id": 22,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5.*\"}[24h])) / sum(rate({__name__=~\".*_service_http_requests_total\"}[24h])) or vector(0)", "legendFormat": "", "refId": "A" }],
-      "title": "Error Rate (24h) - Target: <0.1%",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5.*\", endpoint!~\"/metrics|/health.*\"}[24h])) / sum(rate({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[24h])) or vector(0)", "legendFormat": "", "refId": "A" }],
+      "title": "에러율 (24h) - 목표: <0.1%",
       "type": "stat"
     },
     {
@@ -304,7 +304,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
       "id": 103,
       "panels": [],
-      "title": "Traffic Trend (Last 6 Hours)",
+      "title": "📈 트래픽 추이 (최근 6시간)",
       "type": "row"
     },
     {
@@ -323,14 +323,14 @@
       "id": 30,
       "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(board_service_http_requests_total[5m]))", "legendFormat": "board", "refId": "A" },
-        { "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(user_service_http_requests_total[5m]))", "legendFormat": "user", "refId": "B" },
-        { "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(chat_service_http_requests_total[5m]))", "legendFormat": "chat", "refId": "C" },
-        { "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(noti_service_http_requests_total[5m]))", "legendFormat": "noti", "refId": "D" },
-        { "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(storage_service_http_requests_total[5m]))", "legendFormat": "storage", "refId": "E" },
-        { "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(video_service_http_requests_total[5m]))", "legendFormat": "video", "refId": "F" }
+        { "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(board_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[5m]))", "legendFormat": "게시판", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(user_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[5m]))", "legendFormat": "회원", "refId": "B" },
+        { "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(chat_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[5m]))", "legendFormat": "채팅", "refId": "C" },
+        { "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(noti_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[5m]))", "legendFormat": "알림", "refId": "D" },
+        { "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(storage_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[5m]))", "legendFormat": "저장소", "refId": "E" },
+        { "datasource": { "type": "prometheus", "uid": "${datasource}" }, "expr": "sum(rate(video_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[5m]))", "legendFormat": "화상회의", "refId": "F" }
       ],
-      "title": "Request Rate by Service",
+      "title": "서비스별 요청률",
       "type": "timeseries"
     }
   ],
@@ -343,7 +343,7 @@
         "current": { "selected": false, "text": "Prometheus", "value": "prometheus" },
         "hide": 0,
         "includeAll": false,
-        "label": "Datasource",
+        "label": "데이터소스",
         "multi": false,
         "name": "datasource",
         "options": [],
@@ -358,9 +358,9 @@
   },
   "time": { "from": "now-6h", "to": "now" },
   "timepicker": {},
-  "timezone": "browser",
-  "title": "System Overview",
+  "timezone": "Asia/Seoul",
+  "title": "시스템 전체 현황",
   "uid": "system-overview",
   "version": 1,
-  "weekStart": ""
+  "weekStart": "monday"
 }
