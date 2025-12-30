@@ -1,5 +1,5 @@
 # =============================================================================
-# DB Init - Staging Values
+# DB Init - Dev Values
 # =============================================================================
 # Host PostgreSQL 초기화 (Kind 클러스터용)
 # ESO에서 가져온 credentials 사용
@@ -12,7 +12,7 @@ database:
   adminDatabase: wealist
   sslMode: disable  # 로컬 PostgreSQL은 SSL 미사용
 
-# 생성할 데이터베이스 목록 (staging: 공통 wealist DB 사용)
+# 생성할 데이터베이스 목록 (dev: 공통 wealist DB 사용)
 # wealist DB가 이미 있으면 skip됨
 databases:
   - name: wealist
@@ -51,7 +51,7 @@ secretRef:
   hostKey: DB_HOST
   usernameKey: DB_USERNAME
 
-# PostgreSQL 15+ schema 권한 설정 (staging용)
+# PostgreSQL 15+ schema 권한 설정 (dev용)
 # postgres superuser로 연결해서 wealist 유저에게 public schema 권한 부여
 schemaGrant:
   enabled: true

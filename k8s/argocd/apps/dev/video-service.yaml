@@ -18,11 +18,23 @@ spec:
         - ../../environments/dev.yaml
       parameters:
         - name: global.imageRegistry
-          value: "<AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com"
+          value: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
         - name: image.repository
           value: "video-service"
         - name: image.tag
           value: "dev-latest"
+        - name: imagePullSecrets[0].name
+          value: "ecr-secret"
+        - name: shared.config.DB_HOST
+          value: "172.17.0.1"
+        - name: shared.config.POSTGRES_HOST
+          value: "172.17.0.1"
+        - name: shared.config.REDIS_HOST
+          value: "172.17.0.1"
+        - name: config.DB_NAME
+          value: "wealist"
+        - name: config.DB_USER
+          value: "wealist"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-dev

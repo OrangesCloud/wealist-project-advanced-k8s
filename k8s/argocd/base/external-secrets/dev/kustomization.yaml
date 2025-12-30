@@ -1,10 +1,10 @@
 # =============================================================================
-# Kustomization - External Secrets for Staging
+# Kustomization - External Secrets for Dev
 # =============================================================================
 # ESO ClusterSecretStore 및 ExternalSecret 설정
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - cluster-secret-store-staging.yaml
+  - cluster-secret-store-dev.yaml
   - external-secret-shared.yaml

@@ -21,7 +21,9 @@ spec:
         # Ambient 모드에 포함 - mTLS로 Prometheus 데이터 수집
         # PeerAuthentication에서 PERMISSIVE 설정으로 외부 접근도 허용
       annotations:
-        checksum/datasources: {{ include (print $.Template.BasePath "/grafana/configmap.yaml") . | sha256sum }}
+        # ConfigMap 변경 시 자동 Pod 재시작을 위한 checksum
+        checksum/config: {{ include (print $.Template.BasePath "/grafana/configmap.yaml") . | sha256sum }}
+        checksum/dashboards: {{ include (print $.Template.BasePath "/grafana/configmap-dashboards.yaml") . | sha256sum }}
     spec:
       securityContext:
         fsGroup: 472

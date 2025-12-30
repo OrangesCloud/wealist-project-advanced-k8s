@@ -15,14 +15,14 @@ spec:
       valueFiles:
         - ../../environments/base.yaml
         - ../../environments/dev.yaml
-        # - ../../environments/dev-secrets.yaml
       parameters:
         - name: global.namespace
           value: wealist-dev
+        # External DB Host (WSL/Kind: 172.17.0.1 Docker bridge gateway)
         - name: postgresExporter.config.host
-          value: postgres
+          value: "172.17.0.1"
         - name: redisExporter.config.host
-          value: redis
+          value: "172.17.0.1"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-dev
