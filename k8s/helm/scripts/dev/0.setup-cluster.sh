@@ -438,6 +438,57 @@ else
     echo "✅ dev.yaml: AWS Account ID 이미 설정됨"
 fi
 
+# =============================================================================
+# 12. ArgoCD 설치
+# =============================================================================
+echo ""
+echo "🔧 ArgoCD 설치 중..."
+
+# ArgoCD 네임스페이스 생성
+kubectl create namespace argocd 2>/dev/null || true
+
+# ArgoCD 설치 (Helm)
+helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
+helm repo update
+
+helm upgrade --install argocd argo/argo-cd \
+    --namespace argocd \
+    --set server.service.type=ClusterIP \
+    --set configs.params."server\.insecure"=true \
+    --set configs.params."server\.rootpath"=/api/argo \
+    --set configs.params."server\.basehref"=/api/argo \
+    --wait --timeout 5m
+
+echo "⏳ ArgoCD 준비 대기 중..."
+kubectl wait --for=condition=available --timeout=120s deployment/argocd-server -n argocd
+
+# ArgoCD 초기 admin 비밀번호 출력
+ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d)
+if [ -n "$ARGOCD_PASSWORD" ]; then
+    echo "✅ ArgoCD 설치 완료"
+    echo "   - URL: https://dev.wealist.co.kr/api/argo"
+    echo "   - Username: admin"
+    echo "   - Password: ${ARGOCD_PASSWORD}"
+else
+    echo "✅ ArgoCD 설치 완료 (비밀번호는 이미 변경됨)"
+fi
+
+# =============================================================================
+# 13. ArgoCD Root App 배포
+# =============================================================================
+echo ""
+echo "🚀 ArgoCD Root App 배포 중..."
+
+ROOT_APP="${SCRIPT_DIR}/../../../argocd/apps/dev/root-app.yaml"
+if [ -f "${ROOT_APP}" ]; then
+    kubectl apply -f "${ROOT_APP}"
+    echo "✅ Root App 배포 완료"
+    echo "   ArgoCD가 k8s-deploy-dev 브랜치에서 자동 sync 합니다."
+else
+    echo "⚠️  Root App 파일을 찾을 수 없습니다: ${ROOT_APP}"
+    echo "   수동으로 배포하세요: kubectl apply -f k8s/argocd/apps/dev/root-app.yaml"
+fi
+
 echo ""
 echo "=============================================="
 echo "  ✅ dev 클러스터 준비 완료!"
@@ -453,13 +504,14 @@ echo "   - Prometheus: https://dev.wealist.co.kr/api/monitoring/prometheus"
 echo "   - Kiali:      https://dev.wealist.co.kr/api/monitoring/kiali"
 echo "   - Jaeger:     https://dev.wealist.co.kr/api/monitoring/jaeger"
 echo ""
-echo "📝 다음 단계:"
-echo "   1. ArgoCD 설치:"
-echo "      make argo-install-simple"
+echo "🔧 ArgoCD:"
+echo "   - URL: https://dev.wealist.co.kr/api/argo"
+echo "   - Username: admin"
+if [ -n "$ARGOCD_PASSWORD" ]; then
+    echo "   - Password: ${ARGOCD_PASSWORD}"
+fi
 echo ""
-echo "   2. ArgoCD로 GitOps 배포:"
-echo "      make argo-deploy-dev"
-echo ""
-echo "   3. 상태 확인:"
-echo "      kubectl get pods -n ${NAMESPACE}"
+echo "📝 상태 확인:"
+echo "   kubectl get pods -n ${NAMESPACE}"
+echo "   kubectl get apps -n argocd"
 echo "=============================================="

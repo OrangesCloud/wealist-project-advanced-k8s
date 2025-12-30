@@ -10,6 +10,9 @@ metadata:
     app.kubernetes.io/component: logging
 spec:
   replicas: {{ .Values.loki.replicas }}
+  # Recreate strategy required for PVC-based deployments to avoid lock conflicts
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: loki

@@ -3,7 +3,7 @@
 # ============================================
 .PHONY: argo-help cluster-up cluster-down bootstrap deploy argo-clean argo-status helm-install-infra all
 .PHONY: setup-local-argocd kind-setup-ecr load-infra-images-ecr
-.PHONY: argo-deploy-staging argo-deploy-dev argo-deploy-prod
+.PHONY: argo-deploy-dev argo-deploy-dev argo-deploy-prod
 
 # 색상
 GREEN  := \033[0;32m
@@ -23,12 +23,12 @@ argo-help: ## [ArgoCD] 도움말 표시
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo ""
 	@echo "빠른 시작:"
-	@echo "  make kind-staging-setup  - Staging 환경 전체 설정"
+	@echo "  make kind-dev-setup  - Dev 환경 전체 설정"
 	@echo ""
 	@echo "단계별 실행:"
 	@echo "  make cluster-up          - Kind 클러스터 생성"
 	@echo "  make argo-install-simple - ArgoCD 설치"
-	@echo "  make argo-deploy-staging - Applications 배포"
+	@echo "  make argo-deploy-dev - Applications 배포"
 	@echo ""
 	@echo "관리:"
 	@echo "  make argo-status      - 전체 상태 확인"
@@ -225,18 +225,18 @@ argo-ui: ## ArgoCD UI 포트 포워딩
 # 배포
 # ============================================
 
-argo-deploy-staging: ## [ArgoCD] Staging 환경 Applications 배포 (Root App 생성)
-	@echo -e "$(YELLOW)🎯 Staging Applications 배포 중...$(NC)"
+argo-deploy-dev: ## [ArgoCD] Dev 환경 Applications 배포 (Root App 생성)
+	@echo -e "$(YELLOW)🎯 Dev Applications 배포 중...$(NC)"
 	@echo ""
 	@echo "1. AppProject 생성..."
-	@kubectl apply -f k8s/argocd/apps/staging/project.yaml || true
-	@kubectl apply -f k8s/argocd/projects/wealist-staging.yaml || true
+	@kubectl apply -f k8s/argocd/apps/dev/project.yaml || true
+	@kubectl apply -f k8s/argocd/projects/wealist-dev.yaml || true
 	@echo ""
 	@echo "2. Root Application 생성..."
-	@kubectl apply -f k8s/argocd/apps/staging/root-app.yaml || true
+	@kubectl apply -f k8s/argocd/apps/dev/root-app.yaml || true
 	@echo ""
-	@echo "3. 모든 Staging Apps 적용 중..."
-	@for file in k8s/argocd/apps/staging/*.yaml; do \
+	@echo "3. 모든 Dev Apps 적용 중..."
+	@for file in k8s/argocd/apps/dev/*.yaml; do \
 		if [ -f "$$file" ]; then \
 			kubectl apply -f $$file 2>/dev/null || true; \
 		fi; \
@@ -245,7 +245,7 @@ argo-deploy-staging: ## [ArgoCD] Staging 환경 Applications 배포 (Root App �
 	@echo "4. ArgoCD Sync 대기 중..."
 	@sleep 5
 	@echo ""
-	@echo -e "$(GREEN)✅ Staging 배포 완료$(NC)"
+	@echo -e "$(GREEN)✅ Dev 배포 완료$(NC)"
 	@echo ""
 	@echo "Applications 확인:"
 	@kubectl get applications -n argocd
@@ -446,24 +446,24 @@ kind-setup-ecr: ## [ArgoCD] Kind 클러스터 + ECR 직접 연결 (dev)
 	fi
 	@echo -e "$(GREEN)✅ Kind 클러스터 + ECR 준비 완료$(NC)"
 
-kind-staging-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (staging 환경)
-	@echo -e "$(YELLOW)🏗️  Kind 클러스터 + ECR 설정 (staging)...$(NC)"
-	@if [ -f "k8s/helm/scripts/staging/0.setup-cluster.sh" ]; then \
-		chmod +x k8s/helm/scripts/staging/0.setup-cluster.sh; \
-		./k8s/helm/scripts/staging/0.setup-cluster.sh; \
+kind-dev-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (dev 환경)
+	@echo -e "$(YELLOW)🏗️  Kind 클러스터 + ECR 설정 (dev)...$(NC)"
+	@if [ -f "k8s/helm/scripts/dev/0.setup-cluster.sh" ]; then \
+		chmod +x k8s/helm/scripts/dev/0.setup-cluster.sh; \
+		./k8s/helm/scripts/dev/0.setup-cluster.sh; \
 	else \
-		echo -e "$(RED)❌ staging/0.setup-cluster.sh not found$(NC)"; \
+		echo -e "$(RED)❌ dev/0.setup-cluster.sh not found$(NC)"; \
 		exit 1; \
 	fi
-	@echo -e "$(GREEN)✅ Kind 클러스터 (staging) 준비 완료$(NC)"
+	@echo -e "$(GREEN)✅ Kind 클러스터 (dev) 준비 완료$(NC)"
 	@echo ""
-	@echo -e "$(YELLOW)🐘 Host PostgreSQL 초기화 (staging)...$(NC)"
+	@echo -e "$(YELLOW)🐘 Host PostgreSQL 초기화 (dev)...$(NC)"
 	@if [ -f "scripts/init-local-postgres.sh" ]; then \
 		chmod +x scripts/init-local-postgres.sh; \
 		if [ "$$(uname)" = "Darwin" ]; then \
-			STAGING_DB_PASSWORD=$${STAGING_DB_PASSWORD:-wealist-staging-password} ./scripts/init-local-postgres.sh staging; \
+			DEV_DB_PASSWORD=$${DEV_DB_PASSWORD:-wealist-dev-password} ./scripts/init-local-postgres.sh dev; \
 		else \
-			sudo STAGING_DB_PASSWORD=$${STAGING_DB_PASSWORD:-wealist-staging-password} ./scripts/init-local-postgres.sh staging; \
+			sudo DEV_DB_PASSWORD=$${DEV_DB_PASSWORD:-wealist-dev-password} ./scripts/init-local-postgres.sh dev; \
 		fi; \
 	else \
 		echo -e "$(YELLOW)⚠️  init-local-postgres.sh not found, skipping DB init$(NC)"; \
@@ -475,11 +475,11 @@ kind-staging-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (s
 	@echo -e "$(YELLOW)🔐 Git 레포지토리 등록 중...$(NC)"
 	$(MAKE) argo-add-repo-auto
 	@echo ""
-	@echo -e "$(YELLOW)🎯 Staging Applications 배포 중...$(NC)"
-	$(MAKE) argo-deploy-staging
+	@echo -e "$(YELLOW)🎯 Dev Applications 배포 중...$(NC)"
+	$(MAKE) argo-deploy-dev
 	@echo ""
 	@echo -e "$(GREEN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-	@echo -e "$(GREEN)✅ Staging 환경 전체 설정 완료!$(NC)"
+	@echo -e "$(GREEN)✅ Dev 환경 전체 설정 완료!$(NC)"
 	@echo -e "$(GREEN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
 	@echo ""
 	@echo "ArgoCD UI: https://dev.wealist.co.kr/api/argo"
@@ -492,12 +492,12 @@ kind-staging-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (s
 # 리셋 명령어
 # ============================================
 
-# kind-staging-reset: 클러스터 완전 리셋 (삭제 + 재생성)
+# kind-dev-reset: 클러스터 완전 리셋 (삭제 + 재생성)
 # - Kind 클러스터 삭제 (ArgoCD, Helm, Pod 전부 삭제)
 # - 로컬 변경사항 제거 (git checkout)
 # - 클러스터 + ArgoCD + 앱 전부 새로 생성
-kind-staging-reset: ## [Reset] Staging 클러스터 완전 리셋 (삭제 후 재생성)
-	@echo -e "$(RED)⚠️  Staging 클러스터를 완전히 리셋합니다...$(NC)"
+kind-dev-reset: ## [Reset] Dev 클러스터 완전 리셋 (삭제 후 재생성)
+	@echo -e "$(RED)⚠️  Dev 클러스터를 완전히 리셋합니다...$(NC)"
 	@echo ""
 	@read -p "정말 리셋하시겠습니까? (y/N): " confirm; \
 	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
@@ -508,25 +508,25 @@ kind-staging-reset: ## [Reset] Staging 클러스터 완전 리셋 (삭제 후 �
 		echo -e "$(YELLOW)2. 로컬 변경사항 정리 중...$(NC)"; \
 		git checkout -- . 2>/dev/null || true; \
 		echo ""; \
-		echo -e "$(YELLOW)3. Staging 클러스터 재생성 중...$(NC)"; \
-		$(MAKE) kind-staging-setup; \
+		echo -e "$(YELLOW)3. Dev 클러스터 재생성 중...$(NC)"; \
+		$(MAKE) kind-dev-setup; \
 	else \
 		echo "리셋 취소됨"; \
 	fi
 
-kind-staging-clean: ## [Reset] Staging 클러스터만 삭제 (재생성 없음)
-	@echo -e "$(RED)🗑️  Staging 클러스터 삭제 중...$(NC)"
+kind-dev-clean: ## [Reset] Dev 클러스터만 삭제 (재생성 없음)
+	@echo -e "$(RED)🗑️  Dev 클러스터 삭제 중...$(NC)"
 	kind delete cluster --name wealist 2>/dev/null || echo "클러스터 없음"
 	@echo -e "$(GREEN)✅ 클러스터 삭제 완료$(NC)"
 	@echo ""
-	@echo "재생성: make kind-staging-setup"
+	@echo "재생성: make kind-dev-setup"
 
 argo-reset-apps: ## [Reset] ArgoCD 앱만 리셋 (클러스터 유지)
 	@echo -e "$(YELLOW)🔄 ArgoCD 앱 리셋 중...$(NC)"
 	kubectl delete applications --all -n argocd 2>/dev/null || true
 	@echo ""
 	@echo -e "$(YELLOW)📦 앱 재생성 중...$(NC)"
-	$(MAKE) argo-deploy-staging
+	$(MAKE) argo-deploy-dev
 	@echo -e "$(GREEN)✅ ArgoCD 앱 리셋 완료$(NC)"
 
 # GitHub 토큰: 환경변수 또는 CLI 입력
@@ -621,15 +621,15 @@ eso-setup-aws: ## [ESO] AWS 자격증명 Secret 생성 (ESO가 AWS Secrets Manag
 		-n external-secrets; \
 	echo -e "$(GREEN)✅ AWS 자격증명 Secret 생성 완료$(NC)"
 
-eso-apply-staging: ## [ESO] Staging용 ClusterSecretStore + ExternalSecret 적용
-	@echo -e "$(YELLOW)🔐 ESO Staging 설정 적용 중...$(NC)"
-	@kubectl apply -f k8s/argocd/base/external-secrets/staging/cluster-secret-store-staging.yaml
-	@kubectl apply -f k8s/argocd/base/external-secrets/staging/external-secret-shared.yaml
+eso-apply-dev: ## [ESO] Dev용 ClusterSecretStore + ExternalSecret 적용
+	@echo -e "$(YELLOW)🔐 ESO Dev 설정 적용 중...$(NC)"
+	@kubectl apply -f k8s/argocd/base/external-secrets/dev/cluster-secret-store-dev.yaml
+	@kubectl apply -f k8s/argocd/base/external-secrets/dev/external-secret-shared.yaml
 	@echo ""
 	@echo "ExternalSecret 상태 확인 중..."
 	@sleep 3
-	@kubectl get externalsecret -n wealist-staging
-	@echo -e "$(GREEN)✅ ESO Staging 설정 완료$(NC)"
+	@kubectl get externalsecret -n wealist-dev
+	@echo -e "$(GREEN)✅ ESO Dev 설정 완료$(NC)"
 
 eso-status: ## [ESO] ExternalSecret 상태 확인
 	@echo -e "$(YELLOW)🔐 External Secrets 상태$(NC)"
@@ -645,11 +645,11 @@ eso-status: ## [ESO] ExternalSecret 상태 확인
 
 eso-sync: ## [ESO] ExternalSecret 강제 sync (wealist-shared-secret 재생성)
 	@echo -e "$(YELLOW)🔄 ExternalSecret sync 중...$(NC)"
-	@kubectl delete secret wealist-shared-secret -n wealist-staging 2>/dev/null || true
-	@kubectl annotate externalsecret wealist-shared-secret -n wealist-staging force-sync=$$(date +%s) --overwrite 2>/dev/null || true
+	@kubectl delete secret wealist-shared-secret -n wealist-dev 2>/dev/null || true
+	@kubectl annotate externalsecret wealist-shared-secret -n wealist-dev force-sync=$$(date +%s) --overwrite 2>/dev/null || true
 	@echo "⏳ Sync 대기 중..."
 	@sleep 5
-	@kubectl get secret wealist-shared-secret -n wealist-staging 2>/dev/null && echo -e "$(GREEN)✅ wealist-shared-secret 재생성 완료$(NC)" || echo -e "$(RED)❌ Secret 생성 실패$(NC)"
+	@kubectl get secret wealist-shared-secret -n wealist-dev 2>/dev/null && echo -e "$(GREEN)✅ wealist-shared-secret 재생성 완료$(NC)" || echo -e "$(RED)❌ Secret 생성 실패$(NC)"
 
 # ============================================
 # 수정된 all 타겟

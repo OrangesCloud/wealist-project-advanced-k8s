@@ -10,6 +10,9 @@ metadata:
     app.kubernetes.io/component: monitoring
 spec:
   replicas: {{ .Values.prometheus.replicas }}
+  # Recreate strategy required for PVC-based deployments to avoid lock conflicts
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: prometheus
@@ -21,7 +24,11 @@ spec:
         # Ambient 모드에 포함 - mTLS로 서비스 메트릭 수집
         # PeerAuthentication에서 PERMISSIVE 설정으로 외부 접근도 허용
       annotations:
+        # ConfigMap 변경 시 자동 Pod 재시작을 위한 checksum
         checksum/config: {{ include (print $.Template.BasePath "/prometheus/configmap.yaml") . | sha256sum }}
+        {{- if .Values.prometheus.alerting.enabled }}
+        checksum/alert-rules: {{ include (print $.Template.BasePath "/prometheus/alert-rules.yaml") . | sha256sum }}
+        {{- end }}
     spec:
       serviceAccountName: prometheus
       securityContext:
