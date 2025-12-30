@@ -7,12 +7,12 @@ data:
   # ArgoCD URL 설정
   context: |
     argocdUrl: https://argocd.wealist.co.kr
-
+  
   # Discord 서비스 설정
   service.discord: |
     token: $discord-webhook-url
   
-  # 배포 성공 템플릿 (message 형식만 지원)
+  # 배포 성공 템플릿
   template.app-deployed: |
     message: |
       🚀 **배포 완료**
@@ -23,7 +23,7 @@ data:
       **동기화**: {{.app.status.sync.status}}
       **리비전**: {{.app.status.sync.revision}}
       **시간**: {{.app.status.operationState.finishedAt}}
-
+  
   # 배포 실패 템플릿
   template.app-sync-failed: |
     message: |
@@ -33,7 +33,7 @@ data:
       **환경**: {{.app.metadata.namespace}}
       **오류**: {{.app.status.operationState.message}}
       **시간**: {{.app.status.operationState.finishedAt}}
-
+  
   # 배포 시작 템플릿
   template.app-sync-running: |
     message: |
@@ -42,7 +42,7 @@ data:
       **애플리케이션**: {{.app.metadata.name}}
       **환경**: {{.app.metadata.namespace}}
       **시작 시간**: {{.app.status.operationState.startedAt}}
-
+  
   # 트리거 설정
   trigger.on-deployed: |
     - description: 배포 완료 시 알림
