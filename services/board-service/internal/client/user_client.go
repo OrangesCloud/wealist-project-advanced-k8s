@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	commonclient "github.com/OrangesCloud/wealist-advanced-go-pkg/client"
+	commnotel "github.com/OrangesCloud/wealist-advanced-go-pkg/otel"
 	"project-board-api/internal/metrics"
 )
 
@@ -54,36 +55,39 @@ func NewUserClient(baseURL string, authBaseURL string, timeout time.Duration, lo
 
 // ValidateToken validates a token via auth-service (POST /api/auth/validate)
 func (c *userClient) ValidateToken(ctx context.Context, tokenStr string) (uuid.UUID, error) {
+	log := c.log(ctx)
 	url := fmt.Sprintf("%s/api/auth/validate", c.authBaseURL)
 
-	c.Logger.Debug("ValidateToken request",
-		zap.String("auth_base_url", c.authBaseURL),
-		zap.String("url", url),
+	log.Debug("ValidateToken request",
+		zap.String("peer.service", "auth-service"),
+		zap.String("http.url", url),
 	)
 
 	reqBody, err := json.Marshal(map[string]string{"token": tokenStr})
 	if err != nil {
-		c.Logger.Error("Failed to marshal request body", zap.Error(err))
+		log.Error("Failed to marshal request body", zap.Error(err))
 		return uuid.Nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(reqBody))
 	if err != nil {
-		c.Logger.Error("Failed to create validation request", zap.Error(err))
+		log.Error("Failed to create validation request", zap.Error(err))
 		return uuid.Nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// Inject W3C Trace Context headers for distributed tracing
+	commnotel.InjectTraceHeaders(ctx, req)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		c.Logger.Error("Auth service API connection failed", zap.Error(err))
+		log.Error("Auth service API connection failed", zap.Error(err))
 		return uuid.Nil, fmt.Errorf("auth service connection error: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		c.Logger.Warn("Token validation failed via Auth Service", zap.Int("status", resp.StatusCode))
+		log.Warn("Token validation failed via Auth Service", zap.Int("http.status_code", resp.StatusCode))
 		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 			return uuid.Nil, errors.New("token validation failed: unauthorized or forbidden")
 		}
@@ -92,20 +96,22 @@ func (c *userClient) ValidateToken(ctx context.Context, tokenStr string) (uuid.U
 
 	var validationResponse commonclient.TokenValidationResponse
 	if err := json.NewDecoder(resp.Body).Decode(&validationResponse); err != nil {
-		c.Logger.Error("Failed to decode validation response", zap.Error(err))
+		log.Error("Failed to decode validation response", zap.Error(err))
 		return uuid.Nil, fmt.Errorf("invalid response format from auth service")
 	}
 
 	if !validationResponse.Valid {
+		log.Debug("Token explicitly marked invalid", zap.String("message", validationResponse.Message))
 		return uuid.Nil, fmt.Errorf("token explicitly marked invalid: %s", validationResponse.Message)
 	}
 
 	userID, err := uuid.Parse(validationResponse.UserID)
 	if err != nil {
-		c.Logger.Error("Invalid UUID format in validation response", zap.String("id", validationResponse.UserID))
+		log.Error("Invalid UUID format in validation response", zap.String("enduser.id", validationResponse.UserID))
 		return uuid.Nil, errors.New("invalid user ID format received")
 	}
 
+	log.Debug("Token validated successfully", zap.String("enduser.id", userID.String()))
 	return userID, nil
 }
 
@@ -229,26 +235,34 @@ func (c *userClient) GetWorkspace(ctx context.Context, workspaceID uuid.UUID, to
 	return &workspace, nil
 }
 
-// doRequestWithMetrics performs an HTTP request with metrics recording
+// log returns a trace-context aware logger
+func (c *userClient) log(ctx context.Context) *zap.Logger {
+	return commnotel.WithTraceContext(ctx, c.Logger)
+}
+
+// doRequestWithMetrics performs an HTTP request with metrics recording and trace propagation
 func (c *userClient) doRequestWithMetrics(ctx context.Context, method, url, token string, result interface{}) error {
 	startTime := time.Now()
+	log := c.log(ctx)
 
-	c.Logger.Info("Making request to User Service",
-		zap.String("method", method),
-		zap.String("url", url),
-		zap.Bool("has_token", token != ""),
-		zap.Duration("timeout", c.Timeout),
+	log.Debug("Making request to User Service",
+		zap.String("peer.service", "user-service"),
+		zap.String("http.method", method),
+		zap.String("http.url", url),
 	)
 
 	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
-		c.Logger.Error("Failed to create HTTP request",
+		log.Error("Failed to create HTTP request",
 			zap.Error(err),
-			zap.String("method", method),
-			zap.String("url", url),
+			zap.String("http.method", method),
+			zap.String("http.url", url),
 		)
 		return fmt.Errorf("failed to create request: %w", err)
 	}
+
+	// Inject W3C Trace Context headers for distributed tracing
+	commnotel.InjectTraceHeaders(ctx, req)
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	req.Header.Set("Content-Type", "application/json")
@@ -266,11 +280,11 @@ func (c *userClient) doRequestWithMetrics(ctx context.Context, method, url, toke
 	}
 
 	if err != nil {
-		c.Logger.Error("Failed to execute HTTP request",
+		log.Error("Failed to execute HTTP request",
 			zap.Error(err),
-			zap.String("method", method),
-			zap.String("url", url),
-			zap.Duration("processing_time", duration),
+			zap.String("http.method", method),
+			zap.String("http.url", url),
+			zap.Duration("http.duration", duration),
 		)
 		return fmt.Errorf("failed to execute request: %w", err)
 	}
@@ -278,10 +292,10 @@ func (c *userClient) doRequestWithMetrics(ctx context.Context, method, url, toke
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.Logger.Error("Failed to read response body",
+		log.Error("Failed to read response body",
 			zap.Error(err),
-			zap.String("url", url),
-			zap.Int("status_code", resp.StatusCode),
+			zap.String("http.url", url),
+			zap.Int("http.status_code", resp.StatusCode),
 		)
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -289,28 +303,26 @@ func (c *userClient) doRequestWithMetrics(ctx context.Context, method, url, toke
 	processingTime := time.Since(startTime)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		c.Logger.Error("User API returned non-success status",
-			zap.Int("status_code", resp.StatusCode),
-			zap.String("url", url),
-			zap.String("method", method),
-			zap.String("response_body", string(body)),
-			zap.Duration("processing_time", processingTime),
+		log.Error("User service returned non-success status",
+			zap.Int("http.status_code", resp.StatusCode),
+			zap.String("http.url", url),
+			zap.String("http.method", method),
+			zap.Duration("http.duration", processingTime),
 		)
 		return fmt.Errorf("user API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	c.Logger.Info("Received successful response from User Service",
-		zap.Int("status_code", resp.StatusCode),
-		zap.String("url", url),
-		zap.Int("body_length", len(body)),
-		zap.Duration("processing_time", processingTime),
+	log.Debug("User service response received",
+		zap.Int("http.status_code", resp.StatusCode),
+		zap.String("http.url", url),
+		zap.Int("http.response_content_length", len(body)),
+		zap.Duration("http.duration", processingTime),
 	)
 
 	if err := json.Unmarshal(body, result); err != nil {
-		c.Logger.Error("Failed to parse response JSON",
+		log.Error("Failed to parse response JSON",
 			zap.Error(err),
-			zap.String("url", url),
-			zap.String("response_body", string(body)),
+			zap.String("http.url", url),
 		)
 		return fmt.Errorf("failed to parse response: %w", err)
 	}

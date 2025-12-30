@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
 	"project-board-api/internal/dto"
 	"project-board-api/internal/response"
@@ -34,8 +35,12 @@ func NewProjectHandler(projectService service.ProjectService) *ProjectHandler {
 // @Failure      500 {object} response.ErrorResponse "서버 에러"
 // @Router       /projects [post]
 func (h *ProjectHandler) CreateProject(c *gin.Context) {
+	log := getLogger(c)
+	log.Debug("CreateProject started")
+
 	var req dto.CreateProjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Warn("CreateProject validation failed", zap.Error(err))
 		response.SendError(c, http.StatusBadRequest, response.ErrCodeValidation, "Invalid request body")
 		return
 	}
@@ -43,11 +48,13 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	// Extract user ID from context (set by Auth middleware)
 	userID, exists := c.Get("user_id")
 	if !exists {
+		log.Warn("CreateProject user ID not found")
 		response.SendError(c, http.StatusUnauthorized, response.ErrCodeUnauthorized, "User ID not found in context")
 		return
 	}
 	userUUID, ok := userID.(uuid.UUID)
 	if !ok {
+		log.Warn("CreateProject invalid user ID format")
 		response.SendError(c, http.StatusUnauthorized, response.ErrCodeUnauthorized, "Invalid user ID format")
 		return
 	}
@@ -55,20 +62,32 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	// Extract JWT token from context (set by Auth middleware)
 	token, exists := c.Get("jwtToken")
 	if !exists {
+		log.Warn("CreateProject JWT token not found")
 		response.SendError(c, http.StatusUnauthorized, response.ErrCodeUnauthorized, "JWT token not found in context")
 		return
 	}
 	tokenStr, ok := token.(string)
 	if !ok {
+		log.Warn("CreateProject invalid token format")
 		response.SendError(c, http.StatusUnauthorized, response.ErrCodeUnauthorized, "Invalid token format")
 		return
 	}
 
+	log.Debug("CreateProject calling service",
+		zap.String("project.name", req.Name),
+		zap.String("workspace.id", req.WorkspaceID.String()),
+		zap.String("enduser.id", userUUID.String()))
+
 	project, err := h.projectService.CreateProject(c.Request.Context(), &req, userUUID, tokenStr)
 	if err != nil {
+		log.Error("CreateProject service error", zap.Error(err))
 		handleServiceError(c, err)
 		return
 	}
+
+	log.Info("Project created",
+		zap.String("project.id", project.ID.String()),
+		zap.String("workspace.id", req.WorkspaceID.String()))
 
 	response.SendSuccess(c, http.StatusCreated, project)
 }

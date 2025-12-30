@@ -8,17 +8,31 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	commnotel "github.com/OrangesCloud/wealist-advanced-go-pkg/otel"
 	"project-board-api/internal/response"
 )
 
-// getErrorLogger retrieves the zap logger from gin context or returns a nop logger
-func getErrorLogger(c *gin.Context) *zap.Logger {
+// getLogger retrieves the zap logger from gin context with trace context
+func getLogger(c *gin.Context) *zap.Logger {
+	// Get base logger from context (set by middleware)
+	var baseLogger *zap.Logger
 	if logger, exists := c.Get("logger"); exists {
 		if log, ok := logger.(*zap.Logger); ok {
-			return log
+			baseLogger = log
 		}
 	}
-	return zap.NewNop()
+	if baseLogger == nil {
+		baseLogger = zap.NewNop()
+	}
+
+	// Add trace context fields
+	return commnotel.WithTraceContext(c.Request.Context(), baseLogger)
+}
+
+// getErrorLogger retrieves the zap logger from gin context or returns a nop logger
+// Deprecated: use getLogger instead for trace context support
+func getErrorLogger(c *gin.Context) *zap.Logger {
+	return getLogger(c)
 }
 
 // handleServiceError maps service layer errors to appropriate HTTP responses

@@ -18,6 +18,12 @@ spring:
       port: ${SPRING_REDIS_PORT:6379}
       password: ${SPRING_REDIS_PASSWORD:}
 
+  # Spring Session Redis 설정 (OAuth2 state 공유)
+  session:
+    store-type: redis
+    redis:
+      namespace: wealist:auth:session
+
   # Google OAuth2 설정
   security:
     oauth2:
@@ -58,7 +64,17 @@ server:
     context-path: ""
 
 jwt:
-  secret: ${JWT_SECRET}
+  # RSA 키 설정 (RS256 알고리즘)
+  rsa:
+    # PEM 형식 공개키 (선택적 - 없으면 자동 생성)
+    public-key: ${JWT_RSA_PUBLIC_KEY:}
+    # PEM 형식 개인키 (선택적 - 없으면 자동 생성)
+    private-key: ${JWT_RSA_PRIVATE_KEY:}
+    # 키 ID (JWKS kid 필드)
+    key-id: ${JWT_RSA_KEY_ID:wealist-auth-key-1}
+  # JWT issuer (토큰 발급자)
+  issuer: ${JWT_ISSUER:wealist-auth-service}
+  # 토큰 만료 시간
   access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:1800000}
   refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:604800000}
 

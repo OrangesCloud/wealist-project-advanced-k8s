@@ -94,6 +94,8 @@ spec:
           {{- end }}
           envFrom:
             - configMapRef:
+                name: wealist-shared-config
+            - configMapRef:
                 name: {{ include "wealist-common.fullname" . }}-config
             - secretRef:
                 name: wealist-shared-secret

@@ -6,19 +6,13 @@ metadata:
   namespace: {{ .Values.global.namespace }}
   labels:
     app: loki
-    app.kubernetes.io/name: loki
-    app.kubernetes.io/component: logging
 spec:
-  type: {{ .Values.loki.service.type }}
+  type: ClusterIP
   ports:
-    - port: {{ .Values.loki.service.port }}
-      targetPort: http
+    - port: 3100
+      targetPort: 3100
       protocol: TCP
       name: http
-    - port: 9096
-      targetPort: grpc
-      protocol: TCP
-      name: grpc
   selector:
     app: loki
 {{- end }}

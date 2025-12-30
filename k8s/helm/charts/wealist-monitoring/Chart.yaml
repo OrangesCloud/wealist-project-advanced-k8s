@@ -1,18 +1,6 @@
 apiVersion: v2
 name: wealist-monitoring
-description: Monitoring stack for weAlist (Prometheus, Grafana, Loki, Promtail)
+description: Monitoring stack for Wealist
 type: application
-version: 0.1.0
+version: 1.0.0
 appVersion: "1.0.0"
-
-keywords:
-  - monitoring
-  - prometheus
-  - grafana
-  - loki
-  - promtail
-  - observability
-
-maintainers:
-  - name: 212clab
-    email: 212clab@gmail.com

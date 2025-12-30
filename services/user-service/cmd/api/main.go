@@ -35,11 +35,12 @@ import (
 
 	_ "user-service/docs" // Swagger docs import
 
+	"github.com/OrangesCloud/wealist-advanced-go-pkg/otel"
+	"user-service/internal/client"
 	"user-service/internal/config"
 	"user-service/internal/database"
 	"user-service/internal/middleware"
 	"user-service/internal/router"
-	"user-service/internal/client"
 )
 
 func main() {
@@ -57,6 +58,28 @@ func main() {
 		os.Exit(1)
 	}
 	defer func() { _ = logger.Sync() }()
+
+	// Initialize OpenTelemetry
+	ctx := context.Background()
+	otelCfg := otel.DefaultConfig("user-service")
+	otelShutdown, err := otel.InitProvider(ctx, otelCfg)
+	if err != nil {
+		logger.Warn("Failed to initialize OpenTelemetry, continuing without tracing",
+			zap.Error(err),
+		)
+	} else {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := otelShutdown(shutdownCtx); err != nil {
+				logger.Error("Failed to shutdown OpenTelemetry", zap.Error(err))
+			}
+		}()
+		logger.Info("OpenTelemetry initialized",
+			zap.String("service.name", otelCfg.ServiceName),
+			zap.String("otel.endpoint", otelCfg.OTLPEndpoint),
+		)
+	}
 
 	// Set Gin mode
 	if cfg.Server.Mode == "release" {
@@ -141,6 +164,7 @@ func main() {
 		TokenValidator:  tokenValidator,
 		RedisClient:     database.GetRedis(),
 		RateLimitConfig: cfg.RateLimit,
+		ServiceName:     "user-service",
 	})
 
 	// Create HTTP server

@@ -22,7 +22,7 @@ spec:
         - name: image.repository
           value: "noti-service"
         - name: image.tag
-          value: "dev-latest"
+          value: "56-4ff1148"
         - name: imagePullSecrets[0].name
           value: "ecr-secret"
         - name: shared.config.DB_HOST

@@ -427,3 +427,84 @@ k6:
     latencyP99Ms: 1000
     errorRatePercent: 1
     availabilityPercent: 99.9
+
+# =============================================================================
+# OpenTelemetry Collector - Trace Collection Gateway
+# =============================================================================
+# OTEL Collector를 Gateway 패턴으로 배포하여 서비스에서 전송된 trace를 수집
+# 2025 트렌드: Hybrid Pattern (DaemonSet for logs via Promtail + Deployment for traces)
+otelCollector:
+  enabled: false  # Enable in local-kind and prod
+
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.92.0"  # 2025년 최신 안정 버전
+    pullPolicy: IfNotPresent
+
+  replicas: 1  # prod에서 2로 증가
+
+  service:
+    otlpGrpcPort: 4317
+    otlpHttpPort: 4318
+    metricsPort: 8888
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Collector 설정
+  config:
+    # Batch processor 설정
+    batchTimeout: 5s
+    sendBatchSize: 1000
+    # Memory limiter
+    memoryLimitMiB: 400
+    spikeLimitMiB: 100
+
+# =============================================================================
+# Tempo - Distributed Tracing Backend
+# =============================================================================
+# Grafana Tempo를 사용하여 분산 추적 저장 및 쿼리
+# Traces-Logs Correlation을 위해 Loki와 연동
+tempo:
+  enabled: false  # Enable in local-kind and prod
+
+  image:
+    repository: grafana/tempo
+    tag: "2.3.1"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  service:
+    httpPort: 3200      # Query API
+    otlpGrpcPort: 4317  # OTLP gRPC receiver
+    otlpHttpPort: 4318  # OTLP HTTP receiver
+
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 10Gi
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  config:
+    # Trace 보관 기간
+    retentionPeriod: 168h  # 7 days
+    # 로컬 스토리지 백엔드
+    backend: local
+    # S3 백엔드 (prod용)
+    s3:
+      enabled: false
+      bucket: ""
+      region: ""

@@ -1,0 +1,74 @@
+{{- if .Values.otelCollector.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: otel-collector
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:{{ .Values.otelCollector.service.otlpGrpcPort }}
+          http:
+            endpoint: 0.0.0.0:{{ .Values.otelCollector.service.otlpHttpPort }}
+
+    processors:
+      batch:
+        timeout: {{ .Values.otelCollector.config.batchTimeout }}
+        send_batch_size: {{ .Values.otelCollector.config.sendBatchSize }}
+
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: {{ .Values.otelCollector.config.memoryLimitMiB }}
+        spike_limit_mib: {{ .Values.otelCollector.config.spikeLimitMiB }}
+
+      # K8s 메타데이터 자동 추가 (2025 Best Practice)
+      k8sattributes:
+        extract:
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.deployment.name
+            - k8s.node.name
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.ip
+          - sources:
+              - from: connection
+
+    exporters:
+      # Tempo로 trace 전송
+      {{- if .Values.tempo.enabled }}
+      otlp/tempo:
+        endpoint: tempo:{{ .Values.tempo.service.otlpGrpcPort }}
+        tls:
+          insecure: true
+      {{- end }}
+
+      # 디버깅용 로깅
+      logging:
+        verbosity: normal
+        sampling_initial: 5
+        sampling_thereafter: 200
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
+    service:
+      extensions: [health_check]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, batch]
+          exporters:
+            {{- if .Values.tempo.enabled }}
+            - otlp/tempo
+            {{- end }}
+            - logging
+{{- end }}

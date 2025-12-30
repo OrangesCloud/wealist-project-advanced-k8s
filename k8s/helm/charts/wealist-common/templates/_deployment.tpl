@@ -93,6 +93,9 @@ spec:
           {{- end }}
           envFrom:
             - configMapRef:
+                name: wealist-shared-config
+                
+            - configMapRef:
                 name: {{ include "wealist-common.fullname" . }}-config
             {{- /* Include shared secret from wealist-infrastructure */}}
             - secretRef:
@@ -101,6 +104,7 @@ spec:
             - secretRef:
                 name: wealist-argocd-secret
                 optional: true
+            
           {{- if .Values.envFrom }}
             {{- toYaml .Values.envFrom | nindent 12 }}
           {{- end }}

@@ -129,6 +129,19 @@ output "s3_bucket_regional_domain_name" {
 }
 
 # =============================================================================
+# S3 Tempo Traces Outputs (OpenTelemetry)
+# =============================================================================
+output "tempo_traces_bucket_name" {
+  description = "S3 bucket name for Tempo traces"
+  value       = aws_s3_bucket.tempo_traces.id
+}
+
+output "tempo_traces_bucket_arn" {
+  description = "S3 bucket ARN for Tempo traces"
+  value       = aws_s3_bucket.tempo_traces.arn
+}
+
+# =============================================================================
 # KMS Outputs
 # =============================================================================
 output "kms_key_arn" {
@@ -190,7 +203,8 @@ output "summary" {
       Auth Token Secret: ${aws_secretsmanager_secret.redis_auth.arn}
 
     S3:
-      Bucket: ${aws_s3_bucket.storage.id}
+      Storage Bucket: ${aws_s3_bucket.storage.id}
+      Tempo Traces Bucket: ${aws_s3_bucket.tempo_traces.id}
 
     KMS:
       Key ARN: ${module.kms.key_arn}

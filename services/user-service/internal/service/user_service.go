@@ -1,12 +1,15 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+
+	commnotel "github.com/OrangesCloud/wealist-advanced-go-pkg/otel"
 
 	"user-service/internal/domain"
 	"user-service/internal/metrics"
@@ -33,15 +36,25 @@ func NewUserService(userRepo *repository.UserRepository, logger *zap.Logger, m *
 	}
 }
 
+// log returns a trace-context aware logger
+func (s *UserService) log(ctx context.Context) *zap.Logger {
+	return commnotel.WithTraceContext(ctx, s.logger)
+}
+
 // CreateUser creates a new user
 // 이메일이 이미 존재하면 AlreadyExistsError를 반환합니다.
-func (s *UserService) CreateUser(req domain.CreateUserRequest) (*domain.User, error) {
+func (s *UserService) CreateUser(ctx context.Context, req domain.CreateUserRequest) (*domain.User, error) {
+	log := s.log(ctx)
+	log.Debug("CreateUser service started", zap.String("user.email", req.Email))
+
 	// 이미 존재하는 사용자인지 확인
 	existingUser, err := s.userRepo.FindByEmail(req.Email)
 	if err == nil && existingUser != nil {
+		log.Debug("CreateUser user already exists", zap.String("user.email", req.Email))
 		return nil, response.NewAlreadyExistsError("User with this email already exists", req.Email)
 	}
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		log.Error("CreateUser failed to check existing user", zap.Error(err))
 		return nil, response.NewInternalError("Failed to check existing user", err.Error())
 	}
 
@@ -61,7 +74,7 @@ func (s *UserService) CreateUser(req domain.CreateUserRequest) (*domain.User, er
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
-		s.logger.Error("Failed to create user", zap.Error(err))
+		log.Error("CreateUser failed to create user", zap.Error(err))
 		return nil, err
 	}
 
@@ -70,29 +83,47 @@ func (s *UserService) CreateUser(req domain.CreateUserRequest) (*domain.User, er
 		s.metrics.RecordUserCreated()
 	}
 
-	s.logger.Info("User created", zap.String("userId", user.ID.String()))
+	log.Info("User created", zap.String("enduser.id", user.ID.String()))
 	return user, nil
 }
 
 // GetUser gets a user by ID
-func (s *UserService) GetUser(id uuid.UUID) (*domain.User, error) {
-	return s.userRepo.FindByID(id)
+func (s *UserService) GetUser(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	log := s.log(ctx)
+	log.Debug("GetUser service started", zap.String("enduser.id", id.String()))
+
+	user, err := s.userRepo.FindByID(id)
+	if err != nil {
+		log.Debug("GetUser user not found", zap.String("enduser.id", id.String()))
+		return nil, err
+	}
+
+	log.Debug("GetUser completed", zap.String("enduser.id", id.String()))
+	return user, nil
 }
 
 // GetUserByEmail gets a user by email
-func (s *UserService) GetUserByEmail(email string) (*domain.User, error) {
+func (s *UserService) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+	log := s.log(ctx)
+	log.Debug("GetUserByEmail service started", zap.String("user.email", email))
 	return s.userRepo.FindByEmail(email)
 }
 
 // GetUserByGoogleID gets a user by Google ID
-func (s *UserService) GetUserByGoogleID(googleID string) (*domain.User, error) {
+func (s *UserService) GetUserByGoogleID(ctx context.Context, googleID string) (*domain.User, error) {
+	log := s.log(ctx)
+	log.Debug("GetUserByGoogleID service started")
 	return s.userRepo.FindByGoogleID(googleID)
 }
 
 // UpdateUser updates a user
-func (s *UserService) UpdateUser(id uuid.UUID, req domain.UpdateUserRequest) (*domain.User, error) {
+func (s *UserService) UpdateUser(ctx context.Context, id uuid.UUID, req domain.UpdateUserRequest) (*domain.User, error) {
+	log := s.log(ctx)
+	log.Debug("UpdateUser service started", zap.String("enduser.id", id.String()))
+
 	user, err := s.userRepo.FindByID(id)
 	if err != nil {
+		log.Debug("UpdateUser user not found", zap.String("enduser.id", id.String()))
 		return nil, err
 	}
 
@@ -105,45 +136,59 @@ func (s *UserService) UpdateUser(id uuid.UUID, req domain.UpdateUserRequest) (*d
 	user.UpdatedAt = time.Now()
 
 	if err := s.userRepo.Update(user); err != nil {
-		s.logger.Error("Failed to update user", zap.Error(err))
+		log.Error("UpdateUser failed to update user", zap.Error(err))
 		return nil, err
 	}
 
-	s.logger.Info("User updated", zap.String("userId", user.ID.String()))
+	log.Info("User updated", zap.String("enduser.id", user.ID.String()))
 	return user, nil
 }
 
 // DeleteUser soft deletes a user
-func (s *UserService) DeleteUser(id uuid.UUID) error {
+func (s *UserService) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	log := s.log(ctx)
+	log.Debug("DeleteUser service started", zap.String("enduser.id", id.String()))
+
 	if err := s.userRepo.SoftDelete(id); err != nil {
-		s.logger.Error("Failed to delete user", zap.Error(err))
+		log.Error("DeleteUser failed to delete user", zap.Error(err))
 		return err
 	}
-	s.logger.Info("User deleted", zap.String("userId", id.String()))
+
+	log.Info("User deleted", zap.String("enduser.id", id.String()))
 	return nil
 }
 
 // RestoreUser restores a soft deleted user
-func (s *UserService) RestoreUser(id uuid.UUID) (*domain.User, error) {
+func (s *UserService) RestoreUser(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	log := s.log(ctx)
+	log.Debug("RestoreUser service started", zap.String("enduser.id", id.String()))
+
 	if err := s.userRepo.Restore(id); err != nil {
-		s.logger.Error("Failed to restore user", zap.Error(err))
+		log.Error("RestoreUser failed to restore user", zap.Error(err))
 		return nil, err
 	}
-	s.logger.Info("User restored", zap.String("userId", id.String()))
+
+	log.Info("User restored", zap.String("enduser.id", id.String()))
 	return s.userRepo.FindByID(id)
 }
 
 // UserExists checks if a user exists
-func (s *UserService) UserExists(id uuid.UUID) (bool, error) {
+func (s *UserService) UserExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	log := s.log(ctx)
+	log.Debug("UserExists service started", zap.String("enduser.id", id.String()))
 	return s.userRepo.Exists(id)
 }
 
 // FindOrCreateUser finds or creates a user (for OAuth)
-func (s *UserService) FindOrCreateUser(email string, googleID *string) (*domain.User, error) {
+func (s *UserService) FindOrCreateUser(ctx context.Context, email string, googleID *string) (*domain.User, error) {
+	log := s.log(ctx)
+	log.Debug("FindOrCreateUser service started", zap.String("user.email", email))
+
 	// Try to find by Google ID first
 	if googleID != nil {
 		user, err := s.userRepo.FindByGoogleID(*googleID)
 		if err == nil {
+			log.Debug("FindOrCreateUser found by Google ID", zap.String("enduser.id", user.ID.String()))
 			return user, nil
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -159,9 +204,10 @@ func (s *UserService) FindOrCreateUser(email string, googleID *string) (*domain.
 			user.GoogleID = googleID
 			user.UpdatedAt = time.Now()
 			if err := s.userRepo.Update(user); err != nil {
-				s.logger.Error("Failed to update user with Google ID", zap.Error(err))
+				log.Error("FindOrCreateUser failed to update user with Google ID", zap.Error(err))
 			}
 		}
+		log.Debug("FindOrCreateUser found by email", zap.String("enduser.id", user.ID.String()))
 		return user, nil
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -169,7 +215,8 @@ func (s *UserService) FindOrCreateUser(email string, googleID *string) (*domain.
 	}
 
 	// Create new user
-	return s.CreateUser(domain.CreateUserRequest{
+	log.Debug("FindOrCreateUser creating new user", zap.String("user.email", email))
+	return s.CreateUser(ctx, domain.CreateUserRequest{
 		Email:    email,
 		GoogleID: googleID,
 		Provider: "google",
@@ -177,8 +224,11 @@ func (s *UserService) FindOrCreateUser(email string, googleID *string) (*domain.
 }
 
 // FindOrCreateOAuthUser finds or creates a user for OAuth login (called by auth-service)
-func (s *UserService) FindOrCreateOAuthUser(email, name, provider string) (*domain.User, error) {
-	s.logger.Info("OAuth login attempt", zap.String("email", email), zap.String("provider", provider))
+func (s *UserService) FindOrCreateOAuthUser(ctx context.Context, email, name, provider string) (*domain.User, error) {
+	log := s.log(ctx)
+	log.Info("OAuth login attempt",
+		zap.String("user.email", email),
+		zap.String("oauth.provider", provider))
 
 	// Try to find by email
 	user, err := s.userRepo.FindByEmail(email)
@@ -188,18 +238,19 @@ func (s *UserService) FindOrCreateOAuthUser(email, name, provider string) (*doma
 			user.Name = name
 			user.UpdatedAt = time.Now()
 			if err := s.userRepo.Update(user); err != nil {
-				s.logger.Error("Failed to update user name", zap.Error(err))
+				log.Error("FindOrCreateOAuthUser failed to update user name", zap.Error(err))
 			}
 		}
-		s.logger.Info("Existing user found for OAuth", zap.String("userId", user.ID.String()))
+		log.Info("Existing user found for OAuth", zap.String("enduser.id", user.ID.String()))
 		return user, nil
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		s.logger.Error("Failed to find user by email", zap.Error(err))
+		log.Error("FindOrCreateOAuthUser failed to find user by email", zap.Error(err))
 		return nil, err
 	}
 
 	// Create new user
+	log.Debug("FindOrCreateOAuthUser creating new OAuth user", zap.String("user.email", email))
 	newUser := &domain.User{
 		ID:        uuid.New(),
 		Email:     email,
@@ -211,7 +262,7 @@ func (s *UserService) FindOrCreateOAuthUser(email, name, provider string) (*doma
 	}
 
 	if err := s.userRepo.Create(newUser); err != nil {
-		s.logger.Error("Failed to create OAuth user", zap.Error(err))
+		log.Error("FindOrCreateOAuthUser failed to create OAuth user", zap.Error(err))
 		return nil, err
 	}
 
@@ -220,6 +271,8 @@ func (s *UserService) FindOrCreateOAuthUser(email, name, provider string) (*doma
 		s.metrics.RecordUserCreated()
 	}
 
-	s.logger.Info("OAuth user created", zap.String("userId", newUser.ID.String()), zap.String("email", email))
+	log.Info("OAuth user created",
+		zap.String("enduser.id", newUser.ID.String()),
+		zap.String("user.email", email))
 	return newUser, nil
 }
