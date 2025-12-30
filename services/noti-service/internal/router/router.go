@@ -24,8 +24,22 @@ import (
 	"github.com/OrangesCloud/wealist-advanced-go-pkg/ratelimit"
 )
 
+// RouterConfig holds router configuration
+type RouterConfig struct {
+	Config      *config.Config
+	DB          *gorm.DB
+	RedisClient *redis.Client
+	Logger      *zap.Logger
+	ServiceName string
+}
+
 // Setup configures and returns the Gin router with all routes and middleware.
-func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *zap.Logger) *gin.Engine {
+func Setup(routerCfg RouterConfig) *gin.Engine {
+	cfg := routerCfg.Config
+	db := routerCfg.DB
+	redisClient := routerCfg.RedisClient
+	logger := routerCfg.Logger
+
 	if cfg.Server.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -35,9 +49,16 @@ func Setup(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, logger *z
 	// Initialize metrics
 	m := metrics.New()
 
-	// Middleware (using common package)
+	// Determine service name for tracing
+	serviceName := routerCfg.ServiceName
+	if serviceName == "" {
+		serviceName = "noti-service"
+	}
+
+	// Middleware (using common package with OTEL tracing)
 	r.Use(commonmw.Recovery(logger))
-	r.Use(commonmw.Logger(logger))
+	r.Use(commonmw.OTELTracing(serviceName))                 // OpenTelemetry HTTP tracing (otelgin)
+	r.Use(commonmw.LoggerWithTracing(logger, serviceName))   // Request logging with trace context
 	r.Use(commonmw.DefaultCORS())
 	r.Use(metrics.HTTPMiddleware(m))
 

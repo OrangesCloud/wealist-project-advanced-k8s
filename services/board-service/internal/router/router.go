@@ -39,6 +39,7 @@ type Config struct {
 	S3Client           *client.S3Client
 	RedisClient        *redis.Client
 	RateLimitConfig    config.RateLimitConfig
+	ServiceName        string // Service name for tracing (default: "board-service")
 }
 
 // Setup initializes the router with all dependencies and routes.
@@ -46,11 +47,18 @@ func Setup(cfg Config) *gin.Engine {
 	// Create Gin router
 	router := gin.New()
 
+	// Determine service name for tracing
+	serviceName := cfg.ServiceName
+	if serviceName == "" {
+		serviceName = "board-service"
+	}
+
 	// Apply global middleware chain (using common package)
 	router.Use(
-		commonmw.Recovery(cfg.Logger), // 1. Panic recovery
-		commonmw.Logger(cfg.Logger),   // 2. Request logging (includes request ID)
-		commonmw.DefaultCORS(),        // 3. CORS configuration (includes X-Workspace-Id)
+		commonmw.Recovery(cfg.Logger),                       // 1. Panic recovery
+		commonmw.OTELTracing(serviceName),                   // 2. OpenTelemetry HTTP tracing (otelgin)
+		commonmw.LoggerWithTracing(cfg.Logger, serviceName), // 3. Request logging with trace context
+		commonmw.DefaultCORS(),                              // 4. CORS configuration (includes X-Workspace-Id)
 	)
 
 	// Add metrics middleware if metrics is configured

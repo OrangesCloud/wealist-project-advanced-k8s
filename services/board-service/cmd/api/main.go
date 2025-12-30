@@ -15,6 +15,7 @@ import (
 	"github.com/robfig/cron/v3"
 
 	commonlogger "github.com/OrangesCloud/wealist-advanced-go-pkg/logger"
+	"github.com/OrangesCloud/wealist-advanced-go-pkg/otel"
 
 	"project-board-api/internal/client"
 	"project-board-api/internal/config"
@@ -85,6 +86,28 @@ func main() {
 		os.Exit(1)
 	}
 	defer log.Sync()
+
+	// Initialize OpenTelemetry
+	ctx := context.Background()
+	otelCfg := otel.DefaultConfig("board-service")
+	otelShutdown, err := otel.InitProvider(ctx, otelCfg)
+	if err != nil {
+		log.Warn("Failed to initialize OpenTelemetry, continuing without tracing",
+			zap.Error(err),
+		)
+	} else {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := otelShutdown(shutdownCtx); err != nil {
+				log.Error("Failed to shutdown OpenTelemetry", zap.Error(err))
+			}
+		}()
+		log.Info("OpenTelemetry initialized",
+			zap.String("service.name", otelCfg.ServiceName),
+			zap.String("otel.endpoint", otelCfg.OTLPEndpoint),
+		)
+	}
 
 	log.Info("Starting application",
 		zap.String("mode", cfg.Server.Mode),
@@ -231,6 +254,7 @@ func main() {
 		S3Client:        s3Client,
 		RedisClient:     database.GetRedis(),
 		RateLimitConfig: cfg.RateLimit,
+		ServiceName:     "board-service",
 	}
 
 	r := router.Setup(routerConfig)

@@ -64,6 +64,7 @@ data:
         pipeline_stages:
           # JSON 로그 파싱 (Go 서비스들은 zap JSON 로그 출력)
           # zap 로거 필드: timestamp, level, message, caller, stacktrace, request_id 등
+          # OpenTelemetry 필드: trace_id, span_id (2025 OTEL 통합)
           - json:
               expressions:
                 level: level
@@ -77,10 +78,20 @@ data:
                 path: path
                 status: status
                 duration: duration
+                # OpenTelemetry Trace Context (Phase 3.3)
+                trace_id: trace_id
+                span_id: span_id
+                # OTEL Semantic Convention 필드
+                http_method: '"http.method"'
+                http_status_code: '"http.status_code"'
+                enduser_id: '"enduser.id"'
 
           # 로그 레벨 라벨 추가
+          # trace_id를 라벨로 추가하여 Grafana에서 Tempo 연동 가능
+          # 주의: span_id는 high-cardinality이므로 라벨로 추가하지 않음
           - labels:
               level:
+              trace_id:
 
           # 타임스탬프 파싱 (zap ISO8601 형식)
           - timestamp:

@@ -52,8 +52,12 @@ func NewBoardHandler(boardService service.BoardService) *BoardHandler {
 // @Failure      500 {object} response.ErrorResponse "서버 에러"
 // @Router       /boards [post]
 func (h *BoardHandler) CreateBoard(c *gin.Context) {
+	log := getLogger(c)
+	log.Debug("CreateBoard started")
+
 	var req dto.CreateBoardRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Warn("CreateBoard validation failed", zap.Error(err))
 		response.SendError(c, http.StatusBadRequest, response.ErrCodeValidation, "Invalid request body")
 		return
 	}
@@ -63,11 +67,20 @@ func (h *BoardHandler) CreateBoard(c *gin.Context) {
 		ctx = context.WithValue(ctx, "user_id", userID)
 	}
 
+	log.Debug("CreateBoard calling service",
+		zap.String("project.id", req.ProjectID.String()),
+		zap.String("board.title", req.Title))
+
 	board, err := h.boardService.CreateBoard(ctx, &req)
 	if err != nil {
+		log.Error("CreateBoard service error", zap.Error(err))
 		handleServiceError(c, err)
 		return
 	}
+
+	log.Info("Board created",
+		zap.String("board.id", board.ID.String()),
+		zap.String("project.id", req.ProjectID.String()))
 
 	// 💡 [수정] 응답을 먼저 보낸 후 브로드캐스트
 	response.SendSuccess(c, http.StatusCreated, board)
@@ -98,19 +111,26 @@ func (h *BoardHandler) CreateBoard(c *gin.Context) {
 // @Failure      500 {object} response.ErrorResponse "서버 에러"
 // @Router       /boards/{boardId} [get]
 func (h *BoardHandler) GetBoard(c *gin.Context) {
+	log := getLogger(c)
+
 	boardIDStr := c.Param("boardId")
 	boardID, err := uuid.Parse(boardIDStr)
 	if err != nil {
+		log.Warn("GetBoard invalid board ID", zap.String("board.id", boardIDStr))
 		response.SendError(c, http.StatusBadRequest, response.ErrCodeValidation, "Invalid board ID")
 		return
 	}
 
+	log.Debug("GetBoard started", zap.String("board.id", boardID.String()))
+
 	board, err := h.boardService.GetBoard(c.Request.Context(), boardID)
 	if err != nil {
+		log.Error("GetBoard service error", zap.String("board.id", boardID.String()), zap.Error(err))
 		handleServiceError(c, err)
 		return
 	}
 
+	log.Debug("GetBoard completed", zap.String("board.id", boardID.String()))
 	response.SendSuccess(c, http.StatusOK, board)
 }
 
@@ -131,12 +151,17 @@ func (h *BoardHandler) GetBoard(c *gin.Context) {
 // @Failure      500 {object} response.ErrorResponse "서버 에러"
 // @Router       /boards/project/{projectId} [get]
 func (h *BoardHandler) GetBoardsByProject(c *gin.Context) {
+	log := getLogger(c)
+
 	projectIDStr := c.Param("projectId")
 	projectID, err := uuid.Parse(projectIDStr)
 	if err != nil {
+		log.Warn("GetBoardsByProject invalid project ID", zap.String("project.id", projectIDStr))
 		response.SendError(c, http.StatusBadRequest, response.ErrCodeValidation, "Invalid project ID")
 		return
 	}
+
+	log.Debug("GetBoardsByProject started", zap.String("project.id", projectID.String()))
 
 	filters := &dto.BoardFilters{}
 	customFieldsStr := c.Query("customFields")
@@ -144,6 +169,7 @@ func (h *BoardHandler) GetBoardsByProject(c *gin.Context) {
 	if customFieldsStr != "" {
 		var customFields map[string]interface{}
 		if err := json.Unmarshal([]byte(customFieldsStr), &customFields); err != nil {
+			log.Warn("GetBoardsByProject invalid customFields", zap.String("customFields", customFieldsStr))
 			response.SendError(c, http.StatusBadRequest, response.ErrCodeValidation, "Invalid customFields format: must be valid JSON")
 			return
 		}
@@ -152,10 +178,14 @@ func (h *BoardHandler) GetBoardsByProject(c *gin.Context) {
 
 	boards, err := h.boardService.GetBoardsByProject(c.Request.Context(), projectID, filters)
 	if err != nil {
+		log.Error("GetBoardsByProject service error", zap.String("project.id", projectID.String()), zap.Error(err))
 		handleServiceError(c, err)
 		return
 	}
 
+	log.Debug("GetBoardsByProject completed",
+		zap.String("project.id", projectID.String()),
+		zap.Int("board.count", len(boards)))
 	response.SendSuccess(c, http.StatusOK, boards)
 }
 
@@ -176,17 +206,23 @@ func (h *BoardHandler) GetBoardsByProject(c *gin.Context) {
 // @Failure      500 {object} response.ErrorResponse "서버 에러"
 // @Router       /boards [get]
 func (h *BoardHandler) GetBoardsByProjectQuery(c *gin.Context) {
+	log := getLogger(c)
+
 	projectIDStr := c.Query("projectId")
 	if projectIDStr == "" {
+		log.Warn("GetBoardsByProjectQuery missing project ID")
 		response.SendError(c, http.StatusBadRequest, response.ErrCodeValidation, "Project ID is required")
 		return
 	}
 
 	projectID, err := uuid.Parse(projectIDStr)
 	if err != nil {
+		log.Warn("GetBoardsByProjectQuery invalid project ID", zap.String("project.id", projectIDStr))
 		response.SendError(c, http.StatusBadRequest, response.ErrCodeValidation, "Invalid project ID")
 		return
 	}
+
+	log.Debug("GetBoardsByProjectQuery started", zap.String("project.id", projectID.String()))
 
 	filters := &dto.BoardFilters{}
 	customFieldsStr := c.Query("customFields")
@@ -194,6 +230,7 @@ func (h *BoardHandler) GetBoardsByProjectQuery(c *gin.Context) {
 	if customFieldsStr != "" {
 		var customFields map[string]interface{}
 		if err := json.Unmarshal([]byte(customFieldsStr), &customFields); err != nil {
+			log.Warn("GetBoardsByProjectQuery invalid customFields", zap.String("customFields", customFieldsStr))
 			response.SendError(c, http.StatusBadRequest, response.ErrCodeValidation, "Invalid customFields format: must be valid JSON")
 			return
 		}
@@ -202,10 +239,14 @@ func (h *BoardHandler) GetBoardsByProjectQuery(c *gin.Context) {
 
 	boards, err := h.boardService.GetBoardsByProject(c.Request.Context(), projectID, filters)
 	if err != nil {
+		log.Error("GetBoardsByProjectQuery service error", zap.String("project.id", projectID.String()), zap.Error(err))
 		handleServiceError(c, err)
 		return
 	}
 
+	log.Debug("GetBoardsByProjectQuery completed",
+		zap.String("project.id", projectID.String()),
+		zap.Int("board.count", len(boards)))
 	response.SendSuccess(c, http.StatusOK, boards)
 }
 
@@ -228,24 +269,33 @@ func (h *BoardHandler) GetBoardsByProjectQuery(c *gin.Context) {
 // @Failure      500 {object} response.ErrorResponse "서버 에러"
 // @Router       /boards/{boardId} [put]
 func (h *BoardHandler) UpdateBoard(c *gin.Context) {
+	log := getLogger(c)
+
 	boardIDStr := c.Param("boardId")
 	boardID, err := uuid.Parse(boardIDStr)
 	if err != nil {
+		log.Warn("UpdateBoard invalid board ID", zap.String("board.id", boardIDStr))
 		response.SendError(c, http.StatusBadRequest, response.ErrCodeValidation, "Invalid board ID")
 		return
 	}
 
 	var req dto.UpdateBoardRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Warn("UpdateBoard validation failed", zap.String("board.id", boardID.String()), zap.Error(err))
 		response.SendError(c, http.StatusBadRequest, response.ErrCodeValidation, "Invalid request body")
 		return
 	}
 
+	log.Debug("UpdateBoard started", zap.String("board.id", boardID.String()))
+
 	board, err := h.boardService.UpdateBoard(c.Request.Context(), boardID, &req)
 	if err != nil {
+		log.Error("UpdateBoard service error", zap.String("board.id", boardID.String()), zap.Error(err))
 		handleServiceError(c, err)
 		return
 	}
+
+	log.Info("Board updated", zap.String("board.id", boardID.String()))
 
 	// 💡 [수정] 응답을 먼저 보낸 후 브로드캐스트
 	response.SendSuccess(c, http.StatusOK, board)
@@ -271,25 +321,36 @@ func (h *BoardHandler) UpdateBoard(c *gin.Context) {
 // @Failure      500 {object} response.ErrorResponse "서버 에러"
 // @Router       /boards/{boardId} [delete]
 func (h *BoardHandler) DeleteBoard(c *gin.Context) {
+	log := getLogger(c)
+
 	boardIDStr := c.Param("boardId")
 	boardID, err := uuid.Parse(boardIDStr)
 	if err != nil {
+		log.Warn("DeleteBoard invalid board ID", zap.String("board.id", boardIDStr))
 		response.SendError(c, http.StatusBadRequest, response.ErrCodeValidation, "Invalid board ID")
 		return
 	}
 
+	log.Debug("DeleteBoard started", zap.String("board.id", boardID.String()))
+
 	// 💡 [수정] 삭제 전에 보드 정보 가져오기 (projectId 필요)
 	board, err := h.boardService.GetBoard(c.Request.Context(), boardID)
 	if err != nil {
+		log.Error("DeleteBoard get board error", zap.String("board.id", boardID.String()), zap.Error(err))
 		handleServiceError(c, err)
 		return
 	}
 
 	err = h.boardService.DeleteBoard(c.Request.Context(), boardID)
 	if err != nil {
+		log.Error("DeleteBoard service error", zap.String("board.id", boardID.String()), zap.Error(err))
 		handleServiceError(c, err)
 		return
 	}
+
+	log.Info("Board deleted",
+		zap.String("board.id", boardID.String()),
+		zap.String("project.id", board.ProjectID.String()))
 
 	// 💡 [수정] 응답을 먼저 보낸 후 브로드캐스트
 	response.SendSuccess(c, http.StatusOK, nil)

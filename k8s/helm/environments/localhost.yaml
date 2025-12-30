@@ -375,3 +375,58 @@ redisExporter:
   config:
     host: "redis"  # 내부 서비스명
     port: 6379
+
+# =============================================================================
+# OpenTelemetry 통합 (2025 Best Practice - Full OTEL Stack)
+# =============================================================================
+# 분산 추적(Traces) + 로그(Logs) + 메트릭(Metrics) 통합
+
+# OTEL Collector - 트레이스/메트릭 수집 게이트웨이
+otelCollector:
+  enabled: true
+  image:
+    repository: localhost:5001/otel-collector-contrib
+    tag: "0.92.0"
+  replicas: 1
+  service:
+    otlpGrpcPort: 4317
+    otlpHttpPort: 4318
+    metricsPort: 8888
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  config:
+    batchTimeout: 5s
+    sendBatchSize: 1000
+    memoryLimitMiB: 400
+    spikeLimitMiB: 100
+
+# Tempo - 분산 추적 백엔드 (Jaeger 대안)
+tempo:
+  enabled: true
+  image:
+    repository: localhost:5001/tempo
+    tag: "2.3.1"
+  service:
+    httpPort: 3200
+    otlpGrpcPort: 4317
+    otlpHttpPort: 4318
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  config:
+    retentionPeriod: 168h  # 7 days
+    backend: local
+    s3:
+      enabled: false

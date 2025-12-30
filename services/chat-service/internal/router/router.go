@@ -29,6 +29,7 @@ type RouterConfig struct {
 	DB          *gorm.DB
 	RedisClient *redis.Client
 	Logger      *zap.Logger
+	ServiceName string // Service name for OTEL tracing
 }
 
 func Setup(routerCfg RouterConfig) *gin.Engine {
@@ -45,9 +46,16 @@ func Setup(routerCfg RouterConfig) *gin.Engine {
 	// Initialize metrics
 	m := metrics.New()
 
-	// Middleware (using common package)
+	// Determine service name for tracing
+	serviceName := routerCfg.ServiceName
+	if serviceName == "" {
+		serviceName = "chat-service"
+	}
+
+	// Middleware (using common package with OTEL tracing)
 	r.Use(commonmw.Recovery(logger))
-	r.Use(commonmw.Logger(logger))
+	r.Use(commonmw.OTELTracing(serviceName))                 // OpenTelemetry HTTP tracing (otelgin)
+	r.Use(commonmw.LoggerWithTracing(logger, serviceName))   // Request logging with trace context
 	r.Use(commonmw.DefaultCORS())
 	r.Use(metrics.HTTPMiddleware(m))
 
