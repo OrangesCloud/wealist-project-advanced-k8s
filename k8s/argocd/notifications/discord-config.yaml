@@ -4,7 +4,11 @@ metadata:
   name: argocd-notifications-cm
   namespace: argocd
 data:
-  # Discord 서비스 설정 (Webhook 사용)
+  # ArgoCD URL 설정
+  context: |
+    argocdUrl: https://argocd.wealist.co.kr
+
+  # Discord 서비스 설정
   service.discord: |
     token: $discord-webhook-url
   

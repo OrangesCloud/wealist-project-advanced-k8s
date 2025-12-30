@@ -121,6 +121,11 @@ resource "kubernetes_manifest" "argocd_project_prod" {
         {
           group = "apiregistration.k8s.io"
           kind  = "APIService"
+        },
+        # AWS Load Balancer Controller requires elbv2 CRDs
+        {
+          group = "elbv2.k8s.aws"
+          kind  = "*"
         }
       ]
       namespaceResourceWhitelist = [
