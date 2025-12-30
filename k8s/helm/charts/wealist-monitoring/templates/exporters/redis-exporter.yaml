@@ -48,8 +48,9 @@ spec:
                 secretKeyRef:
                   name: wealist-shared-secret
                   key: REDIS_PASSWORD
+            # redis:// for non-SSL, rediss:// for SSL (AWS ElastiCache uses SSL)
             - name: REDIS_ADDR
-              value: "rediss://$(REDIS_HOST):{{ .Values.redisExporter.config.port }}"
+              value: "redis://$(REDIS_HOST):{{ .Values.redisExporter.config.port }}"
             {{- else }}
             # Local/Dev: values에서 직접 가져옴
             - name: REDIS_ADDR

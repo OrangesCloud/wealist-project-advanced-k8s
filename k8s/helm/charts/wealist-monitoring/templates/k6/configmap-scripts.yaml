@@ -1,0 +1,133 @@
+{{- if .Values.k6.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-scripts
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: k6
+    app.kubernetes.io/name: k6
+    app.kubernetes.io/component: performance-testing
+data:
+  load-test.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate } from 'k6/metrics';
+
+    const errorRate = new Rate('errors');
+
+    export const options = {
+      scenarios: {
+        load_test: {
+          executor: 'ramping-vus',
+          startVUs: 0,
+          stages: [
+            { duration: '{{ .Values.k6.scenarios.load.duration | default "1m" }}', target: {{ .Values.k6.scenarios.load.vus | default 20 }} },
+            { duration: '3m', target: {{ .Values.k6.scenarios.load.vus | default 20 }} },
+            { duration: '1m', target: 0 },
+          ],
+        },
+      },
+      thresholds: {
+        http_req_duration: ['p(95)<{{ .Values.k6.thresholds.latencyP95Ms | default 500 }}'],
+        http_req_failed: ['rate<{{ div .Values.k6.thresholds.errorRatePercent 100 | default 0.01 }}'],
+      },
+    };
+
+    const BASE_URL = '{{ .Values.k6.endpoints.baseUrl }}';
+
+    export default function () {
+      {{- range .Values.k6.endpoints.services }}
+      const {{ .name }}Res = http.get(`${BASE_URL}{{ .path }}{{ .healthPath }}`);
+      check({{ .name }}Res, { '{{ .name }} health ok': (r) => r.status === 200 });
+      errorRate.add({{ .name }}Res.status !== 200);
+      {{- end }}
+      sleep(1);
+    }
+
+  stress-test.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate } from 'k6/metrics';
+
+    const errorRate = new Rate('errors');
+
+    export const options = {
+      scenarios: {
+        stress_test: {
+          executor: 'ramping-vus',
+          startVUs: 0,
+          stages: [
+            { duration: '2m', target: 50 },
+            { duration: '3m', target: 50 },
+            { duration: '2m', target: 100 },
+            { duration: '3m', target: 100 },
+            { duration: '2m', target: 200 },
+            { duration: '3m', target: 200 },
+            { duration: '2m', target: {{ .Values.k6.scenarios.stress.maxVUs | default 300 }} },
+            { duration: '5m', target: {{ .Values.k6.scenarios.stress.maxVUs | default 300 }} },
+            { duration: '2m', target: 0 },
+          ],
+        },
+      },
+      thresholds: {
+        http_req_duration: ['p(95)<2000'],
+        http_req_failed: ['rate<0.1'],
+      },
+    };
+
+    const BASE_URL = '{{ .Values.k6.endpoints.baseUrl }}';
+
+    export default function () {
+      const responses = http.batch([
+        {{- range $i, $svc := .Values.k6.endpoints.services }}
+        {{- if $i }},{{ end }}
+        ['GET', `${BASE_URL}{{ $svc.path }}{{ $svc.healthPath }}`, null, { tags: { name: '{{ $svc.name }}-health' } }]
+        {{- end }}
+      ]);
+
+      responses.forEach((res) => {
+        errorRate.add(res.status !== 200);
+      });
+
+      sleep(0.3);
+    }
+
+  spike-test.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate } from 'k6/metrics';
+
+    const errorRate = new Rate('errors');
+
+    export const options = {
+      scenarios: {
+        spike_test: {
+          executor: 'ramping-vus',
+          startVUs: 0,
+          stages: [
+            { duration: '30s', target: 20 },
+            { duration: '1m', target: 20 },
+            { duration: '10s', target: {{ .Values.k6.scenarios.spike.peakVUs | default 500 }} },
+            { duration: '1m', target: {{ .Values.k6.scenarios.spike.peakVUs | default 500 }} },
+            { duration: '10s', target: 20 },
+            { duration: '2m', target: 20 },
+            { duration: '30s', target: 0 },
+          ],
+        },
+      },
+      thresholds: {
+        http_req_duration: ['p(95)<3000'],
+        http_req_failed: ['rate<0.2'],
+      },
+    };
+
+    const BASE_URL = '{{ .Values.k6.endpoints.baseUrl }}';
+
+    export default function () {
+      const res = http.get(`${BASE_URL}{{ (index .Values.k6.endpoints.services 0).path }}{{ (index .Values.k6.endpoints.services 0).healthPath }}`);
+      errorRate.add(res.status !== 200);
+      check(res, { 'status is 200': (r) => r.status === 200 });
+      sleep(0.1);
+    }
+{{- end }}

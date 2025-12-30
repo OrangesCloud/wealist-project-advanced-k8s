@@ -419,4 +419,288 @@ data:
                 Redis has rejected connections in the last 5 minutes.
                 Check maxclients setting and connection usage.
           {{- end }}
+
+  # =============================================================================
+  # Recording Rules - RED Method (Rate, Errors, Duration)
+  # =============================================================================
+  # 고비용 쿼리를 사전 계산하여 대시보드 및 알림 성능 향상
+  recording-rules.yml: |
+    groups:
+      # =========================================================================
+      # RED Method Recording Rules (Request, Error, Duration)
+      # =========================================================================
+      - name: red.rules
+        interval: 30s
+        rules:
+          # Request Rate (Rate) - Go 서비스
+          - record: service:http_requests:rate5m
+            expr: |
+              sum(rate(board_service_http_requests_total[5m])) by (job)
+              or sum(rate(user_service_http_requests_total[5m])) by (job)
+              or sum(rate(chat_service_http_requests_total[5m])) by (job)
+              or sum(rate(noti_service_http_requests_total[5m])) by (job)
+              or sum(rate(storage_service_http_requests_total[5m])) by (job)
+              or sum(rate(video_service_http_requests_total[5m])) by (job)
+
+          # Request Rate - Spring Boot (auth-service)
+          - record: service:http_requests_spring:rate5m
+            expr: |
+              sum(rate(http_server_requests_seconds_count[5m])) by (job)
+
+          # Error Rate (Errors) - Go 서비스
+          - record: service:http_errors:rate5m
+            expr: |
+              (
+                sum(rate(board_service_http_requests_total{status=~"5.."}[5m])) by (job)
+                or sum(rate(user_service_http_requests_total{status=~"5.."}[5m])) by (job)
+                or sum(rate(chat_service_http_requests_total{status=~"5.."}[5m])) by (job)
+                or sum(rate(noti_service_http_requests_total{status=~"5.."}[5m])) by (job)
+                or sum(rate(storage_service_http_requests_total{status=~"5.."}[5m])) by (job)
+                or sum(rate(video_service_http_requests_total{status=~"5.."}[5m])) by (job)
+              ) / service:http_requests:rate5m
+
+          # Error Rate - Spring Boot
+          - record: service:http_errors_spring:rate5m
+            expr: |
+              sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (job)
+              / sum(rate(http_server_requests_seconds_count[5m])) by (job)
+
+          # Duration p50 (Duration) - Go 서비스
+          - record: service:http_latency_p50:5m
+            expr: |
+              histogram_quantile(0.5,
+                sum(rate(board_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(user_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(chat_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(noti_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(storage_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(video_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+              )
+
+          # Duration p95
+          - record: service:http_latency_p95:5m
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(board_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(user_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(chat_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(noti_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(storage_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(video_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+              )
+
+          # Duration p99
+          - record: service:http_latency_p99:5m
+            expr: |
+              histogram_quantile(0.99,
+                sum(rate(board_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(user_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(chat_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(noti_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(storage_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+                or sum(rate(video_service_http_request_duration_seconds_bucket[5m])) by (le, job)
+              )
+
+          # Duration p95 - Spring Boot
+          - record: service:http_latency_p95_spring:5m
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(http_server_requests_seconds_bucket[5m])) by (le, job)
+              )
+
+      # =========================================================================
+      # USE Method Recording Rules (Utilization, Saturation, Errors)
+      # =========================================================================
+      - name: use.rules
+        interval: 30s
+        rules:
+          # Pod CPU Utilization
+          - record: pod:cpu_utilization:ratio
+            expr: |
+              sum(rate(container_cpu_usage_seconds_total{container!="", container!="POD"}[5m])) by (namespace, pod)
+              / on(namespace, pod) group_left
+              sum(kube_pod_container_resource_limits{resource="cpu", container!=""}) by (namespace, pod)
+
+          # Pod Memory Utilization
+          - record: pod:memory_utilization:ratio
+            expr: |
+              sum(container_memory_working_set_bytes{container!="", container!="POD"}) by (namespace, pod)
+              / on(namespace, pod) group_left
+              sum(kube_pod_container_resource_limits{resource="memory", container!=""}) by (namespace, pod)
+
+          # Service CPU Usage (aggregated by service)
+          - record: service:cpu_usage:avg
+            expr: |
+              avg(rate(container_cpu_usage_seconds_total{container!="", container!="POD"}[5m])) by (namespace, container)
+
+          # Service Memory Usage (aggregated by service)
+          - record: service:memory_usage:avg
+            expr: |
+              avg(container_memory_working_set_bytes{container!="", container!="POD"}) by (namespace, container)
+
+  # =============================================================================
+  # Golden Signals Alert Rules
+  # =============================================================================
+  golden-signals-alerts.yml: |
+    groups:
+      - name: golden.signals
+        rules:
+          # =====================================================================
+          # Latency Alerts
+          # =====================================================================
+          - alert: HighLatencyP95
+            expr: service:http_latency_p95:5m > 1
+            for: 5m
+            labels:
+              severity: warning
+              signal: latency
+            annotations:
+              summary: {{ `"High p95 latency for {{ $labels.job }}"` }}
+              description: |
+                Service {{ `{{ $labels.job }}` }} has p95 latency > 1s for 5 minutes.
+                Current value: {{ `{{ $value | humanizeDuration }}` }}
+
+          - alert: HighLatencyP99Critical
+            expr: service:http_latency_p99:5m > 2
+            for: 5m
+            labels:
+              severity: critical
+              signal: latency
+            annotations:
+              summary: {{ `"Critical p99 latency for {{ $labels.job }}"` }}
+              description: |
+                Service {{ `{{ $labels.job }}` }} has p99 latency > 2s for 5 minutes.
+                Immediate investigation required.
+
+          # =====================================================================
+          # Traffic Alerts
+          # =====================================================================
+          - alert: TrafficDrop
+            expr: |
+              (service:http_requests:rate5m - service:http_requests:rate5m offset 1h)
+              / service:http_requests:rate5m offset 1h < -0.5
+            for: 10m
+            labels:
+              severity: warning
+              signal: traffic
+            annotations:
+              summary: {{ `"Traffic dropped by 50% for {{ $labels.job }}"` }}
+              description: |
+                Service {{ `{{ $labels.job }}` }} traffic dropped by more than 50%
+                compared to 1 hour ago.
+
+          - alert: TrafficSpike
+            expr: |
+              service:http_requests:rate5m > 2 * avg_over_time(service:http_requests:rate5m[1h])
+            for: 5m
+            labels:
+              severity: warning
+              signal: traffic
+            annotations:
+              summary: {{ `"Traffic spike detected for {{ $labels.job }}"` }}
+              description: |
+                Service {{ `{{ $labels.job }}` }} is experiencing 2x normal traffic.
+
+          # =====================================================================
+          # Error Alerts (Enhanced)
+          # =====================================================================
+          - alert: ErrorBudgetBurn
+            expr: |
+              service:http_errors:rate5m > 0.001
+            for: 30m
+            labels:
+              severity: warning
+              signal: errors
+            annotations:
+              summary: {{ `"Error budget burning for {{ $labels.job }}"` }}
+              description: |
+                Service {{ `{{ $labels.job }}` }} error rate is {{ `{{ $value | humanizePercentage }}` }}.
+                This is consuming error budget faster than expected.
+
+          # =====================================================================
+          # Saturation Alerts
+          # =====================================================================
+          - alert: PodCPUSaturation
+            expr: pod:cpu_utilization:ratio > 0.9
+            for: 10m
+            labels:
+              severity: warning
+              signal: saturation
+            annotations:
+              summary: {{ `"Pod CPU saturation in {{ $labels.namespace }}/{{ $labels.pod }}"` }}
+              description: |
+                Pod {{ `{{ $labels.namespace }}/{{ $labels.pod }}` }} is using
+                {{ `{{ $value | humanizePercentage }}` }} of CPU limit.
+
+          - alert: PodMemorySaturation
+            expr: pod:memory_utilization:ratio > 0.9
+            for: 10m
+            labels:
+              severity: warning
+              signal: saturation
+            annotations:
+              summary: {{ `"Pod Memory saturation in {{ $labels.namespace }}/{{ $labels.pod }}"` }}
+              description: |
+                Pod {{ `{{ $labels.namespace }}/{{ $labels.pod }}` }} is using
+                {{ `{{ $value | humanizePercentage }}` }} of Memory limit.
+
+  # =============================================================================
+  # k6 Performance Test Alert Rules
+  # =============================================================================
+  {{- if .Values.k6.enabled }}
+  k6-alerts.yml: |
+    groups:
+      - name: k6.performance
+        rules:
+          # Performance Test SLA Violations
+          - alert: K6SLAViolationLatency
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(k6_http_req_duration_seconds_bucket[1m])) by (le)
+              ) > {{ .Values.k6.thresholds.latencyP95Ms | default 500 }} / 1000
+            for: 1m
+            labels:
+              severity: warning
+              type: performance-test
+            annotations:
+              summary: "Performance test SLA violation - latency"
+              description: |
+                k6 test showing p95 latency > {{ .Values.k6.thresholds.latencyP95Ms | default 500 }}ms.
+                Current: {{ `{{ $value | humanizeDuration }}` }}
+
+          - alert: K6HighErrorRate
+            expr: |
+              sum(rate(k6_http_req_failed_total[1m]))
+              / sum(rate(k6_http_reqs_total[1m])) > {{ .Values.k6.thresholds.errorRatePercent | default 1 }} / 100
+            for: 1m
+            labels:
+              severity: warning
+              type: performance-test
+            annotations:
+              summary: "Performance test error rate > {{ .Values.k6.thresholds.errorRatePercent | default 1 }}%"
+              description: |
+                k6 test showing error rate {{ `{{ $value | humanizePercentage }}` }}.
+
+          - alert: K6VUsNotReachingTarget
+            expr: k6_vus < k6_vus_max * 0.9
+            for: 2m
+            labels:
+              severity: info
+              type: performance-test
+            annotations:
+              summary: "k6 not reaching target VUs"
+              description: |
+                k6 test not reaching target VUs.
+                Current: {{ `{{ $value }}` }}
+
+          - alert: K6TestRunning
+            expr: k6_vus > 0
+            labels:
+              severity: info
+              type: performance-test
+            annotations:
+              summary: "k6 performance test is running"
+              description: |
+                Active k6 test with {{ `{{ $value }}` }} VUs.
+  {{- end }}
 {{- end }}

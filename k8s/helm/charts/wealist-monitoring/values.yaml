@@ -299,3 +299,78 @@ shared:
   secrets:
     DB_PASSWORD: ""
     REDIS_PASSWORD: ""
+
+# =============================================================================
+# k6 Performance Testing Configuration
+# =============================================================================
+# k6 성능 테스트를 Kubernetes에서 실행하기 위한 설정
+# 참고: https://grafana.com/docs/k6/latest/
+k6:
+  enabled: false  # Production에서만 true
+
+  image:
+    repository: grafana/k6
+    tag: "0.49.0"
+    pullPolicy: IfNotPresent
+
+  # k6 Job 리소스 제한
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Prometheus Remote Write 설정
+  # k6 실행 시 --out experimental-prometheus-rw 옵션 사용
+  prometheus:
+    remoteWriteUrl: "http://prometheus:9090/api/v1/write"
+
+  # 테스트 시나리오 기본 설정
+  scenarios:
+    load:
+      enabled: true
+      duration: "5m"
+      vus: 20
+      description: "Normal load test"
+    stress:
+      enabled: true
+      maxVUs: 300
+      duration: "30m"
+      description: "Stress test to find breaking point"
+    spike:
+      enabled: true
+      peakVUs: 500
+      duration: "10m"
+      description: "Spike test for sudden traffic bursts"
+
+  # 테스트 대상 서비스 엔드포인트
+  endpoints:
+    baseUrl: "http://istio-ingressgateway.istio-system.svc.cluster.local"
+    services:
+      - name: board
+        path: /svc/board
+        healthPath: /health/live
+      - name: user
+        path: /svc/user
+        healthPath: /health/live
+      - name: chat
+        path: /svc/chat
+        healthPath: /health/live
+      - name: noti
+        path: /svc/noti
+        healthPath: /health/live
+      - name: storage
+        path: /svc/storage
+        healthPath: /health/live
+      - name: video
+        path: /svc/video
+        healthPath: /health/live
+
+  # SLA 임계값 (Alert과 연동)
+  thresholds:
+    latencyP95Ms: 500
+    latencyP99Ms: 1000
+    errorRatePercent: 1
+    availabilityPercent: 99.9

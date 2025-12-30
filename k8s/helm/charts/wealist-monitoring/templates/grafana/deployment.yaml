@@ -87,6 +87,8 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards
             - name: dashboards-json
               mountPath: /etc/grafana/provisioning/dashboards/json
+            - name: dashboards-v2
+              mountPath: /etc/grafana/provisioning/dashboards/v2
             - name: data
               mountPath: /var/lib/grafana
       volumes:
@@ -99,6 +101,9 @@ spec:
         - name: dashboards-json
           configMap:
             name: grafana-dashboards-json
+        - name: dashboards-v2
+          configMap:
+            name: grafana-dashboards-v2
         - name: data
           {{- if .Values.grafana.persistence.enabled }}
           persistentVolumeClaim:

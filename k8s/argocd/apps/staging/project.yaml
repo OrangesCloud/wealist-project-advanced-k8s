@@ -9,7 +9,7 @@ spec:
   description: Wealist Staging Environment
   sourceRepos:
     - "https://github.com/OrangesCloud/wealist-project-advanced-k8s.git"
-    - "https://github.com/212clab/wealist-project-advanced-k8s-forked.git"
+    - "https://github.com/OrangesCloud/wealist-project-advanced-k8s.git"
   destinations:
     - namespace: wealist-staging
       server: https://kubernetes.default.svc

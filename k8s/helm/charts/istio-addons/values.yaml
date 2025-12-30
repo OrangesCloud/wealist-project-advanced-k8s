@@ -16,11 +16,12 @@ imageRegistry: ""  # "" = Docker Hub 직접 사용
 monitoringNamespace: ""
 
 # Kiali - Service Mesh Dashboard
+# Ambient 모드 지원을 위해 Kiali 2.x 필요
 kiali:
   enabled: true
   image:
     repository: quay.io/kiali/kiali
-    tag: v1.77
+    tag: v2.4  # Ambient 모드 지원을 위해 Kiali 2.x 사용
   service:
     type: ClusterIP
     port: 20001

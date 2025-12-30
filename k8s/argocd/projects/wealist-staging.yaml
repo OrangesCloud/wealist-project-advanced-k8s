@@ -12,7 +12,7 @@ spec:
   # 허용된 소스 레포지토리
   sourceRepos:
     - "https://github.com/OrangesCloud/wealist-project-advanced-k8s.git"
-    - "https://github.com/212clab/wealist-project-advanced-k8s-forked.git"
+    - "https://github.com/OrangesCloud/wealist-project-advanced-k8s.git"
 
   # 허용된 배포 대상
   destinations:

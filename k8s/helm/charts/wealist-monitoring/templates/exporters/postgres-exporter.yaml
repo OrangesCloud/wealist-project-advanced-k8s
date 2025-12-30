@@ -45,7 +45,10 @@ spec:
                   name: wealist-shared-secret
                   key: DB_HOST
             - name: DATA_SOURCE_USER
-              value: "{{ .Values.postgresExporter.config.user }}"
+              valueFrom:
+                secretKeyRef:
+                  name: wealist-shared-secret
+                  key: DB_USER
             - name: DATA_SOURCE_PASS
               valueFrom:
                 secretKeyRef:

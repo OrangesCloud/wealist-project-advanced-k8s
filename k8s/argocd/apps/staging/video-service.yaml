@@ -8,8 +8,8 @@ metadata:
 spec:
   project: wealist-staging
   source:
-    repoURL: https://github.com/212clab/wealist-project-advanced-k8s-forked.git
-    targetRevision: argo-develop
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-staging
     path: k8s/helm/charts/video-service
     helm:
       valueFiles:
@@ -32,6 +32,8 @@ spec:
         - name: shared.config.REDIS_HOST
           value: "172.17.0.1"
         - name: config.DB_NAME
+          value: "wealist"
+        - name: config.DB_USER
           value: "wealist"
   destination:
     server: https://kubernetes.default.svc

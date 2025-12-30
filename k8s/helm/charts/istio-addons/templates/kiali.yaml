@@ -13,8 +13,9 @@ data:
     auth:
       strategy: {{ .Values.kiali.auth.strategy }}
     deployment:
-      accessible_namespaces:
-      - '**'
+      cluster_wide_access: true
+    # Istio Ambient 모드 설정
+    istio_namespace: {{ .Values.namespace }}
     # Kubernetes Gateway API 설정 (Istio Ambient 모드용)
     kubernetes:
       gateway_api_classes:
@@ -22,6 +23,11 @@ data:
           name: Istio Gateway
         - class_name: istio-waypoint
           name: Istio Waypoint
+    # Ambient 모드 telemetry 소스 설정
+    kiali_feature_flags:
+      clustering:
+        autodetect_secrets:
+          enabled: true
     external_services:
       prometheus:
         # wealist-monitoring의 Prometheus (cross-namespace, routePrefix 포함)
@@ -153,6 +159,7 @@ metadata:
   labels:
     {{- include "istio-addons.labels" . | nindent 4 }}
 rules:
+# Core API 리소스
 - apiGroups: [""]
   resources:
   - configmaps
@@ -167,6 +174,7 @@ rules:
   - services
   - replicationcontrollers
   verbs: ["get", "list", "watch", "create"]
+# Apps 리소스
 - apiGroups: ["extensions", "apps"]
   resources:
   - daemonsets
@@ -175,14 +183,39 @@ rules:
   - replicasets
   - statefulsets
   verbs: ["get", "list", "watch"]
+# Batch 리소스
 - apiGroups: ["batch"]
   resources:
   - cronjobs
   - jobs
   verbs: ["get", "list", "watch"]
-- apiGroups: ["networking.istio.io", "security.istio.io", "extensions.istio.io", "telemetry.istio.io", "gateway.networking.k8s.io"]
+# Istio 및 Gateway API 리소스
+- apiGroups: ["networking.istio.io", "security.istio.io", "extensions.istio.io", "telemetry.istio.io"]
   resources: ["*"]
   verbs: ["get", "list", "watch", "create", "delete", "patch"]
+# Gateway API 리소스 (Ambient 모드 waypoint 포함)
+- apiGroups: ["gateway.networking.k8s.io"]
+  resources:
+  - gateways
+  - gatewayclasses
+  - httproutes
+  - grpcroutes
+  - tcproutes
+  - tlsroutes
+  - udproutes
+  - referencegrants
+  verbs: ["get", "list", "watch", "create", "delete", "patch"]
+# Ambient 모드 - ztunnel 및 waypoint 관련 추가 권한
+- apiGroups: [""]
+  resources:
+  - pods/exec
+  verbs: ["create"]
+# 인증 관련
+- apiGroups: ["authentication.k8s.io"]
+  resources:
+  - tokenreviews
+  verbs: ["create"]
+# OpenShift 호환성 (선택적)
 - apiGroups: ["apps.openshift.io"]
   resources:
   - deploymentconfigs
@@ -195,10 +228,6 @@ rules:
   resources:
   - routes
   verbs: ["get"]
-- apiGroups: ["authentication.k8s.io"]
-  resources:
-  - tokenreviews
-  verbs: ["create"]
 ---
 # Kiali ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
