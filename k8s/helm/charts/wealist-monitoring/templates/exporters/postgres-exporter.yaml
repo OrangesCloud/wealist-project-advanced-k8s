@@ -48,7 +48,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: wealist-shared-secret
-                  key: DB_USER
+                  key: DB_USERNAME
             - name: DATA_SOURCE_PASS
               valueFrom:
                 secretKeyRef:

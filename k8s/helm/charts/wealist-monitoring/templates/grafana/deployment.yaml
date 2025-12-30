@@ -10,6 +10,9 @@ metadata:
     app.kubernetes.io/component: monitoring
 spec:
   replicas: {{ .Values.grafana.replicas }}
+  # Recreate strategy required for PVC-based deployments to avoid lock conflicts
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: grafana
