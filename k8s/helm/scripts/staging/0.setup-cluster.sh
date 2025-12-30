@@ -89,10 +89,16 @@ elif [ -f "./istio-${ISTIO_VERSION}/bin/istioctl" ]; then
     ISTIOCTL="./istio-${ISTIO_VERSION}/bin/istioctl"
     echo "✅ 로컬 istioctl 사용: ${ISTIOCTL}"
 else
-    echo "⚠️  istioctl이 설치되어 있지 않습니다."
-    echo "   다음 명령어로 설치하세요:"
-    echo "   curl -L https://istio.io/downloadIstio | ISTIO_VERSION=${ISTIO_VERSION} sh -"
-    exit 1
+    echo "⚠️  istioctl이 설치되어 있지 않습니다. 자동 설치 중..."
+    echo ""
+    curl -L https://istio.io/downloadIstio | ISTIO_VERSION=${ISTIO_VERSION} sh -
+    ISTIOCTL="./istio-${ISTIO_VERSION}/bin/istioctl"
+    if [ -f "${ISTIOCTL}" ]; then
+        echo "✅ istioctl 설치 완료: ${ISTIOCTL}"
+    else
+        echo "❌ istioctl 설치 실패"
+        exit 1
+    fi
 fi
 
 # Istio Ambient 프로필 설치
@@ -219,22 +225,95 @@ else
     exit 1
 fi
 
-# 8-1. wealist-shared-secret 생성 (로컬 Kind 환경용)
-echo "🔐 wealist-shared-secret 생성 중..."
-kubectl create secret generic wealist-shared-secret \
-    --from-literal=DB_PASSWORD=postgres \
-    --from-literal=REDIS_PASSWORD="" \
-    --from-literal=S3_ACCESS_KEY=minioadmin \
-    --from-literal=S3_SECRET_KEY=minioadmin \
-    --from-literal=INTERNAL_API_KEY=internal-key-staging \
-    --from-literal=JWT_SECRET=staging-jwt-secret-change-in-production \
-    --from-literal=GOOGLE_CLIENT_ID=placeholder-client-id.apps.googleusercontent.com \
-    --from-literal=GOOGLE_CLIENT_SECRET=placeholder-client-secret \
-    --from-literal=LIVEKIT_API_KEY=devkey \
-    --from-literal=LIVEKIT_API_SECRET=devsecret \
-    -n ${NAMESPACE} \
-    --dry-run=client -o yaml | kubectl apply -f -
-echo "✅ wealist-shared-secret 생성 완료"
+# 8-1. External Secrets Operator (ESO) 설치 및 설정
+echo "🔐 External Secrets Operator (ESO) 설치 중..."
+
+# external-secrets 네임스페이스 생성
+kubectl create namespace external-secrets 2>/dev/null || true
+
+# ESO Helm 레포 추가 및 설치
+helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null || true
+helm repo update
+
+# ESO 설치 (이미 있으면 업그레이드)
+helm upgrade --install external-secrets external-secrets/external-secrets \
+    --namespace external-secrets \
+    --set installCRDs=true \
+    --wait --timeout 5m
+echo "✅ External Secrets Operator 설치 완료"
+
+# CRD가 준비될 때까지 대기
+echo "⏳ ESO CRDs 준비 대기 중..."
+sleep 5
+kubectl wait --for=condition=established --timeout=60s crd/clustersecretstores.external-secrets.io 2>/dev/null || true
+kubectl wait --for=condition=established --timeout=60s crd/externalsecrets.external-secrets.io 2>/dev/null || true
+echo "✅ ESO CRDs 준비 완료"
+
+# 8-2. AWS 자격증명 Secret 생성 (ESO가 AWS Secrets Manager 접근용)
+echo "🔐 AWS 자격증명 Secret 생성 중..."
+
+# AWS 자격증명 가져오기 (환경변수 → AWS CLI → CLI 입력 순서)
+AWS_ACCESS_KEY="${AWS_ACCESS_KEY_ID:-}"
+AWS_SECRET_KEY="${AWS_SECRET_ACCESS_KEY:-}"
+
+# 환경변수 없으면 AWS CLI 설정에서 가져오기
+if [ -z "$AWS_ACCESS_KEY" ] || [ -z "$AWS_SECRET_KEY" ]; then
+    echo "  → 환경변수에서 AWS 자격증명을 찾을 수 없어 AWS CLI에서 가져옵니다..."
+    AWS_ACCESS_KEY=$(aws configure get aws_access_key_id 2>/dev/null || echo "")
+    AWS_SECRET_KEY=$(aws configure get aws_secret_access_key 2>/dev/null || echo "")
+fi
+
+# 여전히 없으면 CLI로 입력받기
+if [ -z "$AWS_ACCESS_KEY" ] || [ -z "$AWS_SECRET_KEY" ]; then
+    echo ""
+    echo "  AWS 자격증명이 필요합니다. (ESO가 AWS Secrets Manager 접근용)"
+    echo "  AWS Access Key와 Secret Key를 입력하세요."
+    echo "  (건너뛰려면 Enter를 누르세요)"
+    echo ""
+    read -p "  AWS Access Key ID: " AWS_ACCESS_KEY
+    if [ -n "$AWS_ACCESS_KEY" ]; then
+        read -sp "  AWS Secret Access Key: " AWS_SECRET_KEY
+        echo ""
+    fi
+fi
+
+if [ -z "$AWS_ACCESS_KEY" ] || [ -z "$AWS_SECRET_KEY" ]; then
+    echo ""
+    echo "⚠️  AWS 자격증명이 설정되지 않았습니다."
+    echo "   ESO 없이 진행합니다. 나중에 다음 명령어로 설정할 수 있습니다:"
+    echo ""
+    echo "   make eso-setup-aws"
+    echo "   make eso-apply-staging"
+    echo ""
+else
+    # AWS 자격증명 Secret 생성
+    kubectl delete secret aws-credentials -n external-secrets 2>/dev/null || true
+    kubectl create secret generic aws-credentials \
+        --from-literal=access-key="${AWS_ACCESS_KEY}" \
+        --from-literal=secret-access-key="${AWS_SECRET_KEY}" \
+        -n external-secrets
+    echo "✅ AWS 자격증명 Secret 생성 완료"
+
+    # 8-3. ClusterSecretStore 적용
+    echo "🔐 ClusterSecretStore 적용 중..."
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    kubectl apply -f "${SCRIPT_DIR}/../../../argocd/base/external-secrets/staging/cluster-secret-store-staging.yaml"
+    echo "✅ ClusterSecretStore 적용 완료"
+
+    # 8-4. ExternalSecret 적용 (wealist-shared-secret 자동 생성)
+    echo "🔐 ExternalSecret 적용 중 (wealist-shared-secret 자동 생성)..."
+    # 기존 수동 생성 secret 삭제
+    kubectl delete secret wealist-shared-secret -n ${NAMESPACE} 2>/dev/null || true
+    kubectl apply -f "${SCRIPT_DIR}/../../../argocd/base/external-secrets/staging/external-secret-shared.yaml"
+    echo "✅ ExternalSecret 적용 완료"
+
+    # ESO sync 상태 확인
+    echo "⏳ ExternalSecret sync 대기 중..."
+    sleep 5
+    kubectl get externalsecret wealist-shared-secret -n ${NAMESPACE} 2>/dev/null || echo "  (ArgoCD가 나중에 생성)"
+fi
+
+echo "✅ ESO 설정 완료"
 
 # 9. 호스트 PostgreSQL/Redis 설정 (Kind 네트워크 허용)
 echo "🔐 호스트 PostgreSQL 설정 중 (Kind 네트워크 허용)..."
@@ -304,12 +383,12 @@ if [ "$(uname)" = "Darwin" ]; then
     DB_HOST="host.docker.internal"
     echo "  🖥️  macOS 감지 → DB_HOST: host.docker.internal"
 elif grep -qi microsoft /proc/version 2>/dev/null; then
-    DB_HOST=$(hostname -I | awk '{print $1}')
-    echo "  🖥️  WSL 감지 → DB_HOST: ${DB_HOST} (WSL IP)"
-    echo "  ⚠️  WSL IP는 재부팅 시 변경될 수 있습니다."
+    # WSL2: Docker bridge gateway IP 사용 (Kind 노드에서 호스트 접근용)
+    DB_HOST=$(docker network inspect bridge -f '{{range .IPAM.Config}}{{.Gateway}}{{end}}' 2>/dev/null || echo "172.17.0.1")
+    echo "  🖥️  WSL 감지 → DB_HOST: ${DB_HOST} (Docker bridge gateway)"
 else
-    DB_HOST="172.18.0.1"
-    echo "  🖥️  Linux 감지 → DB_HOST: 172.18.0.1"
+    DB_HOST="172.17.0.1"
+    echo "  🖥️  Linux 감지 → DB_HOST: 172.17.0.1 (Docker bridge gateway)"
 fi
 
 # staging.yaml에 DB_HOST 동적 업데이트
@@ -320,11 +399,15 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     sed -i '' "s/POSTGRES_HOST: .*/POSTGRES_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
     sed -i '' "s/REDIS_HOST: .*/REDIS_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
     sed -i '' "s/SPRING_REDIS_HOST: .*/SPRING_REDIS_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    # postgres/redis external host 업데이트
+    sed -i '' "s/^    host: .*/    host: \"${DB_HOST}\"/" "${STAGING_YAML}"
 else
     sed -i "s/DB_HOST: .*/DB_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
     sed -i "s/POSTGRES_HOST: .*/POSTGRES_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
     sed -i "s/REDIS_HOST: .*/REDIS_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
     sed -i "s/SPRING_REDIS_HOST: .*/SPRING_REDIS_HOST: \"${DB_HOST}\"/" "${STAGING_YAML}"
+    # postgres/redis external host 업데이트
+    sed -i "s/^    host: .*/    host: \"${DB_HOST}\"/" "${STAGING_YAML}"
 fi
 echo "✅ DB_HOST 설정 완료"
 

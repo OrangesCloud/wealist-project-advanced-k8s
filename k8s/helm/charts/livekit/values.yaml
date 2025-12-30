@@ -1,0 +1,25 @@
+# LiveKit configuration
+replicaCount: 1
+
+image:
+  repository: livekit/livekit-server
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 7880
+  rtcPort: 7881
+
+config:
+  # Keys are set via shared secret
+  apiKey: ""
+  apiSecret: ""
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"

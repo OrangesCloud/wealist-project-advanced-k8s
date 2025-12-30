@@ -98,4 +98,5 @@ referenceGrant:
   allowedNamespaces:
     - wealist-localhost
     - wealist-dev
+    - wealist-staging
     - wealist-prod

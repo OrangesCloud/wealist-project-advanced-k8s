@@ -297,6 +297,102 @@ jobs:
           echo "**Tag:** ${{ steps.tags.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
           echo "**Platforms:** linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
 
+      - name: List recent images and send Discord notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_CI_URL }}
+        run: |
+          SERVICE="${{ matrix.service }}"
+          ENV="${{ needs.detect-changes.outputs.environment }}"
+          REPO_NAME="${{ steps.ecr-repo.outputs.name }}"
+          NEW_TAG="${{ steps.tags.outputs.tag }}"
+          
+          echo "📦 Fetching recent images for ${REPO_NAME}..."
+          
+          # ECR에서 최근 이미지 목록 가져오기 (태그가 '-'가 아닌 것만, 최대 5개)
+          RECENT_IMAGES=$(aws ecr describe-images \
+            --repository-name "${REPO_NAME}" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'sort_by(imageDetails,& imagePushedAt)[-10:]' \
+            --output json | \
+            jq -r '.[] | select(.imageTags != null and (.imageTags | length > 0) and (.imageTags[0] != "-")) | 
+                   {tag: .imageTags[0], pushed: .imagePushedAt, size: .imageSizeInBytes} | 
+                   "\(.tag) | \(.pushed) | \((.size / 1024 / 1024 | floor))MB"' | \
+            tail -5)
+          
+          # 이미지 개수 확인
+          IMAGE_COUNT=$(echo "$RECENT_IMAGES" | wc -l)
+          if [ -z "$RECENT_IMAGES" ] || [ "$IMAGE_COUNT" -eq 0 ]; then
+            RECENT_IMAGES="No valid images found"
+            IMAGE_COUNT=0
+          fi
+          
+          echo "Found ${IMAGE_COUNT} recent images:"
+          echo "$RECENT_IMAGES"
+          
+          # Discord 알림 전송
+          if [ -n "$DISCORD_WEBHOOK" ]; then
+            # 이미지 목록을 Discord 형식으로 변환
+            IMAGES_FORMATTED=""
+            if [ "$IMAGE_COUNT" -gt 0 ]; then
+              IMAGES_FORMATTED=$(echo "$RECENT_IMAGES" | while IFS='|' read -r tag pushed size; do
+                tag=$(echo "$tag" | xargs)  # trim whitespace
+                pushed=$(echo "$pushed" | xargs)
+                size=$(echo "$size" | xargs)
+                
+                # 새로 빌드된 이미지는 ✨ 표시
+                if [ "$tag" = "$NEW_TAG" ]; then
+                  echo "✨ \`$tag\` - $pushed ($size)"
+                else
+                  echo "📦 \`$tag\` - $pushed ($size)"
+                fi
+              done | head -5)
+            else
+              IMAGES_FORMATTED="No valid images found"
+            fi
+            
+            # 환경별 이모지
+            ENV_EMOJI="🔧"
+            if [ "$ENV" = "prod" ]; then
+              ENV_EMOJI="🚀"
+            fi
+            
+            curl -H "Content-Type: application/json" \
+                 -X POST \
+                 -d "{
+                   \"embeds\": [{
+                     \"title\": \"${ENV_EMOJI} Image Build Complete\",
+                     \"description\": \"**Service**: \`${SERVICE}\`\\n**Environment**: \`${ENV}\`\\n**New Tag**: \`${NEW_TAG}\`\",
+                     \"color\": 3447003,
+                     \"fields\": [
+                       {
+                         \"name\": \"📦 Recent Images (Latest 5)\",
+                         \"value\": \"${IMAGES_FORMATTED}\",
+                         \"inline\": false
+                       },
+                       {
+                         \"name\": \"🔗 ECR Repository\",
+                         \"value\": \"\`${REPO_NAME}\`\",
+                         \"inline\": true
+                       },
+                       {
+                         \"name\": \"📊 Total Images\",
+                         \"value\": \"${IMAGE_COUNT} available\",
+                         \"inline\": true
+                       }
+                     ],
+                     \"footer\": {
+                       \"text\": \"GitHub Actions • Build #${{ github.run_number }}\"
+                     },
+                     \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
+                   }]
+                 }" \
+                 "$DISCORD_WEBHOOK"
+            
+            echo "✅ Discord notification sent for ${SERVICE}"
+          else
+            echo "⚠️ Discord webhook not configured (DISCORD_WEBHOOK_CI_URL secret missing)"
+          fi
+
   update-gitops-manifests:
     needs: [detect-changes, build-and-push]
     if: |
@@ -454,3 +550,84 @@ jobs:
           echo "**Image Tag:** ${NEW_TAG}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**ArgoCD will automatically sync these changes.**" >> $GITHUB_STEP_SUMMARY
+
+  # 전체 빌드 완료 알림
+  build-complete-notification:
+    needs: [detect-changes, build-and-push]
+    if: always() && needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != ''
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Send build completion summary to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_CI_URL }}
+        run: |
+          ENV="${{ needs.detect-changes.outputs.environment }}"
+          SERVICES='${{ needs.detect-changes.outputs.services }}'
+          BUILD_STATUS="${{ needs.build-and-push.result }}"
+          
+          # 환경별 설정
+          if [ "$ENV" = "prod" ]; then
+            ENV_EMOJI="🚀"
+            ENV_COLOR=15158332  # Red for production
+          else
+            ENV_EMOJI="🔧"
+            ENV_COLOR=3447003   # Blue for dev
+          fi
+          
+          # 빌드 상태별 설정
+          if [ "$BUILD_STATUS" = "success" ]; then
+            STATUS_EMOJI="✅"
+            STATUS_TEXT="Build Successful"
+            STATUS_COLOR=3066993  # Green
+          elif [ "$BUILD_STATUS" = "failure" ]; then
+            STATUS_EMOJI="❌"
+            STATUS_TEXT="Build Failed"
+            STATUS_COLOR=15158332  # Red
+          else
+            STATUS_EMOJI="⚠️"
+            STATUS_TEXT="Build Completed with Issues"
+            STATUS_COLOR=16776960  # Yellow
+          fi
+          
+          # 서비스 목록 포맷팅
+          SERVICES_LIST=$(echo "$SERVICES" | jq -r '.[]' | sed 's/^/• `/' | sed 's/$/`/' | tr '\n' '\n')
+          SERVICE_COUNT=$(echo "$SERVICES" | jq -r '. | length')
+          
+          if [ -n "$DISCORD_WEBHOOK" ]; then
+            curl -H "Content-Type: application/json" \
+                 -X POST \
+                 -d "{
+                   \"embeds\": [{
+                     \"title\": \"${STATUS_EMOJI} ${STATUS_TEXT}\",
+                     \"description\": \"**Environment**: ${ENV_EMOJI} \`${ENV}\`\\n**Build**: #${{ github.run_number }}\\n**Trigger**: ${{ github.event_name }}\",
+                     \"color\": ${STATUS_COLOR},
+                     \"fields\": [
+                       {
+                         \"name\": \"📦 Built Services (${SERVICE_COUNT})\",
+                         \"value\": \"${SERVICES_LIST}\",
+                         \"inline\": false
+                       },
+                       {
+                         \"name\": \"👤 Triggered by\",
+                         \"value\": \"${{ github.actor }}\",
+                         \"inline\": true
+                       },
+                       {
+                         \"name\": \"🌿 Branch\",
+                         \"value\": \"\`${{ github.ref_name }}\`\",
+                         \"inline\": true
+                       }
+                     ],
+                     \"footer\": {
+                       \"text\": \"GitHub Actions • wealist-project-advanced-k8s\"
+                     },
+                     \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
+                   }]
+                 }" \
+                 "$DISCORD_WEBHOOK"
+            
+            echo "✅ Build completion notification sent to Discord"
+          else
+            echo "⚠️ Discord webhook not configured"
+          fi

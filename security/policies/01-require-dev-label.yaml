@@ -1,0 +1,26 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-dev-label-key
+  annotations:
+    policies.kyverno.io/title: Require 'dev' Label
+    policies.kyverno.io/severity: medium
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-env-label
+      match:
+        any:
+          - resources:
+              kinds:
+                # [중요] 'Deployment'를 검사한다고 하셨으므로 대상을 Deployment로 지정
+                - Deployment
+              namespaces:
+                - wealist-prod
+      validate:
+        message: "Deployment의 라벨에는 env가 포함되어야 하며, 값은 dev여야 합니다."
+        pattern:
+          metadata:
+            labels:
+              env: "dev"

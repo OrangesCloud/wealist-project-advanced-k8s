@@ -97,7 +97,14 @@ resource "kubernetes_manifest" "argocd_app_external_secrets" {
         targetRevision = "1.2.0"  # K8s 1.34 호환, v1beta1 API 계속 지원
         helm = {
           valuesObject = {
+            # CRDs를 Helm으로 관리 (conversion webhook 비활성화됨)
+            # ESO 1.2.0+에서 crds.conversion.enabled는 기본 false
             installCRDs = true
+            crds = {
+              conversion = {
+                enabled = false  # v1beta1 → v1 conversion webhook 비활성화
+              }
+            }
             serviceAccount = {
               create = true
               name   = "external-secrets"
@@ -114,7 +121,8 @@ resource "kubernetes_manifest" "argocd_app_external_secrets" {
           prune    = true
           selfHeal = true
         }
-        syncOptions = ["CreateNamespace=true", "ServerSideApply=true"]
+        # Replace=true: CRD 업그레이드 시 기존 리소스 강제 교체 (v1beta1 → v1)
+        syncOptions = ["CreateNamespace=true", "ServerSideApply=true", "Replace=true"]
       }
     }
   }
@@ -327,6 +335,14 @@ resource "kubernetes_manifest" "argocd_app_metrics_server" {
         }
         syncOptions = ["ServerSideApply=true"]
       }
+      # APIService는 Kubernetes가 status를 자동 업데이트하므로 무시
+      ignoreDifferences = [
+        {
+          group = "apiregistration.k8s.io"
+          kind  = "APIService"
+          jsonPointers = ["/status"]
+        }
+      ]
     }
   }
 

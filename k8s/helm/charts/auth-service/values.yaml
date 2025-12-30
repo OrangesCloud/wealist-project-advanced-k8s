@@ -92,6 +92,17 @@ healthCheck:
 # -----------------------------------------------------------------------------
 # Resource Management
 # -----------------------------------------------------------------------------
+# Spring Boot는 Go 서비스보다 메모리가 많이 필요함
+# javaResources가 설정되면 resources 대신 사용됨 (deployment.yaml 참조)
+javaResources:
+  requests:
+    memory: "384Mi"
+    cpu: "100m"
+  limits:
+    memory: "768Mi"
+    cpu: "500m"
+
+# 기본 resources (javaResources가 없을 때 fallback)
 resources:
   requests:
     memory: "512Mi"

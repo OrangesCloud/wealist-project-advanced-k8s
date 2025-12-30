@@ -45,6 +45,14 @@ securityContext:
   readOnlyRootFilesystem: false
 
 # -----------------------------------------------------------------------------
+# External Secrets Operator (ESO)
+# -----------------------------------------------------------------------------
+# ESO가 AWS Secrets Manager에서 wealist-shared-secret을 자동 생성
+# Helm chart에서 secret 생성을 건너뜀
+externalSecrets:
+  enabled: true
+
+# -----------------------------------------------------------------------------
 # Features
 # -----------------------------------------------------------------------------
 autoscaling:
@@ -68,11 +76,11 @@ shared:
     LOG_LEVEL: "info"
     DB_AUTO_MIGRATE: "true"
     CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
-    # External Database Host (Docker Desktop: host.docker.internal, Linux: 172.18.0.1)
-    DB_HOST: "host.docker.internal"
-    POSTGRES_HOST: "host.docker.internal"
-    REDIS_HOST: "host.docker.internal"
-    SPRING_REDIS_HOST: "host.docker.internal"
+    # External Database Host (WSL/Kind: 172.17.0.1 Docker bridge gateway)
+    DB_HOST: "172.17.0.1"
+    POSTGRES_HOST: "172.17.0.1"
+    REDIS_HOST: "172.17.0.1"
+    SPRING_REDIS_HOST: "172.17.0.1"
     # S3/MinIO Configuration
     S3_ENDPOINT: "http://minio:9000"
     S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/api/minio"
@@ -95,11 +103,15 @@ postgres:
   enabled: false
   external:
     enabled: true
+    host: "172.17.0.1"
+    port: 5432
 
 redis:
   enabled: false
   external:
     enabled: true
+    host: "172.17.0.1"
+    port: 6379
 
 # -----------------------------------------------------------------------------
 # MinIO (S3 Compatible Object Storage)
@@ -146,6 +158,8 @@ istio:
     hosts:
       - "dev.wealist.co.kr"
       - "api.dev.wealist.co.kr"
+      - "localhost"
+      - "*"  # Kind 로컬 접근용
     frontend:
       enabled: false
     minio:
@@ -264,6 +278,11 @@ loki:
   image:
     repository: grafana/loki
     tag: "2.9.2"
+  persistence:
+    enabled: true
+    hostPath:
+      enabled: true
+      path: /data/loki
 
 promtail:
   enabled: true
@@ -276,6 +295,11 @@ grafana:
   image:
     repository: grafana/grafana
     tag: "10.2.2"
+  persistence:
+    enabled: true
+    hostPath:
+      enabled: true
+      path: /data/grafana
   config:
     allowSignUp: false
     rootUrl: "https://dev.wealist.co.kr/api/monitoring/grafana"
@@ -290,7 +314,7 @@ postgresExporter:
     repository: prometheuscommunity/postgres-exporter
     tag: "v0.15.0"
   config:
-    host: "host.docker.internal"
+    host: "172.17.0.1"
     port: 5432
 
 redisExporter:
@@ -299,5 +323,34 @@ redisExporter:
     repository: oliver006/redis_exporter
     tag: "v1.55.0"
   config:
-    host: "host.docker.internal"
+    host: "172.17.0.1"
     port: 6379
+
+# =============================================================================
+# Service-specific Database Configuration
+# =============================================================================
+# Staging: 모든 서비스가 공통 DB 사용 (wealist)
+# 호스트 PostgreSQL에 wealist DB가 있어야 함
+board-service:
+  config:
+    DB_NAME: "wealist"
+
+user-service:
+  config:
+    DB_NAME: "wealist"
+
+chat-service:
+  config:
+    DB_NAME: "wealist"
+
+noti-service:
+  config:
+    DB_NAME: "wealist"
+
+storage-service:
+  config:
+    DB_NAME: "wealist"
+
+video-service:
+  config:
+    DB_NAME: "wealist"
