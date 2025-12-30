@@ -43,5 +43,5 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNameSpace=true
+      - CreateNamespace=true
       - ServerSideApply=true
