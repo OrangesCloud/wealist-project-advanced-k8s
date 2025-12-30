@@ -8,7 +8,7 @@ metadata:
 spec:
   project: wealist-dev
   source:
-    repoURL: https://github.com/212clab/wealist-project-advanced-k8s-forked.git
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
     targetRevision: k8s-deploy-dev
     path: k8s/helm/charts/auth-service
     helm:

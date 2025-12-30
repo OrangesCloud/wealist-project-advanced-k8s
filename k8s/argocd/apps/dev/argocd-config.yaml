@@ -27,11 +27,11 @@ spec:
   project: default
   sources:
     # Discord 알림 설정
-    - repoURL: https://github.com/212clab/wealist-project-advanced-k8s-forked.git
+    - repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
       targetRevision: k8s-deploy-dev
       path: k8s/argocd/notifications-dev
     # ReferenceGrant (HTTPRoute → argocd 네임스페이스 접근 허용)
-    - repoURL: https://github.com/212clab/wealist-project-advanced-k8s-forked.git
+    - repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
       targetRevision: k8s-deploy-dev
       path: k8s/argocd/referencegrants
   destination:
