@@ -29,9 +29,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"noti-service/internal/config"
-	"noti-service/internal/database"
-	"noti-service/internal/router"
 	"os"
 	"os/signal"
 	"syscall"
@@ -39,8 +36,13 @@ import (
 
 	_ "noti-service/docs" // Swagger docs import
 
+	"github.com/OrangesCloud/wealist-advanced-go-pkg/otel"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"noti-service/internal/config"
+	"noti-service/internal/database"
+	"noti-service/internal/router"
 )
 
 func main() {
@@ -54,6 +56,28 @@ func main() {
 	// Initialize logger
 	logger := initLogger(cfg.Server.Env, cfg.Server.LogLevel)
 	defer func() { _ = logger.Sync() }()
+
+	// Initialize OpenTelemetry
+	ctx := context.Background()
+	otelCfg := otel.DefaultConfig("noti-service")
+	otelShutdown, err := otel.InitProvider(ctx, otelCfg)
+	if err != nil {
+		logger.Warn("Failed to initialize OpenTelemetry, continuing without tracing",
+			zap.Error(err),
+		)
+	} else {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := otelShutdown(shutdownCtx); err != nil {
+				logger.Error("Failed to shutdown OpenTelemetry", zap.Error(err))
+			}
+		}()
+		logger.Info("OpenTelemetry initialized",
+			zap.String("service.name", otelCfg.ServiceName),
+			zap.String("otel.endpoint", otelCfg.OTLPEndpoint),
+		)
+	}
 
 	logger.Info("Starting notification service",
 		zap.String("env", cfg.Server.Env),
@@ -79,7 +103,13 @@ func main() {
 	}
 
 	// Setup router
-	r := router.Setup(cfg, db, redisClient, logger)
+	r := router.Setup(router.RouterConfig{
+		Config:      cfg,
+		DB:          db,
+		RedisClient: redisClient,
+		Logger:      logger,
+		ServiceName: "noti-service",
+	})
 
 	// Create HTTP server
 	srv := &http.Server{

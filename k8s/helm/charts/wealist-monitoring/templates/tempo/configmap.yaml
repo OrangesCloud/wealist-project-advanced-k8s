@@ -1,0 +1,75 @@
+{{- if .Values.tempo.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tempo-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: tempo
+data:
+  tempo.yaml: |
+    # Tempo Configuration
+    # https://grafana.com/docs/tempo/latest/configuration/
+
+    server:
+      http_listen_port: {{ .Values.tempo.service.httpPort }}
+
+    # Distributor receives traces from clients
+    distributor:
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:{{ .Values.tempo.service.otlpGrpcPort }}
+            http:
+              endpoint: 0.0.0.0:{{ .Values.tempo.service.otlpHttpPort }}
+
+    # Ingester writes received traces to backend
+    ingester:
+      max_block_duration: 5m
+      max_block_bytes: 1_073_741_824  # 1GB
+      flush_check_period: 10s
+      trace_idle_period: 10s
+
+    # Compactor optimizes stored traces
+    compactor:
+      compaction:
+        block_retention: {{ .Values.tempo.config.retentionPeriod }}
+
+    # Storage backend
+    storage:
+      trace:
+        backend: {{ .Values.tempo.config.backend }}
+        {{- if eq .Values.tempo.config.backend "local" }}
+        local:
+          path: /var/tempo/traces
+        {{- end }}
+        {{- if .Values.tempo.config.s3.enabled }}
+        s3:
+          bucket: {{ .Values.tempo.config.s3.bucket }}
+          endpoint: s3.{{ .Values.tempo.config.s3.region }}.amazonaws.com
+          region: {{ .Values.tempo.config.s3.region }}
+        {{- end }}
+        wal:
+          path: /var/tempo/wal
+
+    # Querier finds traces
+    querier:
+      frontend_worker:
+        frontend_address: ""
+
+    # Query frontend
+    query_frontend:
+      search:
+        duration_slo: 5s
+        throughput_bytes_slo: 1.073741824e+09
+
+    # Metrics generator (optional)
+    metrics_generator:
+      registry:
+        external_labels:
+          source: tempo
+      storage:
+        path: /var/tempo/metrics
+        remote_write: []
+{{- end }}

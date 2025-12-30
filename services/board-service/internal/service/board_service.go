@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	commnotel "github.com/OrangesCloud/wealist-advanced-go-pkg/otel"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/datatypes"
@@ -71,16 +72,28 @@ func NewBoardService(
 	}
 }
 
+// log returns a trace-context aware logger
+func (s *boardServiceImpl) log(ctx context.Context) *zap.Logger {
+	return commnotel.WithTraceContext(ctx, s.logger)
+}
+
 // CreateBoard creates a new board
 func (s *boardServiceImpl) CreateBoard(ctx context.Context, req *dto.CreateBoardRequest) (*dto.BoardResponse, error) {
+	log := s.log(ctx)
+	log.Debug("CreateBoard service started",
+		zap.String("project.id", req.ProjectID.String()),
+		zap.String("board.title", req.Title))
+
 	// Extract user_id from context (set by auth middleware as uuid.UUID)
 	authorID, exists := ctx.Value("user_id").(uuid.UUID)
 	if !exists {
+		log.Warn("CreateBoard user ID not found in context")
 		return nil, response.NewAppError(response.ErrCodeUnauthorized, "User ID not found in context", "")
 	}
 
 	// Validate date range
 	if err := validateDateRange(req.StartDate, req.DueDate); err != nil {
+		log.Warn("CreateBoard date validation failed", zap.Error(err))
 		return nil, err
 	}
 
@@ -88,8 +101,10 @@ func (s *boardServiceImpl) CreateBoard(ctx context.Context, req *dto.CreateBoard
 	_, err := s.projectRepo.FindByID(ctx, req.ProjectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Warn("CreateBoard project not found", zap.String("project.id", req.ProjectID.String()))
 			return nil, response.NewAppError(response.ErrCodeNotFound, "Project not found", "")
 		}
+		log.Error("CreateBoard failed to verify project", zap.Error(err))
 		return nil, response.NewAppError(response.ErrCodeInternal, "Failed to verify project", err.Error())
 	}
 
@@ -212,27 +227,35 @@ func (s *boardServiceImpl) CreateBoard(ctx context.Context, req *dto.CreateBoard
 
 // GetBoard retrieves a board by ID with participants and comments
 func (s *boardServiceImpl) GetBoard(ctx context.Context, boardID uuid.UUID) (*dto.BoardDetailResponse, error) {
+	log := s.log(ctx)
+	log.Debug("GetBoard service started", zap.String("board.id", boardID.String()))
+
 	// Fetch board from repository
 	board, err := s.boardRepo.FindByID(ctx, boardID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Debug("GetBoard board not found", zap.String("board.id", boardID.String()))
 			return nil, response.NewAppError(response.ErrCodeNotFound, "Board not found", "")
 		}
+		log.Error("GetBoard failed to fetch board", zap.String("board.id", boardID.String()), zap.Error(err))
 		return nil, response.NewAppError(response.ErrCodeInternal, "Failed to fetch board", err.Error())
 	}
 
 	// Attachments 로드 (타입 변환 적용)
 	attachments, err := s.attachmentRepo.FindByEntityID(ctx, domain.EntityTypeBoard, board.ID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		s.logger.Error("Failed to fetch attachments for board", zap.String("board_id", board.ID.String()), zap.Error(err))
+		log.Error("GetBoard failed to fetch attachments", zap.String("board.id", board.ID.String()), zap.Error(err))
 		// Continue with graceful degradation
 	}
 	board.Attachments = toDomainAttachments(attachments)
 
 	// Convert IDs to values in customFields
 	if err := s.convertBoardCustomFieldsToValues(ctx, board); err != nil {
+		log.Error("GetBoard failed to convert custom fields", zap.String("board.id", boardID.String()), zap.Error(err))
 		return nil, response.NewAppError(response.ErrCodeInternal, "Failed to convert custom fields", err.Error())
 	}
+
+	log.Debug("GetBoard completed", zap.String("board.id", boardID.String()))
 
 	// Convert to detailed response DTO
 	return s.toBoardDetailResponse(board), nil
@@ -240,12 +263,17 @@ func (s *boardServiceImpl) GetBoard(ctx context.Context, boardID uuid.UUID) (*dt
 
 // GetBoardsByProject retrieves all boards for a project with optional filters
 func (s *boardServiceImpl) GetBoardsByProject(ctx context.Context, projectID uuid.UUID, filters *dto.BoardFilters) ([]*dto.BoardResponse, error) {
+	log := s.log(ctx)
+	log.Debug("GetBoardsByProject service started", zap.String("project.id", projectID.String()))
+
 	// Verify project exists
 	_, err := s.projectRepo.FindByID(ctx, projectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Debug("GetBoardsByProject project not found", zap.String("project.id", projectID.String()))
 			return nil, response.NewAppError(response.ErrCodeNotFound, "Project not found", "")
 		}
+		log.Error("GetBoardsByProject failed to verify project", zap.String("project.id", projectID.String()), zap.Error(err))
 		return nil, response.NewAppError(response.ErrCodeInternal, "Failed to verify project", err.Error())
 	}
 
@@ -258,6 +286,7 @@ func (s *boardServiceImpl) GetBoardsByProject(ctx context.Context, projectID uui
 	// Fetch boards from repository with filters
 	boards, err := s.boardRepo.FindByProjectID(ctx, projectID, filterParam)
 	if err != nil {
+		log.Error("GetBoardsByProject failed to fetch boards", zap.String("project.id", projectID.String()), zap.Error(err))
 		return nil, response.NewAppError(response.ErrCodeInternal, "Failed to fetch boards", err.Error())
 	}
 
@@ -265,15 +294,20 @@ func (s *boardServiceImpl) GetBoardsByProject(ctx context.Context, projectID uui
 	for _, board := range boards {
 		attachments, err := s.attachmentRepo.FindByEntityID(ctx, domain.EntityTypeBoard, board.ID)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			s.logger.Error("Failed to fetch attachments for board list", zap.String("board_id", board.ID.String()), zap.Error(err))
+			log.Error("GetBoardsByProject failed to fetch attachments", zap.String("board.id", board.ID.String()), zap.Error(err))
 		}
 		board.Attachments = toDomainAttachments(attachments)
 	}
 
 	// Convert IDs to values in batch for all boards
 	if err := s.fieldOptionConverter.ConvertIDsToValuesBatch(ctx, boards); err != nil {
+		log.Error("GetBoardsByProject failed to convert custom fields", zap.String("project.id", projectID.String()), zap.Error(err))
 		return nil, response.NewAppError(response.ErrCodeInternal, "Failed to convert custom fields", err.Error())
 	}
+
+	log.Debug("GetBoardsByProject completed",
+		zap.String("project.id", projectID.String()),
+		zap.Int("board.count", len(boards)))
 
 	// Convert to response DTOs
 	responses := make([]*dto.BoardResponse, len(boards))
@@ -284,36 +318,46 @@ func (s *boardServiceImpl) GetBoardsByProject(ctx context.Context, projectID uui
 	return responses, nil
 }
 
-// UpdateBoard updates a board's attributes
+// DeleteBoard deletes a board and its associated attachments
 func (s *boardServiceImpl) DeleteBoard(ctx context.Context, boardID uuid.UUID) error {
+	log := s.log(ctx)
+	log.Debug("DeleteBoard service started", zap.String("board.id", boardID.String()))
+
 	// Verify board exists
 	_, err := s.boardRepo.FindByID(ctx, boardID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Debug("DeleteBoard board not found", zap.String("board.id", boardID.String()))
 			return response.NewAppError(response.ErrCodeNotFound, "Board not found", "")
 		}
+		log.Error("DeleteBoard failed to verify board", zap.String("board.id", boardID.String()), zap.Error(err))
 		return response.NewAppError(response.ErrCodeInternal, "Failed to verify board", err.Error())
 	}
 
 	// Find all attachments associated with this board
 	attachments, err := s.attachmentRepo.FindByEntityID(ctx, domain.EntityTypeBoard, boardID)
 	if err != nil {
-		s.logger.Warn("Failed to fetch attachments for board deletion",
-			zap.String("board_id", boardID.String()),
+		log.Warn("DeleteBoard failed to fetch attachments",
+			zap.String("board.id", boardID.String()),
 			zap.Error(err))
 		// Continue with board deletion even if attachment fetch fails
 	}
 
 	// Delete attachments from S3 and database
 	if len(attachments) > 0 {
+		log.Debug("DeleteBoard deleting attachments",
+			zap.String("board.id", boardID.String()),
+			zap.Int("attachment.count", len(attachments)))
 		s.deleteAttachmentsWithS3(ctx, attachments)
 	}
 
 	// Delete board
 	if err := s.boardRepo.Delete(ctx, boardID); err != nil {
+		log.Error("DeleteBoard failed to delete", zap.String("board.id", boardID.String()), zap.Error(err))
 		return response.NewAppError(response.ErrCodeInternal, "Failed to delete board", err.Error())
 	}
 
+	log.Info("Board deleted", zap.String("board.id", boardID.String()))
 	return nil
 }
 

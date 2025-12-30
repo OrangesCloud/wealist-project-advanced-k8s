@@ -152,6 +152,25 @@ shared:
     # Database Migration (default: disabled for safety)
     DB_AUTO_MIGRATE: "false"
 
+    # -------------------------------------------------------------------------
+    # OpenTelemetry Configuration (2025 Best Practice)
+    # -------------------------------------------------------------------------
+    # OTLP Exporter - 서비스에서 OTEL Collector로 traces 전송
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+
+    # Trace Sampler - 샘플링 비율 (parentbased_traceidratio 권장)
+    # - localhost/dev: 1.0 (100% 샘플링)
+    # - prod: 0.1 (10% 샘플링, 트래픽 많을수록 낮추기)
+    OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
+    OTEL_TRACES_SAMPLER_ARG: "1.0"
+
+    # Resource Attributes - 서비스 메타데이터
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=development"
+
+    # Propagators - W3C Trace Context 전파 (기본값, 명시적 설정)
+    OTEL_PROPAGATORS: "tracecontext,baggage"
+
   # ---------------------------------------------------------------------------
   # Shared Secrets (stored in K8s Secret, base64 encoded)
   # ---------------------------------------------------------------------------

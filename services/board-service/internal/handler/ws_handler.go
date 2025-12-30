@@ -25,14 +25,7 @@ const (
 	maxMessageSize = 512
 )
 
-func getLogger(c *gin.Context) *zap.Logger {
-	if logger, exists := c.Get("logger"); exists {
-		if log, ok := logger.(*zap.Logger); ok {
-			return log
-		}
-	}
-	return zap.NewNop()
-}
+// getLogger is defined in error_handler.go with trace context support
 
 type WSEvent struct {
 	Type    string      `json:"type"`

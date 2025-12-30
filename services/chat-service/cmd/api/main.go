@@ -21,9 +21,6 @@
 package main
 
 import (
-	"chat-service/internal/config"
-	"chat-service/internal/database"
-	"chat-service/internal/router"
 	"context"
 	"fmt"
 	"net/http"
@@ -34,8 +31,13 @@ import (
 
 	_ "chat-service/docs" // Swagger docs import
 
+	"github.com/OrangesCloud/wealist-advanced-go-pkg/otel"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"chat-service/internal/config"
+	"chat-service/internal/database"
+	"chat-service/internal/router"
 )
 
 func main() {
@@ -49,6 +51,28 @@ func main() {
 	// Initialize logger
 	logger := initLogger(cfg.Server.Env, cfg.Server.LogLevel)
 	defer func() { _ = logger.Sync() }()
+
+	// Initialize OpenTelemetry
+	ctx := context.Background()
+	otelCfg := otel.DefaultConfig("chat-service")
+	otelShutdown, err := otel.InitProvider(ctx, otelCfg)
+	if err != nil {
+		logger.Warn("Failed to initialize OpenTelemetry, continuing without tracing",
+			zap.Error(err),
+		)
+	} else {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := otelShutdown(shutdownCtx); err != nil {
+				logger.Error("Failed to shutdown OpenTelemetry", zap.Error(err))
+			}
+		}()
+		logger.Info("OpenTelemetry initialized",
+			zap.String("service.name", otelCfg.ServiceName),
+			zap.String("otel.endpoint", otelCfg.OTLPEndpoint),
+		)
+	}
 
 	logger.Info("Starting chat service",
 		zap.String("env", cfg.Server.Env),
@@ -80,6 +104,7 @@ func main() {
 		DB:          db,
 		RedisClient: redisClient,
 		Logger:      logger,
+		ServiceName: "chat-service",
 	})
 
 	// Create HTTP server

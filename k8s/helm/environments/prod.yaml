@@ -193,6 +193,9 @@ shared:
     # OAuth2 Redirect URLs
     OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "https://wealist.co.kr/oauth/callback"
+    # OpenTelemetry Configuration (Production - 10% sampling)
+    OTEL_TRACES_SAMPLER_ARG: "0.1"  # 10% 샘플링 (base.yaml 1.0 override)
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=production"
 
 # -----------------------------------------------------------------------------
 # Ingress (nginx - 비활성화, Istio Gateway 사용)
@@ -487,3 +490,59 @@ redisExporter:
   config:
     # host/password: ExternalSecret (wealist-shared-secret)에서 가져옴
     port: 6379
+
+# =============================================================================
+# OpenTelemetry 통합 (2025 Best Practice - Full OTEL Stack)
+# =============================================================================
+# 분산 추적(Traces) + 로그(Logs) + 메트릭(Metrics) 통합
+
+# OTEL Collector - 트레이스/메트릭 수집 게이트웨이
+otelCollector:
+  enabled: true
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.92.0"
+  replicas: 2  # Production HA
+  service:
+    otlpGrpcPort: 4317
+    otlpHttpPort: 4318
+    metricsPort: 8888
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  config:
+    batchTimeout: 5s
+    sendBatchSize: 1000
+    memoryLimitMiB: 400
+    spikeLimitMiB: 100
+
+# Tempo - 분산 추적 백엔드 (S3 저장)
+tempo:
+  enabled: true
+  image:
+    repository: grafana/tempo
+    tag: "2.3.1"
+  service:
+    httpPort: 3200
+    otlpGrpcPort: 4317
+    otlpHttpPort: 4318
+  persistence:
+    enabled: false  # S3 사용 시 로컬 PVC 불필요
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  config:
+    retentionPeriod: 168h  # 7 days
+    backend: s3
+    s3:
+      enabled: true
+      bucket: "wealist-prod-tempo-traces-290008131187"
+      region: "ap-northeast-2"
