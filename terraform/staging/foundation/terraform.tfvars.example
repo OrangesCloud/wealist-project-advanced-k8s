@@ -1,5 +1,5 @@
 # =============================================================================
-# Staging Secrets - terraform.tfvars 예시
+# Dev Secrets - terraform.tfvars 예시
 # =============================================================================
 # 이 파일을 terraform.tfvars로 복사하고 실제 값을 입력하세요.
 # cp terraform.tfvars.example terraform.tfvars

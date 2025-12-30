@@ -17,7 +17,14 @@ data:
   {{- end }}
 ---
 # =============================================================================
-# Dashboards V2 - Production-grade dashboards following 2025 best practices
+# Dashboards V2 - Role-based dashboards following 2025 best practices
+# =============================================================================
+# Structure:
+#   landing/     - System overview for all roles (starting point)
+#   developer/   - Developer-focused dashboards (API, latency, debugging)
+#   pm/          - PM/Planner dashboards (business metrics, SLO, usage)
+#   operations/  - Operations/SRE dashboards (incidents, errors, k8s)
+#   shared/      - Shared dashboards referenced by multiple roles
 # =============================================================================
 apiVersion: v1
 kind: ConfigMap
@@ -30,28 +37,28 @@ metadata:
     app.kubernetes.io/component: monitoring
     grafana_dashboard: "1"
 data:
-  # Overview dashboards
-  {{- range $path, $_ := .Files.Glob "dashboards-v2/overview/*.json" }}
+  # Landing dashboards - Entry points for all roles
+  {{- range $path, $_ := .Files.Glob "dashboards-v2/landing/*.json" }}
   {{ base $path }}: |
 {{ $files.Get $path | indent 4 }}
   {{- end }}
-  # SLO/SLI dashboards
-  {{- range $path, $_ := .Files.Glob "dashboards-v2/slo-sli/*.json" }}
+  # Developer dashboards - API performance, latency analysis, debugging
+  {{- range $path, $_ := .Files.Glob "dashboards-v2/developer/*.json" }}
   {{ base $path }}: |
 {{ $files.Get $path | indent 4 }}
   {{- end }}
-  # Performance dashboards
-  {{- range $path, $_ := .Files.Glob "dashboards-v2/performance/*.json" }}
+  # PM dashboards - Business metrics, SLO overview, usage analytics
+  {{- range $path, $_ := .Files.Glob "dashboards-v2/pm/*.json" }}
   {{ base $path }}: |
 {{ $files.Get $path | indent 4 }}
   {{- end }}
-  # On-Call dashboards
-  {{- range $path, $_ := .Files.Glob "dashboards-v2/oncall/*.json" }}
+  # Operations dashboards - Incidents, error budget, K8s cluster, DB/Redis
+  {{- range $path, $_ := .Files.Glob "dashboards-v2/operations/*.json" }}
   {{ base $path }}: |
 {{ $files.Get $path | indent 4 }}
   {{- end }}
-  # Infrastructure dashboards
-  {{- range $path, $_ := .Files.Glob "dashboards-v2/infrastructure/*.json" }}
+  # Shared dashboards - Common dashboards for all roles
+  {{- range $path, $_ := .Files.Glob "dashboards-v2/shared/*.json" }}
   {{ base $path }}: |
 {{ $files.Get $path | indent 4 }}
   {{- end }}

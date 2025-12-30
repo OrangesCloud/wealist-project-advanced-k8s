@@ -117,24 +117,8 @@ kubectl wait --namespace istio-system \
 
 echo "✅ Istio Ambient 설치 완료"
 
-# 4-1. Istio 관측성 애드온 설치 (Kiali, Jaeger)
-echo "⏳ Istio 관측성 애드온 설치 중 (Kiali, Jaeger)..."
-kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/addons/kiali.yaml 2>/dev/null || \
-    kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/kiali.yaml
-kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.24/samples/addons/jaeger.yaml 2>/dev/null || \
-    kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/jaeger.yaml
-
-# 4-2. Kiali/Jaeger subpath 설정
-echo "⏳ Kiali/Jaeger subpath 설정 중..."
-kubectl get configmap kiali -n istio-system -o yaml | \
-    sed 's|web_root: /kiali|web_root: /monitoring/kiali|g' | \
-    kubectl apply -f - 2>/dev/null || true
-
-kubectl set env deployment/jaeger -n istio-system QUERY_BASE_PATH=/monitoring/jaeger 2>/dev/null || true
-kubectl rollout restart deployment/kiali -n istio-system 2>/dev/null || true
-kubectl rollout restart deployment/jaeger -n istio-system 2>/dev/null || true
-
-echo "✅ Kiali, Jaeger 설치 완료"
+# NOTE: Kiali, Jaeger는 ArgoCD가 istio-addons 차트로 배포합니다.
+# 수동 설치하면 충돌이 발생하므로 여기서는 설치하지 않습니다.
 
 # 5. Istio Ingress Gateway 설치
 echo "⏳ Istio Ingress Gateway 설치 중..."

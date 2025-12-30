@@ -3,6 +3,7 @@
 > Kind 클러스터 기반 Staging 환경 (ArgoCD + ECR + Istio)
 
 ## 목차
+
 - [개요](#개요)
 - [명령어 요약](#명령어-요약)
 - [상세 사용법](#상세-사용법)
@@ -13,6 +14,7 @@
 ## 개요
 
 ### GitOps 구조
+
 ```
 argo-develop 브랜치 (Git)
         ↓ ArgoCD가 감시
@@ -22,6 +24,7 @@ Services, Infrastructure, Monitoring
 ```
 
 ### 핵심 개념
+
 - **Git = Source of Truth**: 모든 설정은 Git에 저장
 - **ArgoCD selfHeal**: 수동 변경해도 Git 상태로 자동 복원
 - **클러스터 삭제해도 복원 가능**: Git에서 다시 읽어서 재생성
@@ -30,14 +33,14 @@ Services, Infrastructure, Monitoring
 
 ## 명령어 요약
 
-| 명령어 | 용도 | 언제 사용? |
-|--------|------|-----------|
-| `make kind-staging-setup` | 전체 셋업 | 처음 환경 구축 |
-| `make kind-staging-reset` | 완전 리셋 | 심각한 문제, Kind 설정 변경 |
-| `make kind-staging-clean` | 클러스터 삭제만 | 임시 정리 |
-| `make argo-reset-apps` | ArgoCD 앱 리셋 | 앱 배포 이상 (가장 자주 사용) |
-| `make argo-status` | 상태 확인 | 현재 상태 확인 |
-| `make status ENV=staging` | Pod 상태 | 서비스 상태 확인 |
+| 명령어                    | 용도            | 언제 사용?                    |
+| ------------------------- | --------------- | ----------------------------- |
+| `make kind-staging-setup` | 전체 셋업       | 처음 환경 구축                |
+| `make kind-staging-reset` | 완전 리셋       | 심각한 문제, Kind 설정 변경   |
+| `make kind-staging-clean` | 클러스터 삭제만 | 임시 정리                     |
+| `make argo-reset-apps`    | ArgoCD 앱 리셋  | 앱 배포 이상 (가장 자주 사용) |
+| `make argo-status`        | 상태 확인       | 현재 상태 확인                |
+| `make status ENV=staging` | Pod 상태        | 서비스 상태 확인              |
 
 ---
 
@@ -50,6 +53,7 @@ make kind-staging-setup
 ```
 
 **수행 내용:**
+
 1. Kind 클러스터 생성 (3노드)
 2. Istio Ambient 모드 설치
 3. Gateway API + HTTPRoute 설정
@@ -68,11 +72,13 @@ make argo-reset-apps
 ```
 
 **사용 상황:**
+
 - Pod가 CrashLoopBackOff
 - ArgoCD 앱이 OutOfSync
 - Git 변경사항이 반영 안됨
 
 **동작:**
+
 1. 모든 ArgoCD Application 삭제
 2. Git에서 다시 읽어서 재생성
 3. 클러스터는 유지됨 (Istio, ArgoCD 그대로)
@@ -86,11 +92,13 @@ make kind-staging-reset
 ```
 
 **사용 상황:**
+
 - Kind 설정 변경 필요 (포트, 노드 수)
 - Istio/CNI 문제
 - 모든게 꼬여서 처음부터 시작하고 싶을 때
 
 **동작:**
+
 1. 확인 프롬프트 (y/N)
 2. Kind 클러스터 삭제
 3. 로컬 파일 변경 정리 (`git checkout -- .`)
@@ -105,6 +113,7 @@ make kind-staging-clean
 ```
 
 **사용 상황:**
+
 - 클러스터 임시 정리
 - 리소스 확보 필요
 - 나중에 다시 생성 예정
@@ -219,6 +228,7 @@ Kind 클러스터
 ```
 
 **작업 흐름:**
+
 ```bash
 # 1. 작업 브랜치에서 개발
 git checkout claude/argocd-auto-deploy-dev-tWRSt
@@ -238,15 +248,16 @@ git push origin argo-develop
 
 ## 접속 정보
 
-| 서비스 | URL |
-|--------|-----|
-| ArgoCD | http://localhost:8080/api/argo |
-| Grafana | http://localhost:8080/api/monitoring/grafana |
+| 서비스     | URL                                             |
+| ---------- | ----------------------------------------------- |
+| ArgoCD     | http://localhost:8080/api/argo                  |
+| Grafana    | http://localhost:8080/api/monitoring/grafana    |
 | Prometheus | http://localhost:8080/api/monitoring/prometheus |
-| Kiali | http://localhost:8080/api/monitoring/kiali |
-| Jaeger | http://localhost:8080/api/monitoring/jaeger |
+| Kiali      | http://localhost:8080/api/monitoring/kiali      |
+| Jaeger     | http://localhost:8080/api/monitoring/jaeger     |
 
 **ArgoCD 로그인:**
+
 ```bash
 # 비밀번호 확인
 kubectl -n argocd get secret argocd-initial-admin-secret \
@@ -261,3 +272,19 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 - [KIND_DEV_GUIDE.md](./KIND_DEV_GUIDE.md) - Dev 환경 가이드
 - [TROUBLESHOOTING-KIND-SETUP.md](./TROUBLESHOOTING-KIND-SETUP.md) - 문제 해결
 - [CONFIGURATION.md](./CONFIGURATION.md) - 설정 가이드
+
+# Discord Webhook URL 설정
+
+export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1455461844826325207/OdeRKNLVYzAMGoxH8mLggCc-BZ7ky5t8ScGE2gD388-bCkcTsnffNlhYG2gGmFpsfEY7"
+
+# 스크립트 실행
+
+./k8s/argocd/scripts/setup-discord-notifications-dev.sh
+
+# 또는 수동으로
+
+kubectl create secret generic argocd-notifications-secret \
+ --from-literal=discord-webhook-url="$DISCORD_WEBHOOK_URL" \
+ -n argocd --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl rollout restart deployment/argocd-notifications-controller -n argocd
