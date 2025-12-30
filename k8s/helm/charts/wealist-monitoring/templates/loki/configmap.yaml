@@ -5,7 +5,7 @@ metadata:
   name: loki-config
   namespace: {{ .Values.global.namespace }}
 data:
-  loki.yaml: |
+  loki-config.yaml: |
     auth_enabled: false
     server:
       http_listen_port: 3100
