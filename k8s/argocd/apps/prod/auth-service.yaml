@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/auth-service"
         - name: image.tag
-          value: "42-1d212ae"
+          value: "52-834fde6"
         - name: externalSecrets.enabled
           value: "true"
         - name: config.SPRING_DATA_REDIS_SSL_ENABLED
