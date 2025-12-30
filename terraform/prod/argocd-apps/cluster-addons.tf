@@ -97,9 +97,14 @@ resource "kubernetes_manifest" "argocd_app_external_secrets" {
         targetRevision = "1.2.0"  # K8s 1.34 호환, v1beta1 API 계속 지원
         helm = {
           valuesObject = {
-            # CRDs는 cert-controller가 webhook 설정을 주입하므로 ArgoCD에서 관리하지 않음
-            # ArgoCD가 원본 CRD를 적용하면 webhook 설정이 충돌함
-            installCRDs = false
+            # CRDs를 Helm으로 관리 (conversion webhook 비활성화됨)
+            # ESO 1.2.0+에서 crds.conversion.enabled는 기본 false
+            installCRDs = true
+            crds = {
+              conversion = {
+                enabled = false  # v1beta1 → v1 conversion webhook 비활성화
+              }
+            }
             serviceAccount = {
               create = true
               name   = "external-secrets"

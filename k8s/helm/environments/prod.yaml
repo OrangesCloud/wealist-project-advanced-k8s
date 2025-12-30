@@ -126,7 +126,7 @@ autoscaling:
   minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
-  targetMemoryUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 90
   # 스케일 다운 속도 개선 (기본 5분 → 2분, 더 공격적으로)
   behavior:
     scaleDown:
