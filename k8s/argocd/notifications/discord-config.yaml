@@ -63,7 +63,7 @@ data:
       when: app.status.operationState.phase in ['Running']
 ---
 # ExternalSecret으로 AWS Secrets Manager에서 가져오기
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: argocd-notifications-secret
