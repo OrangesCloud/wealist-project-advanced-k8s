@@ -124,6 +124,11 @@ jobs:
           )
           EOF
 
+          # go.mod에 replace directive 추가 (golangci-lint가 go.work를 인식 못하는 문제 해결)
+          cd services/${{ matrix.service }}
+          echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packages/wealist-advanced-go-pkg' >> go.mod
+          go mod tidy
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
@@ -164,6 +169,11 @@ jobs:
               ./services/${{ matrix.service }}
           )
           EOF
+
+          # go.mod에 replace directive 추가 (로컬 공통 패키지 사용)
+          cd services/${{ matrix.service }}
+          echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packages/wealist-advanced-go-pkg' >> go.mod
+          go mod tidy
 
       - name: Run tests
         working-directory: services/${{ matrix.service }}
