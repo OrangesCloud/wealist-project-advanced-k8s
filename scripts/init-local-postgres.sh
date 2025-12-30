@@ -52,7 +52,14 @@ is_wsl() {
 # Database configurations
 # Format: db_name:user:password
 # Note: Using 'postgres' as password to match Helm values.yaml configuration
-DATABASES=(
+
+# Mode: dev (default) or staging
+# - dev: 개별 서비스 유저 (board_service, user_service 등)
+# - staging: 단일 wealist 유저 (ESO와 동일)
+MODE="${1:-dev}"
+
+# DEV mode: 개별 서비스별 DB/유저
+DATABASES_DEV=(
     "wealist_user_service_db:user_service:postgres"
     "wealist_board_service_db:board_service:postgres"
     "wealist_chat_service_db:chat_service:postgres"
@@ -60,6 +67,49 @@ DATABASES=(
     "wealist_storage_service_db:storage_service:postgres"
     "wealist_video_service_db:video_service:postgres"
 )
+
+# STAGING mode: 단일 wealist 유저 (ESO에서 사용하는 credentials와 동일)
+# 비밀번호는 AWS Secrets Manager의 wealist/staging/database/endpoint와 일치해야 함
+#
+# 방법 1: kubectl로 ESO 시크릿에서 자동 가져오기 (클러스터가 실행 중일 때)
+#   STAGING_DB_PASSWORD=$(kubectl get secret wealist-shared-secret -n wealist-staging \
+#       -o jsonpath='{.data.DB_PASSWORD}' | base64 -d)
+#
+# 방법 2: 환경변수로 직접 지정
+#   export STAGING_DB_PASSWORD="your-aws-secret-password"
+#
+# 방법 3: 나중에 비밀번호 동기화 (클러스터 배포 후)
+#   sudo ./scripts/staging/fix-db-password.sh
+#
+STAGING_USER="wealist"
+STAGING_PASSWORD="${STAGING_DB_PASSWORD:-wealist-staging-password}"
+STAGING_DATABASE="wealist"
+
+# 모드에 따라 DATABASES 배열 설정 (main 함수에서 호출)
+set_databases_for_mode() {
+    # Try to auto-fetch from ESO if kubectl is available and default password is set
+    if [ "$MODE" = "staging" ] && [ "$STAGING_PASSWORD" = "wealist-staging-password" ]; then
+        if command -v kubectl &> /dev/null; then
+            ESO_PASS=$(kubectl get secret wealist-shared-secret -n wealist-staging \
+                -o jsonpath='{.data.DB_PASSWORD}' 2>/dev/null | base64 -d 2>/dev/null || echo "")
+            if [ -n "$ESO_PASS" ]; then
+                log_info "Auto-fetched password from ESO secret"
+                STAGING_PASSWORD="$ESO_PASS"
+            else
+                log_warn "Could not fetch ESO password - using default"
+                log_warn "Run 'sudo ./scripts/staging/fix-db-password.sh' after cluster deployment"
+            fi
+        fi
+    fi
+
+    if [ "$MODE" = "staging" ]; then
+        DATABASES=("${STAGING_DATABASE}:${STAGING_USER}:${STAGING_PASSWORD}")
+        log_info "Staging 모드: 단일 wealist 유저 생성"
+    else
+        DATABASES=("${DATABASES_DEV[@]}")
+        log_info "Dev 모드: 개별 서비스 유저 생성"
+    fi
+}
 
 # Run psql command (handles macOS vs Linux differences)
 run_psql() {
@@ -254,10 +304,15 @@ create_databases() {
         # Grant privileges
         run_psql -c "GRANT ALL PRIVILEGES ON DATABASE $db_name TO $db_user;"
 
-        # Grant schema privileges
+        # Grant schema privileges (PostgreSQL 15+ requires explicit schema ownership)
+        run_psql -d "$db_name" -c "ALTER SCHEMA public OWNER TO $db_user;" 2>/dev/null || true
         run_psql -d "$db_name" -c "GRANT ALL ON SCHEMA public TO $db_user;"
+        run_psql -d "$db_name" -c "GRANT CREATE ON SCHEMA public TO $db_user;"
+        run_psql -d "$db_name" -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $db_user;"
+        run_psql -d "$db_name" -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $db_user;"
         run_psql -d "$db_name" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $db_user;"
         run_psql -d "$db_name" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $db_user;"
+        log_info "Granted full privileges on $db_name to $db_user"
     done
 }
 
@@ -391,17 +446,27 @@ print_summary() {
         echo ""
     fi
     echo "Next Steps:"
-    echo "  1. Deploy with: make helm-install-all ENV=dev"
-    echo "  2. For initial tables: make helm-install-all-init ENV=dev"
+    if [ "$MODE" = "staging" ]; then
+        echo "  1. Deploy with: make kind-staging-setup"
+        echo "  2. ArgoCD가 자동으로 서비스 배포"
+        echo ""
+        echo "Note: AWS Secrets Manager의 비밀번호와 일치해야 합니다!"
+        echo "  STAGING_DB_PASSWORD 환경변수로 비밀번호 지정 가능"
+    else
+        echo "  1. Deploy with: make helm-install-all ENV=dev"
+        echo "  2. For initial tables: make helm-install-all-init ENV=dev"
+    fi
     echo ""
 }
 
 # Main execution
 main() {
     log_info "Starting PostgreSQL initialization for Wealist..."
+    log_info "Mode: $MODE"
     echo ""
 
     check_permissions
+    set_databases_for_mode
     configure_pg_hba
     configure_postgresql_conf
     set_postgres_password

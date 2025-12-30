@@ -9,14 +9,21 @@ spec:
   description: Wealist Staging Environment
   sourceRepos:
     - "https://github.com/OrangesCloud/wealist-project-advanced-k8s.git"
+    - "https://github.com/212clab/wealist-project-advanced-k8s-forked.git"
   destinations:
     - namespace: wealist-staging
       server: https://kubernetes.default.svc
     - namespace: argocd
       server: https://kubernetes.default.svc
+    - namespace: istio-system
+      server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
+    - group: "rbac.authorization.k8s.io"
+      kind: ClusterRole
+    - group: "rbac.authorization.k8s.io"
+      kind: ClusterRoleBinding
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"

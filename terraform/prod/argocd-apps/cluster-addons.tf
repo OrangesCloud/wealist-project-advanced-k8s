@@ -121,7 +121,8 @@ resource "kubernetes_manifest" "argocd_app_external_secrets" {
           prune    = true
           selfHeal = true
         }
-        syncOptions = ["CreateNamespace=true", "ServerSideApply=true"]
+        # Replace=true: CRD 업그레이드 시 기존 리소스 강제 교체 (v1beta1 → v1)
+        syncOptions = ["CreateNamespace=true", "ServerSideApply=true", "Replace=true"]
       }
     }
   }

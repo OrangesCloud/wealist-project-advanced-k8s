@@ -28,7 +28,7 @@ spec:
       targetRevision: k8s-deploy-prod
       path: k8s/argocd/notifications
     - repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
-      targetRevision: security/kyverno
+      targetRevision: k8s-deploy-prod
       path: k8s/argocd/kyverno/prod
   destination:
     server: https://kubernetes.default.svc
