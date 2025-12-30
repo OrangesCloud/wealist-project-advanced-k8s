@@ -1,5 +1,5 @@
 # =============================================================================
-# DB Init - ArgoCD Application (Staging)
+# DB Init - ArgoCD Application (Dev)
 # =============================================================================
 # Host PostgreSQL 초기화 (데이터베이스 생성, 확장 설치)
 #
@@ -27,27 +27,27 @@
 # 4. PostgreSQL에 연결하여 DB/확장 생성
 # 5. Job 완료 후 서비스 배포 진행
 #
-# 참고: staging은 Host PostgreSQL 사용 (172.17.0.1 - Docker bridge)
+# 참고: dev은 Host PostgreSQL 사용 (172.17.0.1 - Docker bridge)
 
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: db-init-staging
+  name: db-init-dev
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
-  project: wealist-staging
+  project: wealist-dev
   source:
     repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
-    targetRevision: k8s-deploy-staging
+    targetRevision: k8s-deploy-dev
     path: k8s/helm/charts/db-init
     helm:
       valueFiles:
-        - ../../../helm/environments/staging-db-init.yaml
+        - ../../../helm/environments/dev-db-init.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: wealist-staging
+    namespace: wealist-dev
   syncPolicy:
     automated:
       prune: true

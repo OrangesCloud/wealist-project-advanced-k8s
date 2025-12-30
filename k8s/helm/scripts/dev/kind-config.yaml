@@ -30,7 +30,6 @@ nodes:
             node-labels: "ingress-ready=true"
     extraPortMappings:
       # Istio Gateway NodePort → hostPort 80 (기본 HTTP)
-      # listenAddress: 0.0.0.0 → 외부 네트워크에서 접근 가능
       - containerPort: 30080
         hostPort: 80
         listenAddress: "0.0.0.0"
@@ -46,8 +45,7 @@ nodes:
         listenAddress: "0.0.0.0"
         protocol: TCP
 
-    # 호스트 디렉토리 마운트 (Prometheus 데이터 영속화)
-    # 프로젝트 폴더 옆에 wealist-data 폴더 생성
+    # 호스트 디렉토리 마운트 (데이터 영속화)
     extraMounts:
       - hostPath: /home/musemy/wealist-data
         containerPath: /data

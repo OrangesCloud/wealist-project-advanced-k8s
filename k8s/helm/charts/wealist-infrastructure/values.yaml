@@ -141,7 +141,7 @@ minio:
 
 # Ingress configuration
 # Note: These are LOCAL/DEV defaults. Production settings should be in
-# helm/environments/prod.yaml or staging.yaml.
+# helm/environments/prod.yaml or dev.yaml.
 ingress:
   enabled: true
   className: nginx
@@ -157,9 +157,9 @@ ingress:
     nginx.ingress.kubernetes.io/websocket-services: "livekit"
     nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
-    # SSL/TLS - default off for local (override in prod/staging)
+    # SSL/TLS - default off for local (override in prod/dev)
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    # cert-manager annotation should be added via environment files (prod.yaml, staging.yaml)
+    # cert-manager annotation should be added via environment files (prod.yaml, dev.yaml)
     # NOT here - local/dev environments don't use cert-manager
 
   # Default: localhost (override in environment files)

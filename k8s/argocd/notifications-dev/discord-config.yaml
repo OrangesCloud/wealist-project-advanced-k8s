@@ -1,0 +1,138 @@
+# =============================================================================
+# ArgoCD Notifications for Dev Environment
+# =============================================================================
+# Discord webhook notifications for dev deployments
+# Applied to argocd namespace via GitOps or kubectl apply
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  # ArgoCD URL 설정 (Dev)
+  context: |
+    argocdUrl: https://dev.wealist.co.kr/api/argo
+
+  # Discord Webhook 서비스 설정
+  service.webhook.discord: |
+    url: $discord-webhook-url
+    headers:
+    - name: Content-Type
+      value: application/json
+
+  # 배포 성공 템플릿
+  template.app-deployed: |
+    webhook:
+      discord:
+        method: POST
+        body: |
+          {
+            "embeds": [{
+              "title": ":rocket: Dev 배포 완료",
+              "color": 3066993,
+              "fields": [
+                {"name": "Application", "value": "{{.app.metadata.name}}", "inline": true},
+                {"name": "Status", "value": "{{.app.status.health.status}}", "inline": true},
+                {"name": "Sync", "value": "{{.app.status.sync.status}}", "inline": true},
+                {"name": "Revision", "value": "{{.app.status.sync.revision | trunc 7}}", "inline": true}
+              ],
+              "timestamp": "{{.app.status.operationState.finishedAt}}"
+            }]
+          }
+
+  # 배포 실패 템플릿
+  template.app-sync-failed: |
+    webhook:
+      discord:
+        method: POST
+        body: |
+          {
+            "embeds": [{
+              "title": ":x: Dev 배포 실패",
+              "color": 15158332,
+              "fields": [
+                {"name": "Application", "value": "{{.app.metadata.name}}", "inline": true},
+                {"name": "Error", "value": "{{.app.status.operationState.message | trunc 200}}", "inline": false}
+              ],
+              "timestamp": "{{.app.status.operationState.finishedAt}}"
+            }]
+          }
+
+  # 배포 시작 템플릿
+  template.app-sync-running: |
+    webhook:
+      discord:
+        method: POST
+        body: |
+          {
+            "embeds": [{
+              "title": ":hourglass: Dev 배포 시작",
+              "color": 16776960,
+              "fields": [
+                {"name": "Application", "value": "{{.app.metadata.name}}", "inline": true},
+                {"name": "Started", "value": "{{.app.status.operationState.startedAt}}", "inline": true}
+              ]
+            }]
+          }
+
+  # Health 상태 변경 템플릿
+  template.app-health-degraded: |
+    webhook:
+      discord:
+        method: POST
+        body: |
+          {
+            "embeds": [{
+              "title": ":warning: Dev 서비스 상태 이상",
+              "color": 16744448,
+              "fields": [
+                {"name": "Application", "value": "{{.app.metadata.name}}", "inline": true},
+                {"name": "Health", "value": "{{.app.status.health.status}}", "inline": true},
+                {"name": "Message", "value": "{{.app.status.health.message | default \"No message\" | trunc 200}}", "inline": false}
+              ]
+            }]
+          }
+
+  # 트리거 설정
+  trigger.on-deployed: |
+    - description: 배포 완료 시 알림
+      send:
+      - app-deployed
+      when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+
+  trigger.on-sync-failed: |
+    - description: 배포 실패 시 알림
+      send:
+      - app-sync-failed
+      when: app.status.operationState.phase in ['Error', 'Failed']
+
+  trigger.on-sync-running: |
+    - description: 배포 시작 시 알림
+      send:
+      - app-sync-running
+      when: app.status.operationState.phase in ['Running']
+
+  trigger.on-health-degraded: |
+    - description: 서비스 상태 이상 시 알림
+      send:
+      - app-health-degraded
+      when: app.status.health.status == 'Degraded'
+
+  # 기본 구독 설정 (모든 dev 앱에 적용)
+  subscriptions: |
+    - recipients:
+      - webhook:discord
+      triggers:
+      - on-deployed
+      - on-sync-failed
+      - on-health-degraded
+
+# ---
+# Discord Webhook URL Secret은 스크립트로 생성합니다:
+# k8s/argocd/scripts/setup-discord-notifications-dev.sh
+#
+# 수동 생성 방법:
+# export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
+# kubectl create secret generic argocd-notifications-secret \
+#   --from-literal=discord-webhook-url="$DISCORD_WEBHOOK_URL" \
+#   -n argocd --dry-run=client -o yaml | kubectl apply -f -

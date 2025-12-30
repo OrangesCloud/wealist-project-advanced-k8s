@@ -1,5 +1,5 @@
 # =============================================================================
-# ArgoCD AppProject - Development
+# ArgoCD AppProject - Dev
 # =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -7,10 +7,11 @@ metadata:
   name: wealist-dev
   namespace: argocd
 spec:
-  description: Wealist Development Environment
+  description: Wealist Dev Environment
 
   # 허용된 소스 레포지토리
   sourceRepos:
+    - "https://github.com/OrangesCloud/wealist-project-advanced-k8s.git"
     - "https://github.com/OrangesCloud/wealist-project-advanced-k8s.git"
 
   # 허용된 배포 대상

@@ -20,7 +20,7 @@ certManager:
 
     # ACME server URL
     # Production: https://acme-v02.api.letsencrypt.org/directory
-    # Staging: https://acme-staging-v02.api.letsencrypt.org/directory
+    # Dev: https://acme-staging-v02.api.letsencrypt.org/directory
     server: "https://acme-v02.api.letsencrypt.org/directory"
 
   # ACME Challenge Solver configuration

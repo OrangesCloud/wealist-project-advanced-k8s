@@ -1,8 +1,8 @@
 # =============================================================================
-# Development Server Environment
+# Dev Environment (Kind + ArgoCD Auto-Deploy)
 # =============================================================================
-# Development environment with dev.wealist.co.kr domain
-# Uses AWS ECR + ArgoCD for deployment
+# Dev environment with dev.wealist.co.kr domain
+# Uses AWS ECR + ArgoCD for GitOps deployment (like prod EKS)
 # Namespace: wealist-dev
 
 # -----------------------------------------------------------------------------
@@ -10,15 +10,12 @@
 # -----------------------------------------------------------------------------
 global:
   namespace: wealist-dev
-  environment: development
+  environment: dev
   domain: dev.wealist.co.kr
-  # AWS ECR 레지스트리 (Kind-dev, EKS 모두 사용)
-  # TODO: 290008131187를 실제 AWS 계정 ID로 교체하세요
+  # AWS ECR Registry
   imageRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
 
-# imagePullSecrets
-# - Kind + ECR: ecr-secret 필요 (aws ecr get-login-password로 생성)
-# - EKS + ECR: IRSA 사용 시 불필요 (빈 배열로 변경)
+# imagePullSecrets (Kind + ECR)
 imagePullSecrets:
   - name: ecr-secret
 
@@ -27,18 +24,11 @@ imagePullSecrets:
 # -----------------------------------------------------------------------------
 certManager:
   enabled: false
-  # Note: SSL is handled by CloudFront, K8s receives HTTP only
 
 # -----------------------------------------------------------------------------
 # Deployment Settings
 # -----------------------------------------------------------------------------
-# Note: Service-specific settings (replicaCount, resources, healthCheck)
-# are defined in each service chart's values.yaml
-# Do NOT define auth-service/board-service keys here to avoid parsing issues
-# with wealist-infrastructure chart
-
 image:
-  # ECR 이미지 사용 - 항상 최신 pull
   pullPolicy: Always
   tag: "dev-latest"
 
@@ -52,7 +42,15 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   runAsNonRoot: true
-  readOnlyRootFilesystem: false  # Spring Boot (Tomcat) needs /tmp write access
+  readOnlyRootFilesystem: false
+
+# -----------------------------------------------------------------------------
+# External Secrets Operator (ESO)
+# -----------------------------------------------------------------------------
+# ESO가 AWS Secrets Manager에서 wealist-shared-secret을 자동 생성
+# Helm chart에서 secret 생성을 건너뜀
+externalSecrets:
+  enabled: true
 
 # -----------------------------------------------------------------------------
 # Features
@@ -74,57 +72,55 @@ podDisruptionBudget:
 # -----------------------------------------------------------------------------
 shared:
   config:
-    ENV: "development"
-    LOG_LEVEL: "debug"
-    DB_AUTO_MIGRATE: "true"  # Create tables on startup
+    ENV: "dev"
+    LOG_LEVEL: "info"
+    DB_AUTO_MIGRATE: "true"
     CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
-    # External Database Host (Docker Desktop: host.docker.internal, Linux: 172.18.0.1)
-    DB_HOST: "host.docker.internal"
-    POSTGRES_HOST: "host.docker.internal"
-    REDIS_HOST: "host.docker.internal"
-    SPRING_REDIS_HOST: "host.docker.internal"
+    # External Database Host (WSL/Kind: 172.17.0.1 Docker bridge gateway)
+    DB_HOST: "172.17.0.1"
+    POSTGRES_HOST: "172.17.0.1"
+    REDIS_HOST: "172.17.0.1"
+    SPRING_REDIS_HOST: "172.17.0.1"
     # S3/MinIO Configuration
     S3_ENDPOINT: "http://minio:9000"
     S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/api/minio"
     S3_BUCKET: "wealist-files"
     S3_REGION: "ap-northeast-2"
     LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/api/svc/livekit"
-    # OAuth2 Redirect URLs
-    # Google redirects here after user authenticates (must match Google Console)
     OAUTH2_CLIENT_REDIRECT_URI: "https://api.dev.wealist.co.kr/api/oauth2/callback/google"
-    # auth-service redirects here (frontend) after processing OAuth
     OAUTH2_REDIRECT_URL_ENV: "https://dev.wealist.co.kr/oauth/callback"
 
 # -----------------------------------------------------------------------------
-# Ingress (nginx - 비활성화, Istio Gateway 사용)
+# Ingress (Disabled - Istio Gateway)
 # -----------------------------------------------------------------------------
 ingress:
-  enabled: false  # Istio HTTPRoute 사용
+  enabled: false
 
 # -----------------------------------------------------------------------------
-# 데이터베이스 설정 (외부 DB 사용 - AWS RDS/ElastiCache)
+# Database (External - Host machine or AWS RDS)
 # -----------------------------------------------------------------------------
 postgres:
-  enabled: false   # 내부 PostgreSQL 비활성화
+  enabled: false
   external:
-    enabled: true  # 외부 DB (AWS RDS 등) 사용
-    # host/port는 secrets.yaml에서 설정
+    enabled: true
+    host: "172.17.0.1"
+    port: 5432
 
 redis:
-  enabled: false   # 내부 Redis 비활성화
+  enabled: false
   external:
-    enabled: true  # 외부 Redis (AWS ElastiCache 등) 사용
-    # host/port는 secrets.yaml에서 설정
+    enabled: true
+    host: "172.17.0.1"
+    port: 6379
 
 # -----------------------------------------------------------------------------
-# MinIO 설정 (S3 호환 오브젝트 스토리지)
+# MinIO (S3 Compatible Object Storage)
 # -----------------------------------------------------------------------------
 minio:
   enabled: true
   image:
     repository: minio/minio
     tag: "latest"
-  # Kind 클러스터: 호스트 머신에 데이터 영속화
   persistence:
     enabled: true
     hostPath:
@@ -132,22 +128,20 @@ minio:
       path: /data/minio
 
 # -----------------------------------------------------------------------------
-# 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)
+# Frontend (CDN - S3/CloudFront)
 # -----------------------------------------------------------------------------
-# dev.wealist.co.kr → CloudFront → S3 (정적 파일)
-# api.dev.wealist.co.kr → CloudFront → ALB → EKS (API)
 frontend:
-  enabled: false  # Frontend pod 비활성화 (CDN 사용)
+  enabled: false
 
 # -----------------------------------------------------------------------------
-# Istio 서비스 메시 설정
+# Istio Service Mesh
 # -----------------------------------------------------------------------------
 istio:
   enabled: true
   namespace: wealist-dev
 
   gateway:
-    enabled: false  # setup-cluster.sh에서 이미 생성됨
+    enabled: false
     name: wealist-gateway
     hosts:
       - "dev.wealist.co.kr"
@@ -156,7 +150,6 @@ istio:
     tls:
       enabled: false
 
-  # HTTPRoute 설정 (Kubernetes Gateway API)
   httpRoute:
     enabled: true
     gatewayRef:
@@ -165,15 +158,14 @@ istio:
     hosts:
       - "dev.wealist.co.kr"
       - "api.dev.wealist.co.kr"
-    # Frontend Pod 라우팅 (비활성화 - CDN 사용)
+      - "localhost"
+      - "*"  # Kind 로컬 접근용
     frontend:
       enabled: false
-    # MinIO 라우팅
     minio:
       enabled: true
       host: minio
       port: 9000
-    # Monitoring routes (/api/monitoring/* → 각 서비스로 직접 전달, rewrite 없음)
     monitoring:
       enabled: true
       grafana:
@@ -185,7 +177,6 @@ istio:
       loki:
         host: loki
         port: 3100
-      # Istio 관측성 도구 (istio-system 네임스페이스)
       kiali:
         enabled: true
         host: kiali
@@ -200,19 +191,16 @@ istio:
     argocd:
       enabled: true
 
-  # mTLS - 서비스 간 암호화
   mtls:
     enabled: true
-    mode: STRICT  # dev 환경: mTLS 강제 (보안 강화)
+    mode: STRICT
 
-  # Database mTLS 설정 (외부 DB 사용 - 해당 없음)
   database:
     postgres:
-      disableMtls: false  # 내부 postgres pod 없음
+      disableMtls: false
     redis:
-      disableMtls: false  # 내부 redis pod 없음
+      disableMtls: false
 
-  # 서비스 목록 (DestinationRule 생성 대상)
   services:
     - name: auth-service
     - name: user-service
@@ -222,7 +210,6 @@ istio:
     - name: storage-service
     - name: video-service
 
-  # 트래픽 제어 - Circuit Breaker, Connection Pool
   destinationRules:
     enabled: true
     loadBalancer:
@@ -237,7 +224,6 @@ istio:
         http2MaxRequests: 1000
         maxRequestsPerConnection: 100
         maxRetries: 3
-    # Circuit Breaker - 장애 서비스 격리
     outlierDetection:
       consecutive5xxErrors: 5
       consecutiveGatewayErrors: 5
@@ -246,44 +232,33 @@ istio:
       maxEjectionPercent: 50
       minHealthPercent: 30
 
-  # 서비스 간 통신 제어
-  # dev: Zero Trust 정책 적용 (외부 트래픽만 제한)
   authorizationPolicy:
     enabled: true
-    denyAll: true  # dev: 기본 거부 (Zero Trust)
-    allowSameNamespace: true  # dev: 같은 네임스페이스 내 서비스 간 통신 허용
+    denyAll: true
+    allowSameNamespace: true
 
-  # 서비스별 호출 권한 (L7 정책)
   serviceAuthorization:
-    enabled: true  # dev: 활성화 (보안 강화)
+    enabled: true
 
-  # JWT 인증
-  # dev: Istio에서 JWT 검증
   jwtAuth:
-    enabled: false  # 서비스에서 직접 처리 (추후 활성화 가능)
+    enabled: false
 
-  # Ambient 모드 (Sidecar-less)
   ambient:
     enabled: true
     waypoint:
       enabled: true
       name: wealist-waypoint
 
-  # 텔레메트리 - 트레이싱, 로깅
   telemetry:
     tracing:
       enabled: true
-      samplingPercentage: 50  # dev 환경 50%
+      samplingPercentage: 50
     accessLogging:
       enabled: true
 
 # =============================================================================
-# 모니터링 스택 설정
+# Monitoring Stack
 # =============================================================================
-# Docker Hub 공식 이미지 사용 (EKS/Kind 모두 호환)
-# ECR 사용 시: ArgoCD Application에서 오버라이드
-
-# Prometheus - 메트릭 수집
 prometheus:
   enabled: true
   image:
@@ -292,57 +267,54 @@ prometheus:
   config:
     externalUrl: "https://dev.wealist.co.kr/api/monitoring/prometheus"
     routePrefix: "/api/monitoring/prometheus"
-  # Kind 클러스터: 호스트 머신에 데이터 영속화 (클러스터 재생성 시에도 유지)
-  # Kind extraMounts: /home/musemy/wealist-data → /data (클러스터 재생성 필요)
   persistence:
     enabled: true
     hostPath:
       enabled: true
       path: /data/prometheus
 
-# Loki - 로그 수집
 loki:
   enabled: true
   image:
     repository: grafana/loki
     tag: "2.9.2"
+  persistence:
+    enabled: true
+    hostPath:
+      enabled: true
+      path: /data/loki
 
-# Promtail - 로그 수집 에이전트
 promtail:
   enabled: true
   image:
     repository: grafana/promtail
     tag: "2.9.2"
 
-# Grafana - 시각화 대시보드
 grafana:
   enabled: true
   image:
     repository: grafana/grafana
     tag: "10.2.2"
+  persistence:
+    enabled: true
+    hostPath:
+      enabled: true
+      path: /data/grafana
   config:
     allowSignUp: false
     rootUrl: "https://dev.wealist.co.kr/api/monitoring/grafana"
     serveFromSubPath: "true"
 
-# 모니터링 Ingress (Istio HTTPRoute로 처리)
 monitoringIngress:
   enabled: false
 
-# -----------------------------------------------------------------------------
-# 데이터베이스 Exporter (외부 DB 메트릭 수집)
-# -----------------------------------------------------------------------------
-# DB 호스트 설정:
-#   - Mac/WSL (Docker Desktop): host.docker.internal
-#   - Native Linux: 172.18.0.1 (Kind bridge gateway)
-#   - EKS: RDS/ElastiCache 엔드포인트 (secrets.yaml에서 설정)
 postgresExporter:
   enabled: true
   image:
     repository: prometheuscommunity/postgres-exporter
     tag: "v0.15.0"
   config:
-    host: "host.docker.internal"  # Docker Desktop (Mac/WSL), Linux: 172.18.0.1
+    host: "172.17.0.1"
     port: 5432
 
 redisExporter:
@@ -351,5 +323,34 @@ redisExporter:
     repository: oliver006/redis_exporter
     tag: "v1.55.0"
   config:
-    host: "host.docker.internal"  # Docker Desktop (Mac/WSL), Linux: 172.18.0.1
+    host: "172.17.0.1"
     port: 6379
+
+# =============================================================================
+# Service-specific Database Configuration
+# =============================================================================
+# Dev: 모든 서비스가 공통 DB 사용 (wealist)
+# 호스트 PostgreSQL에 wealist DB가 있어야 함
+board-service:
+  config:
+    DB_NAME: "wealist"
+
+user-service:
+  config:
+    DB_NAME: "wealist"
+
+chat-service:
+  config:
+    DB_NAME: "wealist"
+
+noti-service:
+  config:
+    DB_NAME: "wealist"
+
+storage-service:
+  config:
+    DB_NAME: "wealist"
+
+video-service:
+  config:
+    DB_NAME: "wealist"

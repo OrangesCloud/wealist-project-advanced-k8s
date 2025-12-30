@@ -1,7 +1,7 @@
 # =============================================================================
 # ReferenceGrant - Allow HTTPRoute to access ArgoCD
 # =============================================================================
-# HTTPRoute in wealist-staging can reference argocd-server in argocd namespace
+# HTTPRoute in wealist-dev can reference argocd-server in argocd namespace
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:
@@ -17,7 +17,7 @@ spec:
       namespace: wealist-dev
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
-      namespace: wealist-staging
+      namespace: wealist-dev
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       namespace: wealist-prod
