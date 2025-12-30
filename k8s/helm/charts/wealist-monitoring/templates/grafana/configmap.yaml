@@ -73,9 +73,10 @@ data:
     apiVersion: 1
 
     providers:
+      # Legacy dashboards (v1)
       - name: 'wealist-dashboards'
         orgId: 1
-        folder: 'weAlist'
+        folder: 'weAlist (Legacy)'
         folderUid: 'wealist'
         type: file
         disableDeletion: false
@@ -83,4 +84,15 @@ data:
         allowUiUpdates: true
         options:
           path: /etc/grafana/provisioning/dashboards/json
+      # V2 dashboards - Production-grade (2025 best practices)
+      - name: 'wealist-dashboards-v2'
+        orgId: 1
+        folder: 'weAlist v2'
+        folderUid: 'wealist-v2'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v2
 {{- end }}
