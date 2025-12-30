@@ -37,6 +37,8 @@ metadata:
     app.kubernetes.io/component: monitoring
     grafana_dashboard: "1"
 data:
+  # Placeholder to ensure ConfigMap is always created (even if dashboards-v2 is empty)
+  .gitkeep: ""
   # Landing dashboards - Entry points for all roles
   {{- range $path, $_ := .Files.Glob "dashboards-v2/landing/*.json" }}
   {{ base $path }}: |
