@@ -286,6 +286,59 @@ redisExporter:
     port: 6379
 
 # =============================================================================
+# kube-state-metrics - Kubernetes Objects State Metrics
+# =============================================================================
+# Generates metrics about Kubernetes objects (pods, nodes, deployments, etc.)
+# Required for Kubernetes Cluster dashboard and Service Health Overview
+kubeStateMetrics:
+  enabled: false  # Enable in prod environment
+
+  image:
+    repository: registry.k8s.io/kube-state-metrics/kube-state-metrics
+    tag: v2.10.1
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 8080
+
+  telemetryPort: 8081
+
+  # Optional: limit to specific namespaces (empty = all namespaces)
+  namespaces: []
+
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# =============================================================================
+# node-exporter - Node System Metrics
+# =============================================================================
+# Exports node-level metrics (CPU, memory, disk, network)
+# Required for node resource usage in Kubernetes Cluster dashboard
+nodeExporter:
+  enabled: false  # Enable in prod environment
+
+  image:
+    repository: prom/node-exporter
+    tag: v1.7.0
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 9100
+
+  resources:
+    requests:
+      memory: "32Mi"
+      cpu: "25m"
+    limits:
+      memory: "64Mi"
+      cpu: "100m"
+
+# =============================================================================
 # ArgoCD Metrics
 # =============================================================================
 argocd:

@@ -442,6 +442,22 @@ grafana:
 monitoringIngress:
   enabled: false  # Production: 별도 VPN/Bastion 통해 접근
 
+# kube-state-metrics (Kubernetes 오브젝트 상태 메트릭)
+# Kubernetes Cluster 대시보드와 Service Health Overview에 필요
+kubeStateMetrics:
+  enabled: true
+  image:
+    repository: registry.k8s.io/kube-state-metrics/kube-state-metrics
+    tag: "v2.10.1"
+
+# node-exporter (노드 시스템 메트릭)
+# Kubernetes Cluster 대시보드의 노드 CPU/메모리 사용률에 필요
+nodeExporter:
+  enabled: true
+  image:
+    repository: prom/node-exporter
+    tag: "v1.7.0"
+
 # ArgoCD 메트릭 수집
 argocd:
   metrics:

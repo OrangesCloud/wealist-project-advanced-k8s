@@ -253,13 +253,6 @@ argo-deploy-dev: ## [ArgoCD] Dev 환경 Applications 배포 (Root App 생성)
 	@echo -e "$(YELLOW)📝 ArgoCD가 자동으로 모든 앱을 Sync합니다.$(NC)"
 	@echo "   상태 확인: make argo-status"
 
-argo-deploy-dev: ## [ArgoCD] Dev 환경 Applications 배포
-	@echo -e "$(YELLOW)🎯 Dev Applications 배포 중...$(NC)"
-	@kubectl apply -f k8s/argocd/apps/dev/project.yaml || true
-	@kubectl apply -f k8s/argocd/projects/wealist-dev.yaml || true
-	@kubectl apply -f k8s/argocd/apps/dev/root-app.yaml || true
-	@echo -e "$(GREEN)✅ Dev 배포 완료$(NC)"
-
 argo-deploy-prod: ## [ArgoCD] Prod 환경 Applications 배포
 	@echo -e "$(YELLOW)🎯 Prod Applications 배포 중...$(NC)"
 	@kubectl apply -f k8s/argocd/projects/wealist-prod.yaml || true

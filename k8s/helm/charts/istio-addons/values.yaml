@@ -6,7 +6,7 @@ namespace: istio-system
 # =============================================================================
 # 인프라 이미지는 Docker Hub에서 직접 사용
 # 서비스 이미지는 AWS ECR에서 pull (별도 환경 설정)
-imageRegistry: ""  # "" = Docker Hub 직접 사용
+imageRegistry: "" # "" = Docker Hub 직접 사용
 
 # =============================================================================
 # 모니터링 네임스페이스 (Prometheus/Grafana가 설치된 곳)
@@ -21,20 +21,20 @@ kiali:
   enabled: true
   image:
     repository: quay.io/kiali/kiali
-    tag: v2.4  # Ambient 모드 지원을 위해 Kiali 2.x 사용
+    tag: v2.4 # Ambient 모드 지원을 위해 Kiali 2.x 사용
   service:
     type: ClusterIP
     port: 20001
   auth:
-    strategy: anonymous  # anonymous, token, openid
+    strategy: anonymous # anonymous, token, openid
   # wealist-monitoring의 Prometheus 참조 (cross-namespace)
   # Note: Prometheus has routePrefix configured
   prometheus:
-    url: ""  # 템플릿에서 동적 생성
+    url: "" # 템플릿에서 동적 생성
   # wealist-monitoring의 Grafana 참조 (cross-namespace)
   grafana:
     enabled: true
-    url: ""  # 템플릿에서 동적 생성
+    url: "" # 템플릿에서 동적 생성
   tracing:
     enabled: true
     url: "http://jaeger-query:16686"
@@ -42,7 +42,7 @@ kiali:
 # Jaeger - Distributed Tracing
 jaeger:
   enabled: true
-  allInOne: true  # For dev/test. Set false for production
+  allInOne: true # For dev/test. Set false for production
   image:
     repository: jaegertracing/all-in-one
     tag: "1.52"
@@ -54,7 +54,7 @@ jaeger:
     zipkin:
       port: 9411
   storage:
-    type: memory  # memory, elasticsearch, cassandra
+    type: memory # memory, elasticsearch, cassandra
     # For production, use:
     # type: elasticsearch
     # elasticsearch:
@@ -98,6 +98,5 @@ referenceGrant:
   # HTTPRoute를 허용할 네임스페이스 목록
   allowedNamespaces:
     - wealist-localhost
-    - wealist-dev
     - wealist-dev
     - wealist-prod
