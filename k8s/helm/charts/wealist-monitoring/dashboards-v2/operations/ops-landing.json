@@ -292,7 +292,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5..\"}[5m])) / sum(rate({__name__=~\".*_service_http_requests_total\"}[5m])) or vector(0)",
+          "expr": "100 * sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5..\"}[5m])) / sum(rate({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[5m])) or vector(0)",
           "legendFormat": "Error Rate",
           "refId": "A"
         }
@@ -422,7 +422,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate({__name__=~\".*_service_http_requests_total\"}[5m]))",
+          "expr": "sum(rate({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[5m]))",
           "legendFormat": "RPS",
           "refId": "A"
         }
@@ -577,7 +577,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * (0.001 - (sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5..\"}[30d])) or vector(0)) / (sum(rate({__name__=~\".*_service_http_requests_total\"}[30d])) > 0)) / 0.001 or vector(100)",
+          "expr": "100 * (0.001 - (sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5..\"}[30d])) or vector(0)) / (sum(rate({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[30d])) > 0)) / 0.001 or vector(100)",
           "legendFormat": "Remaining",
           "refId": "A"
         }
@@ -648,7 +648,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5..\"}[1h])) / sum(rate({__name__=~\".*_service_http_requests_total\"}[1h]))) / 0.001 or vector(0)",
+          "expr": "(sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5..\"}[1h])) / sum(rate({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[1h]))) / 0.001 or vector(0)",
           "legendFormat": "Burn Rate",
           "refId": "A"
         }
@@ -748,7 +748,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * (0.001 - (sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5..\"}[30d])) or vector(0)) / (sum(rate({__name__=~\".*_service_http_requests_total\"}[30d])) > 0)) / 0.001 or vector(100)",
+          "expr": "100 * (0.001 - (sum(rate({__name__=~\".*_service_http_requests_total\", status=~\"5..\"}[30d])) or vector(0)) / (sum(rate({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[30d])) > 0)) / 0.001 or vector(100)",
           "legendFormat": "Error Budget %",
           "refId": "A"
         }
@@ -1257,7 +1257,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * sum by (job) (rate({__name__=~\".*_service_http_requests_total\", status=~\"5..\"}[5m])) / sum by (job) (rate({__name__=~\".*_service_http_requests_total\"}[5m]))",
+          "expr": "100 * sum by (job) (rate({__name__=~\".*_service_http_requests_total\", status=~\"5..\"}[5m])) / sum by (job) (rate({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[5m]))",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1279,7 +1279,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (job) (rate({__name__=~\".*_service_http_requests_total\"}[5m]))",
+          "expr": "sum by (job) (rate({__name__=~\".*_service_http_requests_total\", endpoint!~\"/metrics|/health.*\"}[5m]))",
           "format": "table",
           "instant": true,
           "legendFormat": "",
