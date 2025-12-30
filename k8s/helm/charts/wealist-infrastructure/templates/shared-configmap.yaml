@@ -22,11 +22,15 @@ data:
   LIVEKIT_WS_URL: {{ .Values.shared.config.LIVEKIT_WS_URL | quote }}
 
   # Infrastructure URLs
+  # DB_HOST, POSTGRES_HOST, REDIS_HOST: Only include when NOT using ExternalSecrets
+  # (Production uses ExternalSecret to inject these from AWS Secrets Manager)
+  {{- if not .Values.externalSecrets.enabled }}
   DB_HOST: {{ .Values.shared.config.POSTGRES_HOST | quote }}
-  DB_PORT: {{ .Values.shared.config.POSTGRES_PORT | quote }}
   POSTGRES_HOST: {{ .Values.shared.config.POSTGRES_HOST | quote }}
-  POSTGRES_PORT: {{ .Values.shared.config.POSTGRES_PORT | quote }}
   REDIS_HOST: {{ .Values.shared.config.REDIS_HOST | quote }}
+  {{- end }}
+  DB_PORT: {{ .Values.shared.config.POSTGRES_PORT | quote }}
+  POSTGRES_PORT: {{ .Values.shared.config.POSTGRES_PORT | quote }}
   REDIS_PORT: {{ .Values.shared.config.REDIS_PORT | quote }}
 
   # MinIO/S3
@@ -37,4 +41,7 @@ data:
 
   # CORS & Security
   CORS_ORIGINS: {{ .Values.shared.config.CORS_ORIGINS | quote }}
+  {{- if not .Values.externalSecrets.enabled }}
+  # INTERNAL_API_KEY: Only include when NOT using ExternalSecrets
   INTERNAL_API_KEY: {{ .Values.shared.config.INTERNAL_API_KEY | quote }}
+  {{- end }}

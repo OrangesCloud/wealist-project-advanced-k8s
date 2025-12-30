@@ -329,6 +329,14 @@ resource "kubernetes_manifest" "argocd_app_metrics_server" {
         }
         syncOptions = ["ServerSideApply=true"]
       }
+      # APIService는 Kubernetes가 status를 자동 업데이트하므로 무시
+      ignoreDifferences = [
+        {
+          group = "apiregistration.k8s.io"
+          kind  = "APIService"
+          jsonPointers = ["/status"]
+        }
+      ]
     }
   }
 
