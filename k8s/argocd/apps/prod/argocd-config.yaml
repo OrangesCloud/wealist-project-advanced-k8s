@@ -1,0 +1,39 @@
+# =============================================================================
+# ArgoCD Self-Configuration (Notifications, etc.)
+# =============================================================================
+# ArgoCD 자체 설정을 GitOps로 관리
+# notifications/, projects/ 등 설정 파일들을 자동 감지 및 적용
+#
+# 이 Application이 없으면:
+# - terraform destroy + apply 후 notifications 설정이 사라짐
+# - 수동으로 kubectl apply 해야 함
+#
+# 이 Application이 있으면:
+# - Git에서 설정 변경 시 자동 적용
+# - terraform 재배포해도 자동 복구
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"  # 다른 앱보다 먼저 sync
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-prod
+    path: k8s/argocd/notifications
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

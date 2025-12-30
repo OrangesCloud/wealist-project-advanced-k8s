@@ -116,6 +116,11 @@ resource "kubernetes_manifest" "argocd_project_prod" {
         {
           group = "gateway.networking.k8s.io"
           kind  = "*"
+        },
+        # Metrics Server requires APIService
+        {
+          group = "apiregistration.k8s.io"
+          kind  = "APIService"
         }
       ]
       namespaceResourceWhitelist = [
