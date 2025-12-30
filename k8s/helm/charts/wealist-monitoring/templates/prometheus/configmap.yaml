@@ -118,6 +118,7 @@ data:
       # ==========================================================================
       # Kubernetes Service Discovery (Pod Annotations)
       # ==========================================================================
+      # Note: Excludes services with dedicated static scrape jobs above
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
           - role: pod
@@ -129,6 +130,10 @@ data:
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
             action: keep
             regex: true
+          # Exclude services that have dedicated static scrape jobs
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: drop
+            regex: (auth-service|user-service|board-service|chat-service|noti-service|storage-service|video-service)
           # prometheus.io/path 어노테이션으로 메트릭 경로 설정
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
             action: replace
@@ -197,29 +202,30 @@ data:
             target_label: pod
 
       # Istio 메시 메트릭 (서비스간 트래픽)
-      # Ambient 모드에서는 ztunnel이 메트릭을 노출
-      - job_name: 'istio-mesh'
-        kubernetes_sd_configs:
-          - role: pod
-            namespaces:
-              names:
-                - {{ .Values.global.namespace }}
-        relabel_configs:
-          # Istio 프록시가 있는 Pod (Ambient 모드에서는 ztunnel 통해 수집)
-          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-            action: keep
-            regex: true
-          - source_labels: [__meta_kubernetes_pod_container_port_name]
-            action: keep
-            regex: ".*-envoy-prom"
-          - source_labels: [__meta_kubernetes_namespace]
-            action: replace
-            target_label: namespace
-          - source_labels: [__meta_kubernetes_pod_name]
-            action: replace
-            target_label: pod
-          - action: labelmap
-            regex: __meta_kubernetes_pod_label_(.+)
+      # NOTE: Ambient 모드에서는 sidecar가 없으므로 이 job은 사용되지 않음
+      # Ambient 모드 메트릭은 ztunnel과 waypoint에서 수집됨
+      # Sidecar 모드 사용 시에만 활성화
+      # - job_name: 'istio-mesh'
+      #   kubernetes_sd_configs:
+      #     - role: pod
+      #       namespaces:
+      #         names:
+      #           - {{ .Values.global.namespace }}
+      #   relabel_configs:
+      #     - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+      #       action: keep
+      #       regex: true
+      #     - source_labels: [__meta_kubernetes_pod_container_port_name]
+      #       action: keep
+      #       regex: ".*-envoy-prom"
+      #     - source_labels: [__meta_kubernetes_namespace]
+      #       action: replace
+      #       target_label: namespace
+      #     - source_labels: [__meta_kubernetes_pod_name]
+      #       action: replace
+      #       target_label: pod
+      #     - action: labelmap
+      #       regex: __meta_kubernetes_pod_label_(.+)
 
       # Waypoint 프록시 메트릭 (L7 기능 사용 시)
       - job_name: 'istio-waypoint'
