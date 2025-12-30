@@ -123,7 +123,7 @@ securityContext:
 #       (auth-service.autoscaling.minReplicas는 .Values.autoscaling.minReplicas와 다른 경로)
 autoscaling:
   enabled: true
-  minReplicas: 1
+  minReplicas: 2  # 핵심 서비스 가용성 보장 (board, user 등)
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 90
@@ -405,6 +405,13 @@ loki:
   image:
     repository: grafana/loki
     tag: "2.9.2"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"  # 기본 256Mi → 512Mi (실사용 127Mi, 여유 확보)
+      cpu: "300m"
 
 # Promtail - 로그 수집 에이전트
 promtail:
@@ -419,6 +426,13 @@ grafana:
   image:
     repository: grafana/grafana
     tag: "10.2.2"
+  resources:
+    requests:
+      memory: "192Mi"
+      cpu: "100m"
+    limits:
+      memory: "384Mi"  # 기본 256Mi → 384Mi (실사용 123Mi, 여유 확보)
+      cpu: "300m"
   config:
     allowSignUp: false
     rootUrl: "https://api.wealist.co.kr/api/monitoring/grafana"
