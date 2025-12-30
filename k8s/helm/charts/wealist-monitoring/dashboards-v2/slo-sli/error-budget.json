@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "Error Budget Tracking - Monitor SLO compliance and remaining budget",
+  "description": "Error Budget Tracking - Monitor SLO compliance and remaining budget (Istio Ambient Compatible)",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -61,7 +61,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "clamp_min(100 * (1 - (sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[30d])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
+          "expr": "clamp_min(100 * (1 - (sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[30d]) or vector(0)) / sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
           "legendFormat": "Budget Remaining",
           "refId": "A"
         }
@@ -103,7 +103,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 * sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[1h])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[1h]))",
+          "expr": "100 * sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[1h]) or vector(0)) / sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[1h]))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -146,7 +146,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "(sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[1h])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[1h]))) / (1 - 0.999)",
+          "expr": "(sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[1h]) or vector(0)) / sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[1h]))) / (1 - 0.999)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -180,7 +180,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum(increase(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[30d]))",
+          "expr": "sum(increase({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[30d]))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -251,13 +251,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "(sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[1h])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[1h]))) / (1 - 0.999)",
+          "expr": "(sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[1h]) or vector(0)) / sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[1h]))) / (1 - 0.999)",
           "legendFormat": "Burn Rate (1h)",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "(sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[6h])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[6h]))) / (1 - 0.999)",
+          "expr": "(sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[6h]) or vector(0)) / sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[6h]))) / (1 - 0.999)",
           "legendFormat": "Burn Rate (6h)",
           "refId": "B"
         }
@@ -318,7 +318,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "clamp_min(100 * (1 - (sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[30d])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
+          "expr": "clamp_min(100 * (1 - (sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[30d]) or vector(0)) / sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
           "legendFormat": "Budget Remaining",
           "refId": "A"
         }
@@ -412,27 +412,59 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "clamp_min(100 * (1 - (sum(rate(istio_requests_total{namespace=~\"$namespace\", destination_service_name=~\"$service\", response_code=~\"5.*\"}[30d])) by (destination_service_name) / sum(rate(istio_requests_total{namespace=~\"$namespace\", destination_service_name=~\"$service\"}[30d])) by (destination_service_name)) / (1 - 0.999)), 0)",
+          "expr": "clamp_min(100 * (1 - (sum(rate(board_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[30d]) or vector(0)) / sum(rate(board_service_http_requests_total{namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
           "format": "table",
           "instant": true,
-          "legendFormat": "",
+          "legendFormat": "board-service",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 * sum(rate(istio_requests_total{namespace=~\"$namespace\", destination_service_name=~\"$service\", response_code=~\"5.*\"}[1h])) by (destination_service_name) / sum(rate(istio_requests_total{namespace=~\"$namespace\", destination_service_name=~\"$service\"}[1h])) by (destination_service_name)",
+          "expr": "clamp_min(100 * (1 - (sum(rate(user_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[30d]) or vector(0)) / sum(rate(user_service_http_requests_total{namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
           "format": "table",
           "instant": true,
-          "legendFormat": "",
+          "legendFormat": "user-service",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "(sum(rate(istio_requests_total{namespace=~\"$namespace\", destination_service_name=~\"$service\", response_code=~\"5.*\"}[1h])) by (destination_service_name) / sum(rate(istio_requests_total{namespace=~\"$namespace\", destination_service_name=~\"$service\"}[1h])) by (destination_service_name)) / (1 - 0.999)",
+          "expr": "clamp_min(100 * (1 - (sum(rate(chat_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[30d]) or vector(0)) / sum(rate(chat_service_http_requests_total{namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
           "format": "table",
           "instant": true,
-          "legendFormat": "",
+          "legendFormat": "chat-service",
           "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "clamp_min(100 * (1 - (sum(rate(noti_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[30d]) or vector(0)) / sum(rate(noti_service_http_requests_total{namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "noti-service",
+          "refId": "D"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "clamp_min(100 * (1 - (sum(rate(storage_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[30d]) or vector(0)) / sum(rate(storage_service_http_requests_total{namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "storage-service",
+          "refId": "E"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "clamp_min(100 * (1 - (sum(rate(video_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[30d]) or vector(0)) / sum(rate(video_service_http_requests_total{namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "video-service",
+          "refId": "F"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "clamp_min(100 * (1 - (sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", status=~\"5..\"}[30d]) or vector(0)) / sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "auth-service",
+          "refId": "G"
         }
       ],
       "title": "Error Budget by Service",
@@ -441,14 +473,33 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "Time 3": true },
+            "excludeByName": { "Time": true },
             "indexByName": {},
             "renameByName": {
-              "Value #A": "Budget Remaining",
-              "Value #B": "Error Rate",
-              "Value #C": "Burn Rate",
-              "destination_service_name": "Service"
+              "Value #A": "board-service",
+              "Value #B": "user-service",
+              "Value #C": "chat-service",
+              "Value #D": "noti-service",
+              "Value #E": "storage-service",
+              "Value #F": "video-service",
+              "Value #G": "auth-service"
             }
+          }
+        },
+        {
+          "id": "reduce",
+          "options": {
+            "includeTimeField": false,
+            "mode": "reduceFields",
+            "reducers": ["lastNotNull"]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": { "Field": "Service", "Last *": "Budget Remaining" }
           }
         }
       ],
@@ -490,7 +541,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "(\n  (sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[1h])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[1h]))) / (1 - 0.999) > 14.4\n  and\n  (sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[5m])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[5m]))) / (1 - 0.999) > 14.4\n) or vector(0)",
+          "expr": "(\n  (sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[1h]) or vector(0)) / sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[1h]))) / (1 - 0.999) > 14.4\n  and\n  (sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0)) / sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[5m]))) / (1 - 0.999) > 14.4\n) or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -525,7 +576,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "(\n  (sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[6h])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[6h]))) / (1 - 0.999) > 6\n  and\n  (sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[30m])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[30m]))) / (1 - 0.999) > 6\n) or vector(0)",
+          "expr": "(\n  (sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[6h]) or vector(0)) / sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[6h]))) / (1 - 0.999) > 6\n  and\n  (sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[30m]) or vector(0)) / sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[30m]))) / (1 - 0.999) > 6\n) or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -560,7 +611,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "(\n  (sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[3d])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[3d]))) / (1 - 0.999) > 1\n) or vector(0)",
+          "expr": "(\n  (sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[3d]) or vector(0)) / sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[3d]))) / (1 - 0.999) > 1\n) or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -571,7 +622,7 @@
   ],
   "refresh": "5m",
   "schemaVersion": 38,
-  "tags": ["wealist", "slo", "error-budget", "v2"],
+  "tags": ["wealist", "slo", "error-budget", "v2", "ambient-compatible"],
   "templating": {
     "list": [
       {
@@ -601,23 +652,6 @@
         "query": { "query": "label_values(kube_pod_info, namespace)", "refId": "StandardVariableQuery" },
         "refresh": 2,
         "regex": "wealist.*",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
-      },
-      {
-        "current": {},
-        "datasource": { "type": "prometheus", "uid": "${datasource}" },
-        "definition": "label_values(istio_requests_total{namespace=~\"$namespace\"}, destination_service_name)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Service",
-        "multi": true,
-        "name": "service",
-        "options": [],
-        "query": { "query": "label_values(istio_requests_total{namespace=~\"$namespace\"}, destination_service_name)", "refId": "StandardVariableQuery" },
-        "refresh": 2,
-        "regex": "",
         "skipUrlSync": false,
         "sort": 1,
         "type": "query"

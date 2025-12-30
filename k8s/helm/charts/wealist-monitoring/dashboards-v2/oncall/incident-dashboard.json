@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "On-Call Incident Dashboard - Real-time system status for incident response",
+  "description": "On-Call Incident Dashboard - Real-time system status for incident response (Istio Ambient Compatible)",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -56,7 +56,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 * sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[5m])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[5m]))",
+          "expr": "100 * (\n  sum(rate(board_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(user_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(chat_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(noti_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(storage_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(video_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n) / (\n  sum(rate(board_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(user_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(chat_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(noti_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(storage_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(video_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -96,7 +96,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 * sum(rate(istio_requests_total{namespace=~\"$namespace\", response_code=~\"5.*\"}[5m])) / sum(rate(istio_requests_total{namespace=~\"$namespace\"}[5m]))",
+          "expr": "100 * sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0)) / sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[5m]))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -136,7 +136,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate(istio_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
+          "expr": "histogram_quantile(0.95, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
           "legendFormat": "",
           "refId": "A"
         }
@@ -169,7 +169,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum(rate(istio_requests_total{namespace=~\"$namespace\"}[5m]))",
+          "expr": "sum(rate({__name__=~\".*_service_http_requests_total\", namespace=~\"$namespace\"}[5m]))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -218,9 +218,45 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 * sum(rate(istio_requests_total{namespace=~\"$namespace\", destination_service_name=~\"$service\", response_code=~\"5.*\"}[5m])) by (destination_service_name) / sum(rate(istio_requests_total{namespace=~\"$namespace\", destination_service_name=~\"$service\"}[5m])) by (destination_service_name)",
-          "legendFormat": "{{destination_service_name}}",
+          "expr": "100 * sum(rate(board_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0)) / sum(rate(board_service_http_requests_total{namespace=~\"$namespace\"}[5m]))",
+          "legendFormat": "board-service",
           "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "100 * sum(rate(user_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0)) / sum(rate(user_service_http_requests_total{namespace=~\"$namespace\"}[5m]))",
+          "legendFormat": "user-service",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "100 * sum(rate(chat_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0)) / sum(rate(chat_service_http_requests_total{namespace=~\"$namespace\"}[5m]))",
+          "legendFormat": "chat-service",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "100 * sum(rate(noti_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0)) / sum(rate(noti_service_http_requests_total{namespace=~\"$namespace\"}[5m]))",
+          "legendFormat": "noti-service",
+          "refId": "D"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "100 * sum(rate(storage_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0)) / sum(rate(storage_service_http_requests_total{namespace=~\"$namespace\"}[5m]))",
+          "legendFormat": "storage-service",
+          "refId": "E"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "100 * sum(rate(video_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0)) / sum(rate(video_service_http_requests_total{namespace=~\"$namespace\"}[5m]))",
+          "legendFormat": "video-service",
+          "refId": "F"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "100 * sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", status=~\"5..\"}[5m]) or vector(0)) / sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\"}[5m]))",
+          "legendFormat": "auth-service",
+          "refId": "G"
         }
       ],
       "title": "Service Error Rate",
@@ -526,9 +562,45 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 * sum(rate(istio_requests_total{namespace=~\"$namespace\", destination_service_name=~\"$service\", response_code=~\"5.*\"}[1m])) by (destination_service_name) / sum(rate(istio_requests_total{namespace=~\"$namespace\", destination_service_name=~\"$service\"}[1m])) by (destination_service_name)",
-          "legendFormat": "{{destination_service_name}}",
+          "expr": "100 * sum(rate(board_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[1m]) or vector(0)) / sum(rate(board_service_http_requests_total{namespace=~\"$namespace\"}[1m]))",
+          "legendFormat": "board-service",
           "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "100 * sum(rate(user_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[1m]) or vector(0)) / sum(rate(user_service_http_requests_total{namespace=~\"$namespace\"}[1m]))",
+          "legendFormat": "user-service",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "100 * sum(rate(chat_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[1m]) or vector(0)) / sum(rate(chat_service_http_requests_total{namespace=~\"$namespace\"}[1m]))",
+          "legendFormat": "chat-service",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "100 * sum(rate(noti_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[1m]) or vector(0)) / sum(rate(noti_service_http_requests_total{namespace=~\"$namespace\"}[1m]))",
+          "legendFormat": "noti-service",
+          "refId": "D"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "100 * sum(rate(storage_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[1m]) or vector(0)) / sum(rate(storage_service_http_requests_total{namespace=~\"$namespace\"}[1m]))",
+          "legendFormat": "storage-service",
+          "refId": "E"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "100 * sum(rate(video_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[1m]) or vector(0)) / sum(rate(video_service_http_requests_total{namespace=~\"$namespace\"}[1m]))",
+          "legendFormat": "video-service",
+          "refId": "F"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "100 * sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", status=~\"5..\"}[1m]) or vector(0)) / sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\"}[1m]))",
+          "legendFormat": "auth-service",
+          "refId": "G"
         }
       ],
       "title": "Error Rate (1m rolling)",
@@ -583,9 +655,45 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate(istio_request_duration_seconds_bucket{namespace=~\"$namespace\", destination_service_name=~\"$service\"}[1m])) by (destination_service_name, le)) * 1000",
-          "legendFormat": "{{destination_service_name}}",
+          "expr": "histogram_quantile(0.95, sum(rate(board_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[1m])) by (le)) * 1000",
+          "legendFormat": "board-service",
           "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "histogram_quantile(0.95, sum(rate(user_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[1m])) by (le)) * 1000",
+          "legendFormat": "user-service",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "histogram_quantile(0.95, sum(rate(chat_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[1m])) by (le)) * 1000",
+          "legendFormat": "chat-service",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "histogram_quantile(0.95, sum(rate(noti_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[1m])) by (le)) * 1000",
+          "legendFormat": "noti-service",
+          "refId": "D"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "histogram_quantile(0.95, sum(rate(storage_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[1m])) by (le)) * 1000",
+          "legendFormat": "storage-service",
+          "refId": "E"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "histogram_quantile(0.95, sum(rate(video_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[1m])) by (le)) * 1000",
+          "legendFormat": "video-service",
+          "refId": "F"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\"}[1m])) by (le)) * 1000",
+          "legendFormat": "auth-service",
+          "refId": "G"
         }
       ],
       "title": "p95 Latency (1m rolling)",
@@ -792,7 +900,7 @@
   ],
   "refresh": "10s",
   "schemaVersion": 38,
-  "tags": ["wealist", "oncall", "incident", "v2"],
+  "tags": ["wealist", "oncall", "incident", "v2", "ambient-compatible"],
   "templating": {
     "list": [
       {
@@ -822,23 +930,6 @@
         "query": { "query": "label_values(kube_pod_info, namespace)", "refId": "StandardVariableQuery" },
         "refresh": 2,
         "regex": "wealist.*",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
-      },
-      {
-        "current": {},
-        "datasource": { "type": "prometheus", "uid": "${datasource}" },
-        "definition": "label_values(istio_requests_total{namespace=~\"$namespace\"}, destination_service_name)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Service",
-        "multi": true,
-        "name": "service",
-        "options": [],
-        "query": { "query": "label_values(istio_requests_total{namespace=~\"$namespace\"}, destination_service_name)", "refId": "StandardVariableQuery" },
-        "refresh": 2,
-        "regex": "",
         "skipUrlSync": false,
         "sort": 1,
         "type": "query"
