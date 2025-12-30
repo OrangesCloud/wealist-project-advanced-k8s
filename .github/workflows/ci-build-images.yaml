@@ -308,15 +308,15 @@ jobs:
           
           echo "📦 Fetching recent images for ${REPO_NAME}..."
           
-          # ECR에서 최근 이미지 목록 가져오기 (태그가 '-'가 아닌 것만, 최대 5개)
+          # ECR에서 최근 이미지 목록 가져오기
           RECENT_IMAGES=$(aws ecr describe-images \
             --repository-name "${REPO_NAME}" \
             --region ${{ env.AWS_REGION }} \
             --query 'sort_by(imageDetails,& imagePushedAt)[-10:]' \
             --output json | \
             jq -r '.[] | select(.imageTags != null and (.imageTags | length > 0) and (.imageTags[0] != "-")) | 
-                   {tag: .imageTags[0], pushed: .imagePushedAt, size: .imageSizeInBytes} | 
-                   "\(.tag) | \(.pushed) | \((.size / 1024 / 1024 | floor))MB"' | \
+                  {tag: .imageTags[0], pushed: .imagePushedAt, size: .imageSizeInBytes} | 
+                  "\(.tag) | \(.pushed) | \((.size / 1024 / 1024 | floor))MB"' | \
             tail -5)
           
           # 이미지 개수 확인
@@ -335,7 +335,7 @@ jobs:
             IMAGES_FORMATTED=""
             if [ "$IMAGE_COUNT" -gt 0 ]; then
               IMAGES_FORMATTED=$(echo "$RECENT_IMAGES" | while IFS='|' read -r tag pushed size; do
-                tag=$(echo "$tag" | xargs)  # trim whitespace
+                tag=$(echo "$tag" | xargs)
                 pushed=$(echo "$pushed" | xargs)
                 size=$(echo "$size" | xargs)
                 
@@ -345,7 +345,7 @@ jobs:
                 else
                   echo "📦 \`$tag\` - $pushed ($size)"
                 fi
-              done | head -5)
+              done | head -5 | paste -sd '\n' -)
             else
               IMAGES_FORMATTED="No valid images found"
             fi
@@ -356,43 +356,55 @@ jobs:
               ENV_EMOJI="🚀"
             fi
             
+            # jq로 JSON 페이로드 생성 (--arg로 전달하면 자동으로 이스케이프됨)
+            PAYLOAD=$(jq -n \
+              --arg service "$SERVICE" \
+              --arg env "$ENV" \
+              --arg env_emoji "$ENV_EMOJI" \
+              --arg new_tag "$NEW_TAG" \
+              --arg repo_name "$REPO_NAME" \
+              --arg images "$IMAGES_FORMATTED" \
+              --arg image_count "$IMAGE_COUNT" \
+              --arg build_num "${{ github.run_number }}" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
+              '{
+                embeds: [{
+                  title: "\($env_emoji) Image Build Complete",
+                  description: "**Service**: `\($service)`\n**Environment**: `\($env)`\n**New Tag**: `\($new_tag)`",
+                  color: 3447003,
+                  fields: [
+                    {
+                      name: "📦 Recent Images (Latest 5)",
+                      value: $images,
+                      inline: false
+                    },
+                    {
+                      name: "🔗 ECR Repository",
+                      value: "`\($repo_name)`",
+                      inline: true
+                    },
+                    {
+                      name: "📊 Total Images",
+                      value: "\($image_count) available",
+                      inline: true
+                    }
+                  ],
+                  footer: {
+                    text: "GitHub Actions • Build #\($build_num)"
+                  },
+                  timestamp: $timestamp
+                }]
+              }')
+            
             curl -H "Content-Type: application/json" \
-                 -X POST \
-                 -d "{
-                   \"embeds\": [{
-                     \"title\": \"${ENV_EMOJI} Image Build Complete\",
-                     \"description\": \"**Service**: \`${SERVICE}\`\\n**Environment**: \`${ENV}\`\\n**New Tag**: \`${NEW_TAG}\`\",
-                     \"color\": 3447003,
-                     \"fields\": [
-                       {
-                         \"name\": \"📦 Recent Images (Latest 5)\",
-                         \"value\": \"${IMAGES_FORMATTED}\",
-                         \"inline\": false
-                       },
-                       {
-                         \"name\": \"🔗 ECR Repository\",
-                         \"value\": \"\`${REPO_NAME}\`\",
-                         \"inline\": true
-                       },
-                       {
-                         \"name\": \"📊 Total Images\",
-                         \"value\": \"${IMAGE_COUNT} available\",
-                         \"inline\": true
-                       }
-                     ],
-                     \"footer\": {
-                       \"text\": \"GitHub Actions • Build #${{ github.run_number }}\"
-                     },
-                     \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
-                   }]
-                 }" \
-                 "$DISCORD_WEBHOOK"
+                -X POST \
+                -d "$PAYLOAD" \
+                "$DISCORD_WEBHOOK"
             
             echo "✅ Discord notification sent for ${SERVICE}"
           else
             echo "⚠️ Discord webhook not configured (DISCORD_WEBHOOK_CI_URL secret missing)"
           fi
-
   update-gitops-manifests:
     needs: [detect-changes, build-and-push]
     if: |
