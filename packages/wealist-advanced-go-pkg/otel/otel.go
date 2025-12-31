@@ -110,15 +110,22 @@ func InitProvider(ctx context.Context, cfg *Config) (shutdown func(context.Conte
 }
 
 // newResource creates an OpenTelemetry resource with service metadata.
+// Uses resource.New() instead of Merge to avoid Schema URL conflicts between
+// resource.Default() and semconv.SchemaURL.
 func newResource(cfg *Config) (*resource.Resource, error) {
-	return resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
+	return resource.New(
+		context.Background(),
+		resource.WithSchemaURL(semconv.SchemaURL),
+		resource.WithAttributes(
 			semconv.ServiceName(cfg.ServiceName),
 			semconv.ServiceVersion(cfg.ServiceVersion),
 			semconv.DeploymentEnvironmentName(cfg.Environment),
 		),
+		// Include standard resource detectors
+		resource.WithTelemetrySDK(),
+		resource.WithHost(),
+		resource.WithOS(),
+		resource.WithProcess(),
 	)
 }
 

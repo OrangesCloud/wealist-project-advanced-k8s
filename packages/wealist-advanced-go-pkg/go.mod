@@ -8,8 +8,8 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/client_model v0.6.2
-	github.com/redis/go-redis/extra/redisotel/v9 v9.8.0
-	github.com/redis/go-redis/v9 v9.8.0
+	github.com/redis/go-redis/extra/redisotel/v9 v9.17.2
+	github.com/redis/go-redis/v9 v9.17.2
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.58.0
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.8.0
@@ -71,7 +71,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
-	github.com/redis/go-redis/extra/rediscmd/v9 v9.8.0 // indirect
+	github.com/redis/go-redis/extra/rediscmd/v9 v9.17.2 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
