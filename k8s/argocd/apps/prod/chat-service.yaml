@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/chat-service"
         - name: image.tag
-          value: "60-06da86d"
+          value: "59-ac6d97e"
         - name: externalSecrets.enabled
           value: "true"
         - name: config.DB_NAME
