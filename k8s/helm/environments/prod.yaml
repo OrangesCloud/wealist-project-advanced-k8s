@@ -527,7 +527,7 @@ otelCollector:
   enabled: true
   image:
     repository: otel/opentelemetry-collector-contrib
-    tag: "0.92.0"  # 현재 안정 동작 버전 유지
+    tag: "0.114.0"  # 2025-12 최신 안정 버전
   replicas: 2  # Production HA
   service:
     otlpGrpcPort: 4317
@@ -551,7 +551,7 @@ tempo:
   enabled: true
   image:
     repository: grafana/tempo
-    tag: "2.6.1"  # 2.6.0+: EKS Pod Identity 지원
+    tag: "2.9.0"  # 2025-12 최신 안정 버전 (Pod Identity 지원)
   service:
     httpPort: 3200
     otlpGrpcPort: 4317

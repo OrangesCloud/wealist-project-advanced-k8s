@@ -464,7 +464,7 @@ otelCollector:
 
   image:
     repository: otel/opentelemetry-collector-contrib
-    tag: "0.92.0"  # 2025년 최신 안정 버전
+    tag: "0.114.0"  # 2025-12 최신 안정 버전
     pullPolicy: IfNotPresent
 
   replicas: 1  # prod에서 2로 증가
@@ -501,7 +501,7 @@ tempo:
 
   image:
     repository: grafana/tempo
-    tag: "2.3.1"
+    tag: "2.9.0"  # 2025-12 최신 안정 버전
     pullPolicy: IfNotPresent
 
   replicas: 1
