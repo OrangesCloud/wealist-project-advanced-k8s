@@ -65,7 +65,48 @@ data:
         duration_slo: 5s
         throughput_bytes_slo: 1.073741824e+09
 
-    # Metrics generator (optional)
+    # =============================================================================
+    # Metrics Generator (2025 Best Practice)
+    # =============================================================================
+    # Trace 데이터에서 자동으로 RED 메트릭 생성
+    {{- if .Values.tempo.metricsGenerator.enabled }}
+    metrics_generator:
+      registry:
+        external_labels:
+          source: tempo
+          cluster: {{ .Values.global.namespace }}
+      processor:
+        {{- if .Values.tempo.metricsGenerator.spanMetrics.enabled }}
+        # Span Metrics: Rate, Error, Duration (RED) 메트릭 생성
+        span_metrics:
+          dimensions:
+            {{- range .Values.tempo.metricsGenerator.spanMetrics.dimensions }}
+            - {{ . }}
+            {{- end }}
+          enable_target_info: {{ .Values.tempo.metricsGenerator.spanMetrics.enableTargetInfo }}
+        {{- end }}
+        {{- if .Values.tempo.metricsGenerator.serviceGraphs.enabled }}
+        # Service Graphs: 서비스 간 의존성 메트릭
+        service_graphs:
+          dimensions:
+            {{- range .Values.tempo.metricsGenerator.serviceGraphs.dimensions }}
+            - {{ . }}
+            {{- end }}
+          enable_client_server_prefix: {{ .Values.tempo.metricsGenerator.serviceGraphs.enableClientServerPrefix }}
+          enable_virtual_node_label: {{ .Values.tempo.metricsGenerator.serviceGraphs.enableVirtualNodeLabel }}
+        {{- end }}
+        {{- if .Values.tempo.metricsGenerator.localBlocks.enabled }}
+        # Local Blocks: TraceQL Metrics 지원
+        local_blocks:
+          flush_to_storage: true
+        {{- end }}
+      storage:
+        path: /var/tempo/metrics
+        remote_write:
+          - url: {{ .Values.tempo.metricsGenerator.remoteWriteUrl }}
+            send_exemplars: true
+    {{- else }}
+    # Metrics Generator 비활성화 (기본)
     metrics_generator:
       registry:
         external_labels:
@@ -73,4 +114,5 @@ data:
       storage:
         path: /var/tempo/metrics
         remote_write: []
+    {{- end }}
 {{- end }}

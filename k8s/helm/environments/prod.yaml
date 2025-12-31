@@ -409,6 +409,12 @@ prometheus:
     limits:
       memory: "1Gi"  # 기본 512Mi → 1Gi (WAL replay OOMKilled 방지)
       cpu: "500m"
+  # V3: Tempo Metrics Generator → Prometheus 연동
+  remoteWriteReceiver:
+    enabled: true  # --web.enable-remote-write-receiver
+  # V3: Exemplars (메트릭 → 트레이스 직접 연결)
+  exemplarStorage:
+    enabled: true  # --enable-feature=exemplar-storage
 
 # Loki - 로그 수집 (S3 백엔드)
 loki:
@@ -545,6 +551,16 @@ otelCollector:
     sendBatchSize: 1000
     memoryLimitMiB: 400
     spikeLimitMiB: 100
+  # V3: Tail Sampling (에러/슬로우 100% + 정상 10%)
+  tailSampling:
+    enabled: true
+    decisionWaitSeconds: 10
+    numTraces: 100000
+    expectedNewTracesPerSec: 1000
+    policies:
+      errorSampling: true
+      latencyThresholdMs: 1000
+      defaultSamplingPercentage: 10
 
 # Tempo - 분산 추적 백엔드 (S3 저장)
 tempo:
@@ -572,3 +588,21 @@ tempo:
       enabled: true
       bucket: "wealist-prod-tempo-traces-290008131187"
       region: "ap-northeast-2"
+  # V3: Tempo Metrics Generator (RED 메트릭 자동 생성)
+  metricsGenerator:
+    enabled: true
+    # routePrefix 포함 필수 (/api/monitoring/prometheus)
+    remoteWriteUrl: "http://prometheus:9090/api/monitoring/prometheus/api/v1/write"
+    spanMetrics:
+      enabled: true
+      dimensions:
+        - service.name
+        - http.method
+        - http.status_code
+        - http.route
+    serviceGraphs:
+      enabled: true
+      dimensions:
+        - service.name
+    localBlocks:
+      enabled: true  # TraceQL Metrics 지원

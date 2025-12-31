@@ -33,7 +33,50 @@ env:
   AWS_REGION: ap-northeast-2
 
 jobs:
+  # 브랜치 검증 job 추가
+  validate-branch:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Check if should run
+        id: check
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          EVENT_NAME="${{ github.event_name }}"
+          
+          echo "Event: ${EVENT_NAME}"
+          echo "Branch: ${BRANCH}"
+          echo "GitHub Event Name: ${{ github.event_name }}"
+          
+          # workflow_dispatch는 항상 허용
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "✅ Manual trigger - allowed"
+            exit 0
+          fi
+          
+          # push 이벤트에서만 특정 브랜치 허용
+          if [ "${EVENT_NAME}" = "push" ]; then
+            case "${BRANCH}" in
+              "service-deploy-dev"|"service-deploy-prod")
+                echo "should_run=true" >> $GITHUB_OUTPUT
+                echo "✅ Push to ${BRANCH} - allowed"
+                ;;
+              *)
+                echo "should_run=false" >> $GITHUB_OUTPUT
+                echo "❌ Push to ${BRANCH} - not allowed"
+                ;;
+            esac
+          else
+            # PR이나 다른 이벤트는 차단
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "❌ Event ${EVENT_NAME} - not allowed"
+          fi
+
   detect-changes:
+    needs: validate-branch
+    if: needs.validate-branch.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     outputs:
       services: ${{ steps.set-services.outputs.services }}
@@ -149,8 +192,8 @@ jobs:
           echo "services=${SERVICES}" >> $GITHUB_OUTPUT
 
   build-and-push:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != '' }}
+    needs: [validate-branch, detect-changes]
+    if: ${{ needs.validate-branch.outputs.should_run == 'true' && needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != '' }}
     runs-on: ubuntu-latest
     environment: ${{ needs.detect-changes.outputs.environment }}
 
@@ -406,8 +449,9 @@ jobs:
             echo "⚠️ Discord webhook not configured (DISCORD_WEBHOOK_CI_URL secret missing)"
           fi
   update-gitops-manifests:
-    needs: [detect-changes, build-and-push]
+    needs: [validate-branch, detect-changes, build-and-push]
     if: |
+      needs.validate-branch.outputs.should_run == 'true' &&
       needs.detect-changes.outputs.services != '[]' &&
       needs.detect-changes.outputs.services != '' &&
       needs.detect-changes.outputs.branch != 'service-deploy-prod' &&  
@@ -565,8 +609,8 @@ jobs:
 
   # 전체 빌드 완료 알림
   build-complete-notification:
-    needs: [detect-changes, build-and-push]
-    if: always() && needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != ''
+    needs: [validate-branch, detect-changes, build-and-push]
+    if: always() && needs.validate-branch.outputs.should_run == 'true' && needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != ''
     runs-on: ubuntu-latest
     
     steps:

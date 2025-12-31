@@ -318,6 +318,12 @@ prometheus:
   config:
     externalUrl: "http://localhost:8080/api/monitoring/prometheus"
     routePrefix: "/api/monitoring/prometheus"
+  # V3: Tempo Metrics Generator → Prometheus (localhost에서는 비활성화)
+  remoteWriteReceiver:
+    enabled: false
+  # V3: Exemplars (localhost에서는 비활성화)
+  exemplarStorage:
+    enabled: false
 
 # Loki - 로그 수집
 loki:
@@ -404,6 +410,9 @@ otelCollector:
     sendBatchSize: 1000
     memoryLimitMiB: 400
     spikeLimitMiB: 100
+  # V3: Tail Sampling (localhost에서는 비활성화 - 100% 수집)
+  tailSampling:
+    enabled: false
 
 # Tempo - 분산 추적 백엔드 (Jaeger 대안)
 tempo:
@@ -430,3 +439,6 @@ tempo:
     backend: local
     s3:
       enabled: false
+  # V3: Metrics Generator (localhost에서는 비활성화)
+  metricsGenerator:
+    enabled: false
