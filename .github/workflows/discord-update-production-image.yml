@@ -1,4 +1,4 @@
-name: Update Production Image Tag
+name: Discord Update Production Image Tag
 
 on:
   workflow_dispatch:
