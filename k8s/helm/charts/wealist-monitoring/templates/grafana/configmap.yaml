@@ -29,6 +29,15 @@ data:
           httpMethod: POST
           manageAlerts: true
           prometheusType: Prometheus
+          {{- if .Values.prometheus.exemplarStorage.enabled }}
+          # =============================================================================
+          # Exemplars (2025 Best Practice)
+          # =============================================================================
+          # Prometheus 메트릭에서 Tempo 트레이스로 직접 연결
+          exemplarTraceIdDestinations:
+            - name: traceID
+              datasourceUid: tempo
+          {{- end }}
 
       # Loki - 로그 데이터 (Tempo 연동 포함)
       - name: Loki
