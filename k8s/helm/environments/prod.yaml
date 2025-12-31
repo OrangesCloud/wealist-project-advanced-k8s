@@ -392,7 +392,7 @@ prometheus:
   enabled: true
   image:
     repository: prom/prometheus
-    tag: "v2.56.1"  # v2.48.0 → v2.56.1 (2025-12 안정 버전)
+    tag: "v2.55.1"  # v2.48.0 → v2.55.1 (2025-12 최신 안정 버전)
   config:
     externalUrl: "https://api.wealist.co.kr/api/monitoring/prometheus"
     routePrefix: "/api/monitoring/prometheus"
@@ -415,7 +415,7 @@ loki:
   enabled: true
   image:
     repository: grafana/loki
-    tag: "2.10.6"  # 2.9.2 → 2.10.6 (2025-12 안정 버전)
+    tag: "3.6.3"  # 2.9.2 → 3.6.3 (2025-12 최신 안정 버전, TSDB 스키마 v13)
   persistence:
     enabled: false  # S3 사용 시 PVC 불필요
   resources:
@@ -440,7 +440,7 @@ alloy:
   enabled: true
   image:
     repository: grafana/alloy
-    tag: "1.5.0"  # 2025-12 최신 안정 버전
+    tag: "v1.12.1"  # 2025-12 최신 안정 버전
   resources:
     requests:
       memory: "128Mi"
@@ -527,7 +527,7 @@ otelCollector:
   enabled: true
   image:
     repository: otel/opentelemetry-collector-contrib
-    tag: "0.116.0"  # 0.92.0 → 0.116.0 (2025-12 안정 버전)
+    tag: "0.92.0"  # 현재 안정 동작 버전 유지
   replicas: 2  # Production HA
   service:
     otlpGrpcPort: 4317

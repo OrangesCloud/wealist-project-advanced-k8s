@@ -179,7 +179,7 @@ alloy:
 
   image:
     repository: grafana/alloy
-    tag: "1.5.0"
+    tag: "v1.12.1"
     pullPolicy: IfNotPresent
 
   resources:

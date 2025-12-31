@@ -6,63 +6,81 @@ metadata:
   namespace: {{ .Values.global.namespace }}
 data:
   loki-config.yaml: |
+    # Loki 3.x Configuration
     auth_enabled: false
+
     server:
       http_listen_port: 3100
+      grpc_listen_port: 9095
+
     common:
       path_prefix: /loki
-      storage:
-        {{- if .Values.loki.config.s3.enabled }}
-        s3:
-          s3: s3://{{ .Values.loki.config.s3.region }}/{{ .Values.loki.config.s3.bucket }}
-          s3forcepathstyle: false
-        {{- else }}
-        filesystem:
-          chunks_directory: /loki/chunks
-          rules_directory: /loki/rules
-        {{- end }}
       replication_factor: 1
       ring:
         kvstore:
           store: inmemory
-    schema_config:
-      configs:
-        - from: 2020-10-24
-          store: tsdb
-          object_store: {{ if .Values.loki.config.s3.enabled }}s3{{ else }}filesystem{{ end }}
-          schema: v13
-          index:
-            prefix: index_
-            period: 24h
+
+    {{- if .Values.loki.config.s3.enabled }}
+    # S3 Storage Backend (Production)
     storage_config:
-      {{- if .Values.loki.config.s3.enabled }}
       aws:
         region: {{ .Values.loki.config.s3.region }}
         bucketnames: {{ .Values.loki.config.s3.bucket }}
         s3forcepathstyle: false
       tsdb_shipper:
-        active_index_directory: /loki/tsdb-index
-        cache_location: /loki/tsdb-cache
-      {{- else }}
-      filesystem:
-        directory: /loki/chunks
-      boltdb_shipper:
         active_index_directory: /loki/index
         cache_location: /loki/cache
-        shared_store: filesystem
-      {{- end }}
+
+    schema_config:
+      configs:
+        - from: 2024-01-01
+          store: tsdb
+          object_store: s3
+          schema: v13
+          index:
+            prefix: loki_index_
+            period: 24h
+
+    compactor:
+      working_directory: /loki/compactor
+      compaction_interval: 10m
+      retention_enabled: true
+      retention_delete_delay: 2h
+      delete_request_store: s3
+    {{- else }}
+    # Filesystem Storage Backend (Development)
+    storage_config:
+      filesystem:
+        directory: /loki/chunks
+      tsdb_shipper:
+        active_index_directory: /loki/index
+        cache_location: /loki/cache
+
+    schema_config:
+      configs:
+        - from: 2024-01-01
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: loki_index_
+            period: 24h
+    {{- end }}
+
     limits_config:
       enforce_metric_name: false
       reject_old_samples: true
       reject_old_samples_max_age: 168h
       max_cache_freshness_per_query: 10m
       split_queries_by_interval: 15m
-    {{- if .Values.loki.config.s3.enabled }}
-    compactor:
-      working_directory: /loki/compactor
-      compaction_interval: 10m
-      retention_enabled: true
-      retention_delete_delay: 2h
-      retention_delete_worker_count: 150
-    {{- end }}
+      ingestion_rate_mb: 10
+      ingestion_burst_size_mb: 20
+
+    query_range:
+      align_queries_with_step: true
+      cache_results: true
+
+    frontend:
+      max_outstanding_per_tenant: 2048
+      compress_responses: true
 {{- end }}
