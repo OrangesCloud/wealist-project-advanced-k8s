@@ -135,10 +135,10 @@ jobs:
             PR_BODY=$(cat <<'EOF'
           ## Production Deployment Request
           
-          **Service:** `SERVICE_PLACEHOLDER`  
-          **Image Tag:** `TAG_PLACEHOLDER`  
-          **ECR Image:** `prod/SERVICE_PLACEHOLDER:TAG_PLACEHOLDER`  
-          **Manifest:** `k8s/argocd/apps/prod/SERVICE_PLACEHOLDER.yaml`
+          **Service:** SERVICE_PLACEHOLDER  
+          **Image Tag:** TAG_PLACEHOLDER  
+          **ECR Image:** prod/SERVICE_PLACEHOLDER:TAG_PLACEHOLDER  
+          **Manifest:** k8s/argocd/apps/prod/SERVICE_PLACEHOLDER.yaml
           
           ### Pre-deployment Checklist
           - [ ] Dev/Staging 테스트 완료
@@ -163,14 +163,15 @@ jobs:
             PR_BODY="${PR_BODY//TAG_PLACEHOLDER/$TAG}"
             PR_BODY="${PR_BODY//ACTOR_PLACEHOLDER/${{ github.triggering_actor }}}"
             
-            # PR 생성
-            PR_URL=$(gh pr create \
+            # PR 생성 (--json 플래그 제거)
+            gh pr create \
               --title "🚀 [PROD] Deploy ${SERVICE} - ${TAG}" \
               --body "$PR_BODY" \
               --base k8s-deploy-prod \
-              --head "$BRANCH_NAME" \
-              --json url \
-              --jq '.url')
+              --head "$BRANCH_NAME"
+            
+            # PR URL 가져오기 (다른 방법 사용)
+            PR_URL="https://github.com/${{ github.repository }}/pull/$(gh pr list --head $BRANCH_NAME --json number --jq '.[0].number')"
             
             echo "✅ PR created: ${PR_URL}"
             echo "PR_URL=${PR_URL}" >> $GITHUB_OUTPUT
