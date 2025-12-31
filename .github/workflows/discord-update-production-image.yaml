@@ -3,11 +3,14 @@ name: Discord Update Production Image Tag
 on:
   workflow_dispatch:
     inputs:
-      services:
-        description: 'Services to update (comma-separated, e.g., auth-service,board-service or "all" for all services)'
-        required: true
+      service:
+        description: 'Service name'
+        required: false
         type: string
-        default: 'all'
+      services:
+        description: 'Multiple services (comma-separated)'
+        required: false
+        type: string
       image_tag:
         description: 'Image tag to deploy (e.g., 42-abc1234)'
         required: true
@@ -22,77 +25,12 @@ env:
   AWS_REGION: ap-northeast-2
 
 jobs:
-  list-available-images:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    outputs:
-      services_to_update: ${{ steps.parse-services.outputs.services }}
-    steps:
-      - name: Parse services input
-        id: parse-services
-        run: |
-          ALL_SERVICES="auth-service,board-service,chat-service,noti-service,storage-service,user-service,video-service"
-          
-          if [ "${{ inputs.services }}" = "all" ]; then
-            SERVICES="$ALL_SERVICES"
-          else
-            SERVICES="${{ inputs.services }}"
-          fi
-          
-          echo "services=$SERVICES" >> $GITHUB_OUTPUT
-          echo "Services to update: $SERVICES"
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN_BACKEND }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: List recent prod images and verify
-        run: |
-          IFS=',' read -ra SERVICES_ARRAY <<< "${{ steps.parse-services.outputs.services }}"
-          
-          echo "### 📦 Recent Images and Verification" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          for service in "${SERVICES_ARRAY[@]}"; do
-            service=$(echo "$service" | xargs) # trim whitespace
-            echo "#### Service: $service" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            
-            # List recent images
-            aws ecr describe-images \
-              --repository-name "prod/$service" \
-              --region ${{ env.AWS_REGION }} \
-              --query 'sort_by(imageDetails,& imagePushedAt)[-5:].[imageTags[0],imagePushedAt]' \
-              --output table >> $GITHUB_STEP_SUMMARY || echo "No images found for $service" >> $GITHUB_STEP_SUMMARY
-            
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            # Verify selected image exists
-            echo "Verifying image: prod/$service:${{ inputs.image_tag }}"
-            if aws ecr describe-images \
-              --repository-name "prod/$service" \
-              --region ${{ env.AWS_REGION }} \
-              --image-ids imageTag=${{ inputs.image_tag }} > /dev/null 2>&1; then
-              echo "✅ Image verified for $service"
-            else
-              echo "❌ Image not found for $service: prod/$service:${{ inputs.image_tag }}"
-              exit 1
-            fi
-          done
-
   update-manifest:
-    needs: list-available-images
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
       issues: write
-      repository-projects: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -104,231 +42,52 @@ jobs:
           git config user.name "GitHub Action Bot"
           git config user.email "action@github.com"
 
-      - name: Checkout k8s-deploy-prod branch
+      - name: Process services
         run: |
-          git fetch origin k8s-deploy-prod
-          git checkout k8s-deploy-prod
+          # 단일 서비스 또는 멀티 서비스 처리
+          if [ -n "${{ inputs.services }}" ]; then
+            echo "SERVICES_LIST=${{ inputs.services }}" >> $GITHUB_ENV
+          else
+            echo "SERVICES_LIST=${{ inputs.service }}" >> $GITHUB_ENV
+          fi
 
-      - name: Update ArgoCD Application manifests
-        id: update-manifest
+      - name: Update manifests
         run: |
-          IFS=',' read -ra SERVICES_ARRAY <<< "${{ needs.list-available-images.outputs.services_to_update }}"
           TAG="${{ inputs.image_tag }}"
+          IFS=',' read -ra SERVICES <<< "$SERVICES_LIST"
           
-          UPDATED_SERVICES=""
-          
-          for service in "${SERVICES_ARRAY[@]}"; do
-            service=$(echo "$service" | xargs) # trim whitespace
+          for SERVICE in "${SERVICES[@]}"; do
+            SERVICE=$(echo "$SERVICE" | xargs) # trim whitespace
+            echo "Processing $SERVICE..."
             
-            # ArgoCD Application manifest 경로
-            MANIFEST="k8s/argocd/apps/prod/${service}.yaml"
+            # 매니페스트 파일 경로 (실제 경로에 맞게 수정)
+            MANIFEST="k8s/argocd/apps/prod/${SERVICE}.yaml"
             
-            if [ ! -f "$MANIFEST" ]; then
-              echo "❌ Manifest file not found: ${MANIFEST}"
-              continue
-            fi
-            
-            echo "📝 Updating ${MANIFEST}"
-            echo "New tag: ${TAG}"
-            
-            # image.tag 파라미터만 업데이트
-            sed -i.bak '/- name: image\.tag/{n;s|value: ".*"|value: "'"${TAG}"'"|}' "$MANIFEST"
-            rm -f "${MANIFEST}.bak"
-            
-            echo ""
-            echo "=== Updated section for $service ==="
-            grep -A 1 "name: image.tag" "$MANIFEST"
-            echo "=================================="
-            echo ""
-            
-            if [ -n "$UPDATED_SERVICES" ]; then
-              UPDATED_SERVICES="$UPDATED_SERVICES,$service"
+            if [ -f "$MANIFEST" ]; then
+              echo "📝 Updating ${MANIFEST}"
+              # 이미지 태그 업데이트 (실제 매니페스트 구조에 맞게 수정)
+              sed -i "s/image: .*/image: prod\/${SERVICE}:${TAG}/" "$MANIFEST"
+              echo "✅ Updated $SERVICE to $TAG"
             else
-              UPDATED_SERVICES="$service"
+              echo "❌ Manifest not found: $MANIFEST"
             fi
           done
-          
-          echo "updated_services=$UPDATED_SERVICES" >> $GITHUB_OUTPUT
-          
-          # 전체 변경사항 확인
-          git diff
 
-      - name: Create PR or commit
-        id: create-pr
+      - name: Create PR
+        if: inputs.create_pr == true
         env:
           GH_TOKEN: ${{ secrets.GITOPS_PAT || github.token }}
         run: |
-          UPDATED_SERVICES="${{ steps.update-manifest.outputs.updated_services }}"
           TAG="${{ inputs.image_tag }}"
+          BRANCH_NAME="deploy/multi-service-${TAG}-$(date +%s)"
           
-          if [ "${{ inputs.create_pr }}" = "true" ]; then
-            BRANCH_NAME="deploy/multi-service-${TAG}-$(date +%s)"
-            
-            # 새 브랜치 생성
-            git checkout -b "$BRANCH_NAME"
-            git add .
-            git commit -m "🚀 [PROD] Deploy Multiple Services - ${TAG}
-
-Services: ${UPDATED_SERVICES}"
-            git push origin "$BRANCH_NAME"
-            
-            # PR body 생성
-            PR_BODY="## Production Multi-Service Deployment Request
-
-**Image Tag:** \`${TAG}\`  
-**Updated Services:** \`${UPDATED_SERVICES}\`
-
-### Services and Manifests
-"
-            
-            IFS=',' read -ra SERVICES_ARRAY <<< "$UPDATED_SERVICES"
-            for service in "${SERVICES_ARRAY[@]}"; do
-              service=$(echo "$service" | xargs)
-              PR_BODY="${PR_BODY}
-- **${service}**: \`prod/${service}:${TAG}\` → \`k8s/argocd/apps/prod/${service}.yaml\`"
-            done
-            
-            PR_BODY="${PR_BODY}
-
-### Pre-deployment Checklist
-- [ ] Dev/Staging 테스트 완료
-- [ ] 성능 및 리소스 검토 완료
-- [ ] 팀원 승인 완료
-
-### Deployment Steps
-1. 이 PR 리뷰 및 승인
-2. PR Merge
-3. ArgoCD UI에서 각 서비스의 **-prod** 애플리케이션들을 **Sync**
-4. 배포 모니터링 (Discord 알림 확인)
-
-### ArgoCD Applications to Sync
-"
-            
-            for service in "${SERVICES_ARRAY[@]}"; do
-              service=$(echo "$service" | xargs)
-              PR_BODY="${PR_BODY}
-- \`${service}-prod\`"
-            done
-            
-            PR_BODY="${PR_BODY}
-
----
-⚠️ **주의**: 자동 배포되지 않습니다. ArgoCD에서 수동 Sync 필요
-
-Requested by: @${{ github.triggering_actor }} via Discord Bot"
-            
-            # PR 생성
-            gh pr create \
-              --title "🚀 [PROD] Deploy Multiple Services - ${TAG}" \
-              --body "$PR_BODY" \
-              --base k8s-deploy-prod \
-              --head "$BRANCH_NAME"
-            
-            # PR URL 가져오기
-            PR_URL="https://github.com/${{ github.repository }}/pull/$(gh pr list --head $BRANCH_NAME --json number --jq '.[0].number')"
-            
-            echo "✅ PR created: ${PR_URL}"
-            echo "PR_URL=${PR_URL}" >> $GITHUB_OUTPUT
-            
-            echo ""
-            echo "### 🔗 Next Steps" >> $GITHUB_STEP_SUMMARY
-            echo "1. [Review the PR](${PR_URL})" >> $GITHUB_STEP_SUMMARY
-            echo "2. Merge after approval" >> $GITHUB_STEP_SUMMARY
-            echo "3. Sync all services in ArgoCD" >> $GITHUB_STEP_SUMMARY
-          else
-            # 직접 커밋 (비권장)
-            git add .
-            git commit -m "🚀 [PROD] Deploy Multiple Services - ${TAG}
-
-Services: ${UPDATED_SERVICES}
-Updated by: ${{ github.triggering_actor }} via Discord Bot
-Manual deployment trigger"
-            git push origin k8s-deploy-prod
-            echo "⚠️ Changes pushed directly to k8s-deploy-prod"
-            echo "Go to ArgoCD and manually sync all updated services"
-          fi
-
-      - name: Send Discord notification
-        if: inputs.create_pr == true
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: |
-          if [ -n "$DISCORD_WEBHOOK" ]; then
-            PR_URL="${{ steps.create-pr.outputs.PR_URL }}"
-            UPDATED_SERVICES="${{ steps.update-manifest.outputs.updated_services }}"
-            
-            curl -H "Content-Type: application/json" \
-              -X POST \
-              -d '{
-                "embeds": [{
-                  "title": "📦 Production Multi-Service Deployment PR Created",
-                  "description": "New production deployment PR has been created for multiple services.",
-                  "color": 3447003,
-                  "fields": [
-                    {
-                      "name": "🔧 Services",
-                      "value": "'"${UPDATED_SERVICES}"'",
-                      "inline": false
-                    },
-                    {
-                      "name": "🏷️ Image Tag", 
-                      "value": "'"${{ inputs.image_tag }}"'",
-                      "inline": true
-                    },
-                    {
-                      "name": "👤 Requested by",
-                      "value": "'"${{ github.triggering_actor }}"'",
-                      "inline": true
-                    },
-                    {
-                      "name": "🔗 PR Link",
-                      "value": "[Review and Merge]('"${PR_URL}"')",
-                      "inline": false
-                    },
-                    {
-                      "name": "📋 Next Steps",
-                      "value": "1. Review PR\\n2. Merge after approval\\n3. Sync all services in ArgoCD\\n4. Monitor deployment",
-                      "inline": false
-                    }
-                  ],
-                  "footer": {
-                    "text": "GitHub Actions • Multi-Service Production Deployment"
-                  },
-                  "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
-                }]
-              }' \
-              "$DISCORD_WEBHOOK"
-          else
-            echo "Discord webhook not configured"
-          fi
-
-      - name: Deployment summary
-        run: |
-          UPDATED_SERVICES="${{ steps.update-manifest.outputs.updated_services }}"
+          git checkout -b "$BRANCH_NAME"
+          git add .
+          git commit -m "🚀 [PROD] Deploy services - ${TAG}"
+          git push origin "$BRANCH_NAME"
           
-          echo "## 🚀 Production Multi-Service Image Tag Update" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Updated Services:** ${UPDATED_SERVICES}" >> $GITHUB_STEP_SUMMARY
-          echo "**New Image Tag:** ${{ inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 ECR Images:" >> $GITHUB_STEP_SUMMARY
-          
-          IFS=',' read -ra SERVICES_ARRAY <<< "$UPDATED_SERVICES"
-          for service in "${SERVICES_ARRAY[@]}"; do
-            service=$(echo "$service" | xargs)
-            echo "- \`prod/${service}:${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
-          done
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
-          echo "1. ✅ Review and merge the PR" >> $GITHUB_STEP_SUMMARY
-          echo "2. 🔄 Go to ArgoCD UI" >> $GITHUB_STEP_SUMMARY
-          echo "3. 🎯 Find and sync these applications:" >> $GITHUB_STEP_SUMMARY
-          
-          for service in "${SERVICES_ARRAY[@]}"; do
-            service=$(echo "$service" | xargs)
-            echo "   - **${service}-prod**" >> $GITHUB_STEP_SUMMARY
-          done
-          
-          echo "4. 🚀 Click **Sync** button for each" >> $GITHUB_STEP_SUMMARY
-          echo "5. 👀 Monitor deployment" >> $GITHUB_STEP_SUMMARY
+          gh pr create \
+            --title "🚀 [PROD] Deploy Services - ${TAG}" \
+            --body "Automated deployment via Discord Bot" \
+            --base main \
+            --head "$BRANCH_NAME"
