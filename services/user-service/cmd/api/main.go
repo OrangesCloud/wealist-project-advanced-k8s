@@ -108,6 +108,15 @@ func main() {
 	}
 	logger.Info("Database connected successfully")
 
+	// Enable GORM OpenTelemetry tracing
+	if err := otel.EnableGORMTracing(db, "user_db"); err != nil {
+		logger.Warn("Failed to enable GORM tracing, continuing without DB tracing",
+			zap.Error(err),
+		)
+	} else {
+		logger.Info("GORM OpenTelemetry tracing enabled")
+	}
+
 	// Run auto migration (conditional based on DB_AUTO_MIGRATE env)
 	if cfg.Database.AutoMigrate {
 		logger.Info("Running database migrations (DB_AUTO_MIGRATE=true)")
@@ -139,6 +148,17 @@ func main() {
 	// Initialize Redis for rate limiting
 	if err := database.InitRedis(logger); err != nil {
 		logger.Warn("Failed to initialize Redis, rate limiting will be disabled", zap.Error(err))
+	}
+
+	// Enable Redis OpenTelemetry tracing
+	if redisClient := database.GetRedis(); redisClient != nil {
+		if err := otel.EnableRedisTracing(redisClient); err != nil {
+			logger.Warn("Failed to enable Redis tracing, continuing without Redis tracing",
+				zap.Error(err),
+			)
+		} else {
+			logger.Info("Redis OpenTelemetry tracing enabled")
+		}
 	}
 
 	// Initialize Auth validator (SmartValidator for RS256 JWKS support)

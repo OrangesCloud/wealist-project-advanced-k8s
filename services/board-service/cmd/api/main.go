@@ -25,7 +25,9 @@ import (
 	"project-board-api/internal/repository"
 	"project-board-api/internal/router"
 
-	_ "project-board-api/docs" // Swagger docs
+	// Swagger docs - temporarily disabled for CI compatibility
+	// TODO: Re-enable after resolving genproto conflict
+	// _ "project-board-api/docs"
 )
 
 // @title           Project Board Management API
@@ -140,6 +142,17 @@ func main() {
 		zap.String("database", cfg.Database.DBName),
 	)
 
+	// Enable GORM OpenTelemetry tracing
+	if err := otel.EnableGORMTracing(db, cfg.Database.DBName); err != nil {
+		log.Warn("Failed to enable GORM tracing, continuing without DB tracing",
+			zap.Error(err),
+		)
+	} else {
+		log.Info("GORM OpenTelemetry tracing enabled",
+			zap.String("db_name", cfg.Database.DBName),
+		)
+	}
+
 	// Initialize metrics with logger
 	log.Info("Initializing Prometheus metrics")
 	m := metrics.NewWithLogger(log.Logger)
@@ -175,6 +188,17 @@ func main() {
 		log.Fatal("Failed to connect to Redis", zap.Error(err))
 	}
 	log.Info("Redis connection established")
+
+	// Enable Redis OpenTelemetry tracing
+	if redisClient := database.GetRedis(); redisClient != nil {
+		if err := otel.EnableRedisTracing(redisClient); err != nil {
+			log.Warn("Failed to enable Redis tracing, continuing without Redis tracing",
+				zap.Error(err),
+			)
+		} else {
+			log.Info("Redis OpenTelemetry tracing enabled")
+		}
+	}
 
 	// Log complete User API configuration for debugging
 

@@ -197,6 +197,7 @@ func TestBoardService_toBoardResponse_Attachments(t *testing.T) {
 
 			if response == nil {
 				t.Fatal("toBoardResponse() returned nil")
+				return
 			}
 
 			if response.Attachments == nil {
@@ -346,6 +347,7 @@ func TestCreateBoard_ValidDateRange(t *testing.T) {
 
 	if result == nil {
 		t.Fatal("Expected result, got nil")
+		return
 	}
 
 	if result.StartDate == nil || !result.StartDate.Equal(startDate) {

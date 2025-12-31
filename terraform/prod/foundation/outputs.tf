@@ -142,6 +142,19 @@ output "tempo_traces_bucket_arn" {
 }
 
 # =============================================================================
+# S3 Loki Logs Outputs (Centralized Logging)
+# =============================================================================
+output "loki_logs_bucket_name" {
+  description = "S3 bucket name for Loki logs"
+  value       = aws_s3_bucket.loki_logs.id
+}
+
+output "loki_logs_bucket_arn" {
+  description = "S3 bucket ARN for Loki logs"
+  value       = aws_s3_bucket.loki_logs.arn
+}
+
+# =============================================================================
 # KMS Outputs
 # =============================================================================
 output "kms_key_arn" {
@@ -205,6 +218,7 @@ output "summary" {
     S3:
       Storage Bucket: ${aws_s3_bucket.storage.id}
       Tempo Traces Bucket: ${aws_s3_bucket.tempo_traces.id}
+      Loki Logs Bucket: ${aws_s3_bucket.loki_logs.id}
 
     KMS:
       Key ARN: ${module.kms.key_arn}

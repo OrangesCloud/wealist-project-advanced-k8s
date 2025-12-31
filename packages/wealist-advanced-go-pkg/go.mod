@@ -8,6 +8,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/client_model v0.6.2
+	github.com/redis/go-redis/extra/redisotel/v9 v9.8.0
 	github.com/redis/go-redis/v9 v9.8.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.58.0
 	go.opentelemetry.io/otel v1.33.0
@@ -20,6 +21,7 @@ require (
 	go.uber.org/zap v1.27.1
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
+	gorm.io/plugin/opentelemetry v0.1.8
 )
 
 require (
@@ -53,6 +55,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
+	github.com/redis/go-redis/extra/rediscmd/v9 v9.8.0 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
@@ -72,4 +75,20 @@ require (
 	google.golang.org/grpc v1.67.1 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+// Exclude old genproto to avoid ambiguous import errors with submodule versions
+exclude (
+	google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8
+	google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19
+	google.golang.org/genproto v0.0.0-20190418145605-e7d98fc518a7
+	google.golang.org/genproto v0.0.0-20190425155659-357c62f0e4bb
+	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873
+	google.golang.org/genproto v0.0.0-20190801165951-fa694d86fc64
+	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55
+	google.golang.org/genproto v0.0.0-20190911173649-1774047e7e51
+	google.golang.org/genproto v0.0.0-20191108220845-16a3f7862a1a
+	google.golang.org/genproto v0.0.0-20210319143718-93e7006c17a6
+	google.golang.org/genproto v0.0.0-20210402141018-6c239bbf2bb1
+	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c
 )
