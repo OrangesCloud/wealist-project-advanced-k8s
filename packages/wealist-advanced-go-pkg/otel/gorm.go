@@ -3,6 +3,7 @@
 package otel
 
 import (
+	"go.opentelemetry.io/otel/attribute"
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"
 )
@@ -43,7 +44,10 @@ func EnableGORMTracing(db *gorm.DB, dbName string) error {
 // EnableGORMTracingWithConfig enables GORM tracing with custom configuration.
 func EnableGORMTracingWithConfig(db *gorm.DB, cfg *GORMTracingConfig) error {
 	opts := []tracing.Option{
-		tracing.WithDBName(cfg.DBName),
+		// Set db.name attribute using WithAttributes (WithDBName removed in v0.1.16)
+		tracing.WithAttributes(attribute.String("db.name", cfg.DBName)),
+		// Set db.system attribute for PostgreSQL
+		tracing.WithDBSystem("postgresql"),
 	}
 
 	if !cfg.WithMetrics {

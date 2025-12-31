@@ -41,6 +41,36 @@ data:
           - sources:
               - from: connection
 
+      {{- if .Values.otelCollector.tailSampling.enabled }}
+      # =============================================================================
+      # Tail Sampling (2025 Best Practice)
+      # =============================================================================
+      # 에러/슬로우 트레이스 100% 유지 + 정상 트래픽 샘플링
+      # Head sampling과 달리 trace 완료 후 샘플링 결정
+      tail_sampling:
+        decision_wait: {{ .Values.otelCollector.tailSampling.decisionWaitSeconds }}s
+        num_traces: {{ .Values.otelCollector.tailSampling.numTraces }}
+        expected_new_traces_per_sec: {{ .Values.otelCollector.tailSampling.expectedNewTracesPerSec }}
+        policies:
+          {{- if .Values.otelCollector.tailSampling.policies.errorSampling }}
+          # 1. 모든 에러 트레이스 100% 유지
+          - name: errors-policy
+            type: status_code
+            status_code:
+              status_codes: [ERROR]
+          {{- end }}
+          # 2. 느린 트레이스 유지 (latencyThresholdMs 이상)
+          - name: latency-policy
+            type: latency
+            latency:
+              threshold_ms: {{ .Values.otelCollector.tailSampling.policies.latencyThresholdMs }}
+          # 3. 정상 트래픽 확률적 샘플링
+          - name: probabilistic-policy
+            type: probabilistic
+            probabilistic:
+              sampling_percentage: {{ .Values.otelCollector.tailSampling.policies.defaultSamplingPercentage }}
+      {{- end }}
+
     exporters:
       # Tempo로 trace 전송
       {{- if .Values.tempo.enabled }}
@@ -50,8 +80,8 @@ data:
           insecure: true
       {{- end }}
 
-      # 디버깅용 로깅
-      logging:
+      # 디버깅용 로깅 (0.114.0부터 logging → debug로 변경)
+      debug:
         verbosity: normal
         sampling_initial: 5
         sampling_thereafter: 200
@@ -65,10 +95,16 @@ data:
       pipelines:
         traces:
           receivers: [otlp]
+          {{- if .Values.otelCollector.tailSampling.enabled }}
+          # Tail Sampling 활성화: memory_limiter → k8sattributes → tail_sampling → batch
+          processors: [memory_limiter, k8sattributes, tail_sampling, batch]
+          {{- else }}
+          # 기본: memory_limiter → k8sattributes → batch
           processors: [memory_limiter, k8sattributes, batch]
+          {{- end }}
           exporters:
             {{- if .Values.tempo.enabled }}
             - otlp/tempo
             {{- end }}
-            - logging
+            - debug
 {{- end }}
