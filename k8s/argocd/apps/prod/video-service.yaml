@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/video-service"
         - name: image.tag
-          value: "62-96c633b"
+          value: "63-19f5c06"
         - name: externalSecrets.enabled
           value: "true"
         - name: config.DB_NAME
