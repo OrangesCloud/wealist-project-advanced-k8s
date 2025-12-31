@@ -401,6 +401,14 @@ prometheus:
     enabled: true
     alertmanager:
       enabled: false  # Alertmanager 별도 구축 시 true로 변경
+  # 프로덕션 리소스 (WAL replay 메모리 필요)
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "100m"
+    limits:
+      memory: "1Gi"  # 기본 512Mi → 1Gi (WAL replay OOMKilled 방지)
+      cpu: "500m"
 
 # Loki - 로그 수집
 loki:
