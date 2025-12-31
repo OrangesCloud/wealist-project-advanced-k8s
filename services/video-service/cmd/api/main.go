@@ -81,6 +81,15 @@ func main() {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
 
+	// Enable GORM OpenTelemetry tracing
+	if err := otel.EnableGORMTracing(db, "video_db"); err != nil {
+		logger.Warn("Failed to enable GORM tracing, continuing without DB tracing",
+			zap.Error(err),
+		)
+	} else {
+		logger.Info("GORM OpenTelemetry tracing enabled")
+	}
+
 	sqlDB, _ := db.DB()
 	defer func() { _ = sqlDB.Close() }()
 
@@ -89,6 +98,16 @@ func main() {
 		logger.Warn("Failed to initialize Redis, rate limiting will be disabled", zap.Error(err))
 	}
 	redisClient := database.GetRedis()
+	if redisClient != nil {
+		// Enable Redis OpenTelemetry tracing
+		if err := otel.EnableRedisTracing(redisClient); err != nil {
+			logger.Warn("Failed to enable Redis tracing, continuing without Redis tracing",
+				zap.Error(err),
+			)
+		} else {
+			logger.Info("Redis OpenTelemetry tracing enabled")
+		}
+	}
 
 	// Setup router
 	r := router.Setup(router.RouterConfig{

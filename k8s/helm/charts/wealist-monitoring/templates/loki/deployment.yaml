@@ -26,6 +26,7 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/loki/configmap.yaml") . | sha256sum }}
     spec:
+      serviceAccountName: loki
       securityContext:
         fsGroup: 10001
         runAsGroup: 10001

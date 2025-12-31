@@ -7,8 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
@@ -129,8 +127,9 @@ func Setup(cfg Config) *gin.Engine {
 	healthChecker := commonhealth.NewHealthChecker(cfg.DB, database.GetRedis())
 	healthChecker.RegisterRoutes(router, cfg.BasePath)
 
-	// Swagger documentation endpoint
-	baseGroup.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger documentation endpoint - temporarily disabled for CI compatibility
+	// TODO: Re-enable after upgrading gin-swagger to resolve genproto conflict
+	// baseGroup.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Metrics endpoint (no authentication required)
 	// Add metrics endpoint at root level for compatibility

@@ -30,17 +30,17 @@ externalSecrets:
 # 핵심 서비스 - Spring Boot (Java)
 # 주의: autoscaling 설정은 최상위 레벨에서만 적용됨 (서비스별 override 불가)
 auth-service:
-  replicaCount: 2  # HPA 비활성화 시 사용
+  replicaCount: 2 # HPA 비활성화 시 사용
   # Spring Boot용 리소스 (javaResources 키 사용 - Go 서비스의 resources와 분리)
   javaResources:
     requests:
-      memory: "384Mi"   # 실제 사용량 ~300Mi
-      cpu: "100m"       # 실제 사용량 ~50m
+      memory: "384Mi" # 실제 사용량 ~300Mi
+      cpu: "100m" # 실제 사용량 ~50m
     limits:
-      memory: "768Mi"   # Spring Boot 충분
+      memory: "768Mi" # Spring Boot 충분
       cpu: "500m"
   config:
-    SPRING_DATA_REDIS_SSL_ENABLED: "true"  # ElastiCache TLS
+    SPRING_DATA_REDIS_SSL_ENABLED: "true" # ElastiCache TLS
 
 # 핵심 서비스 - 2 replicas (HPA 비활성화 시)
 board-service:
@@ -110,7 +110,7 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   runAsNonRoot: true
-  readOnlyRootFilesystem: false  # Spring Boot (Tomcat) needs /tmp write access
+  readOnlyRootFilesystem: false # Spring Boot (Tomcat) needs /tmp write access
   capabilities:
     drop:
       - ALL
@@ -123,22 +123,22 @@ securityContext:
 #       (auth-service.autoscaling.minReplicas는 .Values.autoscaling.minReplicas와 다른 경로)
 autoscaling:
   enabled: true
-  minReplicas: 2  # 핵심 서비스 가용성 보장 (board, user 등)
+  minReplicas: 2 # 핵심 서비스 가용성 보장 (board, user 등)
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 90
   # 스케일 다운 속도 개선 (기본 5분 → 2분, 더 공격적으로)
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 120  # 2분 안정화 (기본 5분에서 단축)
+      stabilizationWindowSeconds: 120 # 2분 안정화 (기본 5분에서 단축)
       policies:
         - type: Percent
           value: 50
           periodSeconds: 60
         - type: Pods
-          value: 2  # 한 번에 최대 2개 제거 (기본 1개에서 증가)
+          value: 2 # 한 번에 최대 2개 제거 (기본 1개에서 증가)
           periodSeconds: 60
-      selectPolicy: Max  # 더 공격적으로 스케일 다운 (기본 Min에서 변경)
+      selectPolicy: Max # 더 공격적으로 스케일 다운 (기본 Min에서 변경)
     scaleUp:
       stabilizationWindowSeconds: 0
       policies:
@@ -171,8 +171,8 @@ shared:
     POSTGRES_PORT: "5432"
     DB_PORT: "5432"
     DB_USER: "wealist_admin"
-    DB_AUTO_MIGRATE: "false"  # Production: No auto migration
-    DB_SSL_MODE: "require"    # RDS는 SSL 연결 필요
+    DB_AUTO_MIGRATE: "false" # Production: No auto migration
+    DB_SSL_MODE: "require" # RDS는 SSL 연결 필요
     DB_SSLMODE: "require"
     # Redis (hosts from ExternalSecret)
     REDIS_PORT: "6379"
@@ -184,7 +184,7 @@ shared:
     # Istio JWT Mode (Istio가 JWT 검증, Go 서비스는 파싱만)
     ISTIO_JWT_MODE: "true"
     # S3 Configuration (AWS S3 - Terraform: wealist-prod-storage)
-    S3_ENDPOINT: ""  # AWS S3 기본 엔드포인트 사용 (비워두면 AWS SDK 기본값)
+    S3_ENDPOINT: "" # AWS S3 기본 엔드포인트 사용 (비워두면 AWS SDK 기본값)
     S3_PUBLIC_ENDPOINT: "https://cdn.wealist.co.kr"
     S3_BUCKET: "wealist-prod-files-290008131187"
     S3_REGION: "ap-northeast-2"
@@ -194,41 +194,41 @@ shared:
     OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "https://wealist.co.kr/oauth/callback"
     # OpenTelemetry Configuration (Production - 10% sampling)
-    OTEL_TRACES_SAMPLER_ARG: "0.1"  # 10% 샘플링 (base.yaml 1.0 override)
+    OTEL_TRACES_SAMPLER_ARG: "0.1" # 10% 샘플링 (base.yaml 1.0 override)
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=production"
 
 # -----------------------------------------------------------------------------
 # Ingress (nginx - 비활성화, Istio Gateway 사용)
 # -----------------------------------------------------------------------------
 ingress:
-  enabled: false  # Istio HTTPRoute 사용
+  enabled: false # Istio HTTPRoute 사용
 
 # -----------------------------------------------------------------------------
 # 데이터베이스 설정 (외부 DB 사용 - AWS RDS/ElastiCache)
 # -----------------------------------------------------------------------------
 # DB/Redis 호스트는 AWS Secrets Manager에서 ExternalSecret으로 가져옴
 postgres:
-  enabled: false   # 내부 PostgreSQL 비활성화
+  enabled: false # 내부 PostgreSQL 비활성화
   external:
-    enabled: true  # AWS RDS 사용
+    enabled: true # AWS RDS 사용
     port: 5432
     # host: ExternalSecret (wealist-shared-secret.DB_HOST)
 
 redis:
-  enabled: false   # 내부 Redis 비활성화
+  enabled: false # 내부 Redis 비활성화
   external:
-    enabled: true  # AWS ElastiCache 사용
+    enabled: true # AWS ElastiCache 사용
     port: 6379
     # host: ExternalSecret (wealist-shared-secret.REDIS_HOST)
 
 minio:
-  enabled: false   # S3 사용 (AWS)
+  enabled: false # S3 사용 (AWS)
 
 # -----------------------------------------------------------------------------
 # 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)
 # -----------------------------------------------------------------------------
 frontend:
-  enabled: false  # Frontend pod 비활성화 (CDN 사용)
+  enabled: false # Frontend pod 비활성화 (CDN 사용)
 
 # -----------------------------------------------------------------------------
 # Istio 서비스 메시 설정
@@ -238,7 +238,7 @@ istio:
   namespace: wealist-prod
 
   gateway:
-    enabled: false  # 기존 Istio Gateway API (사용 안 함)
+    enabled: false # 기존 Istio Gateway API (사용 안 함)
     name: wealist-gateway
     hosts:
       - "wealist.co.kr"
@@ -278,7 +278,7 @@ istio:
       https:
         enabled: true
         port: 443
-        nlbTermination: true  # NLB에서 TLS termination, Gateway는 HTTP로 수신
+        nlbTermination: true # NLB에서 TLS termination, Gateway는 HTTP로 수신
         allowedRoutes:
           from: All
 
@@ -321,7 +321,7 @@ istio:
   # mTLS - 서비스 간 암호화
   mtls:
     enabled: true
-    mode: STRICT  # Production: mTLS 강제
+    mode: STRICT # Production: mTLS 강제
 
   # Database mTLS 설정
   database:
@@ -378,7 +378,7 @@ istio:
   telemetry:
     tracing:
       enabled: true
-      samplingPercentage: 10  # Production: 10% 샘플링
+      samplingPercentage: 10 # Production: 10% 샘플링
     accessLogging:
       enabled: true
 
@@ -392,7 +392,7 @@ prometheus:
   enabled: true
   image:
     repository: prom/prometheus
-    tag: "v2.48.0"
+    tag: "v2.55.1" # v2.48.0 → v2.55.1 (2025-12 최신 안정 버전)
   config:
     externalUrl: "https://api.wealist.co.kr/api/monitoring/prometheus"
     routePrefix: "/api/monitoring/prometheus"
@@ -400,7 +400,7 @@ prometheus:
   alerting:
     enabled: true
     alertmanager:
-      enabled: true  # AlertManager 연동 활성화
+      enabled: true # AlertManager 연동 활성화
       host: alertmanager
       port: 9093
 
@@ -421,39 +421,57 @@ alertmanager:
         channel: "#wealist-alerts"
         username: "wealist-alertmanager"
 
-# Loki - 로그 수집
+# Loki - 로그 수집 (S3 백엔드)
 loki:
   enabled: true
   image:
     repository: grafana/loki
-    tag: "2.9.2"
+    tag: "3.6.3" # 2.9.2 → 3.6.3 (2025-12 최신 안정 버전, TSDB 스키마 v13)
+  persistence:
+    enabled: false # S3 사용 시 PVC 불필요
   resources:
     requests:
       memory: "256Mi"
       cpu: "100m"
     limits:
-      memory: "512Mi"  # 기본 256Mi → 512Mi (실사용 127Mi, 여유 확보)
+      memory: "512Mi" # 기본 256Mi → 512Mi (실사용 127Mi, 여유 확보)
       cpu: "300m"
+  config:
+    s3:
+      enabled: true
+      bucket: "wealist-prod-loki-logs-290008131187"
+      region: "ap-northeast-2"
 
-# Promtail - 로그 수집 에이전트
+# Promtail - 로그 수집 에이전트 (Alloy로 대체)
 promtail:
+  enabled: false # Alloy로 마이그레이션
+
+# Alloy - 로그 수집 에이전트 (Promtail 대체)
+alloy:
   enabled: true
   image:
-    repository: grafana/promtail
-    tag: "2.9.2"
+    repository: grafana/alloy
+    tag: "v1.12.1" # 2025-12 최신 안정 버전
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
 
 # Grafana - 시각화 대시보드
 grafana:
   enabled: true
   image:
     repository: grafana/grafana
-    tag: "10.2.2"
+    tag: "10.4.12" # 10.2.2 → 10.4.12 (2025-12 안정 버전)
   resources:
     requests:
       memory: "192Mi"
       cpu: "100m"
     limits:
-      memory: "384Mi"  # 기본 256Mi → 384Mi (실사용 123Mi, 여유 확보)
+      memory: "384Mi" # 기본 256Mi → 384Mi (실사용 123Mi, 여유 확보)
       cpu: "300m"
   config:
     allowSignUp: false
@@ -462,7 +480,7 @@ grafana:
 
 # 모니터링 Ingress
 monitoringIngress:
-  enabled: false  # Production: 별도 VPN/Bastion 통해 접근
+  enabled: false # Production: 별도 VPN/Bastion 통해 접근
 
 # kube-state-metrics (Kubernetes 오브젝트 상태 메트릭)
 # Kubernetes Cluster 대시보드와 Service Health Overview에 필요
@@ -470,7 +488,7 @@ kubeStateMetrics:
   enabled: true
   image:
     repository: registry.k8s.io/kube-state-metrics/kube-state-metrics
-    tag: "v2.10.1"
+    tag: "v2.14.0" # v2.10.1 → v2.14.0 (2025-12 안정 버전)
 
 # node-exporter (노드 시스템 메트릭)
 # Kubernetes Cluster 대시보드의 노드 CPU/메모리 사용률에 필요
@@ -478,7 +496,7 @@ nodeExporter:
   enabled: true
   image:
     repository: prom/node-exporter
-    tag: "v1.7.0"
+    tag: "v1.9.0" # v1.7.0 → v1.9.0 (2025-12 안정 버전)
 
 # ArgoCD 메트릭 수집
 argocd:
@@ -497,9 +515,9 @@ postgresExporter:
   config:
     # host/password: ExternalSecret (wealist-shared-secret)에서 가져옴
     port: 5432
-    user: "wealist_admin"   # shared.config.DB_USER와 동일
-    database: "postgres"    # 메트릭 수집용 기본 DB
-    sslmode: "require"      # AWS RDS SSL 필수
+    user: "wealist_admin" # shared.config.DB_USER와 동일
+    database: "postgres" # 메트릭 수집용 기본 DB
+    sslmode: "require" # AWS RDS SSL 필수
 
 redisExporter:
   enabled: true
@@ -520,8 +538,8 @@ otelCollector:
   enabled: true
   image:
     repository: otel/opentelemetry-collector-contrib
-    tag: "0.92.0"
-  replicas: 2  # Production HA
+    tag: "0.114.0" # 2025-12 최신 안정 버전
+  replicas: 2 # Production HA
   service:
     otlpGrpcPort: 4317
     otlpHttpPort: 4318
@@ -544,13 +562,13 @@ tempo:
   enabled: true
   image:
     repository: grafana/tempo
-    tag: "2.3.1"
+    tag: "2.9.0" # 2025-12 최신 안정 버전 (Pod Identity 지원)
   service:
     httpPort: 3200
     otlpGrpcPort: 4317
     otlpHttpPort: 4318
   persistence:
-    enabled: false  # S3 사용 시 로컬 PVC 불필요
+    enabled: false # S3 사용 시 로컬 PVC 불필요
   resources:
     requests:
       memory: "256Mi"
@@ -559,7 +577,7 @@ tempo:
       memory: "512Mi"
       cpu: "500m"
   config:
-    retentionPeriod: 168h  # 7 days
+    retentionPeriod: 168h # 7 days
     backend: s3
     s3:
       enabled: true

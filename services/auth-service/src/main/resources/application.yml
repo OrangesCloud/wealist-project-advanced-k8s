@@ -90,6 +90,9 @@ logging:
   level:
     OrangeCloud: DEBUG
     org.springframework.security: DEBUG
+  # Trace ID를 로그에 포함 (Traces-Logs Correlation)
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
 
 management:
   endpoints:
@@ -126,3 +129,11 @@ management:
     metrics:
       export:
         enabled: true
+  # OpenTelemetry Tracing (분산 추적)
+  tracing:
+    enabled: ${OTEL_TRACING_ENABLED:true}
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLER_ARG:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector:4318/v1/traces}

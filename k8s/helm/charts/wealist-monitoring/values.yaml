@@ -140,9 +140,14 @@ loki:
     retentionPeriod: 168h  # 7 days
     ingestionRateMB: 10
     ingestionBurstSizeMB: 20
+    # S3 Storage Backend (prod용)
+    s3:
+      enabled: false
+      bucket: ""
+      region: ""
 
 # =============================================================================
-# Promtail - Log Collector
+# Promtail - Log Collector (Legacy - use Alloy instead)
 # =============================================================================
 promtail:
   enabled: true
@@ -163,6 +168,27 @@ promtail:
   config:
     # Loki endpoint
     lokiUrl: http://loki:3100/loki/api/v1/push
+
+# =============================================================================
+# Alloy - Modern Log Collector (Promtail Replacement)
+# =============================================================================
+# Grafana Alloy is the successor to Promtail with improved performance
+# and native support for all Grafana LGTM stack components
+alloy:
+  enabled: false  # Enable in prod (replaces Promtail)
+
+  image:
+    repository: grafana/alloy
+    tag: "v1.12.1"
+    pullPolicy: IfNotPresent
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
 
 # =============================================================================
 # Grafana - Visualization Dashboard
@@ -508,7 +534,7 @@ otelCollector:
 
   image:
     repository: otel/opentelemetry-collector-contrib
-    tag: "0.92.0"  # 2025년 최신 안정 버전
+    tag: "0.114.0"  # 2025-12 최신 안정 버전
     pullPolicy: IfNotPresent
 
   replicas: 1  # prod에서 2로 증가
@@ -545,7 +571,7 @@ tempo:
 
   image:
     repository: grafana/tempo
-    tag: "2.3.1"
+    tag: "2.9.0"  # 2025-12 최신 안정 버전
     pullPolicy: IfNotPresent
 
   replicas: 1

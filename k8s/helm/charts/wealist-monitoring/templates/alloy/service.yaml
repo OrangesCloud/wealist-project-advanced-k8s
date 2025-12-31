@@ -1,0 +1,20 @@
+{{- if .Values.alloy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: alloy
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: alloy
+    app.kubernetes.io/name: alloy
+    app.kubernetes.io/component: log-collector
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-metrics
+      port: 12345
+      targetPort: http-metrics
+      protocol: TCP
+  selector:
+    app: alloy
+{{- end }}
