@@ -1,5 +1,5 @@
 # =============================================================================
-# Staging Secrets - AWS Secrets Manager
+# Dev Secrets - AWS Secrets Manager
 # =============================================================================
 # ESO가 이 시크릿들을 읽어서 K8s Secret으로 변환합니다.
 # terraform apply 후 ESO가 자동으로 동기화합니다.
@@ -21,8 +21,8 @@ provider "aws" {
 # Database Endpoint
 # -----------------------------------------------------------------------------
 resource "aws_secretsmanager_secret" "database_endpoint" {
-  name        = "wealist/staging/database/endpoint"
-  description = "Staging Database Connection"
+  name        = "wealist/dev/database/endpoint"
+  description = "Dev Database Connection"
 }
 
 resource "aws_secretsmanager_secret_version" "database_endpoint" {
@@ -39,8 +39,8 @@ resource "aws_secretsmanager_secret_version" "database_endpoint" {
 # Redis Endpoint
 # -----------------------------------------------------------------------------
 resource "aws_secretsmanager_secret" "redis_endpoint" {
-  name        = "wealist/staging/redis/endpoint"
-  description = "Staging Redis Connection"
+  name        = "wealist/dev/redis/endpoint"
+  description = "Dev Redis Connection"
 }
 
 resource "aws_secretsmanager_secret_version" "redis_endpoint" {
@@ -52,8 +52,8 @@ resource "aws_secretsmanager_secret_version" "redis_endpoint" {
 }
 
 resource "aws_secretsmanager_secret" "redis_auth" {
-  name        = "wealist/staging/redis/auth-token"
-  description = "Staging Redis Auth Token"
+  name        = "wealist/dev/redis/auth-token"
+  description = "Dev Redis Auth Token"
 }
 
 resource "aws_secretsmanager_secret_version" "redis_auth" {
@@ -65,8 +65,8 @@ resource "aws_secretsmanager_secret_version" "redis_auth" {
 # Application Secrets
 # -----------------------------------------------------------------------------
 resource "aws_secretsmanager_secret" "jwt_secret" {
-  name        = "wealist/staging/app/jwt-secret"
-  description = "Staging JWT Secret"
+  name        = "wealist/dev/app/jwt-secret"
+  description = "Dev JWT Secret"
 }
 
 resource "aws_secretsmanager_secret_version" "jwt_secret" {
@@ -75,8 +75,8 @@ resource "aws_secretsmanager_secret_version" "jwt_secret" {
 }
 
 resource "aws_secretsmanager_secret" "internal_api_key" {
-  name        = "wealist/staging/app/internal-api-key"
-  description = "Staging Internal API Key"
+  name        = "wealist/dev/app/internal-api-key"
+  description = "Dev Internal API Key"
 }
 
 resource "aws_secretsmanager_secret_version" "internal_api_key" {
@@ -88,8 +88,8 @@ resource "aws_secretsmanager_secret_version" "internal_api_key" {
 # OAuth2 Google
 # -----------------------------------------------------------------------------
 resource "aws_secretsmanager_secret" "oauth_google" {
-  name        = "wealist/staging/oauth/google"
-  description = "Staging Google OAuth Credentials"
+  name        = "wealist/dev/oauth/google"
+  description = "Dev Google OAuth Credentials"
 }
 
 resource "aws_secretsmanager_secret_version" "oauth_google" {
@@ -104,8 +104,8 @@ resource "aws_secretsmanager_secret_version" "oauth_google" {
 # LiveKit
 # -----------------------------------------------------------------------------
 resource "aws_secretsmanager_secret" "livekit" {
-  name        = "wealist/staging/livekit/credentials"
-  description = "Staging LiveKit Credentials"
+  name        = "wealist/dev/livekit/credentials"
+  description = "Dev LiveKit Credentials"
 }
 
 resource "aws_secretsmanager_secret_version" "livekit" {
@@ -120,8 +120,8 @@ resource "aws_secretsmanager_secret_version" "livekit" {
 # MinIO / S3
 # -----------------------------------------------------------------------------
 resource "aws_secretsmanager_secret" "minio" {
-  name        = "wealist/staging/minio/credentials"
-  description = "Staging MinIO Credentials"
+  name        = "wealist/dev/minio/credentials"
+  description = "Dev MinIO Credentials"
 }
 
 resource "aws_secretsmanager_secret_version" "minio" {
@@ -136,8 +136,8 @@ resource "aws_secretsmanager_secret_version" "minio" {
 # Grafana
 # -----------------------------------------------------------------------------
 resource "aws_secretsmanager_secret" "grafana" {
-  name        = "wealist/staging/monitoring/grafana"
-  description = "Staging Grafana Admin Credentials"
+  name        = "wealist/dev/monitoring/grafana"
+  description = "Dev Grafana Admin Credentials"
 }
 
 resource "aws_secretsmanager_secret_version" "grafana" {

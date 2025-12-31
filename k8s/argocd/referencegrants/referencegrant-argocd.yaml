@@ -17,9 +17,6 @@ spec:
       namespace: wealist-dev
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
-      namespace: wealist-dev
-    - group: gateway.networking.k8s.io
-      kind: HTTPRoute
       namespace: wealist-prod
   to:
     - group: ""

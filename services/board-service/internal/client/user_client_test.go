@@ -199,6 +199,7 @@ func TestUserClient_GetUserProfile(t *testing.T) {
 
 			if profile == nil {
 				t.Fatal("GetUserProfile() returned nil profile")
+				return
 			}
 
 			if profile.UserID != tt.wantProfile.UserID {
@@ -302,6 +303,7 @@ func TestUserClient_GetWorkspaceProfile(t *testing.T) {
 
 			if profile == nil {
 				t.Fatal("GetWorkspaceProfile() returned nil profile")
+				return
 			}
 
 			if profile.WorkspaceID != tt.wantProfile.WorkspaceID {
@@ -408,6 +410,7 @@ func TestUserClient_GetWorkspace(t *testing.T) {
 
 			if workspace == nil {
 				t.Fatal("GetWorkspace() returned nil workspace")
+				return
 			}
 
 			if workspace.ID != tt.wantWorkspace.ID {

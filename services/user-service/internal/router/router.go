@@ -32,6 +32,7 @@ type Config struct {
 	Metrics         *metrics.Metrics
 	RedisClient     *redis.Client
 	RateLimitConfig config.RateLimitConfig
+	ServiceName     string // Service name for OTEL tracing
 }
 
 // Setup sets up the router with all routes
@@ -44,9 +45,16 @@ func Setup(cfg Config) *gin.Engine {
 		m = metrics.New()
 	}
 
-	// Middleware (using common package)
+	// Determine service name for tracing
+	serviceName := cfg.ServiceName
+	if serviceName == "" {
+		serviceName = "user-service"
+	}
+
+	// Middleware (using common package with OTEL tracing)
 	r.Use(commonmw.Recovery(cfg.Logger))
-	r.Use(commonmw.Logger(cfg.Logger))
+	r.Use(commonmw.OTELTracing(serviceName))                   // OpenTelemetry HTTP tracing (otelgin)
+	r.Use(commonmw.LoggerWithTracing(cfg.Logger, serviceName)) // Request logging with trace context
 	r.Use(commonmw.DefaultCORS())
 	r.Use(metrics.HTTPMiddleware(m))
 

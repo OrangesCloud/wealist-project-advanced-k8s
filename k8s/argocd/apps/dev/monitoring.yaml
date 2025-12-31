@@ -4,7 +4,7 @@ metadata:
   name: wealist-monitoring-dev
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "12"  # Istio 설정 이후에 설치
+    argocd.argoproj.io/sync-wave: "12" # Istio 설정 이후에 설치
 spec:
   project: wealist-dev
   source:
@@ -32,3 +32,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true

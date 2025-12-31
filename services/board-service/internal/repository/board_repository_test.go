@@ -155,6 +155,7 @@ func TestBoardRepository_FindByProjectID_WithParticipantsPreload(t *testing.T) {
 
 	if foundBoard1 == nil {
 		t.Fatal("board1 not found in results")
+		return
 	}
 
 	if len(foundBoard1.Participants) != 2 {
@@ -172,6 +173,7 @@ func TestBoardRepository_FindByProjectID_WithParticipantsPreload(t *testing.T) {
 
 	if foundBoard2 == nil {
 		t.Fatal("board2 not found in results")
+		return
 	}
 
 	if len(foundBoard2.Participants) != 1 {

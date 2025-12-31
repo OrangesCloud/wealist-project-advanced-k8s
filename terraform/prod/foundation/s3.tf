@@ -103,3 +103,147 @@ resource "aws_s3_bucket_cors_configuration" "storage" {
     max_age_seconds = 3600
   }
 }
+
+# =============================================================================
+# S3 Bucket for Tempo Traces (OpenTelemetry Distributed Tracing)
+# =============================================================================
+# Tempo 분산 추적 데이터 저장용 S3 버킷
+# 7일 보관 후 자동 삭제 (traces lifecycle)
+
+resource "aws_s3_bucket" "tempo_traces" {
+  bucket = "${local.name_prefix}-tempo-traces-${data.aws_caller_identity.current.account_id}"
+
+  tags = merge(local.common_tags, {
+    Name      = "${local.name_prefix}-tempo-traces"
+    Component = "observability"
+  })
+}
+
+# -----------------------------------------------------------------------------
+# Versioning (Disabled - traces are immutable)
+# -----------------------------------------------------------------------------
+resource "aws_s3_bucket_versioning" "tempo_traces" {
+  bucket = aws_s3_bucket.tempo_traces.id
+  versioning_configuration {
+    status = "Disabled"
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Encryption (KMS)
+# -----------------------------------------------------------------------------
+resource "aws_s3_bucket_server_side_encryption_configuration" "tempo_traces" {
+  bucket = aws_s3_bucket.tempo_traces.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = module.kms.key_arn
+      sse_algorithm     = "aws:kms"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Public Access Block
+# -----------------------------------------------------------------------------
+resource "aws_s3_bucket_public_access_block" "tempo_traces" {
+  bucket = aws_s3_bucket.tempo_traces.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# -----------------------------------------------------------------------------
+# Lifecycle Rules - Traces Retention
+# -----------------------------------------------------------------------------
+resource "aws_s3_bucket_lifecycle_configuration" "tempo_traces" {
+  bucket = aws_s3_bucket.tempo_traces.id
+
+  rule {
+    id     = "delete-old-traces"
+    status = "Enabled"
+
+    # 모든 객체에 적용
+    filter {}
+
+    # 7일 후 삭제 (prod.yaml의 retentionPeriod: 168h와 일치)
+    expiration {
+      days = 7
+    }
+  }
+}
+
+# =============================================================================
+# S3 Bucket for Loki Logs (Centralized Logging)
+# =============================================================================
+# Loki 로그 저장용 S3 버킷
+# 30일 보관 후 자동 삭제 (logs lifecycle)
+
+resource "aws_s3_bucket" "loki_logs" {
+  bucket = "${local.name_prefix}-loki-logs-${data.aws_caller_identity.current.account_id}"
+
+  tags = merge(local.common_tags, {
+    Name      = "${local.name_prefix}-loki-logs"
+    Component = "observability"
+  })
+}
+
+# -----------------------------------------------------------------------------
+# Versioning (Disabled - logs are immutable)
+# -----------------------------------------------------------------------------
+resource "aws_s3_bucket_versioning" "loki_logs" {
+  bucket = aws_s3_bucket.loki_logs.id
+  versioning_configuration {
+    status = "Disabled"
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Encryption (KMS)
+# -----------------------------------------------------------------------------
+resource "aws_s3_bucket_server_side_encryption_configuration" "loki_logs" {
+  bucket = aws_s3_bucket.loki_logs.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = module.kms.key_arn
+      sse_algorithm     = "aws:kms"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Public Access Block
+# -----------------------------------------------------------------------------
+resource "aws_s3_bucket_public_access_block" "loki_logs" {
+  bucket = aws_s3_bucket.loki_logs.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# -----------------------------------------------------------------------------
+# Lifecycle Rules - Logs Retention
+# -----------------------------------------------------------------------------
+resource "aws_s3_bucket_lifecycle_configuration" "loki_logs" {
+  bucket = aws_s3_bucket.loki_logs.id
+
+  rule {
+    id     = "delete-old-logs"
+    status = "Enabled"
+
+    # 모든 객체에 적용
+    filter {}
+
+    # 30일 후 삭제 (prod.yaml의 retention_period와 일치)
+    expiration {
+      days = 30
+    }
+  }
+}

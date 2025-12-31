@@ -29,8 +29,17 @@ data:
           httpMethod: POST
           manageAlerts: true
           prometheusType: Prometheus
+          {{- if .Values.prometheus.exemplarStorage.enabled }}
+          # =============================================================================
+          # Exemplars (2025 Best Practice)
+          # =============================================================================
+          # Prometheus 메트릭에서 Tempo 트레이스로 직접 연결
+          exemplarTraceIdDestinations:
+            - name: traceID
+              datasourceUid: tempo
+          {{- end }}
 
-      # Loki - 로그 데이터
+      # Loki - 로그 데이터 (Tempo 연동 포함)
       - name: Loki
         type: loki
         uid: loki
@@ -39,6 +48,67 @@ data:
         editable: false
         jsonData:
           maxLines: 1000
+          {{- if .Values.tempo.enabled }}
+          # Traces-Logs Correlation: trace_id로 Tempo 트레이스 연결
+          derivedFields:
+            - datasourceUid: tempo
+              matcherRegex: '"trace_id":"([a-f0-9]+)"'
+              name: TraceID
+              url: '$${__value.raw}'
+              urlDisplayLabel: 'View Trace'
+            - datasourceUid: tempo
+              matcherRegex: 'trace_id=([a-f0-9]+)'
+              name: TraceID
+              url: '$${__value.raw}'
+              urlDisplayLabel: 'View Trace'
+          {{- end }}
+
+      {{- if .Values.tempo.enabled }}
+      # Tempo - 분산 추적 (2025 OTEL 통합)
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        access: proxy
+        url: http://tempo:{{ .Values.tempo.service.httpPort }}
+        editable: false
+        jsonData:
+          httpMethod: GET
+          # Traces to Logs: 트레이스에서 관련 로그로 이동
+          tracesToLogsV2:
+            datasourceUid: 'loki'
+            filterByTraceID: true
+            filterBySpanID: false
+            spanStartTimeShift: '-1m'
+            spanEndTimeShift: '1m'
+            tags:
+              - key: 'service.name'
+                value: 'app'
+            customQuery: true
+            query: '{trace_id="${__span.traceId}"} | json'
+          # Traces to Metrics: 트레이스에서 메트릭으로 연결
+          tracesToMetrics:
+            datasourceUid: 'prometheus'
+            spanStartTimeShift: '-5m'
+            spanEndTimeShift: '5m'
+            tags:
+              - key: 'service.name'
+                value: 'app'
+            queries:
+              - name: 'Request Rate'
+                query: 'sum(rate(http_server_request_duration_seconds_count{app="${__span.tags["service.name"]}"}[5m]))'
+              - name: 'Error Rate'
+                query: 'sum(rate(http_server_request_duration_seconds_count{app="${__span.tags["service.name"]}", http_status_code=~"5.."}[5m]))'
+          # Service Graph: 서비스 간 관계 시각화
+          serviceMap:
+            datasourceUid: 'prometheus'
+          # Node Graph: 트레이스 스팬 그래프
+          nodeGraph:
+            enabled: true
+          search:
+            hide: false
+          lokiSearch:
+            datasourceUid: 'loki'
+      {{- end }}
 
       {{- if .Values.grafana.additionalDatasources.elasticsearch.enabled }}
       # Elasticsearch - ELK 스택 로그/검색 데이터

@@ -442,15 +442,15 @@ print_summary() {
         echo ""
     fi
     echo "Next Steps:"
-    if [ "$MODE" = "staging" ]; then
-        echo "  1. Deploy with: make kind-staging-setup"
+    if [ "$MODE" = "dev" ]; then
+        echo "  1. Deploy with: make kind-dev-setup"
         echo "  2. ArgoCD가 자동으로 서비스 배포"
         echo ""
         echo "Note: AWS Secrets Manager의 비밀번호와 일치해야 합니다!"
-        echo "  STAGING_DB_PASSWORD 환경변수로 비밀번호 지정 가능"
+        echo "  DEV_DB_PASSWORD 환경변수로 비밀번호 지정 가능"
     else
-        echo "  1. Deploy with: make helm-install-all ENV=dev"
-        echo "  2. For initial tables: make helm-install-all-init ENV=dev"
+        echo "  1. Deploy with: make helm-install-all ENV=prod"
+        echo "  2. For initial tables: make helm-install-all-init ENV=prod"
     fi
     echo ""
 }

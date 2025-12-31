@@ -530,3 +530,95 @@ module "pod_identity_cluster_autoscaler" {
 
   tags = local.common_tags
 }
+
+# -----------------------------------------------------------------------------
+# Tempo (OpenTelemetry 분산 추적 - S3 스토리지)
+# -----------------------------------------------------------------------------
+module "pod_identity_tempo" {
+  source = "../../modules/pod-identity"
+
+  name            = "${local.name_prefix}-tempo"
+  cluster_name    = module.eks.cluster_name
+  namespace       = "wealist-prod"
+  service_account = "tempo"
+
+  inline_policies = {
+    s3-traces-access = jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Sid    = "S3TempoTracesAccess"
+          Effect = "Allow"
+          Action = [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:DeleteObject",
+            "s3:ListBucket"
+          ]
+          Resource = [
+            data.terraform_remote_state.foundation.outputs.tempo_traces_bucket_arn,
+            "${data.terraform_remote_state.foundation.outputs.tempo_traces_bucket_arn}/*"
+          ]
+        },
+        {
+          Sid    = "KMSAccess"
+          Effect = "Allow"
+          Action = [
+            "kms:GenerateDataKey",
+            "kms:Decrypt",
+            "kms:DescribeKey"
+          ]
+          Resource = local.kms_key_arn
+        }
+      ]
+    })
+  }
+
+  tags = local.common_tags
+}
+
+# -----------------------------------------------------------------------------
+# Loki (로그 집계 - S3 스토리지)
+# -----------------------------------------------------------------------------
+module "pod_identity_loki" {
+  source = "../../modules/pod-identity"
+
+  name            = "${local.name_prefix}-loki"
+  cluster_name    = module.eks.cluster_name
+  namespace       = "wealist-prod"
+  service_account = "loki"
+
+  inline_policies = {
+    s3-logs-access = jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Sid    = "S3LokiLogsAccess"
+          Effect = "Allow"
+          Action = [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:DeleteObject",
+            "s3:ListBucket"
+          ]
+          Resource = [
+            data.terraform_remote_state.foundation.outputs.loki_logs_bucket_arn,
+            "${data.terraform_remote_state.foundation.outputs.loki_logs_bucket_arn}/*"
+          ]
+        },
+        {
+          Sid    = "KMSAccess"
+          Effect = "Allow"
+          Action = [
+            "kms:GenerateDataKey",
+            "kms:Decrypt",
+            "kms:DescribeKey"
+          ]
+          Resource = local.kms_key_arn
+        }
+      ]
+    })
+  }
+
+  tags = local.common_tags
+}

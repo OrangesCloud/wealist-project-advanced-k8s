@@ -33,6 +33,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"github.com/OrangesCloud/wealist-advanced-go-pkg/otel"
 	"storage-service/internal/client"
 	"storage-service/internal/config"
 	"storage-service/internal/database"
@@ -55,6 +56,28 @@ func main() {
 		os.Exit(1)
 	}
 	defer func() { _ = logger.Sync() }()
+
+	// Initialize OpenTelemetry
+	ctx := context.Background()
+	otelCfg := otel.DefaultConfig("storage-service")
+	otelShutdown, err := otel.InitProvider(ctx, otelCfg)
+	if err != nil {
+		logger.Warn("Failed to initialize OpenTelemetry, continuing without tracing",
+			zap.Error(err),
+		)
+	} else {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := otelShutdown(shutdownCtx); err != nil {
+				logger.Error("Failed to shutdown OpenTelemetry", zap.Error(err))
+			}
+		}()
+		logger.Info("OpenTelemetry initialized",
+			zap.String("service.name", otelCfg.ServiceName),
+			zap.String("otel.endpoint", otelCfg.OTLPEndpoint),
+		)
+	}
 
 	// Set Gin mode
 	if cfg.Server.Mode == "release" {
@@ -82,6 +105,15 @@ func main() {
 			zap.Error(err))
 	}
 	logger.Info("Database connected successfully")
+
+	// Enable GORM OpenTelemetry tracing
+	if err := otel.EnableGORMTracing(db, "storage_db"); err != nil {
+		logger.Warn("Failed to enable GORM tracing, continuing without DB tracing",
+			zap.Error(err),
+		)
+	} else {
+		logger.Info("GORM OpenTelemetry tracing enabled")
+	}
 
 	// Run auto migration (conditional based on DB_AUTO_MIGRATE env)
 	if cfg.Database.AutoMigrate {
@@ -129,6 +161,17 @@ func main() {
 		logger.Warn("Failed to initialize Redis, rate limiting will be disabled", zap.Error(err))
 	}
 
+	// Enable Redis OpenTelemetry tracing
+	if redisClient := database.GetRedis(); redisClient != nil {
+		if err := otel.EnableRedisTracing(redisClient); err != nil {
+			logger.Warn("Failed to enable Redis tracing, continuing without Redis tracing",
+				zap.Error(err),
+			)
+		} else {
+			logger.Info("Redis OpenTelemetry tracing enabled")
+		}
+	}
+
 	// Initialize User API client
 	var userClient client.UserClient
 	if cfg.UserAPI.BaseURL != "" {
@@ -151,6 +194,7 @@ func main() {
 		UserClient:      userClient,
 		RedisClient:     database.GetRedis(),
 		RateLimitConfig: cfg.RateLimit,
+		ServiceName:     "storage-service",
 	})
 
 	// Create HTTP server

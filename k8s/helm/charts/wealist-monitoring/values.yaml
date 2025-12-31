@@ -106,6 +106,16 @@ prometheus:
       port: 8080
       path: /actuator/prometheus
 
+  # =============================================================================
+  # Remote Write & Exemplars (2025 Best Practice)
+  # =============================================================================
+  # Tempo Metrics Generator에서 메트릭을 수신하기 위해 필요
+  remoteWriteReceiver:
+    enabled: false  # prod에서 true로 활성화
+  # Exemplar 저장 활성화 (Metrics → Traces 연결)
+  exemplarStorage:
+    enabled: false  # prod에서 true로 활성화
+
 # =============================================================================
 # Loki - Log Aggregation
 # =============================================================================
@@ -140,9 +150,14 @@ loki:
     retentionPeriod: 168h  # 7 days
     ingestionRateMB: 10
     ingestionBurstSizeMB: 20
+    # S3 Storage Backend (prod용)
+    s3:
+      enabled: false
+      bucket: ""
+      region: ""
 
 # =============================================================================
-# Promtail - Log Collector
+# Promtail - Log Collector (Legacy - use Alloy instead)
 # =============================================================================
 promtail:
   enabled: true
@@ -163,6 +178,27 @@ promtail:
   config:
     # Loki endpoint
     lokiUrl: http://loki:3100/loki/api/v1/push
+
+# =============================================================================
+# Alloy - Modern Log Collector (Promtail Replacement)
+# =============================================================================
+# Grafana Alloy is the successor to Promtail with improved performance
+# and native support for all Grafana LGTM stack components
+alloy:
+  enabled: false  # Enable in prod (replaces Promtail)
+
+  image:
+    repository: grafana/alloy
+    tag: "v1.12.1"
+    pullPolicy: IfNotPresent
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
 
 # =============================================================================
 # Grafana - Visualization Dashboard
@@ -427,3 +463,138 @@ k6:
     latencyP99Ms: 1000
     errorRatePercent: 1
     availabilityPercent: 99.9
+
+# =============================================================================
+# OpenTelemetry Collector - Trace Collection Gateway
+# =============================================================================
+# OTEL Collector를 Gateway 패턴으로 배포하여 서비스에서 전송된 trace를 수집
+# 2025 트렌드: Hybrid Pattern (DaemonSet for logs via Promtail + Deployment for traces)
+otelCollector:
+  enabled: false  # Enable in local-kind and prod
+
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.114.0"  # 2025-12 최신 안정 버전
+    pullPolicy: IfNotPresent
+
+  replicas: 1  # prod에서 2로 증가
+
+  service:
+    otlpGrpcPort: 4317
+    otlpHttpPort: 4318
+    metricsPort: 8888
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Collector 설정
+  config:
+    # Batch processor 설정
+    batchTimeout: 5s
+    sendBatchSize: 1000
+    # Memory limiter
+    memoryLimitMiB: 400
+    spikeLimitMiB: 100
+
+  # =============================================================================
+  # Tail Sampling (2025 Best Practice)
+  # =============================================================================
+  # Head sampling과 달리 trace 완료 후 샘플링 결정
+  # 에러/슬로우 트레이스 100% 유지 + 정상 트래픽 샘플링
+  tailSampling:
+    enabled: false  # prod에서 true로 활성화
+    # 샘플링 결정 대기 시간 (trace 완료까지 대기)
+    decisionWaitSeconds: 10
+    # 동시에 처리할 trace 수 (메모리 사용량에 영향)
+    numTraces: 100000
+    # 초당 예상 새 trace 수
+    expectedNewTracesPerSec: 1000
+    # 정책별 설정
+    policies:
+      # 에러 트레이스 100% 유지
+      errorSampling: true
+      # 느린 트레이스 유지 기준 (ms)
+      latencyThresholdMs: 1000
+      # 정상 트래픽 샘플링 비율 (%)
+      defaultSamplingPercentage: 10
+
+# =============================================================================
+# Tempo - Distributed Tracing Backend
+# =============================================================================
+# Grafana Tempo를 사용하여 분산 추적 저장 및 쿼리
+# Traces-Logs Correlation을 위해 Loki와 연동
+tempo:
+  enabled: false  # Enable in local-kind and prod
+
+  image:
+    repository: grafana/tempo
+    tag: "2.9.0"  # 2025-12 최신 안정 버전
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  service:
+    httpPort: 3200      # Query API
+    otlpGrpcPort: 4317  # OTLP gRPC receiver
+    otlpHttpPort: 4318  # OTLP HTTP receiver
+
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 10Gi
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  config:
+    # Trace 보관 기간
+    retentionPeriod: 168h  # 7 days
+    # 로컬 스토리지 백엔드
+    backend: local
+    # S3 백엔드 (prod용)
+    s3:
+      enabled: false
+      bucket: ""
+      region: ""
+
+  # =============================================================================
+  # Metrics Generator (2025 Best Practice)
+  # =============================================================================
+  # Trace 데이터에서 자동으로 RED 메트릭 생성
+  # Prometheus로 전송하여 별도 instrumentation 없이 메트릭 수집
+  metricsGenerator:
+    enabled: false  # prod에서 true로 활성화
+    # Prometheus remote write URL (routePrefix 포함 필요)
+    # 예: prometheus.config.routePrefix가 /api/monitoring/prometheus인 경우:
+    # http://prometheus:9090/api/monitoring/prometheus/api/v1/write
+    remoteWriteUrl: "http://prometheus:9090/api/v1/write"
+    # Span Metrics: Rate, Error, Duration 메트릭 생성
+    spanMetrics:
+      enabled: true
+      dimensions:
+        - service.name
+        - http.method
+        - http.status_code
+        - http.route
+      enableTargetInfo: true
+    # Service Graphs: 서비스 간 의존성 메트릭
+    serviceGraphs:
+      enabled: true
+      dimensions:
+        - service.name
+      enableClientServerPrefix: true
+      enableVirtualNodeLabel: true
+    # Local Blocks: TraceQL Metrics 지원
+    localBlocks:
+      enabled: true
+
