@@ -80,8 +80,8 @@ data:
           insecure: true
       {{- end }}
 
-      # 디버깅용 로깅
-      logging:
+      # 디버깅용 로깅 (0.114.0부터 logging → debug로 변경)
+      debug:
         verbosity: normal
         sampling_initial: 5
         sampling_thereafter: 200
@@ -106,5 +106,5 @@ data:
             {{- if .Values.tempo.enabled }}
             - otlp/tempo
             {{- end }}
-            - logging
+            - debug
 {{- end }}
