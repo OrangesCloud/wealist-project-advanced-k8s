@@ -466,11 +466,12 @@ jobs:
 
   update-gitops-manifests:
     needs: [validate-branch, detect-changes, build-and-push]
+    # TODO: prod 매니페스트 업데이트 임시 활성화 - 원복 시 아래 주석 해제
+    # needs.detect-changes.outputs.branch != 'service-deploy-prod' &&
     if: |
       needs.validate-branch.outputs.should_run == 'true' &&
       needs.detect-changes.outputs.services != '[]' &&
       needs.detect-changes.outputs.services != '' &&
-      needs.detect-changes.outputs.branch != 'service-deploy-prod' &&  
       success() &&
       github.event.inputs.skip_gitops != 'true'
     runs-on: ubuntu-latest
