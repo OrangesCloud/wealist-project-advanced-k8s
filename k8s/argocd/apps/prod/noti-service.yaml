@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/noti-service"
         - name: image.tag
-          value: "64-4f64d5b"
+          value: "68-bcf3ac1"
         - name: externalSecrets.enabled
           value: "true"
         - name: config.DB_NAME
