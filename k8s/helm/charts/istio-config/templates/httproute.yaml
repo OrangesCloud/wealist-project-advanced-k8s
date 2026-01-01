@@ -24,7 +24,28 @@ spec:
   {{- end }}
   rules:
     # ==========================================================================
-    # OAuth2 Callback (Google OAuth redirects here)
+    # OAuth2 Routes (Spring Security OAuth2 기본 경로)
+    # /oauth2/* → auth-service (로그인 시작, 콜백 등)
+    # /login/oauth2/* → auth-service (레거시 콜백 경로)
+    # ==========================================================================
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /oauth2
+      backendRefs:
+        - name: auth-service
+          port: 8080
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /login/oauth2
+      backendRefs:
+        - name: auth-service
+          port: 8080
+
+    # ==========================================================================
+    # OAuth2 API Route (프론트엔드 API 호출용)
     # Path: /api/oauth2/* → rewrite to /oauth2/* → auth-service
     # ==========================================================================
     - matches:
