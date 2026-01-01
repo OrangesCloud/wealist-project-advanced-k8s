@@ -173,6 +173,16 @@ resource "helm_release" "argocd" {
     value = "true"
   }
 
+  # =========================================
+  # Secret Management
+  # =========================================
+  # argocd-secret은 ExternalSecret이 관리 (Helm 생성 비활성화)
+  # ArgoCD가 자기 자신을 sync할 때 Helm이 만든 secret을 삭제하는 것 방지
+  set {
+    name  = "configs.secret.createSecret"
+    value = "false"
+  }
+
   depends_on = [helm_release.istio_ztunnel]
 }
 

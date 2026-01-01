@@ -152,6 +152,35 @@ resource "aws_secretsmanager_secret_version" "oauth_argocd" {
 }
 
 # -----------------------------------------------------------------------------
+# ArgoCD Server Secret (자동 생성)
+# -----------------------------------------------------------------------------
+# ArgoCD 서버 인증에 필요한 secretkey
+# ExternalSecret이 이 값을 argocd-secret에 주입
+resource "aws_secretsmanager_secret" "argocd_server" {
+  name       = "wealist/prod/argocd/server"
+  kms_key_id = module.kms.key_arn
+
+  tags = merge(
+    local.common_tags,
+    {
+      Purpose = "ArgoCD Server Authentication"
+    }
+  )
+}
+
+resource "random_password" "argocd_secretkey" {
+  length  = 32
+  special = false
+}
+
+resource "aws_secretsmanager_secret_version" "argocd_server" {
+  secret_id = aws_secretsmanager_secret.argocd_server.id
+  secret_string = jsonencode({
+    secretkey = random_password.argocd_secretkey.result
+  })
+}
+
+# -----------------------------------------------------------------------------
 # LiveKit Credentials (수동 입력 - placeholder)
 # -----------------------------------------------------------------------------
 # LiveKit Cloud 또는 Self-hosted LiveKit 서버 자격 증명
