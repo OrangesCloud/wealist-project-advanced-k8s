@@ -23,6 +23,7 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
+  TARGET_BRANCH: k8s-deploy-prod  # 수정할 브랜치
 
 jobs:
   update-manifest:
@@ -34,6 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: k8s-deploy-prod  # 👈 이 브랜치를 체크아웃
           token: ${{ secrets.GITOPS_PAT || github.token }}
           fetch-depth: 0
 
@@ -42,9 +44,15 @@ jobs:
           git config user.name "GitHub Action Bot"
           git config user.email "action@github.com"
 
+      - name: Validate inputs
+        run: |
+          if [ -z "${{ inputs.services }}" ] && [ -z "${{ inputs.service }}" ]; then
+            echo "❌ Error: Either 'service' or 'services' must be provided"
+            exit 1
+          fi
+
       - name: Process services
         run: |
-          # 단일 서비스 또는 멀티 서비스 처리
           if [ -n "${{ inputs.services }}" ]; then
             echo "SERVICES_LIST=${{ inputs.services }}" >> $GITHUB_ENV
           else
@@ -52,42 +60,152 @@ jobs:
           fi
 
       - name: Update manifests
+        id: update
         run: |
           TAG="${{ inputs.image_tag }}"
           IFS=',' read -ra SERVICES <<< "$SERVICES_LIST"
           
+          UPDATED_SERVICES=()
+          FAILED_SERVICES=()
+          
           for SERVICE in "${SERVICES[@]}"; do
-            SERVICE=$(echo "$SERVICE" | xargs) # trim whitespace
-            echo "Processing $SERVICE..."
+            SERVICE=$(echo "$SERVICE" | xargs)
+            echo "================================================"
+            echo "Processing: $SERVICE"
             
-            # 매니페스트 파일 경로 (실제 경로에 맞게 수정)
             MANIFEST="k8s/argocd/apps/prod/${SERVICE}.yaml"
             
-            if [ -f "$MANIFEST" ]; then
-              echo "📝 Updating ${MANIFEST}"
-              # 이미지 태그 업데이트 (실제 매니페스트 구조에 맞게 수정)
-              sed -i "s/image: .*/image: prod\/${SERVICE}:${TAG}/" "$MANIFEST"
-              echo "✅ Updated $SERVICE to $TAG"
-            else
+            if [ ! -f "$MANIFEST" ]; then
               echo "❌ Manifest not found: $MANIFEST"
+              FAILED_SERVICES+=("$SERVICE (file not found)")
+              continue
+            fi
+            
+            # 현재 태그 확인
+            echo "📄 Current image.tag:"
+            grep -A 1 "name: image.tag" "$MANIFEST" || echo "Not found"
+            
+            # 백업 생성
+            cp "$MANIFEST" "${MANIFEST}.bak"
+            
+            # ArgoCD Application의 helm.parameters에서 image.tag 값 업데이트
+            # 패턴: - name: image.tag 다음 줄의 value: "기존값"을 찾아서 변경
+            if grep -q "name: image.tag" "$MANIFEST"; then
+              echo "🔍 Found image.tag parameter, updating..."
+              
+              # image.tag 다음 줄의 value를 업데이트
+              sed -i '/name: image\.tag/,/value:/ s/value: .*/value: "'"${TAG}"'"/' "$MANIFEST"
+              
+              UPDATED=true
+            else
+              echo "⚠️  Warning: Could not find image.tag parameter in $MANIFEST"
+              rm "${MANIFEST}.bak"
+              FAILED_SERVICES+=("$SERVICE (pattern not found)")
+              continue
+            fi
+            
+            # 실제로 변경되었는지 확인
+            if ! diff -q "$MANIFEST" "${MANIFEST}.bak" > /dev/null 2>&1; then
+              echo "✅ Updated $SERVICE to $TAG"
+              echo "📝 Changes:"
+              diff "${MANIFEST}.bak" "$MANIFEST" || true
+              echo ""
+              echo "📄 New image.tag:"
+              grep -A 1 "name: image.tag" "$MANIFEST"
+              UPDATED_SERVICES+=("$SERVICE")
+              rm "${MANIFEST}.bak"
+            else
+              echo "⚠️  No changes made to $SERVICE (tag might already be ${TAG})"
+              mv "${MANIFEST}.bak" "$MANIFEST"
+              FAILED_SERVICES+=("$SERVICE (no changes)")
             fi
           done
+          
+          # 결과 요약
+          echo "================================================"
+          echo "📊 Update Summary:"
+          echo "Updated: ${UPDATED_SERVICES[*]}"
+          echo "Failed: ${FAILED_SERVICES[*]}"
+          
+          # 환경 변수로 저장
+          echo "UPDATED_SERVICES=${UPDATED_SERVICES[*]}" >> $GITHUB_ENV
+          echo "FAILED_SERVICES=${FAILED_SERVICES[*]}" >> $GITHUB_ENV
+          
+          # 업데이트된 서비스가 없으면 실패
+          if [ ${#UPDATED_SERVICES[@]} -eq 0 ]; then
+            echo "❌ No services were updated"
+            exit 1
+          fi
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "⚠️  No changes to commit"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Changes detected"
+          fi
 
       - name: Create PR
-        if: inputs.create_pr == true
+        if: inputs.create_pr == true && steps.check_changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITOPS_PAT || github.token }}
         run: |
           TAG="${{ inputs.image_tag }}"
-          BRANCH_NAME="deploy/multi-service-${TAG}-$(date +%s)"
+          BRANCH_NAME="deploy/prod-${TAG}-$(date +%s)"
           
           git checkout -b "$BRANCH_NAME"
-          git add .
-          git commit -m "🚀 [PROD] Deploy services - ${TAG}"
+          git add k8s/
+          git commit -m "🚀 [PROD] Deploy services - ${TAG}
+
+          Updated services: $UPDATED_SERVICES
+          Failed services: $FAILED_SERVICES"
+          
           git push origin "$BRANCH_NAME"
+          
+          # PR 본문 생성
+          PR_BODY="## 🚀 Production Deployment
+          
+          **Image Tag:** \`${TAG}\`
+          
+          ### ✅ Updated Services
+          $(echo "$UPDATED_SERVICES" | tr ' ' '\n' | sed 's/^/- /')
+          
+          ### ❌ Failed Services
+          $(echo "$FAILED_SERVICES" | tr ' ' '\n' | sed 's/^/- /')
+          
+          ---
+          Triggered via Discord Bot"
           
           gh pr create \
             --title "🚀 [PROD] Deploy Services - ${TAG}" \
-            --body "Automated deployment via Discord Bot" \
-            --base main \
+            --body "$PR_BODY" \
+            --base k8s-deploy-prod \
             --head "$BRANCH_NAME"
+
+      - name: Direct commit (no PR)
+        if: inputs.create_pr == false && steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          TAG="${{ inputs.image_tag }}"
+          git add k8s/
+          git commit -m "🚀 [PROD] Deploy services - ${TAG}
+
+          Updated: $UPDATED_SERVICES"
+          git push origin k8s-deploy-prod
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Target Branch:** k8s-deploy-prod" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** ${{ inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Updated Services" >> $GITHUB_STEP_SUMMARY
+          echo "$UPDATED_SERVICES" | tr ' ' '\n' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -n "$FAILED_SERVICES" ]; then
+            echo "### Failed Services" >> $GITHUB_STEP_SUMMARY
+            echo "$FAILED_SERVICES" | tr ' ' '\n' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+          fi
