@@ -298,7 +298,6 @@ istio:
     hosts:
       - "wealist.co.kr"
       - "api.wealist.co.kr"
-      - "argocd.wealist.co.kr"
     frontend:
       enabled: false
     # Monitoring routes (VPN/Bastion 통해 접근)
@@ -325,9 +324,12 @@ istio:
         host: tracing
         namespace: istio-system
         port: 80
-    # ArgoCD UI (/api/argo/* → argocd-server in argocd namespace)
+    # ArgoCD UI
+    # - /api/argo/* → argocd-server (경로 기반, 메인 HTTPRoute)
+    # - argocd.wealist.co.kr/* → argocd-server (호스트 기반, 별도 HTTPRoute)
     argocd:
       enabled: true
+      host: "argocd.wealist.co.kr"  # 별도 HTTPRoute에서 사용
 
   # mTLS - 서비스 간 암호화
   mtls:
