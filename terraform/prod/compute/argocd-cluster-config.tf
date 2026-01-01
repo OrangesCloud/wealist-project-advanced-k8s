@@ -39,7 +39,4 @@ resource "kubernetes_config_map" "argocd_cluster_config" {
   depends_on = [helm_release.argocd]
 }
 
-# -----------------------------------------------------------------------------
-# Data Sources
-# -----------------------------------------------------------------------------
-data "aws_caller_identity" "current" {}
+# Note: data.aws_caller_identity.current is defined in main.tf
