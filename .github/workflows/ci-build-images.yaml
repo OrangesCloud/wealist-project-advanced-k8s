@@ -156,6 +156,10 @@ jobs:
               - 'services/user-service/**'
             video-service:
               - 'services/video-service/**'
+            ops-service:
+              - 'services/ops-service/**'
+            ops-portal:
+              - 'services/ops-portal/**'
 
       # 수동 실행 또는 자동 감지 결과 설정
       - name: Set services to build
@@ -167,13 +171,13 @@ jobs:
               SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -cR 'split(",") | map(gsub("^\\s+|\\s+$";"")) | map(select(. != "frontend"))')
               echo "Manual trigger with services: ${SERVICES}"
             else
-              SERVICES='["auth-service","board-service","chat-service","noti-service","storage-service","user-service","video-service"]'
+              SERVICES='["auth-service","board-service","chat-service","noti-service","storage-service","user-service","video-service","ops-service","ops-portal"]'
               echo "Manual trigger: building all services"
             fi
           # 공통 패키지 변경 시 모든 Go 서비스 빌드
           elif [ "${{ steps.filter.outputs.common-package }}" = "true" ]; then
-            # 공통 패키지만 변경된 경우 모든 Go 서비스
-            GO_SERVICES='["board-service","chat-service","noti-service","storage-service","user-service","video-service"]'
+            # 공통 패키지만 변경된 경우 모든 Go 서비스 (ops-service 포함)
+            GO_SERVICES='["board-service","chat-service","noti-service","storage-service","user-service","video-service","ops-service"]'
             # 다른 서비스도 변경되었으면 병합
             OTHER_CHANGES='${{ steps.filter.outputs.changes }}'
             if [ "${OTHER_CHANGES}" != "[]" ] && [ -n "${OTHER_CHANGES}" ]; then
@@ -262,10 +266,15 @@ jobs:
               DOCKERFILE="services/${SERVICE}/Dockerfile"
               CONTEXT="services/${SERVICE}"
               ;;
-            "board-service"|"chat-service"|"noti-service"|"storage-service"|"user-service"|"video-service")
-              # Go 서비스들
+            "board-service"|"chat-service"|"noti-service"|"storage-service"|"user-service"|"video-service"|"ops-service")
+              # Go 서비스들 (공통 패키지 사용, 루트 컨텍스트 필요)
               DOCKERFILE="services/${SERVICE}/docker/Dockerfile"
               CONTEXT="."
+              ;;
+            "ops-portal")
+              # ops-portal (React frontend, 독립 빌드)
+              DOCKERFILE="services/${SERVICE}/docker/Dockerfile"
+              CONTEXT="services/${SERVICE}"
               ;;
             *)
               echo "Error: Unknown service ${SERVICE}"
