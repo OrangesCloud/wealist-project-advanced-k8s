@@ -219,3 +219,4 @@ override.tf.json
 # Terraform sensitive files (tfvars may contain secrets)
 terraform/**/terraform.tfvars
 terraform/**/.terraform/**/node_modules/
+**/node_modules/
