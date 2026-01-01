@@ -109,21 +109,17 @@ affinity: {}
 # These values are available to all services via shared.config (ConfigMap)
 # Service-specific config in charts/*/values.yaml will override these
 #
-# IMPORTANT: Sensitive data goes to shared.secrets (Secret), not here!
+# IMPORTANT: Only truly global settings here!
+# Environment-specific settings (ENV, LOG_LEVEL, DB_HOST, S3_*, OAuth2_*, etc.)
+# should be in environment files (localhost.yaml, dev.yaml, prod.yaml)
 shared:
   config:
-    # Environment
-    ENV: "production"
-    LOG_LEVEL: "info"
-
-    # Infrastructure URLs - Environment-specific
-    # DB_HOST, REDIS_HOST: Set in environment files (localhost.yaml) or ExternalSecret (prod)
-    # These are NOT set here to avoid overriding ExternalSecret values in prod
+    # Infrastructure Ports (모든 환경 동일)
     POSTGRES_PORT: "5432"
     DB_PORT: "5432"
     REDIS_PORT: "6379"
 
-    # Service URLs
+    # Service URLs (K8s 내부 통신, 모든 환경 동일)
     AUTH_SERVICE_URL: "http://auth-service:8080"
     USER_SERVICE_URL: "http://user-service:8081"
     BOARD_SERVICE_URL: "http://board-service:8000"
@@ -132,67 +128,25 @@ shared:
     STORAGE_SERVICE_URL: "http://storage-service:8003"
     VIDEO_SERVICE_URL: "http://video-service:8004"
 
-    # S3/MinIO Configuration (non-sensitive)
-    S3_ENDPOINT: "http://minio:9000"
-    S3_PUBLIC_ENDPOINT: "http://minio:9000"
-    S3_BUCKET: "wealist-files"
-    S3_REGION: "ap-northeast-2"
-
-    # CORS
-    CORS_ORIGINS: "*"
-
-    # OAuth2 Redirect URLs (override per environment)
-    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost/login/oauth2/code/google"
-    OAUTH2_REDIRECT_URL_ENV: "http://localhost/oauth/callback"
-
-    # LiveKit (WebRTC) - non-sensitive
-    LIVEKIT_URL: "http://livekit:7880"
-    LIVEKIT_WS_URL: "ws://localhost/svc/livekit"
-
     # Database Migration (default: disabled for safety)
     DB_AUTO_MIGRATE: "false"
 
     # -------------------------------------------------------------------------
-    # OpenTelemetry Configuration (2025 Best Practice)
+    # OpenTelemetry Configuration (고정 설정만)
     # -------------------------------------------------------------------------
     # OTLP Exporter - 서비스에서 OTEL Collector로 traces 전송
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
 
-    # Trace Sampler - 샘플링 비율 (parentbased_traceidratio 권장)
-    # - localhost/dev: 1.0 (100% 샘플링)
-    # - prod: 0.1 (10% 샘플링, 트래픽 많을수록 낮추기)
+    # Trace Sampler type (비율은 환경별 설정)
     OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
-    OTEL_TRACES_SAMPLER_ARG: "1.0"
 
-    # Resource Attributes - 서비스 메타데이터
-    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=development"
-
-    # Propagators - W3C Trace Context 전파 (기본값, 명시적 설정)
+    # Propagators - W3C Trace Context 전파
     OTEL_PROPAGATORS: "tracecontext,baggage"
 
   # ---------------------------------------------------------------------------
-  # Shared Secrets (stored in K8s Secret, base64 encoded)
+  # Shared Secrets - 환경별 파일에서 설정
   # ---------------------------------------------------------------------------
-  # Override in environment-specific files or use External Secrets Operator
-  # For production: use helm/environments/secrets-prod.yaml (gitignored)
-  secrets:
-    # Database
-    DB_PASSWORD: "postgres"
-    REDIS_PASSWORD: ""
-
-    # S3/MinIO Credentials
-    S3_ACCESS_KEY: "minioadmin"
-    S3_SECRET_KEY: "minioadmin"
-
-    # Security
-    INTERNAL_API_KEY: "internal-key-change-me"
-    JWT_SECRET: "dev-jwt-secret-change-in-production"
-
-    # OAuth2 Credentials (placeholder for local)
-    GOOGLE_CLIENT_ID: "placeholder-client-id.apps.googleusercontent.com"
-    GOOGLE_CLIENT_SECRET: "placeholder-client-secret"
-
-    # LiveKit Credentials
-    LIVEKIT_API_KEY: "devkey"
-    LIVEKIT_API_SECRET: "devsecret"
+  # localhost.yaml, dev.yaml: secrets 섹션에서 직접 설정
+  # prod.yaml: ExternalSecret (AWS Secrets Manager)로 주입
+  # secrets: {} # 각 환경 파일에서 override
