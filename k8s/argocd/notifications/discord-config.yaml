@@ -63,23 +63,6 @@ data:
       send:
       - app-sync-running
       when: app.status.operationState.phase in ['Running']
----
-# ExternalSecret으로 AWS Secrets Manager에서 가져오기
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
-metadata:
-  name: argocd-notifications-secret
-  namespace: argocd
-spec:
-  refreshInterval: 1h
-  secretStoreRef:
-    name: aws-secrets-manager
-    kind: ClusterSecretStore
-  target:
-    name: argocd-notifications-secret
-    creationPolicy: Owner
-  data:
-    - secretKey: discord-webhook-url
-      remoteRef:
-        key: "wealist/prod/notifications/discord"
-        property: webhook_url
+# Note: ExternalSecret for discord webhook is defined in:
+# k8s/argocd/base/external-secrets/prod/argocd-notifications-secret.yaml
+# This ensures ESO is ready before creating the ExternalSecret
