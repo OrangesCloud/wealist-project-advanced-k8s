@@ -263,7 +263,7 @@ istio:
     gatewayClassName: istio
     # ExternalDNS annotation - Route53 자동 업데이트
     annotations:
-      external-dns.alpha.kubernetes.io/hostname: "api.wealist.co.kr"
+      external-dns.alpha.kubernetes.io/hostname: "api.wealist.co.kr,argocd.wealist.co.kr"
     # AWS NLB 설정 - 자동 생성되는 Service에 적용
     infrastructure:
       annotations:
@@ -324,6 +324,9 @@ istio:
         host: tracing
         namespace: istio-system
         port: 80
+    # ArgoCD UI (/api/argo/* → argocd-server in argocd namespace)
+    argocd:
+      enabled: true
 
   # mTLS - 서비스 간 암호화
   mtls:

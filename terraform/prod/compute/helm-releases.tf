@@ -150,9 +150,19 @@ resource "helm_release" "argocd" {
     value = "1"
   }
 
-  # Insecure mode (TLS termination at ALB)
+  # Insecure mode (TLS termination at NLB)
   set {
     name  = "server.insecure"
+    value = "true"
+  }
+
+  # =========================================
+  # SSO Configuration (Dex + Google OAuth)
+  # =========================================
+  # ConfigMap(argocd-cm)에서 Dex config 설정
+  # ExternalSecret(argocd-oauth-secret)에서 credentials 주입
+  set {
+    name  = "dex.enabled"
     value = "true"
   }
 

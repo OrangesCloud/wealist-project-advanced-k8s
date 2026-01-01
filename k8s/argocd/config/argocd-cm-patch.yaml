@@ -1,9 +1,13 @@
 # =============================================================================
-# ArgoCD ConfigMap Patch - Health Checks
+# ArgoCD ConfigMap - SSO + Health Checks
 # =============================================================================
-# sync-wave가 Healthy 상태까지 대기하도록 custom health check 설정
-# 이를 통해 ESO가 완전히 준비된 후 ExternalSecret이 생성되고,
-# ExternalSecret이 완료된 후 서비스가 시작됨
+# 1. SSO (Dex + Google OAuth): 팀원 ArgoCD UI 접근
+# 2. Health Checks: sync-wave가 Healthy 상태까지 대기
+#
+# Google OAuth 설정:
+#   - clientID/clientSecret: argocd-oauth-secret에서 자동 참조
+#   - Redirect URI: https://argocd.wealist.co.kr/api/dex/callback
+#   - 도메인 제한 없음: 모든 Google 계정 로그인 가능
 # =============================================================================
 apiVersion: v1
 kind: ConfigMap
@@ -14,6 +18,25 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
+  # -------------------------------------------------------------------------
+  # ArgoCD Server URL (SSO Callback에 필요)
+  # -------------------------------------------------------------------------
+  url: https://argocd.wealist.co.kr
+
+  # -------------------------------------------------------------------------
+  # Dex SSO Configuration (Google OAuth)
+  # -------------------------------------------------------------------------
+  # $dex.google.clientID는 argocd-oauth-secret의 키를 자동 참조
+  dex.config: |
+    connectors:
+      - type: google
+        id: google
+        name: Google
+        config:
+          clientID: $dex.google.clientID
+          clientSecret: $dex.google.clientSecret
+          redirectURI: https://argocd.wealist.co.kr/api/dex/callback
+          # hostedDomains 생략 = 모든 Google 계정 허용
   # -------------------------------------------------------------------------
   # Application Health Check
   # -------------------------------------------------------------------------

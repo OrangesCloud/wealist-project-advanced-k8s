@@ -31,10 +31,14 @@ metadata:
 spec:
   project: wealist-prod
   sources:
-    # Health check ConfigMap 설정 (가장 중요)
+    # Health check + SSO ConfigMap 설정 (가장 중요)
     - repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
       targetRevision: k8s-deploy-prod
       path: k8s/argocd/config
+    # ExternalSecrets (OAuth credentials, Discord webhook)
+    - repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+      targetRevision: k8s-deploy-prod
+      path: k8s/argocd/base/external-secrets
     # 알림 설정
     - repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
       targetRevision: k8s-deploy-prod
