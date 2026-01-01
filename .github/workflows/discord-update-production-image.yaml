@@ -23,6 +23,7 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
+  TARGET_BRANCH: k8s-deploy-prod  # 수정할 브랜치
 
 jobs:
   update-manifest:
@@ -34,6 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: k8s-deploy-prod  # 👈 이 브랜치를 체크아웃
           token: ${{ secrets.GITOPS_PAT || github.token }}
           fetch-depth: 0
 
@@ -79,18 +81,24 @@ jobs:
               continue
             fi
             
+            # 파일 구조 확인 (디버깅용)
+            echo "📄 Checking manifest structure..."
+            grep -E "(repository|tag):" "$MANIFEST" | head -5
+            
             # 백업 생성
             cp "$MANIFEST" "${MANIFEST}.bak"
             
-            # 매니페스트 구조에 따라 적절한 sed 명령 선택
-            # 방법 1: image: 뒤에 전체 이미지 경로가 있는 경우
-            if grep -q "image:.*${SERVICE}" "$MANIFEST"; then
-              sed -i "s|image:.*${SERVICE}:.*|image: prod/${SERVICE}:${TAG}|g" "$MANIFEST"
-            # 방법 2: tag: 만 별도로 있는 경우 (Helm values 스타일)
-            elif grep -q "tag:" "$MANIFEST"; then
-              sed -i "s|tag:.*|tag: ${TAG}|g" "$MANIFEST"
+            # ArgoCD Application with Helm values 구조에 맞게 수정
+            # repository: 852771532871.dkr.ecr.ap-northeast-2.amazonaws.com/prod/auth-service
+            # tag: "latest" 또는 tag: "64-4f64d5b"
+            
+            if grep -q "repository:.*prod/${SERVICE}" "$MANIFEST"; then
+              echo "🔍 Found repository field, updating tag..."
+              # tag 필드만 업데이트
+              sed -i "s/tag: .*/tag: \"${TAG}\"/" "$MANIFEST"
+              UPDATED=true
             else
-              echo "⚠️  Warning: Could not find image pattern in $MANIFEST"
+              echo "⚠️  Warning: Could not find repository pattern in $MANIFEST"
               rm "${MANIFEST}.bak"
               FAILED_SERVICES+=("$SERVICE (pattern not found)")
               continue
@@ -99,6 +107,8 @@ jobs:
             # 실제로 변경되었는지 확인
             if ! diff -q "$MANIFEST" "${MANIFEST}.bak" > /dev/null 2>&1; then
               echo "✅ Updated $SERVICE to $TAG"
+              echo "📝 Changes:"
+              diff "${MANIFEST}.bak" "$MANIFEST" || true
               UPDATED_SERVICES+=("$SERVICE")
               rm "${MANIFEST}.bak"
             else
@@ -141,7 +151,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITOPS_PAT || github.token }}
         run: |
           TAG="${{ inputs.image_tag }}"
-          BRANCH_NAME="deploy/multi-service-${TAG}-$(date +%s)"
+          BRANCH_NAME="deploy/prod-${TAG}-$(date +%s)"
           
           git checkout -b "$BRANCH_NAME"
           git add k8s/
@@ -169,7 +179,7 @@ jobs:
           gh pr create \
             --title "🚀 [PROD] Deploy Services - ${TAG}" \
             --body "$PR_BODY" \
-            --base main \
+            --base k8s-deploy-prod \
             --head "$BRANCH_NAME"
 
       - name: Direct commit (no PR)
@@ -180,12 +190,13 @@ jobs:
           git commit -m "🚀 [PROD] Deploy services - ${TAG}
 
           Updated: $UPDATED_SERVICES"
-          git push origin main
+          git push origin k8s-deploy-prod
 
       - name: Summary
         if: always()
         run: |
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Target Branch:** k8s-deploy-prod" >> $GITHUB_STEP_SUMMARY
           echo "**Image Tag:** ${{ inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Updated Services" >> $GITHUB_STEP_SUMMARY
