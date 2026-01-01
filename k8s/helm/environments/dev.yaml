@@ -81,6 +81,8 @@ shared:
     POSTGRES_HOST: "172.17.0.1"
     REDIS_HOST: "172.17.0.1"
     SPRING_REDIS_HOST: "172.17.0.1"
+    # Kind 환경에서는 TLS 비활성화 (prod는 ElastiCache TLS 필수)
+    SPRING_DATA_REDIS_SSL_ENABLED: "false"
     # S3/MinIO Configuration
     S3_ENDPOINT: "http://minio:9000"
     S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/api/minio"

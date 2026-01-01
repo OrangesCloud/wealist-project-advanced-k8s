@@ -322,6 +322,76 @@ redisExporter:
     port: 6379
 
 # =============================================================================
+# AlertManager - Alert Notification
+# =============================================================================
+# Prometheus 알림을 Slack, Discord, Email 등으로 전달
+alertmanager:
+  enabled: false  # Enable in prod environment
+
+  image:
+    repository: prom/alertmanager
+    tag: "v0.27.0"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  service:
+    type: ClusterIP
+    port: 9093
+
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 2Gi
+
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "25m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+  # 알림 라우팅 설정
+  config:
+    # 그룹화 대기 시간
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+
+    # 알림 수신자
+    receivers:
+      # Discord Webhook 설정
+      discord:
+        enabled: false  # Enable when DISCORD_WEBHOOK_URL secret is set
+        # webhookUrl: from secret (DISCORD_WEBHOOK_URL)
+
+      # Slack Webhook 설정
+      slack:
+        enabled: false  # Enable when SLACK_WEBHOOK_URL secret is set
+        # webhookUrl: from secret (SLACK_WEBHOOK_URL)
+        channel: "#alerts"
+        username: "AlertManager"
+
+      # Email 설정
+      email:
+        enabled: false
+        smarthost: "smtp.gmail.com:587"
+        from: "alertmanager@wealist.co.kr"
+        to: "admin@wealist.co.kr"
+
+    # 라우팅 규칙
+    routes:
+      # Critical 알림 → 즉시 전송
+      critical:
+        match: severity=critical
+        repeatInterval: 1h
+      # Warning 알림 → 그룹화 후 전송
+      warning:
+        match: severity=warning
+        repeatInterval: 4h
+
+# =============================================================================
 # kube-state-metrics - Kubernetes Objects State Metrics
 # =============================================================================
 # Generates metrics about Kubernetes objects (pods, nodes, deployments, etc.)

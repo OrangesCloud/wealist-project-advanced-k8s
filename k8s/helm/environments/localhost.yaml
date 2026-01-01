@@ -172,6 +172,8 @@ shared:
     # Spring Boot auth-service uses SPRING_REDIS_* naming convention
     SPRING_REDIS_HOST: "redis"
     SPRING_REDIS_PORT: "6379"
+    # Kind 환경에서는 TLS 비활성화 (prod는 ElastiCache TLS 필수)
+    SPRING_DATA_REDIS_SSL_ENABLED: "false"
 
   # 시크릿 (localhost 환경용)
   secrets:
@@ -381,6 +383,22 @@ redisExporter:
   config:
     host: "redis"  # 내부 서비스명
     port: 6379
+
+# kube-state-metrics - Kubernetes 오브젝트 상태 메트릭
+# Kubernetes Cluster 대시보드와 Service Health Overview에 필요
+kubeStateMetrics:
+  enabled: true
+  image:
+    repository: localhost:5001/kube-state-metrics
+    tag: "v2.10.1"
+
+# node-exporter - 노드 시스템 메트릭
+# 노드 CPU/메모리 사용률 모니터링에 필요
+nodeExporter:
+  enabled: true
+  image:
+    repository: localhost:5001/node-exporter
+    tag: "v1.7.0"
 
 # =============================================================================
 # OpenTelemetry 통합 (2025 Best Practice - Full OTEL Stack)

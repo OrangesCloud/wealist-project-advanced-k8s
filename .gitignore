@@ -101,6 +101,7 @@ coverage.html
 # ============================================
 .gradle/
 build/
+**/bin/
 BOOT-INF/
 out/
 !gradle/wrapper/gradle-wrapper.jar
