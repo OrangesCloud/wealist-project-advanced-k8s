@@ -186,7 +186,11 @@ shared:
     # Istio JWT Mode (Istio가 JWT 검증, Go 서비스는 파싱만)
     ISTIO_JWT_MODE: "true"
     # S3 Configuration (AWS S3 - Terraform: wealist-prod-storage)
-    S3_ENDPOINT: ""  # AWS S3 기본 엔드포인트 사용 (비워두면 AWS SDK 기본값)
+    # S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY: 빈 값으로 설정하여 config.yaml 기본값 오버라이드
+    # 빈 값이면 AWS SDK가 IAM Role (IRSA) 자격증명을 자동으로 사용
+    S3_ENDPOINT: ""  # 빈 값 = AWS S3 기본 엔드포인트 사용
+    S3_ACCESS_KEY: ""  # 빈 값 = IAM Role 사용 (IRSA)
+    S3_SECRET_KEY: ""  # 빈 값 = IAM Role 사용 (IRSA)
     S3_PUBLIC_ENDPOINT: "https://cdn.wealist.co.kr"
     S3_BUCKET: "wealist-prod-files-290008131187"
     S3_REGION: "ap-northeast-2"
