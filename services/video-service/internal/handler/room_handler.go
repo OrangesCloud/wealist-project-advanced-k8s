@@ -13,6 +13,7 @@ import (
 	"video-service/internal/response"
 	"video-service/internal/service"
 
+	"github.com/OrangesCloud/wealist-advanced-go-pkg/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -47,7 +48,7 @@ func NewRoomHandler(roomService service.RoomService, logger *zap.Logger) *RoomHa
 // @Router /rooms [post]
 func (h *RoomHandler) CreateRoom(c *gin.Context) {
 	userID := c.MustGet("user_id").(uuid.UUID)
-	token := c.MustGet("token").(string)
+	token := auth.MustGetJWTToken(c)
 
 	var req domain.CreateRoomRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -110,7 +111,7 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 // @Router /rooms/workspace/{workspaceId} [get]
 func (h *RoomHandler) GetWorkspaceRooms(c *gin.Context) {
 	userID := c.MustGet("user_id").(uuid.UUID)
-	token := c.MustGet("token").(string)
+	token := auth.MustGetJWTToken(c)
 
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)
@@ -148,7 +149,7 @@ func (h *RoomHandler) GetWorkspaceRooms(c *gin.Context) {
 // @Router /rooms/{roomId}/join [post]
 func (h *RoomHandler) JoinRoom(c *gin.Context) {
 	userID := c.MustGet("user_id").(uuid.UUID)
-	token := c.MustGet("token").(string)
+	token := auth.MustGetJWTToken(c)
 
 	roomIDStr := c.Param("roomId")
 	roomID, err := uuid.Parse(roomIDStr)
@@ -284,7 +285,7 @@ func (h *RoomHandler) GetParticipants(c *gin.Context) {
 // @Router /history/workspace/{workspaceId} [get]
 func (h *RoomHandler) GetWorkspaceCallHistory(c *gin.Context) {
 	userID := c.MustGet("user_id").(uuid.UUID)
-	token := c.MustGet("token").(string)
+	token := auth.MustGetJWTToken(c)
 
 	workspaceIDStr := c.Param("workspaceId")
 	workspaceID, err := uuid.Parse(workspaceIDStr)

@@ -117,9 +117,9 @@ func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
 			return
 		}
 
-		// 컨텍스트에 사용자 정보 저장
-		c.Set("user_id", userID)
-		c.Set("jwtToken", tokenString)
+		// 컨텍스트에 사용자 정보 저장 (상수는 keys.go 참조)
+		c.Set(UserIDContextKey, userID)
+		c.Set(TokenContextKey, tokenString)
 
 		c.Next()
 	}
@@ -127,7 +127,7 @@ func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
 
 // GetUserID는 컨텍스트에서 사용자 ID를 추출합니다.
 func GetUserID(c *gin.Context) (uuid.UUID, bool) {
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get(UserIDContextKey)
 	if !exists {
 		return uuid.Nil, false
 	}
@@ -136,11 +136,22 @@ func GetUserID(c *gin.Context) (uuid.UUID, bool) {
 }
 
 // GetJWTToken은 컨텍스트에서 JWT 토큰을 추출합니다.
+// video-service 등에서 토큰이 필요할 때 사용합니다.
 func GetJWTToken(c *gin.Context) (string, bool) {
-	token, exists := c.Get("jwtToken")
+	token, exists := c.Get(TokenContextKey)
 	if !exists {
 		return "", false
 	}
 	tokenStr, ok := token.(string)
 	return tokenStr, ok
+}
+
+// MustGetJWTToken은 컨텍스트에서 JWT 토큰을 추출합니다.
+// 토큰이 없으면 panic합니다. 인증 미들웨어 이후에만 사용하세요.
+func MustGetJWTToken(c *gin.Context) string {
+	token, ok := GetJWTToken(c)
+	if !ok {
+		panic("JWT token not found in context - ensure auth middleware is applied")
+	}
+	return token
 }
