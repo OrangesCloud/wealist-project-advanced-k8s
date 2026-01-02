@@ -178,13 +178,19 @@ spec:
           port: 8005
 
     # ==========================================================================
-    # Ops Portal (/ops/* → ops-portal:80)
-    # Admin Portal Frontend - React SPA
+    # Ops Portal (/ops/* → rewrite to / → ops-portal:80)
+    # Admin Portal Frontend - React SPA (nginx serves from /)
     # ==========================================================================
     - matches:
         - path:
             type: PathPrefix
             value: /ops
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
       backendRefs:
         - name: ops-portal
           port: 80
