@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/video-service"
         - name: image.tag
-          value: "74-a6c9206"
+          value: "78-2ffb73c"
         - name: externalSecrets.enabled
           value: "true"
         # Service-specific config (managed here, not in prod.yaml)
