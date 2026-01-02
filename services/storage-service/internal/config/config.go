@@ -181,7 +181,8 @@ func (c *Config) overrideFromEnv() {
 		}
 	}
 
-	if basePath := os.Getenv("SERVER_BASE_PATH"); basePath != "" {
+	// SERVER_BASE_PATH: 빈 문자열도 허용 (Istio HTTPRoute 리라이트와 호환)
+	if basePath, ok := os.LookupEnv("SERVER_BASE_PATH"); ok {
 		c.Server.BasePath = basePath
 	}
 

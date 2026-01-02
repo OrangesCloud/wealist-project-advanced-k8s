@@ -28,5 +28,31 @@ module "kms" {
     "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
   ]
 
+  # CloudFront가 S3 KMS 암호화된 객체를 복호화할 수 있도록 허용
+  key_statements = [
+    {
+      sid    = "AllowCloudFrontDecrypt"
+      effect = "Allow"
+      principals = [
+        {
+          type        = "Service"
+          identifiers = ["cloudfront.amazonaws.com"]
+        }
+      ]
+      actions = [
+        "kms:Decrypt",
+        "kms:GenerateDataKey*"
+      ]
+      resources = ["*"]
+      conditions = [
+        {
+          test     = "StringEquals"
+          variable = "AWS:SourceArn"
+          values   = ["arn:aws:cloudfront::${data.aws_caller_identity.current.account_id}:distribution/${var.cloudfront_distribution_id}"]
+        }
+      ]
+    }
+  ]
+
   tags = local.common_tags
 }
