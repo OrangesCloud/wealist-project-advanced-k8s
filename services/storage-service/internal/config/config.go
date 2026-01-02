@@ -268,13 +268,14 @@ func (c *Config) overrideFromEnv() {
 	if s3Region := os.Getenv("S3_REGION"); s3Region != "" {
 		c.S3.Region = s3Region
 	}
-	if s3AccessKey := os.Getenv("S3_ACCESS_KEY"); s3AccessKey != "" {
+	// S3_ACCESS_KEY, S3_SECRET_KEY, S3_ENDPOINT: 빈 문자열도 허용 (AWS IAM role 사용 시 빈 값으로 override 필요)
+	if s3AccessKey, ok := os.LookupEnv("S3_ACCESS_KEY"); ok {
 		c.S3.AccessKey = s3AccessKey
 	}
-	if s3SecretKey := os.Getenv("S3_SECRET_KEY"); s3SecretKey != "" {
+	if s3SecretKey, ok := os.LookupEnv("S3_SECRET_KEY"); ok {
 		c.S3.SecretKey = s3SecretKey
 	}
-	if s3Endpoint := os.Getenv("S3_ENDPOINT"); s3Endpoint != "" {
+	if s3Endpoint, ok := os.LookupEnv("S3_ENDPOINT"); ok {
 		c.S3.Endpoint = s3Endpoint
 	}
 	if s3PublicEndpoint := os.Getenv("S3_PUBLIC_ENDPOINT"); s3PublicEndpoint != "" {

@@ -139,12 +139,12 @@ module "eks" {
     # HTTP services (nginx, frontend, ops-portal 등)
     # 기본 node-to-node ephemeral ports (1025-65535)에 포함되지 않아 별도 규칙 필요
     http_node_to_node = {
-      description              = "HTTP node to node (nginx, frontend)"
-      protocol                 = "tcp"
-      from_port                = 80
-      to_port                  = 80
-      type                     = "ingress"
-      source_node_security_group = true
+      description = "HTTP node to node (nginx, frontend)"
+      protocol    = "tcp"
+      from_port   = 80
+      to_port     = 80
+      type        = "ingress"
+      self        = true
     }
   }
 

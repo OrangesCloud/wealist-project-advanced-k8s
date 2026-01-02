@@ -38,10 +38,15 @@ externalSecrets:
 # -----------------------------------------------------------------------------
 # Deployment Settings (Production)
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Service Replica Settings (HPA 비활성화 시 사용)
+# -----------------------------------------------------------------------------
+# 참고: 서비스별 config 값은 ArgoCD Application parameters에서 관리
+# k8s/argocd/apps/prod/{service}.yaml 참조
+
 # 핵심 서비스 - Spring Boot (Java)
-# 주의: autoscaling 설정은 최상위 레벨에서만 적용됨 (서비스별 override 불가)
 auth-service:
-  replicaCount: 2  # HPA 비활성화 시 사용
+  replicaCount: 2
   # Spring Boot용 리소스 (javaResources 키 사용 - Go 서비스의 resources와 분리)
   javaResources:
     requests:
@@ -50,41 +55,26 @@ auth-service:
     limits:
       memory: "768Mi"   # Spring Boot 충분
       cpu: "500m"
-  config:
-    SPRING_DATA_REDIS_SSL_ENABLED: "true"  # ElastiCache TLS
 
-# 핵심 서비스 - 2 replicas (HPA 비활성화 시)
+# 핵심 서비스 - 2 replicas
 board-service:
   replicaCount: 2
-  config:
-    DB_NAME: "board_db"
 
 user-service:
   replicaCount: 2
-  config:
-    DB_NAME: "user_db"
 
 # 보조 서비스 - 1 replica (비용 절감, 필요시 HPA로 확장)
 chat-service:
   replicaCount: 1
-  config:
-    DB_NAME: "chat_db"
 
 noti-service:
   replicaCount: 1
-  config:
-    DB_NAME: "noti_db"
 
 storage-service:
   replicaCount: 1
-  config:
-    DB_NAME: "storage_db"
-    SERVER_BASE_PATH: ""  # Istio HTTPRoute 리라이트와 호환 (/api/svc/storage → /)
 
 video-service:
   replicaCount: 1
-  config:
-    DB_NAME: "video_db"
 
 image:
   pullPolicy: Always
@@ -196,7 +186,11 @@ shared:
     # Istio JWT Mode (Istio가 JWT 검증, Go 서비스는 파싱만)
     ISTIO_JWT_MODE: "true"
     # S3 Configuration (AWS S3 - Terraform: wealist-prod-storage)
-    S3_ENDPOINT: ""  # AWS S3 기본 엔드포인트 사용 (비워두면 AWS SDK 기본값)
+    # S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY: 빈 값으로 설정하여 config.yaml 기본값 오버라이드
+    # 빈 값이면 AWS SDK가 IAM Role (IRSA) 자격증명을 자동으로 사용
+    S3_ENDPOINT: ""  # 빈 값 = AWS S3 기본 엔드포인트 사용
+    S3_ACCESS_KEY: ""  # 빈 값 = IAM Role 사용 (IRSA)
+    S3_SECRET_KEY: ""  # 빈 값 = IAM Role 사용 (IRSA)
     S3_PUBLIC_ENDPOINT: "https://cdn.wealist.co.kr"
     S3_BUCKET: "wealist-prod-files-290008131187"
     S3_REGION: "ap-northeast-2"

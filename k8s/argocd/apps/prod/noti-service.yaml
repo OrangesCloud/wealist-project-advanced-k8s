@@ -30,6 +30,7 @@ spec:
           value: "67-84bad8f"
         - name: externalSecrets.enabled
           value: "true"
+        # Service-specific config (managed here, not in prod.yaml)
         - name: config.DB_NAME
           value: "noti_db"
   destination:
