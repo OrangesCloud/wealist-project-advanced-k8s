@@ -178,13 +178,14 @@ spec:
           port: 8005
 
     # ==========================================================================
-    # Ops Portal (/ops/* → rewrite to / → ops-portal:80)
+    # Ops Portal (/api/ops-portal/* → rewrite to / → ops-portal:80)
     # Admin Portal Frontend - React SPA (nginx serves from /)
+    # CloudFront /api/* behavior를 통해 EKS로 라우팅됨
     # ==========================================================================
     - matches:
         - path:
             type: PathPrefix
-            value: /ops
+            value: /api/ops-portal
       filters:
         - type: URLRewrite
           urlRewrite:
