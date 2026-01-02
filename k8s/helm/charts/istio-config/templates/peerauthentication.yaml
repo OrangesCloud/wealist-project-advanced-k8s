@@ -84,4 +84,19 @@ spec:
       app: loki
   mtls:
     mode: PERMISSIVE
+---
+# Ops Portal - Istio Gateway에서 접근 가능하도록 PERMISSIVE 모드 적용
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: ops-portal-permissive-mtls
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ops-portal
+  mtls:
+    mode: PERMISSIVE
 {{- end }}
