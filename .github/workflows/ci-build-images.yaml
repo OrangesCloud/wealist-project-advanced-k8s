@@ -195,9 +195,151 @@ jobs:
 
           echo "services=${SERVICES}" >> $GITHUB_OUTPUT
 
-  build-and-push:
+  # -------------------------------------------------------------------------
+  # Stage 1: 플랫폼별 네이티브 빌드 (QEMU 없이 빠른 빌드)
+  # -------------------------------------------------------------------------
+  build-platform:
     needs: [validate-branch, detect-changes]
     if: ${{ needs.validate-branch.outputs.should_run == 'true' && needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != '' }}
+    environment: ${{ needs.detect-changes.outputs.environment }}
+
+    strategy:
+      matrix:
+        service: ${{ fromJSON(needs.detect-changes.outputs.services) }}
+        platform:
+          - linux/amd64
+          - linux/arm64
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+      fail-fast: false
+
+    runs-on: ${{ matrix.runner }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    outputs:
+      image_uri: ${{ steps.tags.outputs.image_uri }}
+      tag: ${{ steps.tags.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set platform pair
+        id: platform
+        run: |
+          platform=${{ matrix.platform }}
+          echo "pair=${platform//\//-}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_BACKEND }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set ECR repository name
+        id: ecr-repo
+        run: |
+          ENV="${{ needs.detect-changes.outputs.environment }}"
+          SERVICE="${{ matrix.service }}"
+          if [ "${ENV}" = "prod" ]; then
+            REPO_NAME="prod/${SERVICE}"
+          else
+            REPO_NAME="${SERVICE}"
+          fi
+          echo "name=${REPO_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Create ECR repository if not exists
+        run: |
+          aws ecr describe-repositories --repository-names ${{ steps.ecr-repo.outputs.name }} 2>/dev/null || \
+          aws ecr create-repository \
+            --repository-name ${{ steps.ecr-repo.outputs.name }} \
+            --image-scanning-configuration scanOnPush=true \
+            --encryption-configuration encryptionType=AES256
+
+      - name: Set build configuration
+        id: build-config
+        run: |
+          SERVICE="${{ matrix.service }}"
+          case "${SERVICE}" in
+            "auth-service")
+              DOCKERFILE="services/${SERVICE}/Dockerfile"
+              CONTEXT="services/${SERVICE}"
+              ;;
+            "board-service"|"chat-service"|"noti-service"|"storage-service"|"user-service"|"video-service"|"ops-service")
+              DOCKERFILE="services/${SERVICE}/docker/Dockerfile"
+              CONTEXT="."
+              ;;
+            "ops-portal")
+              DOCKERFILE="services/${SERVICE}/docker/Dockerfile"
+              CONTEXT="services/${SERVICE}"
+              ;;
+            *)
+              echo "Error: Unknown service ${SERVICE}"
+              exit 1
+              ;;
+          esac
+          echo "dockerfile=${DOCKERFILE}" >> $GITHUB_OUTPUT
+          echo "context=${CONTEXT}" >> $GITHUB_OUTPUT
+
+      - name: Generate image tags
+        id: tags
+        run: |
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA=${SHORT_SHA:0:7}
+          BUILD_NUMBER="${{ github.run_number }}"
+          ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          REPO_NAME="${{ steps.ecr-repo.outputs.name }}"
+          TAG="${BUILD_NUMBER}-${SHORT_SHA}"
+
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "image_uri=${ECR_REGISTRY}/${REPO_NAME}" >> $GITHUB_OUTPUT
+          echo "digest_tag=${TAG}-${{ steps.platform.outputs.pair }}" >> $GITHUB_OUTPUT
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.build-config.outputs.context }}
+          file: ${{ steps.build-config.outputs.dockerfile }}
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.tags.outputs.image_uri }}:${{ steps.tags.outputs.digest_tag }}
+          cache-from: type=gha,scope=${{ matrix.service }}-${{ steps.platform.outputs.pair }}-${{ needs.detect-changes.outputs.environment }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}-${{ steps.platform.outputs.pair }}-${{ needs.detect-changes.outputs.environment }}
+          provenance: false
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests/${{ matrix.service }}
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${{ matrix.service }}/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.service }}-${{ steps.platform.outputs.pair }}
+          path: /tmp/digests/${{ matrix.service }}/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # -------------------------------------------------------------------------
+  # Stage 2: 멀티 아키텍처 매니페스트 병합
+  # -------------------------------------------------------------------------
+  merge-manifests:
+    needs: [validate-branch, detect-changes, build-platform]
+    if: ${{ needs.validate-branch.outputs.should_run == 'true' && needs.detect-changes.outputs.services != '[]' }}
     runs-on: ubuntu-latest
     environment: ${{ needs.detect-changes.outputs.environment }}
 
@@ -207,34 +349,39 @@ jobs:
       fail-fast: false
 
     permissions:
-      id-token: write # OIDC 인증용
+      id-token: write
       contents: read
-      security-events: write # Trivy 결과를 Security 탭에 올리기 위해 필요
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digests-${{ matrix.service }}-*
+          path: /tmp/digests/${{ matrix.service }}
+          merge-multiple: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # AWS 자격 증명 설정 (Backend 전용 Role)
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN_BACKEND }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # ECR 로그인
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # ECR 리포지토리 이름 설정 (prod는 prod/ prefix)
-      - name: Set ECR repository name
-        id: ecr-repo
+      - name: Set variables
+        id: vars
         run: |
           ENV="${{ needs.detect-changes.outputs.environment }}"
           SERVICE="${{ matrix.service }}"
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA=${SHORT_SHA:0:7}
+          BUILD_NUMBER="${{ github.run_number }}"
+          ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
 
           if [ "${ENV}" = "prod" ]; then
             REPO_NAME="prod/${SERVICE}"
@@ -242,101 +389,43 @@ jobs:
             REPO_NAME="${SERVICE}"
           fi
 
-          echo "name=${REPO_NAME}" >> $GITHUB_OUTPUT
-          echo "ECR Repository: ${REPO_NAME}"
-
-      # ECR 리포지토리 생성 (없으면)
-      - name: Create ECR repository if not exists
-        run: |
-          aws ecr describe-repositories --repository-names ${{ steps.ecr-repo.outputs.name }} 2>/dev/null || \
-          aws ecr create-repository \
-            --repository-name ${{ steps.ecr-repo.outputs.name }} \
-            --image-scanning-configuration scanOnPush=true \
-            --encryption-configuration encryptionType=AES256
-
-      # 서비스별 Dockerfile 경로 및 빌드 컨텍스트 설정
-      - name: Set build configuration
-        id: build-config
-        run: |
-          SERVICE="${{ matrix.service }}"
-
-          case "${SERVICE}" in
-            "auth-service")
-              # Java/Gradle 서비스
-              DOCKERFILE="services/${SERVICE}/Dockerfile"
-              CONTEXT="services/${SERVICE}"
-              ;;
-            "board-service"|"chat-service"|"noti-service"|"storage-service"|"user-service"|"video-service"|"ops-service")
-              # Go 서비스들 (공통 패키지 사용, 루트 컨텍스트 필요)
-              DOCKERFILE="services/${SERVICE}/docker/Dockerfile"
-              CONTEXT="."
-              ;;
-            "ops-portal")
-              # ops-portal (React frontend, 독립 빌드)
-              DOCKERFILE="services/${SERVICE}/docker/Dockerfile"
-              CONTEXT="services/${SERVICE}"
-              ;;
-            *)
-              echo "Error: Unknown service ${SERVICE}"
-              exit 1
-              ;;
-          esac
-
-          echo "dockerfile=${DOCKERFILE}" >> $GITHUB_OUTPUT
-          echo "context=${CONTEXT}" >> $GITHUB_OUTPUT
-          echo "Service: ${SERVICE}"
-          echo "Dockerfile: ${DOCKERFILE}"
-          echo "Context: ${CONTEXT}"
-
-      - name: Generate image tags
-        id: tags
-        run: |
-          SHORT_SHA="${{ github.sha }}"
-          SHORT_SHA=${SHORT_SHA:0:7}
-          ENV="${{ needs.detect-changes.outputs.environment }}"
-          BUILD_NUMBER="${{ github.run_number }}"
-          # ECR registry를 직접 구성 (outputs으로 전달 시 secret 마스킹 문제 회피)
-          ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
-          REPO_NAME="${{ steps.ecr-repo.outputs.name }}"
-
-          # 태그 생성: Build Number + SHA (예: 42-abc1234)
           TAG="${BUILD_NUMBER}-${SHORT_SHA}"
+          IMAGE_URI="${ECR_REGISTRY}/${REPO_NAME}"
 
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "image_uri=${ECR_REGISTRY}/${REPO_NAME}" >> $GITHUB_OUTPUT
+          echo "image_uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
+          echo "is_prod=$([[ '${ENV}' == 'prod' ]] && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
 
-          # prod는 IMMUTABLE이므로 latest 태그 불가
-          if [ "${ENV}" = "prod" ]; then
-            echo "is_immutable=true" >> $GITHUB_OUTPUT
-            TAGS="${ECR_REGISTRY}/${REPO_NAME}:${TAG}"
-          else
-            echo "is_immutable=false" >> $GITHUB_OUTPUT
-            TAGS="${ECR_REGISTRY}/${REPO_NAME}:${TAG},${ECR_REGISTRY}/${REPO_NAME}:latest"
+      - name: Create manifest list and push
+        working-directory: /tmp/digests/${{ matrix.service }}
+        run: |
+          IMAGE_URI="${{ steps.vars.outputs.image_uri }}"
+          TAG="${{ steps.vars.outputs.tag }}"
+          ENV="${{ needs.detect-changes.outputs.environment }}"
+
+          # 멀티 아키텍처 매니페스트 생성
+          docker buildx imagetools create \
+            -t ${IMAGE_URI}:${TAG} \
+            $(printf "${IMAGE_URI}:${TAG}-%s " linux-amd64 linux-arm64)
+
+          # dev 환경에서는 latest 태그도 추가
+          if [ "${ENV}" != "prod" ]; then
+            docker buildx imagetools create \
+              -t ${IMAGE_URI}:latest \
+              $(printf "${IMAGE_URI}:${TAG}-%s " linux-amd64 linux-arm64)
           fi
 
-          echo "all_tags=${TAGS}" >> $GITHUB_OUTPUT
+      - name: Cleanup platform-specific tags
+        run: |
+          IMAGE_URI="${{ steps.vars.outputs.image_uri }}"
+          TAG="${{ steps.vars.outputs.tag }}"
 
-          echo "=== Image Tags ==="
-          echo "Environment: ${ENV}"
-          echo "Build Number: ${BUILD_NUMBER}"
-          echo "Tag: ${TAG}"
-          echo "Image URI: ${ECR_REGISTRY}/${REPO_NAME}"
-          echo "All Tags: ${TAGS}"
-
-      # -------------------------------------------------------------------------
-      # 멀티 아키텍처 빌드 및 ECR 푸시
-      # (Trivy 스캔은 PR Validation에서 완료됨)
-      # -------------------------------------------------------------------------
-      - name: Build and push ${{ matrix.service }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ steps.build-config.outputs.context }}
-          file: ${{ steps.build-config.outputs.dockerfile }}
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.tags.outputs.all_tags }}
-          cache-from: type=gha,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
+          # 임시 플랫폼별 태그 삭제 (선택적)
+          for platform in linux-amd64 linux-arm64; do
+            aws ecr batch-delete-image \
+              --repository-name $(echo ${IMAGE_URI} | cut -d'/' -f2-) \
+              --image-ids imageTag=${TAG}-${platform} 2>/dev/null || true
+          done
 
       - name: Output image info
         run: |
@@ -344,16 +433,15 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Service:** ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** ${{ needs.detect-changes.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          echo "**ECR Repository:** ${{ steps.ecr-repo.outputs.name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Image URI:** ${{ steps.tags.outputs.image_uri }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Tag:** ${{ steps.tags.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Platforms:** linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
+          echo "**Image URI:** ${{ steps.vars.outputs.image_uri }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ steps.vars.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Platforms:** linux/amd64 (native), linux/arm64 (native)" >> $GITHUB_STEP_SUMMARY
 
   # -------------------------------------------------------------------------
   # 빌드 완료 Discord 알림
   # -------------------------------------------------------------------------
   notify-build-complete:
-    needs: [detect-changes, build-and-push]
+    needs: [detect-changes, merge-manifests]
     if: always() && needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != ''
     runs-on: ubuntu-latest
 
@@ -370,7 +458,7 @@ jobs:
           echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
 
       - name: Send Discord notification on success
-        if: needs.build-and-push.result == 'success'
+        if: needs.merge-manifests.result == 'success'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_BUILD }}
         run: |
@@ -427,7 +515,7 @@ jobs:
           fi
 
       - name: Send Discord notification on failure
-        if: needs.build-and-push.result == 'failure'
+        if: needs.merge-manifests.result == 'failure'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_BUILD }}
         run: |
@@ -474,7 +562,7 @@ jobs:
           fi
 
   update-gitops-manifests:
-    needs: [validate-branch, detect-changes, build-and-push]
+    needs: [validate-branch, detect-changes, merge-manifests]
     # TODO: prod 매니페스트 업데이트 임시 활성화 - 원복 시 아래 주석 해제
     # needs.detect-changes.outputs.branch != 'service-deploy-prod' &&
     if: |
