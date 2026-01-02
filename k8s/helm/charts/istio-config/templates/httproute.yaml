@@ -178,6 +178,18 @@ spec:
           port: 8005
 
     # ==========================================================================
+    # Ops Portal (/ops/* → ops-portal:80)
+    # Admin Portal Frontend - React SPA
+    # ==========================================================================
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /ops
+      backendRefs:
+        - name: ops-portal
+          port: 80
+
+    # ==========================================================================
     # MinIO Storage (/api/minio/* → rewrite to /minio/* → minio)
     # ==========================================================================
     {{- if .Values.istio.httpRoute.minio.enabled }}
