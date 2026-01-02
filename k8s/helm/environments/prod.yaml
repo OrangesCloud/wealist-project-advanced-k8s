@@ -79,6 +79,7 @@ storage-service:
   replicaCount: 1
   config:
     DB_NAME: "storage_db"
+    SERVER_BASE_PATH: ""  # Istio HTTPRoute 리라이트와 호환 (/api/svc/storage → /)
 
 video-service:
   replicaCount: 1
