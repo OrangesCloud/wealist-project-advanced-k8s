@@ -35,11 +35,8 @@ spec:
     - repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
       targetRevision: k8s-deploy-prod
       path: k8s/argocd/config
-    # ExternalSecrets (OAuth credentials, Discord webhook)
-    - repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
-      targetRevision: k8s-deploy-prod
-      path: k8s/argocd/base/external-secrets
     # 알림 설정
+    # NOTE: ExternalSecrets는 external-secrets-config-prod에서 관리 (중복 방지)
     - repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
       targetRevision: k8s-deploy-prod
       path: k8s/argocd/notifications
