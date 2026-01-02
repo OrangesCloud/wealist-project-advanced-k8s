@@ -223,7 +223,8 @@ export const refreshAccessToken = async (): Promise<string> => {
 
   try {
     // auth-service의 /api/auth/refresh 엔드포인트 호출
-    const response = await axios.post(`${AUTH_SERVICE_API_URL}/refresh`, {
+    // K8s ingress에서 /api/svc/auth가 /로 rewrite되므로 /api/auth/refresh 전체 경로 필요
+    const response = await axios.post(`${AUTH_SERVICE_API_URL}/api/auth/refresh`, {
       refreshToken,
     });
 
