@@ -31,16 +31,26 @@ public class OAuth2RedirectUriFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        // Only process OAuth2 authorization requests
-        if (request.getRequestURI().startsWith("/oauth2/authorization/")) {
+        String requestUri = request.getRequestURI();
+
+        // Check for OAuth2 authorization requests (with or without /api prefix)
+        boolean isAuthorizationRequest = requestUri.startsWith("/oauth2/authorization/")
+                || requestUri.startsWith("/api/oauth2/authorization/");
+
+        if (isAuthorizationRequest) {
+            log.info("OAuth2 authorization request detected: {}", requestUri);
             String clientRedirectUri = request.getParameter("redirect_uri");
+            log.info("Client redirect_uri parameter: {}", clientRedirectUri);
+
             if (clientRedirectUri != null && !clientRedirectUri.isBlank()) {
                 if (isAllowedRedirectUri(clientRedirectUri)) {
                     request.getSession().setAttribute(REDIRECT_URI_SESSION_KEY, clientRedirectUri);
-                    log.debug("Stored client redirect_uri in session: {}", clientRedirectUri);
+                    log.info("Stored client redirect_uri in session: {}", clientRedirectUri);
                 } else {
                     log.warn("Rejected invalid redirect_uri: {}", clientRedirectUri);
                 }
+            } else {
+                log.info("No redirect_uri parameter provided, will use default");
             }
         }
         filterChain.doFilter(request, response);

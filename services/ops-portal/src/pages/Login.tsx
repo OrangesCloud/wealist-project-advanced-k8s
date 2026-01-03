@@ -25,16 +25,19 @@ export default function Login() {
 
   const handleGoogleLogin = () => {
     // Redirect to auth service for Google OAuth
-    // In production, auth-service is at the same domain (routed via CloudFront/Istio)
+    // In production, auth-service is at api.wealist.co.kr (via CloudFront → EKS)
+    // IMPORTANT: OAuth authorization and callback must use the SAME domain (api.wealist.co.kr)
+    // to ensure session cookies are properly shared
     // In development, use VITE_AUTH_URL or default to localhost
     const isProduction = window.location.hostname !== 'localhost'
     const authUrl = isProduction
-      ? window.location.origin
+      ? 'https://api.wealist.co.kr'  // Use api subdomain for consistent session cookie
       : (import.meta.env.VITE_AUTH_URL || 'http://localhost:8080')
 
     // redirect_uri must include the full path to ops-portal login
     const redirectUri = `${window.location.origin}/api/ops-portal/login`
-    window.location.href = `${authUrl}/oauth2/authorization/google?redirect_uri=${encodeURIComponent(redirectUri)}`
+    // OAuth authorization path: /api/oauth2/authorization/google (CloudFront strips nothing, Istio strips /api)
+    window.location.href = `${authUrl}/api/oauth2/authorization/google?redirect_uri=${encodeURIComponent(redirectUri)}`
   }
 
   return (
