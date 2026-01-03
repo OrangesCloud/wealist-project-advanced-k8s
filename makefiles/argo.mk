@@ -23,27 +23,31 @@ argo-help: ## [ArgoCD] 도움말 표시
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo ""
 	@echo "빠른 시작:"
-	@echo "  make kind-dev-setup  - Dev 환경 전체 설정"
+	@echo "  make kind-dev-setup     - Dev 환경 전체 설정 (클러스터+DB+ArgoCD)"
 	@echo ""
 	@echo "단계별 실행:"
 	@echo "  make cluster-up          - Kind 클러스터 생성"
+	@echo "  make kind-dev-db-up      - DB 컨테이너 시작 (PostgreSQL+Redis)"
 	@echo "  make argo-install-simple - ArgoCD 설치"
-	@echo "  make argo-deploy-dev - Applications 배포"
+	@echo "  make argo-deploy-dev     - Applications 배포"
+	@echo ""
+	@echo "팀원 관리:"
+	@echo "  make kind-dev-rbac       - 팀원용 RBAC 설정"
+	@echo "  make kind-dev-kubeconfig USERNAME=xxx - 팀원용 kubeconfig 생성"
+	@echo ""
+	@echo "상태 확인:"
+	@echo "  make kind-dev-env-status - 클러스터+DB 상태"
+	@echo "  make argo-status         - ArgoCD 상태"
 	@echo ""
 	@echo "관리:"
-	@echo "  make argo-status      - 전체 상태 확인"
-	@echo "  make logs             - ArgoCD 로그 확인"
-	@echo "  make ui               - ArgoCD UI 열기"
-	@echo "  make argo-clean       - 모든 리소스 삭제"
-	@echo "  make cluster-down     - 클러스터 삭제"
+	@echo "  make argo-ui          - ArgoCD UI 열기"
+	@echo "  make kind-dev-db-down - DB 컨테이너 중지"
+	@echo "  make kind-dev-clean   - 클러스터 삭제"
 	@echo ""
 	@echo "ESO (External Secrets):"
 	@echo "  make eso-status       - ESO 상태 확인"
 	@echo "  make eso-sync         - Secret 강제 동기화"
-	@echo "  make verify-secrets   - Secret 확인"
 	@echo ""
-	@echo "변수:"
-	@echo "  ENVIRONMENT=$(ENVIRONMENT)"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 argo-setup: ## ArgoCD 설치 (인터랙티브)
@@ -439,8 +443,8 @@ kind-setup-ecr: ## [ArgoCD] Kind 클러스터 + ECR 직접 연결 (dev)
 	fi
 	@echo -e "$(GREEN)✅ Kind 클러스터 + ECR 준비 완료$(NC)"
 
-kind-dev-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (dev 환경)
-	@echo -e "$(YELLOW)🏗️  Kind 클러스터 + ECR 설정 (dev)...$(NC)"
+kind-dev-setup: ## [ArgoCD] Kind 클러스터 + DB 컨테이너 + ArgoCD + 앱 배포 (dev 환경)
+	@echo -e "$(YELLOW)🏗️  Kind 클러스터 + DB 컨테이너 설정 (dev)...$(NC)"
 	@if [ -f "k8s/helm/scripts/dev/0.setup-cluster.sh" ]; then \
 		chmod +x k8s/helm/scripts/dev/0.setup-cluster.sh; \
 		./k8s/helm/scripts/dev/0.setup-cluster.sh; \
@@ -448,19 +452,7 @@ kind-dev-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (dev �
 		echo -e "$(RED)❌ dev/0.setup-cluster.sh not found$(NC)"; \
 		exit 1; \
 	fi
-	@echo -e "$(GREEN)✅ Kind 클러스터 (dev) 준비 완료$(NC)"
-	@echo ""
-	@echo -e "$(YELLOW)🐘 Host PostgreSQL 초기화 (dev)...$(NC)"
-	@if [ -f "scripts/init-local-postgres.sh" ]; then \
-		chmod +x scripts/init-local-postgres.sh; \
-		if [ "$$(uname)" = "Darwin" ]; then \
-			DEV_DB_PASSWORD=$${DEV_DB_PASSWORD:-wealist-dev-password} ./scripts/init-local-postgres.sh dev; \
-		else \
-			sudo DEV_DB_PASSWORD=$${DEV_DB_PASSWORD:-wealist-dev-password} ./scripts/init-local-postgres.sh dev; \
-		fi; \
-	else \
-		echo -e "$(YELLOW)⚠️  init-local-postgres.sh not found, skipping DB init$(NC)"; \
-	fi
+	@echo -e "$(GREEN)✅ Kind 클러스터 + DB 컨테이너 준비 완료$(NC)"
 	@echo ""
 	@echo -e "$(YELLOW)🚀 ArgoCD 설치 중...$(NC)"
 	$(MAKE) argo-install-simple
@@ -475,22 +467,30 @@ kind-dev-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (dev �
 	@echo -e "$(GREEN)✅ Dev 환경 전체 설정 완료!$(NC)"
 	@echo -e "$(GREEN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
 	@echo ""
-	@echo "ArgoCD UI: https://dev.wealist.co.kr/api/argo"
-	@echo "Username: admin"
-	@echo "Password: $$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo '(생성 중...)')"
+	@echo "📊 환경 상태: make kind-dev-env-status"
 	@echo ""
-	@echo "상태 확인: make argo-status"
+	@echo "🌐 접속 정보:"
+	@echo "   - ArgoCD: http://localhost:9080/api/argo"
+	@echo "   - PostgreSQL: localhost:9432"
+	@echo "   - Redis: localhost:9379"
+	@echo ""
+	@echo "🔐 팀원 RBAC 설정: make kind-dev-rbac"
+	@echo "🔑 팀원 kubeconfig: make kind-dev-kubeconfig USERNAME=<이름>"
+	@echo ""
+	@echo "ArgoCD 로그인:"
+	@echo "   Username: admin"
+	@echo "   Password: $$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo '(생성 중...)')"
 
 # ============================================
 # 리셋 명령어
 # ============================================
 
-# kind-dev-reset: 클러스터 완전 리셋 (삭제 + 재생성)
+# kind-dev-reset: 클러스터 + DB 컨테이너 완전 리셋 (삭제 + 재생성)
 # - Kind 클러스터 삭제 (ArgoCD, Helm, Pod 전부 삭제)
-# - 로컬 변경사항 제거 (git checkout)
-# - 클러스터 + ArgoCD + 앱 전부 새로 생성
-kind-dev-reset: ## [Reset] Dev 클러스터 완전 리셋 (삭제 후 재생성)
-	@echo -e "$(RED)⚠️  Dev 클러스터를 완전히 리셋합니다...$(NC)"
+# - DB 컨테이너 삭제 (데이터는 보존)
+# - 클러스터 + DB + ArgoCD + 앱 전부 새로 생성
+kind-dev-reset: ## [Reset] Dev 환경 완전 리셋 (삭제 후 재생성)
+	@echo -e "$(RED)⚠️  Dev 환경을 완전히 리셋합니다...$(NC)"
 	@echo ""
 	@read -p "정말 리셋하시겠습니까? (y/N): " confirm; \
 	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
@@ -498,19 +498,28 @@ kind-dev-reset: ## [Reset] Dev 클러스터 완전 리셋 (삭제 후 재생성)
 		echo -e "$(YELLOW)1. Kind 클러스터 삭제 중...$(NC)"; \
 		kind delete cluster --name wealist 2>/dev/null || true; \
 		echo ""; \
-		echo -e "$(YELLOW)2. 로컬 변경사항 정리 중...$(NC)"; \
-		git checkout -- . 2>/dev/null || true; \
+		echo -e "$(YELLOW)2. DB 컨테이너 삭제 중...$(NC)"; \
+		docker compose -f docker/dev/docker-compose.dev-db.yaml down 2>/dev/null || true; \
+		docker rm -f postgres-dev redis-dev 2>/dev/null || true; \
 		echo ""; \
-		echo -e "$(YELLOW)3. Dev 클러스터 재생성 중...$(NC)"; \
+		echo -e "$(YELLOW)3. Dev 환경 재생성 중...$(NC)"; \
 		$(MAKE) kind-dev-setup; \
 	else \
 		echo "리셋 취소됨"; \
 	fi
 
-kind-dev-clean: ## [Reset] Dev 클러스터만 삭제 (재생성 없음)
-	@echo -e "$(RED)🗑️  Dev 클러스터 삭제 중...$(NC)"
-	kind delete cluster --name wealist 2>/dev/null || echo "클러스터 없음"
-	@echo -e "$(GREEN)✅ 클러스터 삭제 완료$(NC)"
+kind-dev-clean: ## [Reset] Dev 클러스터 + DB 컨테이너 삭제 (재생성 없음)
+	@echo -e "$(RED)🗑️  Dev 환경 삭제 중...$(NC)"
+	@echo ""
+	@echo "Kind 클러스터 삭제..."
+	@kind delete cluster --name wealist 2>/dev/null || echo "클러스터 없음"
+	@echo ""
+	@echo "DB 컨테이너 중지..."
+	@docker compose -f docker/dev/docker-compose.dev-db.yaml down 2>/dev/null || true
+	@docker rm -f postgres-dev redis-dev 2>/dev/null || true
+	@echo ""
+	@echo -e "$(GREEN)✅ Dev 환경 삭제 완료$(NC)"
+	@echo "   데이터는 /home/wealist-oranges/data/db_data에 보존됩니다."
 	@echo ""
 	@echo "재생성: make kind-dev-setup"
 
