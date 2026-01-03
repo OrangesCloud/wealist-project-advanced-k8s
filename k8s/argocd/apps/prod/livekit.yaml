@@ -46,6 +46,14 @@ spec:
         terminationGracePeriodSeconds: 18000
 
         # =======================================================================
+        # API Keys Configuration
+        # =======================================================================
+        # wealist-livekit-keys 시크릿에서 API 키 로드
+        storeKeysInSecret:
+          enabled: true
+          existingSecret: wealist-livekit-keys
+
+        # =======================================================================
         # LiveKit Configuration
         # =======================================================================
         livekit:
@@ -58,10 +66,10 @@ spec:
             port_range_end: 60000
             tcp_port: 7881
 
-          # Redis 설정 (ElastiCache 사용)
-          # REDIS_HOST는 환경변수로 주입
+          # Redis 설정 (ElastiCache)
+          # envFrom으로 주입된 REDIS_HOST 환경변수 사용
           redis:
-            address: "$(REDIS_HOST):6379"
+            address: "${REDIS_HOST}:6379"
             use_tls: true
 
           # Room 설정
