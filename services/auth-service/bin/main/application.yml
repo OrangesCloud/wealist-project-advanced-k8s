@@ -81,6 +81,13 @@ jwt:
 # OAuth2 리다이렉트 URL (프론트엔드)
 oauth2:
   redirect-url: ${OAUTH2_REDIRECT_URL_ENV:http://localhost:3000/oauth/callback}
+  # 허용된 redirect URI 패턴 (보안)
+  # 클라이언트가 redirect_uri 파라미터로 전달하면 이 패턴과 일치해야 함
+  allowed-redirect-patterns:
+    - https://wealist.co.kr/**
+    - https://dev.wealist.co.kr/**
+    - http://localhost:3000/**
+    - http://localhost:3001/**
 
 # User Service URL (유저 조회/생성용)
 user-service:

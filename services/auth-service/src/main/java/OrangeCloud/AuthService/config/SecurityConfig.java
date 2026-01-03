@@ -1,6 +1,7 @@
 package OrangeCloud.AuthService.config;
 
 import OrangeCloud.AuthService.oauth.CustomOAuth2UserService;
+import OrangeCloud.AuthService.oauth.OAuth2FailureHandler;
 import OrangeCloud.AuthService.oauth.OAuth2RedirectUriFilter;
 import OrangeCloud.AuthService.oauth.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
     private final OAuth2RedirectUriFilter oAuth2RedirectUriFilter;
 
     @Bean
@@ -62,6 +64,7 @@ public class SecurityConfig {
                                 .userService(customOAuth2UserService)
                         )
                         .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler)
                 );
 
         return http.build();
