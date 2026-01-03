@@ -1475,3 +1475,112 @@ init-local-db: ## 로컬 PostgreSQL/Redis 초기화 (Ubuntu, ENV=local-ubuntu)
 	@echo "로컬 데이터베이스 초기화 완료!"
 	@echo ""
 	@echo "다음: make helm-install-all ENV=dev"
+
+# =============================================================================
+# Wealist-Oranges 전용 (kind-dev + 컨테이너 DB)
+# =============================================================================
+
+##@ Wealist-Oranges (kind-dev)
+
+.PHONY: oranges-up oranges-down oranges-db-up oranges-db-down oranges-setup-rbac oranges-create-kubeconfig oranges-status
+
+ORANGES_DATA_PATH ?= /home/wealist-oranges/data
+DOCKER_COMPOSE_DB := docker/dev/docker-compose.dev-db.yaml
+
+oranges-up: ## 🍊 Oranges: Kind 클러스터 + DB 컨테이너 시작
+	@echo "=============================================="
+	@echo "  🍊 Wealist-Oranges Dev 환경 시작"
+	@echo "=============================================="
+	@echo ""
+	@echo "  데이터 경로: $(ORANGES_DATA_PATH)"
+	@echo "  포트: 9080 (HTTP), 9432 (PostgreSQL), 9379 (Redis)"
+	@echo ""
+	@export WEALIST_DATA_PATH="$(ORANGES_DATA_PATH)" && \
+		./k8s/helm/scripts/dev/0.setup-cluster.sh
+	@echo ""
+	@echo "✅ Oranges 환경 시작 완료!"
+
+oranges-down: ## 🍊 Oranges: Kind 클러스터 + DB 컨테이너 중지
+	@echo "=== Oranges 환경 중지 ==="
+	@echo ""
+	@echo "Kind 클러스터 삭제 중..."
+	@kind delete cluster --name wealist 2>/dev/null || true
+	@echo ""
+	@echo "DB 컨테이너 중지 중..."
+	@docker compose -f $(DOCKER_COMPOSE_DB) down 2>/dev/null || true
+	@docker rm -f postgres-dev redis-dev 2>/dev/null || true
+	@echo ""
+	@echo "✅ Oranges 환경 중지 완료!"
+	@echo "   데이터는 $(ORANGES_DATA_PATH)/db_data에 보존됩니다."
+
+oranges-db-up: ## 🐘 DB 컨테이너만 시작 (PostgreSQL + Redis)
+	@echo "=== DB 컨테이너 시작 ==="
+	@export WEALIST_DATA_PATH="$(ORANGES_DATA_PATH)" && \
+		docker network create kind 2>/dev/null || true && \
+		docker compose -f $(DOCKER_COMPOSE_DB) up -d
+	@echo ""
+	@echo "⏳ 헬스체크 대기 중..."
+	@sleep 5
+	@docker exec postgres-dev pg_isready -U wealist -d wealist && echo "✅ PostgreSQL ready" || echo "❌ PostgreSQL not ready"
+	@docker exec redis-dev redis-cli ping && echo "✅ Redis ready" || echo "❌ Redis not ready"
+
+oranges-db-down: ## 🐘 DB 컨테이너만 중지
+	@echo "=== DB 컨테이너 중지 ==="
+	@docker compose -f $(DOCKER_COMPOSE_DB) down 2>/dev/null || true
+	@docker rm -f postgres-dev redis-dev 2>/dev/null || true
+	@echo "✅ DB 컨테이너 중지 완료"
+
+oranges-setup-rbac: ## 🔐 팀원용 RBAC 설정 (wealist-dev 네임스페이스만 접근)
+	@echo "=== 팀원용 RBAC 설정 ==="
+	@echo ""
+	@if ! kubectl get namespace wealist-dev >/dev/null 2>&1; then \
+		echo "❌ wealist-dev 네임스페이스가 없습니다. 먼저 make oranges-up 실행하세요."; \
+		exit 1; \
+	fi
+	@kubectl apply -f k8s/rbac/team-developer.yaml
+	@echo ""
+	@echo "✅ RBAC 설정 완료!"
+	@echo ""
+	@echo "팀원 kubeconfig 생성:"
+	@echo "  make oranges-create-kubeconfig USERNAME=<이름>"
+
+oranges-create-kubeconfig: ## 🔑 팀원용 제한된 kubeconfig 생성 (USERNAME=xxx)
+	@if [ -z "$(USERNAME)" ]; then \
+		echo "Usage: make oranges-create-kubeconfig USERNAME=<이름>"; \
+		echo "예시: make oranges-create-kubeconfig USERNAME=member1"; \
+		exit 1; \
+	fi
+	@./scripts/create-team-kubeconfig.sh $(USERNAME)
+
+oranges-status: ## 📊 Oranges 환경 상태 확인
+	@echo "=============================================="
+	@echo "  🍊 Wealist-Oranges 상태"
+	@echo "=============================================="
+	@echo ""
+	@echo "📦 Kind 클러스터:"
+	@if kind get clusters 2>/dev/null | grep -q "wealist"; then \
+		echo "   ✅ wealist 클러스터 실행 중"; \
+		kubectl get nodes 2>/dev/null || true; \
+	else \
+		echo "   ❌ 클러스터 없음"; \
+	fi
+	@echo ""
+	@echo "🐘 PostgreSQL:"
+	@if docker ps --format '{{.Names}}' | grep -q "postgres-dev"; then \
+		echo "   ✅ postgres-dev 실행 중 (localhost:9432)"; \
+	else \
+		echo "   ❌ postgres-dev 없음"; \
+	fi
+	@echo ""
+	@echo "📮 Redis:"
+	@if docker ps --format '{{.Names}}' | grep -q "redis-dev"; then \
+		echo "   ✅ redis-dev 실행 중 (localhost:9379)"; \
+	else \
+		echo "   ❌ redis-dev 없음"; \
+	fi
+	@echo ""
+	@echo "🌐 접속 정보:"
+	@echo "   - ArgoCD: http://localhost:9080/api/argo"
+	@echo "   - Grafana: http://localhost:9080/api/monitoring/grafana"
+	@echo ""
+	@echo "=============================================="
