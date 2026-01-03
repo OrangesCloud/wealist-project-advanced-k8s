@@ -59,6 +59,10 @@ spec:
         livekit:
           log_level: info
 
+          # storeKeysInSecret에서 마운트된 keys.yaml 파일 참조
+          # Helm 차트가 시크릿을 컨테이너 루트에 keys.yaml로 마운트
+          key_file: keys.yaml
+
           # RTC 설정 (WebRTC 미디어 트래픽)
           rtc:
             use_external_ip: true
