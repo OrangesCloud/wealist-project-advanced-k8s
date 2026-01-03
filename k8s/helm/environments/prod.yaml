@@ -334,6 +334,9 @@ istio:
       hostname: "livekit.wealist.co.kr"
       serviceName: livekit-livekit-server  # LiveKit Helm 차트 기본 서비스명
       port: 7880
+    # Ops Portal (Admin Dashboard)
+    opsPortal:
+      enabled: true
 
   # mTLS - 서비스 간 암호화
   mtls:

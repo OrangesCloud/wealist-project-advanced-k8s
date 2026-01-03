@@ -163,6 +163,7 @@ spec:
         - name: video-service
           port: 8004
 
+    {{- if .Values.istio.httpRoute.opsPortal.enabled }}
     - matches:
         - path:
             type: PathPrefix
@@ -176,12 +177,14 @@ spec:
       backendRefs:
         - name: ops-service
           port: 8005
+    {{- end }}
 
     # ==========================================================================
     # Ops Portal (/api/ops-portal/* → rewrite to / → ops-portal:80)
     # Admin Portal Frontend - React SPA (nginx serves from /)
     # CloudFront /api/* behavior를 통해 EKS로 라우팅됨
     # ==========================================================================
+    {{- if .Values.istio.httpRoute.opsPortal.enabled }}
     - matches:
         - path:
             type: PathPrefix
@@ -195,6 +198,7 @@ spec:
       backendRefs:
         - name: ops-portal
           port: 80
+    {{- end }}
 
     # ==========================================================================
     # MinIO Storage (/api/minio/* → rewrite to /minio/* → minio)
