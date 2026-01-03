@@ -204,6 +204,9 @@ istio:
     # ArgoCD UI (/api/argo)
     argocd:
       enabled: true
+    # Ops Portal (dev에서는 비활성화)
+    opsPortal:
+      enabled: false
 
   mtls:
     enabled: true
