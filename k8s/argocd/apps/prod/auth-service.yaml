@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/auth-service"
         - name: image.tag
-          value: "83-716a2e0"
+          value: "87-c412247"
         - name: externalSecrets.enabled
           value: "true"
         # Service-specific config (managed here, not in prod.yaml)
