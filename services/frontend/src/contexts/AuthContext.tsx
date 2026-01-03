@@ -82,9 +82,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 3. 로그아웃 핸들러
   const logout = useCallback(async () => {
     // auth-service에 로그아웃 요청 (토큰 블랙리스트 추가)
+    // K8s ingress에서 /api/svc/auth가 /로 rewrite되므로 /api/auth/logout 전체 경로 필요
     if (token) {
       try {
-        await fetch(`${AUTH_SERVICE_API_URL}/logout`, {
+        await fetch(`${AUTH_SERVICE_API_URL}/api/auth/logout`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,

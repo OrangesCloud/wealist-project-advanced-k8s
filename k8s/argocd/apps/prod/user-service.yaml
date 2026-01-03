@@ -33,6 +33,9 @@ spec:
         # Service-specific config (managed here, not in prod.yaml)
         - name: config.DB_NAME
           value: "user_db"
+        # 고가용성: 핵심 사용자 서비스는 minReplicas: 2 유지
+        - name: autoscaling.minReplicas
+          value: "2"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-prod

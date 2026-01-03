@@ -1,0 +1,43 @@
+{{/*
+# =============================================================================
+# HTTPRoute: LiveKit WebRTC SFU Server
+# =============================================================================
+# livekit.wealist.co.kr → livekit-livekit-server:7880
+#
+# 트래픽 흐름:
+# 1. Frontend에서 wss://livekit.wealist.co.kr로 WebSocket 연결
+# 2. ALB/Gateway가 HTTPRoute를 통해 LiveKit 서비스로 라우팅
+# 3. WebRTC 미디어 트래픽은 UDP로 직접 노드에 연결 (hostNetwork)
+#
+# 주의: WebSocket은 HTTP Upgrade를 사용하므로 HTTPRoute로 처리 가능
+# =============================================================================
+*/}}
+{{- if and .Values.istio.enabled .Values.istio.httpRoute.enabled }}
+{{- if .Values.istio.httpRoute.livekit }}
+{{- if .Values.istio.httpRoute.livekit.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: livekit-routes
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+    component: livekit
+spec:
+  parentRefs:
+    - name: {{ .Values.istio.httpRoute.gatewayRef.name }}
+      namespace: {{ .Values.istio.httpRoute.gatewayRef.namespace }}
+  hostnames:
+    - {{ .Values.istio.httpRoute.livekit.hostname | quote }}
+  rules:
+    # LiveKit API & WebSocket 엔드포인트
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ .Values.istio.httpRoute.livekit.serviceName }}
+          port: {{ .Values.istio.httpRoute.livekit.port }}
+{{- end }}
+{{- end }}
+{{- end }}

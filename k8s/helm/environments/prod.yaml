@@ -121,11 +121,10 @@ securityContext:
 # Features (Production)
 # -----------------------------------------------------------------------------
 # 기본 HPA 설정 (모든 서비스 공통)
-# 주의: 서비스별 autoscaling override는 Helm 구조상 불가능
-#       (auth-service.autoscaling.minReplicas는 .Values.autoscaling.minReplicas와 다른 경로)
+# auth-service, user-service는 ArgoCD parameters에서 minReplicas: 2로 오버라이드
 autoscaling:
   enabled: true
-  minReplicas: 2  # 핵심 서비스 가용성 보장 (board, user 등)
+  minReplicas: 1  # 기본값 1, 핵심 서비스만 2로 오버라이드
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 90
@@ -257,8 +256,9 @@ istio:
     namespace: istio-system
     gatewayClassName: istio
     # ExternalDNS annotation - Route53 자동 업데이트
+    # 주의: livekit.wealist.co.kr 추가 시 ACM 인증서에도 도메인 추가 필요
     annotations:
-      external-dns.alpha.kubernetes.io/hostname: "api.wealist.co.kr,argocd.wealist.co.kr"
+      external-dns.alpha.kubernetes.io/hostname: "api.wealist.co.kr,argocd.wealist.co.kr,livekit.wealist.co.kr"
     # AWS NLB 설정 - 자동 생성되는 Service에 적용
     infrastructure:
       annotations:
@@ -293,6 +293,7 @@ istio:
     hosts:
       - "wealist.co.kr"
       - "api.wealist.co.kr"
+      - "livekit.wealist.co.kr"  # LiveKit WebRTC SFU Server
     frontend:
       enabled: false
     # Monitoring routes (VPN/Bastion 통해 접근)
@@ -325,6 +326,14 @@ istio:
     argocd:
       enabled: true
       host: "argocd.wealist.co.kr"  # 별도 HTTPRoute에서 사용
+    # LiveKit WebRTC SFU Server
+    # - Frontend에서 wss://livekit.wealist.co.kr로 WebSocket 연결
+    # - video-service에서 http://livekit-livekit-server:7880으로 API 호출
+    livekit:
+      enabled: true
+      hostname: "livekit.wealist.co.kr"
+      serviceName: livekit-livekit-server  # LiveKit Helm 차트 기본 서비스명
+      port: 7880
 
   # mTLS - 서비스 간 암호화
   mtls:

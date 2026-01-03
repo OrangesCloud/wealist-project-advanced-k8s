@@ -33,6 +33,13 @@ spec:
         # Service-specific config (managed here, not in prod.yaml)
         - name: config.DB_NAME
           value: "video_db"
+        # LiveKit Configuration
+        # EKS 내부에서는 ClusterIP Service로 연결
+        - name: config.LIVEKIT_HOST
+          value: "http://livekit-livekit-server:7880"
+        # Frontend에서 사용하는 WebSocket URL (외부 도메인)
+        - name: config.LIVEKIT_WS_URL
+          value: "wss://livekit.wealist.co.kr"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-prod

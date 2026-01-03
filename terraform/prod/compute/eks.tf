@@ -146,6 +146,29 @@ module "eks" {
       type        = "ingress"
       self        = true
     }
+
+    # =========================================================================
+    # LiveKit WebRTC Ports (video-service)
+    # =========================================================================
+    # WebRTC UDP 미디어 트래픽 (hostNetwork 모드에서 직접 노출)
+    livekit_webrtc_udp_ingress = {
+      description = "LiveKit WebRTC UDP (media traffic)"
+      protocol    = "udp"
+      from_port   = 50000
+      to_port     = 60000
+      type        = "ingress"
+      cidr_blocks = ["0.0.0.0/0"]  # 클라이언트가 어디서든 접속 가능
+    }
+
+    # WebRTC TCP 폴백 (UDP 차단된 네트워크용)
+    livekit_webrtc_tcp_ingress = {
+      description = "LiveKit WebRTC TCP fallback"
+      protocol    = "tcp"
+      from_port   = 7881
+      to_port     = 7881
+      type        = "ingress"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
   }
 
   # -----------------------------------------------------------------------------

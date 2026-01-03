@@ -40,7 +40,7 @@ variable "spot_instance_types" {
 variable "spot_min_size" {
   description = "Minimum number of Spot nodes"
   type        = number
-  default     = 3
+  default     = 2  # 3→2 for cost optimization (2026-01-03)
 }
 
 variable "spot_max_size" {
@@ -50,9 +50,9 @@ variable "spot_max_size" {
 }
 
 variable "spot_desired_size" {
-  description = "Desired number of Spot nodes (t3.large 8GB × 3 = 24GB, 105 pods capacity)"
+  description = "Desired number of Spot nodes (t3.large 8GB × 2 = 16GB, 70 pods capacity)"
   type        = number
-  default     = 3
+  default     = 2  # 3→2 for cost optimization (2026-01-03)
 }
 
 variable "node_disk_size" {
