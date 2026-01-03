@@ -47,6 +47,41 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- end }}
+      {{- /* Init Container: Secret이 준비될 때까지 대기 */}}
+      {{- if .Values.waitForSecrets }}
+      {{- if .Values.waitForSecrets.enabled }}
+      initContainers:
+        - name: wait-for-secrets
+          image: {{ .Values.waitForSecrets.image | default "bitnami/kubectl:1.30" }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for secret {{ .Values.waitForSecrets.secretName }}..."
+              TIMEOUT={{ .Values.waitForSecrets.timeout | default 300 }}
+              ELAPSED=0
+              while [ $ELAPSED -lt $TIMEOUT ]; do
+                if kubectl get secret {{ .Values.waitForSecrets.secretName }} -n {{ .Release.Namespace }} -o jsonpath='{.data.DB_HOST}' 2>/dev/null | base64 -d | grep -q .; then
+                  echo "Secret {{ .Values.waitForSecrets.secretName }} is ready!"
+                  exit 0
+                fi
+                echo "Waiting for secret... ($ELAPSED/$TIMEOUT seconds)"
+                sleep 5
+                ELAPSED=$((ELAPSED + 5))
+              done
+              echo "Timeout waiting for secret {{ .Values.waitForSecrets.secretName }}!"
+              exit 1
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      {{- end }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: {{ include "wealist-common.image" . | quote }}

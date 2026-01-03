@@ -88,7 +88,7 @@ data:
               "fields": [
                 {"name": "Application", "value": "{{.app.metadata.name}}", "inline": true},
                 {"name": "Health", "value": "{{.app.status.health.status}}", "inline": true},
-                {"name": "Message", "value": "{{.app.status.health.message | default \"No message\" | trunc 200}}", "inline": false}
+                {"name": "Message", "value": "{{.app.status.health.message | default \"N/A\" | trunc 200}}", "inline": false}
               ]
             }]
           }

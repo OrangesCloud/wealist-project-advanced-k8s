@@ -1,6 +1,6 @@
 // utils/websocket.ts
 
-import { getBoardWebSocketUrl } from '../api/apiConfig';
+import { getBoardWebSocketUrl, refreshAccessToken } from '../api/apiConfig';
 
 let ws: WebSocket | null = null;
 let pingInterval: number | null = null;
@@ -93,7 +93,7 @@ export const connectWebSocket = (projectId: string, onMessage: (data: any) => vo
       isConnecting = false; // 🔥 에러 시 플래그 해제
     };
 
-    ws.onclose = (event) => {
+    ws.onclose = async (event) => {
       console.log(`🔌 [WS] 연결 닫힘: ${event.code} ${event.reason}`);
       isConnecting = false; // 🔥 연결 종료
 
@@ -107,6 +107,17 @@ export const connectWebSocket = (projectId: string, onMessage: (data: any) => vo
       if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
         reconnectAttempts++;
         console.log(`🔄 [WS] 재연결 시도 ${reconnectAttempts}/${maxReconnectAttempts}...`);
+
+        // 🔥 재연결 전 토큰 갱신 시도
+        try {
+          console.log('🔄 [WS] 토큰 갱신 시도...');
+          await refreshAccessToken();
+          console.log('✅ [WS] 토큰 갱신 성공');
+        } catch (error) {
+          console.error('❌ [WS] 토큰 갱신 실패, 재연결 중단');
+          return; // 토큰 갱신 실패 시 재연결하지 않음 (로그아웃 처리됨)
+        }
+
         setTimeout(connect, reconnectDelay);
       } else if (reconnectAttempts >= maxReconnectAttempts) {
         console.error('❌ [WS] 최대 재연결 시도 초과');

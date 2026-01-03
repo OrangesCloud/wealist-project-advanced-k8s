@@ -4,7 +4,7 @@ metadata:
   name: noti-service-prod
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "5"
     # Discord 배포 알림 설정 (Production)
     notifications.argoproj.io/subscribe.on-deployed.discord: ""
     notifications.argoproj.io/subscribe.on-sync-failed.discord: ""
@@ -27,9 +27,10 @@ spec:
         - name: image.repository
           value: "prod/noti-service"
         - name: image.tag
-          value: "42-1d212ae"
+          value: "67-84bad8f"
         - name: externalSecrets.enabled
           value: "true"
+        # Service-specific config (managed here, not in prod.yaml)
         - name: config.DB_NAME
           value: "noti_db"
   destination:

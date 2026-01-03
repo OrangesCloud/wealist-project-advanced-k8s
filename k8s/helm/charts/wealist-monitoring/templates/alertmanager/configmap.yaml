@@ -1,0 +1,106 @@
+{{- if .Values.alertmanager.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: alertmanager
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/component: alerting
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+      {{- if .Values.alertmanager.config.receivers.slack.enabled }}
+      slack_api_url_file: /etc/alertmanager/secrets/slack-webhook-url
+      {{- end }}
+
+    route:
+      group_by: ['alertname', 'namespace', 'service']
+      group_wait: {{ .Values.alertmanager.config.groupWait }}
+      group_interval: {{ .Values.alertmanager.config.groupInterval }}
+      repeat_interval: {{ .Values.alertmanager.config.repeatInterval }}
+      receiver: 'default'
+      routes:
+        # Critical 알림 - 즉시 전송
+        - match:
+            severity: critical
+          receiver: 'critical-alerts'
+          repeat_interval: {{ .Values.alertmanager.config.routes.critical.repeatInterval }}
+          continue: true
+        # Warning 알림 - 그룹화 후 전송
+        - match:
+            severity: warning
+          receiver: 'warning-alerts'
+          repeat_interval: {{ .Values.alertmanager.config.routes.warning.repeatInterval }}
+
+    receivers:
+      - name: 'default'
+        {{- if .Values.alertmanager.config.receivers.discord.enabled }}
+        webhook_configs:
+          - url: 'http://localhost:9094'  # Discord webhook proxy
+            send_resolved: true
+        {{- end }}
+
+      - name: 'critical-alerts'
+        {{- if .Values.alertmanager.config.receivers.discord.enabled }}
+        webhook_configs:
+          - url: 'http://localhost:9094'
+            send_resolved: true
+        {{- end }}
+        {{- if .Values.alertmanager.config.receivers.slack.enabled }}
+        slack_configs:
+          - channel: '{{ .Values.alertmanager.config.receivers.slack.channel }}'
+            username: '{{ .Values.alertmanager.config.receivers.slack.username }}'
+            icon_emoji: ':fire:'
+            title: '{{ `{{ .Status | toUpper }}{{ if eq .Status "firing" }} - {{ .Alerts.Firing | len }}{{ end }}` }}'
+            text: >-
+              {{ `{{ range .Alerts -}}
+              *Alert:* {{ .Annotations.summary }}
+              *Severity:* {{ .Labels.severity }}
+              *Description:* {{ .Annotations.description }}
+              *Details:*
+              {{ range .Labels.SortedPairs }} - *{{ .Name }}:* {{ .Value }}
+              {{ end }}
+              {{ end }}` }}
+            send_resolved: true
+        {{- end }}
+        {{- if .Values.alertmanager.config.receivers.email.enabled }}
+        email_configs:
+          - to: '{{ .Values.alertmanager.config.receivers.email.to }}'
+            from: '{{ .Values.alertmanager.config.receivers.email.from }}'
+            smarthost: '{{ .Values.alertmanager.config.receivers.email.smarthost }}'
+            require_tls: true
+            send_resolved: true
+        {{- end }}
+
+      - name: 'warning-alerts'
+        {{- if .Values.alertmanager.config.receivers.discord.enabled }}
+        webhook_configs:
+          - url: 'http://localhost:9094'
+            send_resolved: true
+        {{- end }}
+        {{- if .Values.alertmanager.config.receivers.slack.enabled }}
+        slack_configs:
+          - channel: '{{ .Values.alertmanager.config.receivers.slack.channel }}'
+            username: '{{ .Values.alertmanager.config.receivers.slack.username }}'
+            icon_emoji: ':warning:'
+            title: '{{ `{{ .Status | toUpper }}{{ if eq .Status "firing" }} - {{ .Alerts.Firing | len }}{{ end }}` }}'
+            text: >-
+              {{ `{{ range .Alerts -}}
+              *Alert:* {{ .Annotations.summary }}
+              *Severity:* {{ .Labels.severity }}
+              *Description:* {{ .Annotations.description }}
+              {{ end }}` }}
+            send_resolved: true
+        {{- end }}
+
+    inhibit_rules:
+      # Critical 알림이 있으면 같은 서비스의 Warning 알림 억제
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'namespace', 'service']
+{{- end }}

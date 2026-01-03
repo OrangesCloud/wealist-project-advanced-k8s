@@ -1,0 +1,127 @@
+# =============================================================================
+# ArgoCD ConfigMap - SSO + Health Checks
+# =============================================================================
+# 1. SSO (Dex + Google OAuth): 팀원 ArgoCD UI 접근
+# 2. Health Checks: sync-wave가 Healthy 상태까지 대기
+#
+# Google OAuth 설정:
+#   - clientID/clientSecret: argocd-oauth-secret에서 자동 참조
+#   - Redirect URI: https://argocd.wealist.co.kr/api/dex/callback
+#   - 도메인 제한 없음: 모든 Google 계정 로그인 가능
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # -------------------------------------------------------------------------
+  # ArgoCD Server URL (SSO Callback에 필요)
+  # -------------------------------------------------------------------------
+  url: https://argocd.wealist.co.kr
+
+  # -------------------------------------------------------------------------
+  # Dex SSO Configuration (Google OAuth)
+  # -------------------------------------------------------------------------
+  # $dex.google.clientID는 argocd-oauth-secret의 키를 자동 참조
+  dex.config: |
+    connectors:
+      - type: google
+        id: google
+        name: Google
+        config:
+          clientID: $dex.google.clientID
+          clientSecret: $dex.google.clientSecret
+          redirectURI: https://argocd.wealist.co.kr/api/dex/callback
+          # hostedDomains 생략 = 모든 Google 계정 허용
+  # -------------------------------------------------------------------------
+  # Application Health Check
+  # -------------------------------------------------------------------------
+  # ArgoCD Application이 Healthy 될 때까지 다음 sync-wave 대기
+  resource.customizations.health.argoproj.io_Application: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.health ~= nil then
+        hs.status = obj.status.health.status
+        hs.message = obj.status.health.message or ""
+      else
+        hs.status = "Progressing"
+        hs.message = "Waiting for health status"
+      end
+      if obj.status.sync ~= nil and obj.status.sync.status ~= "Synced" then
+        hs.status = "Progressing"
+      end
+    else
+      hs.status = "Progressing"
+      hs.message = "Waiting for status"
+    end
+    return hs
+
+  # -------------------------------------------------------------------------
+  # ExternalSecret Health Check
+  # -------------------------------------------------------------------------
+  # ExternalSecret이 Ready 될 때까지 대기
+  resource.customizations.health.external-secrets.io_ExternalSecret: |
+    hs = {}
+    if obj.status ~= nil and obj.status.conditions ~= nil then
+      for i, c in ipairs(obj.status.conditions) do
+        if c.type == "Ready" then
+          if c.status == "True" then
+            hs.status = "Healthy"
+          else
+            hs.status = "Degraded"
+          end
+          hs.message = c.message or ""
+          return hs
+        end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for sync"
+    return hs
+
+  # -------------------------------------------------------------------------
+  # ClusterSecretStore Health Check
+  # -------------------------------------------------------------------------
+  # ClusterSecretStore가 Ready 될 때까지 대기
+  resource.customizations.health.external-secrets.io_ClusterSecretStore: |
+    hs = {}
+    if obj.status ~= nil and obj.status.conditions ~= nil then
+      for i, c in ipairs(obj.status.conditions) do
+        if c.type == "Ready" then
+          if c.status == "True" then
+            hs.status = "Healthy"
+          else
+            hs.status = "Degraded"
+          end
+          hs.message = c.message or ""
+          return hs
+        end
+      end
+    end
+    hs.status = "Progressing"
+    return hs
+
+  # -------------------------------------------------------------------------
+  # SecretStore Health Check
+  # -------------------------------------------------------------------------
+  resource.customizations.health.external-secrets.io_SecretStore: |
+    hs = {}
+    if obj.status ~= nil and obj.status.conditions ~= nil then
+      for i, c in ipairs(obj.status.conditions) do
+        if c.type == "Ready" then
+          if c.status == "True" then
+            hs.status = "Healthy"
+          else
+            hs.status = "Degraded"
+          end
+          hs.message = c.message or ""
+          return hs
+        end
+      end
+    end
+    hs.status = "Progressing"
+    return hs

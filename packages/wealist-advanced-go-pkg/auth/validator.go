@@ -184,10 +184,9 @@ func AuthMiddlewareWithValidator(validator TokenValidator) gin.HandlerFunc {
 			return
 		}
 
-		// 컨텍스트에 사용자 정보 저장
-		c.Set("user_id", userID)
-		c.Set("jwtToken", tokenString)
-		c.Set("token", tokenString) // video-service 등에서 사용
+		// 컨텍스트에 사용자 정보 저장 (상수는 keys.go 참조)
+		c.Set(UserIDContextKey, userID)
+		c.Set(TokenContextKey, tokenString)
 		c.Next()
 	}
 }

@@ -155,6 +155,12 @@ func (c *S3Client) GeneratePresignedURL(ctx context.Context, fileName, contentTy
 
 // GetFileURL returns the public URL for a file
 func (c *S3Client) GetFileURL(fileKey string) string {
+	// CDN mode: publicEndpoint is set but endpoint is empty (AWS S3 + CloudFront)
+	// CloudFront origin is the S3 bucket, so bucket name is not in the URL
+	if c.publicEndpoint != "" && c.endpoint == "" {
+		return fmt.Sprintf("%s/%s", strings.TrimSuffix(c.publicEndpoint, "/"), fileKey)
+	}
+
 	// MinIO 환경인 경우 - publicEndpoint 사용 (브라우저 접근용)
 	if c.publicEndpoint != "" {
 		return fmt.Sprintf("%s/%s/%s", strings.TrimSuffix(c.publicEndpoint, "/"), c.bucket, fileKey)

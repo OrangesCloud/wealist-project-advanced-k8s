@@ -72,23 +72,37 @@ podDisruptionBudget:
 # -----------------------------------------------------------------------------
 shared:
   config:
+    # Environment
     ENV: "dev"
     LOG_LEVEL: "info"
-    DB_AUTO_MIGRATE: "true"
     CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
-    # External Database Host (WSL/Kind: 172.17.0.1 Docker bridge gateway)
+
+    # Database (외부 호스트 - Docker bridge gateway)
     DB_HOST: "172.17.0.1"
     POSTGRES_HOST: "172.17.0.1"
+    DB_AUTO_MIGRATE: "true"
+
+    # Redis (외부 호스트)
     REDIS_HOST: "172.17.0.1"
     SPRING_REDIS_HOST: "172.17.0.1"
+    SPRING_DATA_REDIS_SSL_ENABLED: "false"
+
     # S3/MinIO Configuration
     S3_ENDPOINT: "http://minio:9000"
     S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/api/minio"
     S3_BUCKET: "wealist-files"
     S3_REGION: "ap-northeast-2"
-    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/api/svc/livekit"
+
+    # OAuth2
     OAUTH2_CLIENT_REDIRECT_URI: "https://api.dev.wealist.co.kr/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "https://dev.wealist.co.kr/oauth/callback"
+
+    # LiveKit
+    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/api/svc/livekit"
+
+    # OTEL (dev: 50% 샘플링)
+    OTEL_TRACES_SAMPLER_ARG: "0.5"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev"
 
 # -----------------------------------------------------------------------------
 # Ingress (Disabled - Istio Gateway)

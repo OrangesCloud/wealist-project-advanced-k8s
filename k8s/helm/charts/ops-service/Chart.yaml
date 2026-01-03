@@ -1,0 +1,13 @@
+apiVersion: v2
+name: ops-service
+description: weAlist Ops Service - Admin Portal Backend (Go)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: weAlist Team
+    email: team@wealist.io
+dependencies:
+  - name: wealist-common
+    version: "1.0.0"
+    repository: "file://../wealist-common"

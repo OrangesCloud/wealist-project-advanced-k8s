@@ -150,33 +150,47 @@ resource "helm_release" "argocd" {
     value = "1"
   }
 
-  # Insecure mode (TLS termination at ALB)
+  # Insecure mode (TLS termination at NLB)
+  # server.insecure: deployment command line flag
+  # configs.params: argocd-cmd-params-cm ConfigMap (이게 우선)
   set {
     name  = "server.insecure"
     value = "true"
+  }
+
+  set {
+    name  = "configs.params.server\\.insecure"
+    value = "true"
+  }
+
+  # =========================================
+  # SSO Configuration (Dex + Google OAuth)
+  # =========================================
+  # ConfigMap(argocd-cm)에서 Dex config 설정
+  # ExternalSecret(argocd-oauth-secret)에서 credentials 주입
+  set {
+    name  = "dex.enabled"
+    value = "true"
+  }
+
+  # =========================================
+  # Secret Management
+  # =========================================
+  # argocd-secret은 ExternalSecret이 관리 (Helm 생성 비활성화)
+  # ArgoCD가 자기 자신을 sync할 때 Helm이 만든 secret을 삭제하는 것 방지
+  set {
+    name  = "configs.secret.createSecret"
+    value = "false"
   }
 
   depends_on = [helm_release.istio_ztunnel]
 }
 
 # =============================================================================
-# Cluster Info ConfigMap (ArgoCD에서 참조)
+# Cluster Info ConfigMap - argocd-cluster-config.tf에서 관리
 # =============================================================================
-# ArgoCD에서 cluster-addons 차트 배포 시 이 정보 사용
-resource "kubernetes_config_map" "cluster_info" {
-  metadata {
-    name      = "cluster-info"
-    namespace = "argocd"
-  }
-
-  data = {
-    CLUSTER_NAME = module.eks.cluster_name
-    AWS_REGION   = var.aws_region
-    VPC_ID       = local.vpc_id
-  }
-
-  depends_on = [helm_release.argocd]
-}
+# wealist-cluster-config ConfigMap으로 통합
+# 참조: argocd-cluster-config.tf
 
 # =============================================================================
 # Namespaces - ArgoCD에서 자동 생성 (CreateNamespace=true)
@@ -184,15 +198,15 @@ resource "kubernetes_config_map" "cluster_info" {
 # external-secrets, cert-manager 네임스페이스는 ArgoCD가 생성/관리
 
 # =============================================================================
-# 4. ArgoCD Bootstrap - MOVED TO argocd-apps layer
+# 4. ArgoCD Bootstrap - argocd-bootstrap.tf에서 관리
 # =============================================================================
-# ArgoCD Project, Application은 별도 레이어에서 관리
-# 이유: kubernetes_manifest는 plan 시점에 클러스터 연결 필요
+# ArgoCD Project, Application은 null_resource로 kubectl apply
+# 참조: argocd-bootstrap.tf
 #
 # 배포 순서:
-# 1. compute: EKS + Helm (ArgoCD 설치 포함)
-# 2. argocd-apps: ArgoCD Project + Application
-#
-# 다음 단계:
-# cd ../argocd-apps && terraform apply
+# 1. EKS 클러스터 생성
+# 2. Istio + ArgoCD Helm 설치
+# 3. ArgoCD cluster-config ConfigMap 생성 (GitOps Bridge)
+# 4. ArgoCD AppProject + Root App 적용 (kubectl)
+# 5. ArgoCD가 자동으로 k8s/argocd/apps/prod/ sync
 # =============================================================================

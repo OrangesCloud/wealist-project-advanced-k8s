@@ -1,0 +1,49 @@
+# =============================================================================
+# Ops Service Configuration (Default/Development)
+# =============================================================================
+# Environment variables override these values
+
+server:
+  port: "8005"
+  mode: "debug"
+  base_path: "/api"
+  read_timeout: 10s
+  write_timeout: 10s
+  shutdown_timeout: 30s
+
+database:
+  host: "localhost"
+  port: "5432"
+  user: "postgres"
+  password: ""
+  dbname: "ops_db"
+  sslmode: "disable"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+  auto_migrate: true
+
+logger:
+  level: "info"
+  output_path: "stdout"
+
+jwt:
+  secret: ""
+  expire_time: 24h
+
+auth_api:
+  base_url: "http://localhost:8080"
+  timeout: 5s
+
+cors:
+  allowed_origins: "*"
+
+argocd:
+  server_url: "https://argocd.wealist.co.kr"
+  token: ""
+  insecure: false
+
+rate_limit:
+  enabled: true
+  requests_per_minute: 60
+  burst_size: 10

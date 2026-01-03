@@ -24,7 +24,28 @@ spec:
   {{- end }}
   rules:
     # ==========================================================================
-    # OAuth2 Callback (Google OAuth redirects here)
+    # OAuth2 Routes (Spring Security OAuth2 기본 경로)
+    # /oauth2/* → auth-service (로그인 시작, 콜백 등)
+    # /login/oauth2/* → auth-service (레거시 콜백 경로)
+    # ==========================================================================
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /oauth2
+      backendRefs:
+        - name: auth-service
+          port: 8080
+
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /login/oauth2
+      backendRefs:
+        - name: auth-service
+          port: 8080
+
+    # ==========================================================================
+    # OAuth2 API Route (프론트엔드 API 호출용)
     # Path: /api/oauth2/* → rewrite to /oauth2/* → auth-service
     # ==========================================================================
     - matches:
@@ -142,6 +163,39 @@ spec:
         - name: video-service
           port: 8004
 
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/svc/ops
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: ops-service
+          port: 8005
+
+    # ==========================================================================
+    # Ops Portal (/api/ops-portal/* → rewrite to / → ops-portal:80)
+    # Admin Portal Frontend - React SPA (nginx serves from /)
+    # CloudFront /api/* behavior를 통해 EKS로 라우팅됨
+    # ==========================================================================
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/ops-portal
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: ops-portal
+          port: 80
+
     # ==========================================================================
     # MinIO Storage (/api/minio/* → rewrite to /minio/* → minio)
     # ==========================================================================
@@ -162,8 +216,53 @@ spec:
     {{- end }}
 
     # ==========================================================================
+    # Frontend (루트 경로 - 반드시 마지막에 정의!)
+    # PathPrefix "/" 는 모든 경로와 매칭되므로 가장 마지막에 있어야 함
+    # ==========================================================================
+    {{- if .Values.istio.httpRoute.frontend.enabled }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: frontend
+          port: 80
+    {{- end }}
+{{- end }}
+---
+# =============================================================================
+# HTTPRoute: Monitoring & Admin Routes (분리된 HTTPRoute - 16개 제한 회피)
+# =============================================================================
+# Gateway API HTTPRoute는 최대 16개 rules만 허용
+# 모니터링, ArgoCD 등 관리 도구 routes를 별도 HTTPRoute로 분리
+{{- if and .Values.istio.enabled .Values.istio.httpRoute.enabled }}
+{{- if or .Values.istio.httpRoute.monitoring.enabled (and .Values.istio.httpRoute.argocd .Values.istio.httpRoute.argocd.enabled) }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: wealist-monitoring-routes
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.istio.httpRoute.gatewayRef.name }}
+      namespace: {{ .Values.istio.httpRoute.gatewayRef.namespace }}
+  {{- $validHosts := list }}
+  {{- range .Values.istio.httpRoute.hosts }}
+  {{- if and (ne . "*") (ne . "") }}
+  {{- $validHosts = append $validHosts . }}
+  {{- end }}
+  {{- end }}
+  {{- if $validHosts }}
+  hostnames:
+    {{- range $validHosts }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    # ==========================================================================
     # Monitoring routes (/api/monitoring/* → pass through, no rewrite)
-    # 각 서비스가 /api/monitoring/* 경로를 직접 처리하도록 설정
     # ==========================================================================
     {{- if .Values.istio.httpRoute.monitoring.enabled }}
     - matches:
@@ -228,18 +327,5 @@ spec:
           namespace: argocd
           port: 80
     {{- end }}
-
-    # ==========================================================================
-    # Frontend (루트 경로 - 반드시 마지막에 정의!)
-    # PathPrefix "/" 는 모든 경로와 매칭되므로 가장 마지막에 있어야 함
-    # ==========================================================================
-    {{- if .Values.istio.httpRoute.frontend.enabled }}
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - name: frontend
-          port: 80
-    {{- end }}
+{{- end }}
 {{- end }}

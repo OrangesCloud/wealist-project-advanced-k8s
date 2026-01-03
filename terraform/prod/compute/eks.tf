@@ -135,6 +135,40 @@ module "eks" {
       type                          = "ingress"
       source_cluster_security_group = true
     }
+
+    # HTTP services (nginx, frontend, ops-portal 등)
+    # 기본 node-to-node ephemeral ports (1025-65535)에 포함되지 않아 별도 규칙 필요
+    http_node_to_node = {
+      description = "HTTP node to node (nginx, frontend)"
+      protocol    = "tcp"
+      from_port   = 80
+      to_port     = 80
+      type        = "ingress"
+      self        = true
+    }
+
+    # =========================================================================
+    # LiveKit WebRTC Ports (video-service)
+    # =========================================================================
+    # WebRTC UDP 미디어 트래픽 (hostNetwork 모드에서 직접 노출)
+    livekit_webrtc_udp_ingress = {
+      description = "LiveKit WebRTC UDP (media traffic)"
+      protocol    = "udp"
+      from_port   = 50000
+      to_port     = 60000
+      type        = "ingress"
+      cidr_blocks = ["0.0.0.0/0"]  # 클라이언트가 어디서든 접속 가능
+    }
+
+    # WebRTC TCP 폴백 (UDP 차단된 네트워크용)
+    livekit_webrtc_tcp_ingress = {
+      description = "LiveKit WebRTC TCP fallback"
+      protocol    = "tcp"
+      from_port   = 7881
+      to_port     = 7881
+      type        = "ingress"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
   }
 
   # -----------------------------------------------------------------------------

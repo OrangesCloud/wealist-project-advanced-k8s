@@ -10,7 +10,7 @@ metadata:
   name: db-init-prod
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "3"  # ExternalSecret(1) 이후, 서비스(5) 전
 spec:
   project: wealist-prod
   source:

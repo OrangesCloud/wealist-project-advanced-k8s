@@ -149,34 +149,64 @@ frontend:
 # -----------------------------------------------------------------------------
 shared:
   config:
+    # Environment
     ENV: "development"
     LOG_LEVEL: "debug"
     CORS_ORIGINS: "*"
+
+    # Database (내부 Pod)
+    DB_HOST: "postgres"
+    POSTGRES_HOST: "postgres"
+    DB_USER: "postgres"
+    DB_SSLMODE: "disable"
+    DB_AUTO_MIGRATE: "true"
+
+    # Redis (내부 Pod)
+    REDIS_HOST: "redis"
+    # Spring Boot auth-service uses SPRING_REDIS_* naming convention
+    SPRING_REDIS_HOST: "redis"
+    SPRING_REDIS_PORT: "6379"
+    SPRING_DATA_REDIS_SSL_ENABLED: "false"
+
+    # S3/MinIO
+    S3_ENDPOINT: "http://minio:9000"
     S3_PUBLIC_ENDPOINT: "http://localhost:8080/api/minio"
-    LIVEKIT_WS_URL: "ws://localhost:8080/api/svc/livekit"
+    S3_BUCKET: "wealist-files"
+    S3_REGION: "ap-northeast-2"
 
     # OAuth2 리다이렉트 URL (localhost, Kind NodePort 8080)
     OAUTH2_CLIENT_REDIRECT_URI: "http://localhost:8080/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "http://localhost:8080/oauth/callback"
 
-    # DB 자동 마이그레이션 (내부 DB - 초기 설정 시 활성화)
-    DB_AUTO_MIGRATE: "true"
+    # LiveKit (WebRTC)
+    LIVEKIT_URL: "http://livekit:7880"
+    LIVEKIT_WS_URL: "ws://localhost:8080/api/svc/livekit"
 
-    # 내부 데이터베이스 연결 설정
-    DB_HOST: "postgres"
-    DB_PORT: "5432"
-    DB_USER: "postgres"
-    DB_SSLMODE: "disable"
-    REDIS_HOST: "redis"
-    REDIS_PORT: "6379"
-    # Spring Boot auth-service uses SPRING_REDIS_* naming convention
-    SPRING_REDIS_HOST: "redis"
-    SPRING_REDIS_PORT: "6379"
+    # OTEL (개발: 100% 샘플링)
+    OTEL_TRACES_SAMPLER_ARG: "1.0"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=development"
 
   # 시크릿 (localhost 환경용)
   secrets:
+    # Database
     DB_PASSWORD: "postgres"
     REDIS_PASSWORD: ""
+
+    # S3/MinIO Credentials
+    S3_ACCESS_KEY: "minioadmin"
+    S3_SECRET_KEY: "minioadmin"
+
+    # Security
+    INTERNAL_API_KEY: "internal-key-change-me"
+    JWT_SECRET: "dev-jwt-secret-change-in-production"
+
+    # OAuth2 Credentials (placeholder for local)
+    GOOGLE_CLIENT_ID: "placeholder-client-id.apps.googleusercontent.com"
+    GOOGLE_CLIENT_SECRET: "placeholder-client-secret"
+
+    # LiveKit Credentials
+    LIVEKIT_API_KEY: "devkey"
+    LIVEKIT_API_SECRET: "devsecret"
 
 # -----------------------------------------------------------------------------
 # Ingress 설정 (nginx - 비활성화, Istio Gateway 사용)
@@ -381,6 +411,22 @@ redisExporter:
   config:
     host: "redis"  # 내부 서비스명
     port: 6379
+
+# kube-state-metrics - Kubernetes 오브젝트 상태 메트릭
+# Kubernetes Cluster 대시보드와 Service Health Overview에 필요
+kubeStateMetrics:
+  enabled: true
+  image:
+    repository: localhost:5001/kube-state-metrics
+    tag: "v2.10.1"
+
+# node-exporter - 노드 시스템 메트릭
+# 노드 CPU/메모리 사용률 모니터링에 필요
+nodeExporter:
+  enabled: true
+  image:
+    repository: localhost:5001/node-exporter
+    tag: "v1.7.0"
 
 # =============================================================================
 # OpenTelemetry 통합 (2025 Best Practice - Full OTEL Stack)

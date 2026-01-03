@@ -101,6 +101,7 @@ coverage.html
 # ============================================
 .gradle/
 build/
+**/bin/
 BOOT-INF/
 out/
 !gradle/wrapper/gradle-wrapper.jar
@@ -217,4 +218,5 @@ override.tf.json
 
 # Terraform sensitive files (tfvars may contain secrets)
 terraform/**/terraform.tfvars
-terraform/**/.terraform/
+terraform/**/.terraform/**/node_modules/
+**/node_modules/

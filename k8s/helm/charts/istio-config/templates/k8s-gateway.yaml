@@ -11,6 +11,8 @@ metadata:
   namespace: {{ .Values.istio.k8sGateway.namespace | default "istio-system" }}
   labels:
     {{- include "istio-config.labels" . | nindent 4 }}
+    # External DNS gateway-httproute source requires this label
+    gateway.networking.k8s.io/gateway-name: {{ .Values.istio.k8sGateway.name }}
   {{- with .Values.istio.k8sGateway.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}

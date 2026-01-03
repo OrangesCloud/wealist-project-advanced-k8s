@@ -1,0 +1,36 @@
+{{- include "wealist-common.secretReaderRole" . }}
+{{- if .Values.rbac }}
+{{- if .Values.rbac.create }}
+---
+# Role for accessing ArgoCD RBAC ConfigMap
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "wealist-common.fullname" . }}-argocd-rbac
+  namespace: {{ .Values.config.ARGOCD_NAMESPACE | default "argocd" }}
+  labels:
+    {{- include "wealist-common.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["argocd-rbac-cm"]
+    verbs: ["get", "update", "patch"]
+---
+# RoleBinding for ArgoCD RBAC access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "wealist-common.fullname" . }}-argocd-rbac
+  namespace: {{ .Values.config.ARGOCD_NAMESPACE | default "argocd" }}
+  labels:
+    {{- include "wealist-common.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "wealist-common.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "wealist-common.fullname" . }}-argocd-rbac
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}

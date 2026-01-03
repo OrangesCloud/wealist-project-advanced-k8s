@@ -1,6 +1,6 @@
 // src/utils/chatWebSocket.ts
 
-import { getChatWebSocketUrl } from '../api/apiConfig';
+import { getChatWebSocketUrl, refreshAccessToken } from '../api/apiConfig';
 
 let ws: WebSocket | null = null;
 let pingInterval: number | null = null;
@@ -119,7 +119,7 @@ export const connectChatWebSocket = (chatId: string, onMessage: (data: any) => v
       isConnecting = false;
     };
 
-    ws.onclose = (event) => {
+    ws.onclose = async (event) => {
       console.log(`🔌 [Chat WS] 연결 닫힘: ${event.code} ${event.reason}`);
       isConnecting = false;
 
@@ -139,6 +139,17 @@ export const connectChatWebSocket = (chatId: string, onMessage: (data: any) => v
       if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
         reconnectAttempts++;
         console.log(`🔄 [Chat WS] 재연결 시도 ${reconnectAttempts}/${maxReconnectAttempts}...`);
+
+        // 🔥 재연결 전 토큰 갱신 시도
+        try {
+          console.log('🔄 [Chat WS] 토큰 갱신 시도...');
+          await refreshAccessToken();
+          console.log('✅ [Chat WS] 토큰 갱신 성공');
+        } catch (error) {
+          console.error('❌ [Chat WS] 토큰 갱신 실패, 재연결 중단');
+          return; // 토큰 갱신 실패 시 재연결하지 않음 (로그아웃 처리됨)
+        }
+
         setTimeout(connect, reconnectDelay);
       } else if (reconnectAttempts >= maxReconnectAttempts) {
         console.error('❌ [Chat WS] 최대 재연결 시도 초과');
