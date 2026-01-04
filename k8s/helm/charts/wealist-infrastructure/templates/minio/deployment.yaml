@@ -18,8 +18,9 @@ spec:
       labels:
         app: minio
         app.kubernetes.io/name: minio
-        # Ambient 모드에서 제외 - 외부에서 plain HTTP로 접근 가능하도록
-        istio.io/dataplane-mode: none
+      annotations:
+        # Sidecar 모드 제외 - 인프라 컴포넌트
+        sidecar.istio.io/inject: "false"
     spec:
       containers:
         - name: minio

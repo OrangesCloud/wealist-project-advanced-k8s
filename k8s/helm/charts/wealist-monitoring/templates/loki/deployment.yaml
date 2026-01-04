@@ -21,9 +21,9 @@ spec:
       labels:
         app: loki
         app.kubernetes.io/name: loki
-        # Ambient 모드에 포함 - mTLS로 Promtail 로그 수신
-        # PeerAuthentication에서 PERMISSIVE 설정으로 외부 접근도 허용
       annotations:
+        # Sidecar 모드 제외 - 모니터링 인프라는 mesh 외부에서 동작
+        sidecar.istio.io/inject: "false"
         checksum/config: {{ include (print $.Template.BasePath "/loki/configmap.yaml") . | sha256sum }}
     spec:
       serviceAccountName: loki

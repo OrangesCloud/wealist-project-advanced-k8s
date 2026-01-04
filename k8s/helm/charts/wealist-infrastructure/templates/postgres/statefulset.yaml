@@ -1,6 +1,10 @@
 {{- if .Values.postgres.enabled }}
+{{- if .Values.postgres.persistence.hostPath.enabled }}
+# =============================================================================
+# PostgreSQL Deployment (hostPath 모드 - Kind/로컬 환경)
+# =============================================================================
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: postgres
   namespace: {{ .Values.global.namespace }}
@@ -8,8 +12,9 @@ metadata:
     {{- include "wealist-infrastructure.labels" . | nindent 4 }}
     app.kubernetes.io/component: postgres
 spec:
-  serviceName: postgres
-  replicas: {{ .Values.postgres.replicas }}
+  replicas: 1
+  strategy:
+    type: Recreate  # DB는 롤링 업데이트 대신 재생성
   selector:
     matchLabels:
       app: postgres
@@ -43,6 +48,96 @@ spec:
               mountPath: /docker-entrypoint-initdb.d
           resources:
             {{- toYaml .Values.postgres.resources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.postgres.config.superuser }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.postgres.config.superuser }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: postgres-data
+          hostPath:
+            path: {{ .Values.postgres.persistence.hostPath.path }}
+            type: DirectoryOrCreate
+        - name: init-scripts
+          configMap:
+            name: postgres-init-scripts
+{{- else }}
+# =============================================================================
+# PostgreSQL StatefulSet (PVC 모드 - EKS/프로덕션 환경)
+# =============================================================================
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "wealist-infrastructure.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  serviceName: postgres
+  replicas: {{ .Values.postgres.replicas }}
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        app.kubernetes.io/part-of: wealist
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          imagePullPolicy: {{ .Values.postgres.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.postgres.service.port }}
+              name: postgresql
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.config.superuser | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.postgres.config.superuser }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - {{ .Values.postgres.config.superuser }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
       volumes:
         - name: init-scripts
           configMap:
@@ -58,4 +153,5 @@ spec:
         resources:
           requests:
             storage: {{ .Values.postgres.persistence.size }}
+{{- end }}
 {{- end }}

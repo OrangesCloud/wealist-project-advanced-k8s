@@ -165,4 +165,47 @@ data:
         allowUiUpdates: true
         options:
           path: /etc/grafana/provisioning/dashboards/v2
+      # V3 dashboards - OTEL Native (2025-2026 best practices)
+      {{- if .Values.grafana.dashboardsV3.enabled }}
+      - name: 'wealist-otel-native'
+        orgId: 1
+        folder: 'OTEL Native'
+        folderUid: 'otel-native'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v3/otel-native
+      - name: 'wealist-application'
+        orgId: 1
+        folder: 'Application'
+        folderUid: 'application'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v3/application
+      - name: 'wealist-logs'
+        orgId: 1
+        folder: 'Logs'
+        folderUid: 'logs'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v3/logs
+      - name: 'wealist-slo'
+        orgId: 1
+        folder: 'SLO'
+        folderUid: 'slo'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v3/slo
+      {{- end }}
 {{- end }}

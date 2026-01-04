@@ -3,7 +3,7 @@
 # =============================================================================
 # 설치 순서:
 # 1. Gateway API CRDs (Istio 의존성)
-# 2. Istio (Base → Istiod → CNI → ztunnel → Ingress Gateway)
+# 2. Istio (Base → Istiod) - Sidecar Mode
 # 3. ArgoCD
 # 4. 인프라 컴포넌트 (ALB Controller, External Secrets, cert-manager, Cluster Autoscaler)
 # 5. ArgoCD Bootstrap App (App of Apps로 나머지 관리)
@@ -32,7 +32,7 @@ provider "helm" {
 }
 
 # =============================================================================
-# 1. Gateway API CRDs (Istio Ambient 필수)
+# 1. Gateway API CRDs (Istio Gateway API 지원)
 # =============================================================================
 # Gateway API는 Helm 차트가 없으므로 kubectl apply로 설치
 resource "null_resource" "gateway_api_crds" {
@@ -52,7 +52,7 @@ resource "null_resource" "gateway_api_crds" {
 }
 
 # =============================================================================
-# 2. Istio Ambient Mode
+# 2. Istio Sidecar Mode
 # =============================================================================
 resource "helm_release" "istio_base" {
   name       = "istio-base"
@@ -73,37 +73,10 @@ resource "helm_release" "istiod" {
   version    = "1.28.2"
   namespace  = "istio-system"
 
-  set {
-    name  = "profile"
-    value = "ambient"
-  }
+  # Sidecar 모드: default profile 사용 (profile 설정 불필요)
+  # Sidecar injection은 네임스페이스 라벨(istio-injection=enabled)로 제어
 
   depends_on = [helm_release.istio_base]
-}
-
-resource "helm_release" "istio_cni" {
-  name       = "istio-cni"
-  repository = "https://istio-release.storage.googleapis.com/charts"
-  chart      = "cni"
-  version    = "1.28.2"
-  namespace  = "istio-system"
-
-  set {
-    name  = "profile"
-    value = "ambient"
-  }
-
-  depends_on = [helm_release.istiod]
-}
-
-resource "helm_release" "istio_ztunnel" {
-  name       = "ztunnel"
-  repository = "https://istio-release.storage.googleapis.com/charts"
-  chart      = "ztunnel"
-  version    = "1.28.2"
-  namespace  = "istio-system"
-
-  depends_on = [helm_release.istio_cni]
 }
 
 # =============================================================================
@@ -183,7 +156,7 @@ resource "helm_release" "argocd" {
     value = "false"
   }
 
-  depends_on = [helm_release.istio_ztunnel]
+  depends_on = [helm_release.istiod]
 }
 
 # =============================================================================

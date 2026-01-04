@@ -40,7 +40,7 @@ make kind-localhost-setup
 | ---- | -------------------------------------------------------------------------------------------------------------- |
 | 0    | **필수 도구 확인** - kubectl, kind, helm, istioctl 설치 여부 확인 (미설치 시 자동 설치)                        |
 | 1    | **Secrets 파일 확인** - `secrets.yaml` 없으면 `secrets.example.yaml`에서 자동 생성                             |
-| 2    | **Kind 클러스터 생성** - 클러스터 + Istio Ambient 모드 + 로컬 레지스트리(`localhost:5001`) 설정                |
+| 2    | **Kind 클러스터 생성** - 클러스터 + Istio Sidecar 모드 + 로컬 레지스트리(`localhost:5001`) 설정                |
 | 3    | **모든 이미지 로드** - PostgreSQL, Redis, MinIO 등 인프라 이미지 + Backend/Frontend 서비스 이미지 빌드 및 로드 |
 
 ### Step 2. Docker 이미지 빌드 및 푸시 (선택사항)
@@ -101,7 +101,7 @@ make kind-dev-setup
 | 1    | **필수 도구 확인** - kubectl, kind, helm, istioctl, AWS CLI 설치 여부 확인                          |
 | 2    | **Secrets 파일 확인** - `secrets.yaml` 없으면 자동 생성                                             |
 | 3    | **AWS 로그인 확인** - ECR 접근을 위한 AWS 자격증명 확인/설정                                        |
-| 4    | **Kind 클러스터 생성** - 클러스터 + Istio Ambient + ECR Secret 생성                                 |
+| 4    | **Kind 클러스터 생성** - 클러스터 + Istio Sidecar + ECR Secret 생성                                 |
 | 5    | **외부 DB 연결 테스트** - 호스트 PC의 PostgreSQL(172.18.0.1:5432), Redis(172.18.0.1:6379) 연결 확인 |
 | 6    | **인프라 이미지 로드** - MinIO, LiveKit 등 (DB 이미지 제외)                                         |
 | 7    | **ECR 이미지 확인** - 각 서비스의 `dev-latest` 태그 이미지 존재 여부 확인                           |

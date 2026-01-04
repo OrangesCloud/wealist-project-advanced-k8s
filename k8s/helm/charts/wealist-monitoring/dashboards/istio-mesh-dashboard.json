@@ -2,7 +2,7 @@
   "annotations": {
     "list": []
   },
-  "description": "Istio Ambient Mesh Dashboard - ztunnel L4, Waypoint L7, Control Plane metrics",
+  "description": "Istio Service Mesh Dashboard - Sidecar/Ambient mode traffic, latency, and control plane metrics",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -870,8 +870,8 @@
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "",
-  "title": "Istio Ambient Mesh",
-  "uid": "istio-ambient-mesh",
+  "title": "Istio Service Mesh",
+  "uid": "istio-service-mesh",
   "version": 1,
   "weekStart": ""
 }

@@ -35,6 +35,10 @@ postgres:
     enabled: true
     storageClass: ""  # Use default storage class
     size: 10Gi
+    # Kind/로컬 환경용 hostPath 설정
+    hostPath:
+      enabled: false
+      path: /data/postgres
 
   resources:
     requests:
@@ -89,6 +93,10 @@ redis:
     enabled: true
     storageClass: ""
     size: 5Gi
+    # Kind/로컬 환경용 hostPath 설정
+    hostPath:
+      enabled: false
+      path: /data/redis
 
   config:
     password: ""  # Set in production

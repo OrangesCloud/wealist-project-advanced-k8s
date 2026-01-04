@@ -230,15 +230,23 @@ istio:
     tls:
       enabled: false
 
-  # HTTPRoute 설정 (Kubernetes Gateway API)
+  # HTTPRoute 설정 (Kubernetes Gateway API) - Disabled for Sidecar mode
   httpRoute:
-    enabled: true
+    enabled: false  # Using VirtualService instead for Sidecar mode
     gatewayRef:
       name: istio-ingressgateway
       namespace: istio-system
     hosts:
       - "localhost"
       - "*"
+
+  # VirtualService 설정 (Sidecar mode에서 활성화)
+  virtualService:
+    enabled: true
+    hosts:
+      - "*"
+    canary:
+      enabled: false
     # Frontend Pod 라우팅 (localhost 환경)
     frontend:
       enabled: true
@@ -260,11 +268,18 @@ istio:
       loki:
         host: loki
         port: 3100
-      # Kiali/Jaeger: localhost에서는 비활성화 (볼 트래픽 없음)
+      # Kiali: Istio Service Mesh 대시보드
       kiali:
-        enabled: false
+        enabled: true
+        host: kiali
+        namespace: istio-system
+        port: 20001
+      # Jaeger: 분산 트레이싱 UI
       jaeger:
-        enabled: false
+        enabled: true
+        host: tracing
+        namespace: istio-system
+        port: 80
 
   # mTLS - 서비스 간 암호화
   mtls:
@@ -320,12 +335,16 @@ istio:
   jwtAuth:
     enabled: false
 
-  # Ambient 모드 (Sidecar-less)
-  ambient:
+  # Sidecar Mode Configuration (2025 Best Practice)
+  sidecar:
     enabled: true
-    waypoint:
-      enabled: true
-      name: wealist-waypoint
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
 
   # 텔레메트리 - 트레이싱, 로깅
   telemetry:
@@ -348,12 +367,12 @@ prometheus:
   config:
     externalUrl: "http://localhost:8080/api/monitoring/prometheus"
     routePrefix: "/api/monitoring/prometheus"
-  # V3: Tempo Metrics Generator → Prometheus (localhost에서는 비활성화)
+  # V3: OTEL Connectors → Prometheus (Span Metrics, Service Graph)
   remoteWriteReceiver:
-    enabled: false
-  # V3: Exemplars (localhost에서는 비활성화)
+    enabled: true
+  # V3: Exemplars - Metrics → Traces 연결
   exemplarStorage:
-    enabled: false
+    enabled: true
 
 # Loki - 로그 수집
 loki:
@@ -382,6 +401,9 @@ grafana:
     allowSignUp: false
     rootUrl: "http://localhost:8080/api/monitoring/grafana"
     serveFromSubPath: "true"
+  # V3 Dashboards - OTEL Native (2025-2026 best practices)
+  dashboardsV3:
+    enabled: true
 
 # 모니터링 Ingress (nginx - 비활성화)
 # NodePort로 직접 접근: Grafana(30001), Prometheus(30090)
@@ -438,7 +460,7 @@ otelCollector:
   enabled: true
   image:
     repository: localhost:5001/otel-collector-contrib
-    tag: "0.92.0"
+    tag: "0.114.0"  # 2025-12 최신 안정 버전
   replicas: 1
   service:
     otlpGrpcPort: 4317
@@ -459,13 +481,26 @@ otelCollector:
   # V3: Tail Sampling (localhost에서는 비활성화 - 100% 수집)
   tailSampling:
     enabled: false
+  # =============================================================================
+  # V3: OTEL Connectors (2025-2026 Best Practice)
+  # =============================================================================
+  # Span Metrics: traces → RED 메트릭 (Request, Error, Duration)
+  # Service Graph: traces → 서비스 의존성 메트릭
+  connectors:
+    spanmetrics:
+      enabled: true
+    servicegraph:
+      enabled: true
+    prometheusRemoteWrite:
+      # NOTE: Prometheus uses --web.route-prefix=/api/monitoring/prometheus
+      endpoint: "http://prometheus:9090/api/monitoring/prometheus/api/v1/write"
 
 # Tempo - 분산 추적 백엔드 (Jaeger 대안)
 tempo:
   enabled: true
   image:
     repository: localhost:5001/tempo
-    tag: "2.3.1"
+    tag: "2.9.0"  # 2025-12 최신 안정 버전
   service:
     httpPort: 3200
     otlpGrpcPort: 4317
@@ -485,6 +520,15 @@ tempo:
     backend: local
     s3:
       enabled: false
-  # V3: Metrics Generator (localhost에서는 비활성화)
+  # =============================================================================
+  # V3: Metrics Generator (2025 Best Practice)
+  # =============================================================================
+  # Trace 데이터에서 자동으로 RED 메트릭 생성
+  # OTEL Collector connectors와 함께 사용 가능 (중복 아닌 보완)
   metricsGenerator:
-    enabled: false
+    enabled: true
+    remoteWriteUrl: "http://prometheus:9090/api/v1/write"
+    spanMetrics:
+      enabled: true
+    serviceGraphs:
+      enabled: true

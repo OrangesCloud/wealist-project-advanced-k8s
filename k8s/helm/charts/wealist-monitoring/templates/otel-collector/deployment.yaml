@@ -16,6 +16,8 @@ spec:
       labels:
         app: otel-collector
       annotations:
+        # Sidecar 모드 제외 - 모니터링 인프라는 mesh 외부에서 동작
+        sidecar.istio.io/inject: "false"
         prometheus.io/scrape: "true"
         prometheus.io/port: "{{ .Values.otelCollector.service.metricsPort }}"
     spec:

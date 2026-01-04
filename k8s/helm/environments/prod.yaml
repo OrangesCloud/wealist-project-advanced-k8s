@@ -247,7 +247,7 @@ istio:
     tls:
       enabled: false
 
-  # Kubernetes Gateway API - Ingress Gateway (Ambient 모드 권장)
+  # Kubernetes Gateway API - Ingress Gateway
   # Istio가 자동으로 Deployment/Service 생성
   # infrastructure.annotations는 자동 생성되는 Service에 적용됨
   k8sGateway:
@@ -284,9 +284,9 @@ istio:
         allowedRoutes:
           from: All
 
-  # HTTPRoute 설정 (Kubernetes Gateway API)
+  # HTTPRoute 설정 (Kubernetes Gateway API) - Disabled for Sidecar mode
   httpRoute:
-    enabled: true
+    enabled: false  # Using VirtualService instead for Sidecar mode
     gatewayRef:
       name: istio-ingressgateway
       namespace: istio-system
@@ -294,6 +294,18 @@ istio:
       - "wealist.co.kr"
       - "api.wealist.co.kr"
       - "livekit.wealist.co.kr"  # LiveKit WebRTC SFU Server
+
+  # VirtualService 설정 (Sidecar mode에서 활성화)
+  virtualService:
+    enabled: true
+    hosts:
+      - "wealist.co.kr"
+      - "api.wealist.co.kr"
+      - "livekit.wealist.co.kr"
+    canary:
+      enabled: false
+      stableWeight: 100
+      canaryWeight: 0
     frontend:
       enabled: false
     # Monitoring routes (VPN/Bastion 통해 접근)
@@ -387,12 +399,16 @@ istio:
   jwtAuth:
     enabled: false
 
-  # Ambient 모드 (Sidecar-less)
-  ambient:
+  # Sidecar Mode Configuration (2025 Best Practice)
+  sidecar:
     enabled: true
-    waypoint:
-      enabled: true
-      name: wealist-waypoint
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 1000m      # Production: 더 높은 CPU limit
+        memory: 512Mi   # Production: 더 높은 메모리 limit
 
   # 텔레메트리 - 트레이싱, 로깅
   telemetry:

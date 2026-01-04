@@ -1,0 +1,208 @@
+{{- if .Values.prometheus.enabled }}
+# =============================================================================
+# Recording Rules V3 (2025-2026 Best Practice)
+# =============================================================================
+# Pre-computed metrics for dashboard performance optimization
+# Supports both Istio Sidecar mode and OTEL Span Metrics
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-recording-rules-v3
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: prometheus
+    prometheus: rules
+data:
+  recording-rules-v3.yml: |
+    groups:
+      # =========================================================================
+      # Istio Sidecar RED Metrics (Envoy Proxy)
+      # =========================================================================
+      - name: istio-red-metrics
+        interval: 30s
+        rules:
+          # Request Rate (per service)
+          - record: service:istio_requests:rate5m
+            expr: |
+              sum(rate(istio_requests_total{reporter="destination"}[5m]))
+              by (destination_service_name, namespace)
+
+          # Error Rate (5xx responses per service)
+          - record: service:istio_request_errors:ratio5m
+            expr: |
+              (
+                sum(rate(istio_requests_total{reporter="destination",response_code=~"5.*"}[5m]))
+                by (destination_service_name, namespace)
+              )
+              /
+              (
+                sum(rate(istio_requests_total{reporter="destination"}[5m]))
+                by (destination_service_name, namespace)
+              )
+
+          # P50 Latency (per service)
+          - record: service:istio_request_duration:p50_5m
+            expr: |
+              histogram_quantile(0.50,
+                sum(rate(istio_request_duration_milliseconds_bucket{reporter="destination"}[5m]))
+                by (destination_service_name, namespace, le)
+              )
+
+          # P95 Latency (per service)
+          - record: service:istio_request_duration:p95_5m
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(istio_request_duration_milliseconds_bucket{reporter="destination"}[5m]))
+                by (destination_service_name, namespace, le)
+              )
+
+          # P99 Latency (per service)
+          - record: service:istio_request_duration:p99_5m
+            expr: |
+              histogram_quantile(0.99,
+                sum(rate(istio_request_duration_milliseconds_bucket{reporter="destination"}[5m]))
+                by (destination_service_name, namespace, le)
+              )
+
+      # =========================================================================
+      # OTEL Span Metrics (from spanmetrics connector)
+      # =========================================================================
+      - name: otel-span-metrics
+        interval: 30s
+        rules:
+          # Request Rate (from span metrics)
+          - record: service:spans:rate5m
+            expr: |
+              sum(rate(traces_spanmetrics_calls_total[5m]))
+              by (service_name)
+
+          # Error Rate (from span metrics)
+          - record: service:spans_errors:ratio5m
+            expr: |
+              (
+                sum(rate(traces_spanmetrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m]))
+                by (service_name)
+              )
+              /
+              (
+                sum(rate(traces_spanmetrics_calls_total[5m]))
+                by (service_name)
+              )
+
+          # P95 Duration (from span metrics)
+          - record: service:spans_duration:p95_5m
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(traces_spanmetrics_duration_seconds_bucket[5m]))
+                by (service_name, le)
+              )
+
+          # P99 Duration (from span metrics)
+          - record: service:spans_duration:p99_5m
+            expr: |
+              histogram_quantile(0.99,
+                sum(rate(traces_spanmetrics_duration_seconds_bucket[5m]))
+                by (service_name, le)
+              )
+
+      # =========================================================================
+      # Service Graph Metrics (from servicegraph connector)
+      # =========================================================================
+      - name: otel-service-graph
+        interval: 30s
+        rules:
+          # Service-to-Service Request Rate
+          - record: edge:service_graph_requests:rate5m
+            expr: |
+              sum(rate(traces_service_graph_request_total[5m]))
+              by (client, server)
+
+          # Service-to-Service Error Rate
+          - record: edge:service_graph_request_errors:ratio5m
+            expr: |
+              (
+                sum(rate(traces_service_graph_request_failed_total[5m]))
+                by (client, server)
+              )
+              /
+              (
+                sum(rate(traces_service_graph_request_total[5m]))
+                by (client, server)
+              )
+
+      # =========================================================================
+      # SLO Metrics (Service Level Objectives)
+      # =========================================================================
+      - name: slo-metrics
+        interval: 1m
+        rules:
+          # Availability (Success Rate over 24h)
+          - record: service:slo_availability:ratio24h
+            expr: |
+              1 - (
+                sum(increase(istio_requests_total{reporter="destination",response_code=~"5.*"}[24h]))
+                by (destination_service_name, namespace)
+                /
+                sum(increase(istio_requests_total{reporter="destination"}[24h]))
+                by (destination_service_name, namespace)
+              )
+
+          # Error Budget Burn Rate (1h window)
+          - record: service:slo_error_budget_burn:1h
+            expr: |
+              (
+                sum(rate(istio_requests_total{reporter="destination",response_code=~"5.*"}[1h]))
+                by (destination_service_name, namespace)
+                /
+                sum(rate(istio_requests_total{reporter="destination"}[1h]))
+                by (destination_service_name, namespace)
+              )
+              /
+              (1 - 0.999)  # Target SLO: 99.9%
+
+          # Error Budget Burn Rate (6h window)
+          - record: service:slo_error_budget_burn:6h
+            expr: |
+              (
+                sum(rate(istio_requests_total{reporter="destination",response_code=~"5.*"}[6h]))
+                by (destination_service_name, namespace)
+                /
+                sum(rate(istio_requests_total{reporter="destination"}[6h]))
+                by (destination_service_name, namespace)
+              )
+              /
+              (1 - 0.999)  # Target SLO: 99.9%
+
+      # =========================================================================
+      # Application Metrics (Go Services)
+      # =========================================================================
+      - name: application-metrics
+        interval: 30s
+        rules:
+          # HTTP Request Rate (per service, per endpoint)
+          - record: app:http_requests:rate5m
+            expr: |
+              sum(rate(http_server_request_count[5m]))
+              by (service_name, http_method, http_route)
+
+          # HTTP Error Rate (per service)
+          - record: app:http_errors:ratio5m
+            expr: |
+              (
+                sum(rate(http_server_request_count{http_status_code=~"5.*"}[5m]))
+                by (service_name)
+              )
+              /
+              (
+                sum(rate(http_server_request_count[5m]))
+                by (service_name)
+              )
+
+          # Database Query Duration P95
+          - record: app:db_query_duration:p95_5m
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(db_sql_client_duration_bucket[5m]))
+                by (service_name, db_operation, le)
+              )
+{{- end }}

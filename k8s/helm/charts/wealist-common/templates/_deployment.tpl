@@ -2,8 +2,12 @@
 Standard deployment template for weAlist services
 Usage in service chart:
   {{- include "wealist-common.deployment" . }}
+
+Note: This template is only rendered when rollout.enabled is false (default).
+When rollout.enabled is true, use the Argo Rollout template instead.
 */}}
 {{- define "wealist-common.deployment" -}}
+{{- if not (and .Values.rollout .Values.rollout.enabled) }}
 {{/* Validate required values */}}
 {{- include "wealist-common.validateRequired" (dict "values" .Values "required" (list "image.repository" "service.port" "service.targetPort")) }}
 apiVersion: apps/v1
@@ -25,6 +29,14 @@ spec:
     metadata:
       labels:
         {{- include "wealist-common.selectorLabels" . | nindent 8 }}
+        {{/* Canary deployment version label */}}
+        {{- if .Values.canary }}
+        {{- if .Values.canary.enabled }}
+        version: {{ .Values.canary.version | default "stable" }}
+        {{- else }}
+        version: stable
+        {{- end }}
+        {{- end }}
       annotations:
         {{- if .Values.podAnnotations }}
         {{- toYaml .Values.podAnnotations | nindent 8 }}
@@ -35,6 +47,22 @@ spec:
         {{- if .Values.metrics }}
         {{- if .Values.metrics.enabled }}
         {{- include "wealist-common.prometheusAnnotations" (dict "port" .Values.service.targetPort "path" (.Values.metrics.path | default "/metrics")) | nindent 8 }}
+        {{- end }}
+        {{- end }}
+        {{/* Istio Sidecar injection and resource configuration */}}
+        {{- if .Values.istio }}
+        {{- if and .Values.istio.sidecar .Values.istio.sidecar.enabled }}
+        sidecar.istio.io/inject: "true"
+        {{- if .Values.istio.sidecar.resources }}
+        {{- if .Values.istio.sidecar.resources.requests }}
+        sidecar.istio.io/proxyCPU: {{ .Values.istio.sidecar.resources.requests.cpu | default "100m" | quote }}
+        sidecar.istio.io/proxyMemory: {{ .Values.istio.sidecar.resources.requests.memory | default "128Mi" | quote }}
+        {{- end }}
+        {{- if .Values.istio.sidecar.resources.limits }}
+        sidecar.istio.io/proxyCPULimit: {{ .Values.istio.sidecar.resources.limits.cpu | default "500m" | quote }}
+        sidecar.istio.io/proxyMemoryLimit: {{ .Values.istio.sidecar.resources.limits.memory | default "256Mi" | quote }}
+        {{- end }}
+        {{- end }}
         {{- end }}
         {{- end }}
     spec:
@@ -167,4 +195,5 @@ spec:
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
       {{- end }}
+{{- end }}{{/* end if not rollout.enabled */}}
 {{- end }}

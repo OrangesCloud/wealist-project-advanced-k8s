@@ -1,0 +1,5 @@
+{{/*
+Canary Service for Argo Rollouts traffic splitting
+Only rendered when rollout.enabled is true
+*/}}
+{{- include "wealist-common.canaryService" . }}

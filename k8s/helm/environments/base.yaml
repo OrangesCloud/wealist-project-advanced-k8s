@@ -48,6 +48,33 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
 
 # -----------------------------------------------------------------------------
+# Argo Rollouts (Progressive Delivery)
+# -----------------------------------------------------------------------------
+# Enable rollout to use Argo Rollouts instead of Deployment
+# When enabled, the service will use canary deployment strategy
+rollout:
+  enabled: false  # Disabled by default, enable per-service in prod
+  revisionHistoryLimit: 3
+  maxUnavailable: 0
+  maxSurge: "25%"
+  canary:
+    steps:
+      - setWeight: 10
+      - pause: { duration: 2m }
+      - setWeight: 30
+      - pause: { duration: 2m }
+      - setWeight: 50
+      - pause: { duration: 2m }
+  analysis:
+    enabled: false  # Enable for automated rollback based on metrics
+    startingStep: 1
+    count: 5
+    successThreshold: 0.95
+    latencyThresholdMs: 500
+    failureLimit: 3
+    prometheusAddress: "http://prometheus:9090"
+
+# -----------------------------------------------------------------------------
 # Security Context Defaults (production-ready)
 # -----------------------------------------------------------------------------
 podSecurityContext:
@@ -135,8 +162,10 @@ shared:
     # OpenTelemetry Configuration (고정 설정만)
     # -------------------------------------------------------------------------
     # OTLP Exporter - 서비스에서 OTEL Collector로 traces 전송
-    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+    # NOTE: gRPC 프로토콜은 http:// prefix 없이 host:port 형식 사용
+    OTEL_EXPORTER_OTLP_ENDPOINT: "otel-collector:4317"
     OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_EXPORTER_OTLP_INSECURE: "true"
 
     # Trace Sampler type (비율은 환경별 설정)
     OTEL_TRACES_SAMPLER: "parentbased_traceidratio"

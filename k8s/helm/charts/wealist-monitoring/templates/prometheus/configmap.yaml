@@ -208,10 +208,10 @@ data:
             target_label: pod
 
       # ==========================================================================
-      # Istio 메트릭 수집 (Ambient 모드)
+      # Istio 메트릭 수집
       # ==========================================================================
 
-      # istiod 컨트롤 플레인 메트릭
+      # istiod 컨트롤 플레인 메트릭 (모든 모드에서 사용)
       - job_name: 'istiod'
         kubernetes_sd_configs:
           - role: pod
@@ -232,67 +232,58 @@ data:
             action: replace
             target_label: pod
 
-      # ztunnel 메트릭 (Ambient 모드 L4 프록시)
-      - job_name: 'ztunnel'
-        kubernetes_sd_configs:
-          - role: pod
-            namespaces:
-              names:
-                - istio-system
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_label_app]
-            action: keep
-            regex: ztunnel
-          - source_labels: [__meta_kubernetes_pod_container_port_number]
-            action: keep
-            regex: "15020"
-          - source_labels: [__meta_kubernetes_namespace]
-            action: replace
-            target_label: namespace
-          - source_labels: [__meta_kubernetes_pod_name]
-            action: replace
-            target_label: pod
+      # ==========================================================================
+      # Istio Sidecar 메트릭
+      # ==========================================================================
 
-      # Istio 메시 메트릭 (서비스간 트래픽)
-      # NOTE: Ambient 모드에서는 sidecar가 없으므로 이 job은 사용되지 않음
-      # Ambient 모드 메트릭은 ztunnel과 waypoint에서 수집됨
-      # Sidecar 모드 사용 시에만 활성화
-      # - job_name: 'istio-mesh'
-      #   kubernetes_sd_configs:
-      #     - role: pod
-      #       namespaces:
-      #         names:
-      #           - {{ .Values.global.namespace }}
-      #   relabel_configs:
-      #     - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-      #       action: keep
-      #       regex: true
-      #     - source_labels: [__meta_kubernetes_pod_container_port_name]
-      #       action: keep
-      #       regex: ".*-envoy-prom"
-      #     - source_labels: [__meta_kubernetes_namespace]
-      #       action: replace
-      #       target_label: namespace
-      #     - source_labels: [__meta_kubernetes_pod_name]
-      #       action: replace
-      #       target_label: pod
-      #     - action: labelmap
-      #       regex: __meta_kubernetes_pod_label_(.+)
-
-      # Waypoint 프록시 메트릭 (L7 기능 사용 시)
-      - job_name: 'istio-waypoint'
+      # Envoy Sidecar 메트릭 (istio-proxy 컨테이너)
+      - job_name: 'envoy-stats'
+        metrics_path: /stats/prometheus
         kubernetes_sd_configs:
           - role: pod
             namespaces:
               names:
                 - {{ .Values.global.namespace }}
         relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_label_gateway_networking_k8s_io_gateway_name]
+          # istio-proxy 컨테이너가 있는 Pod만 스크래핑
+          - source_labels: [__meta_kubernetes_pod_container_name]
             action: keep
-            regex: .+
-          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: istio-proxy
+          # Envoy 메트릭 포트 (15090)로 변경
+          - source_labels: [__address__]
+            action: replace
+            regex: ([^:]+)(?::\d+)?
+            replacement: $1:15090
+            target_label: __address__
+          # Pod 메타데이터 라벨 추가
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: replace
+            target_label: app
+
+      # ==========================================================================
+      # Argo Rollouts 메트릭 수집
+      # ==========================================================================
+      - job_name: 'argo-rollouts'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - argo-rollouts
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
             action: keep
-            regex: "15020"
+            regex: argo-rollouts
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: metrics
           - source_labels: [__meta_kubernetes_namespace]
             action: replace
             target_label: namespace
