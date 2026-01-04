@@ -29,10 +29,18 @@ public class AuthService {
      * 사용자 ID로 Access Token과 Refresh Token 발행
      */
     public AuthResponse generateTokens(UUID userId) {
-        log.debug("Generating tokens for user: {}", userId);
+        return generateTokens(userId, null);
+    }
 
-        String accessToken = tokenProvider.generateToken(userId);
-        String refreshToken = tokenProvider.generateRefreshToken(userId);
+    /**
+     * 사용자 ID와 이메일로 Access Token과 Refresh Token 발행
+     * ops-portal 등 email 기반 인증이 필요한 서비스용
+     */
+    public AuthResponse generateTokens(UUID userId, String email) {
+        log.debug("Generating tokens for user: {}, email: {}", userId, email);
+
+        String accessToken = tokenProvider.generateToken(userId, email);
+        String refreshToken = tokenProvider.generateRefreshToken(userId, email);
 
         return new AuthResponse(accessToken, refreshToken, userId);
     }
@@ -66,7 +74,7 @@ public class AuthService {
 
     /**
      * Refresh Token을 사용하여 새로운 Access Token 발급
-     * 사용자 정보(nickName, email)는 더 이상 반환하지 않음
+     * email claim이 있으면 새 토큰에도 포함
      */
     public AuthResponse refreshToken(String refreshToken) {
         log.debug("Attempting to refresh token");
@@ -79,7 +87,8 @@ public class AuthService {
         }
 
         UUID userId = tokenProvider.getUserIdFromToken(refreshToken);
-        log.debug("Extracted user ID from refresh token: {}", userId);
+        String email = tokenProvider.getEmailFromToken(refreshToken);
+        log.debug("Extracted user ID: {}, email: {} from refresh token", userId, email);
 
         // 기존 refresh token 블랙리스트 추가
         Date expirationDate = tokenProvider.getExpirationDateFromToken(refreshToken);
@@ -89,9 +98,9 @@ public class AuthService {
             log.debug("Old refresh token blacklisted with TTL: {}ms", ttl);
         }
 
-        // 새로운 토큰 생성
-        String newAccessToken = tokenProvider.generateToken(userId);
-        String newRefreshToken = tokenProvider.generateRefreshToken(userId);
+        // 새로운 토큰 생성 (email 포함)
+        String newAccessToken = tokenProvider.generateToken(userId, email);
+        String newRefreshToken = tokenProvider.generateRefreshToken(userId, email);
 
         return new AuthResponse(newAccessToken, newRefreshToken, userId);
     }
