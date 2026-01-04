@@ -11,6 +11,10 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 
+# Kubernetes 1.31.4 - Kind v0.31.0 호환 안정 버전
+# https://github.com/kubernetes-sigs/kind/releases/tag/v0.31.0
+# 1.35.0은 kubeadm v1beta3 deprecation으로 인해 불안정할 수 있음
+
 # 로컬 레지스트리 설정 (localhost:5001)
 containerdConfigPatches:
   - |-
@@ -22,6 +26,7 @@ containerdConfigPatches:
 nodes:
   # Control Plane - Ingress 트래픽 수신
   - role: control-plane
+    image: kindest/node:v1.31.4@sha256:2cb39f7295fe7eafee0842b1052a599a4fb0f8bcf3f83d96c7f4864c357c6c30
     kubeadmConfigPatches:
       - |
         kind: InitConfiguration
@@ -44,4 +49,6 @@ nodes:
 
   # Worker 노드들
   - role: worker
+    image: kindest/node:v1.31.4@sha256:2cb39f7295fe7eafee0842b1052a599a4fb0f8bcf3f83d96c7f4864c357c6c30
   - role: worker
+    image: kindest/node:v1.31.4@sha256:2cb39f7295fe7eafee0842b1052a599a4fb0f8bcf3f83d96c7f4864c357c6c30

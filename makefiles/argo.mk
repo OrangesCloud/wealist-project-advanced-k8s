@@ -1,5 +1,23 @@
 # ============================================
-# ArgoCD Makefile
+# ArgoCD Makefile (wealist-oranges 환경)
+# ============================================
+#
+# 주요 명령어:
+#   make kind-dev-setup       - 전체 환경 설정 (클러스터+ArgoCD+앱)
+#   make kind-dev-rbac        - 팀원 RBAC 설정
+#   make kind-dev-kubeconfig  - 팀원 kubeconfig 생성
+#   make kind-dev-env-status  - 환경 상태 확인
+#   make kind-dev-reset       - 완전 리셋 (클러스터 재생성)
+#   make kind-dev-clean       - 클러스터 삭제 (데이터 보존)
+#
+# DB 아키텍처:
+#   - PostgreSQL/Redis가 클러스터 내부에서 실행
+#   - hostPath로 데이터 영속화 (/home/wealist-oranges/wealist-project-data/db_data/)
+#
+# 포트 매핑 (oranges 전용: 9000-9999):
+#   - 9080 → Istio Gateway HTTP
+#   - 9443 → Istio Gateway HTTPS
+#
 # ============================================
 .PHONY: argo-help cluster-up cluster-down bootstrap deploy argo-clean argo-status helm-install-infra all
 .PHONY: setup-local-argocd kind-setup-ecr load-infra-images-ecr
@@ -23,27 +41,30 @@ argo-help: ## [ArgoCD] 도움말 표시
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo ""
 	@echo "빠른 시작:"
-	@echo "  make kind-dev-setup  - Dev 환경 전체 설정"
+	@echo "  make kind-dev-setup     - Dev 환경 전체 설정 (클러스터+ArgoCD+DB)"
 	@echo ""
 	@echo "단계별 실행:"
 	@echo "  make cluster-up          - Kind 클러스터 생성"
 	@echo "  make argo-install-simple - ArgoCD 설치"
-	@echo "  make argo-deploy-dev - Applications 배포"
+	@echo "  make argo-deploy-dev     - Applications 배포"
+	@echo ""
+	@echo "팀원 관리:"
+	@echo "  make kind-dev-rbac       - 팀원용 RBAC 설정"
+	@echo "  make kind-dev-kubeconfig USERNAME=xxx - 팀원용 kubeconfig 생성"
+	@echo ""
+	@echo "상태 확인:"
+	@echo "  make kind-dev-env-status - 클러스터+내부DB 상태"
+	@echo "  make argo-status         - ArgoCD 상태"
 	@echo ""
 	@echo "관리:"
-	@echo "  make argo-status      - 전체 상태 확인"
-	@echo "  make logs             - ArgoCD 로그 확인"
-	@echo "  make ui               - ArgoCD UI 열기"
-	@echo "  make argo-clean       - 모든 리소스 삭제"
-	@echo "  make cluster-down     - 클러스터 삭제"
+	@echo "  make argo-ui          - ArgoCD UI 열기"
+	@echo "  make kind-dev-clean   - 클러스터 삭제 (DB 데이터 보존)"
+	@echo "  make kind-dev-reset   - 클러스터 재생성"
 	@echo ""
 	@echo "ESO (External Secrets):"
 	@echo "  make eso-status       - ESO 상태 확인"
 	@echo "  make eso-sync         - Secret 강제 동기화"
-	@echo "  make verify-secrets   - Secret 확인"
 	@echo ""
-	@echo "변수:"
-	@echo "  ENVIRONMENT=$(ENVIRONMENT)"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 argo-setup: ## ArgoCD 설치 (인터랙티브)
@@ -90,6 +111,9 @@ argo-setup: ## ArgoCD 설치 (인터랙티브)
 	@echo ""
 	@echo "다음 명령어로 포트 포워딩:"
 	@echo "  make ui"
+
+argo-admin-password: ## [ArgoCD] admin 비밀번호 조회
+	@kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d && echo "" || echo "❌ Secret이 없거나 argocd namespace 접근 불가"
 
 # ============================================
 # 클러스터 관리
@@ -184,7 +208,7 @@ argo-install-simple: ## ArgoCD만 간단 설치 (Sealed Secrets 없이)
 	@echo "=============================================="
 	@echo ""
 	@echo "  웹 접속 (Istio Gateway 통해):"
-	@echo "    http://localhost:8080/api/argo"
+	@echo "    http://localhost:9080/api/argo"
 	@echo "    https://dev.wealist.co.kr/api/argo"
 	@echo ""
 	@echo "  포트 포워딩 (직접 접속):"
@@ -419,7 +443,7 @@ verify-secrets: ## Secrets 확인 (ESO 동기화 상태)
 # ============================================
 # 로컬 개발 (Kind + Registry) - ArgoCD용
 # ============================================
-# NOTE: kind-setup은 kind.mk에서 정의됨 (Istio Ambient + 로컬 레지스트리)
+# NOTE: kind-setup은 kind.mk에서 정의됨 (Istio Sidecar + 로컬 레지스트리)
 # 아래는 ECR 직접 연결이 필요한 ArgoCD 환경용
 
 setup-local-argocd: ## [ArgoCD] 로컬 개발 환경 전체 설정 (ECR + Bootstrap)
@@ -439,8 +463,8 @@ kind-setup-ecr: ## [ArgoCD] Kind 클러스터 + ECR 직접 연결 (dev)
 	fi
 	@echo -e "$(GREEN)✅ Kind 클러스터 + ECR 준비 완료$(NC)"
 
-kind-dev-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (dev 환경)
-	@echo -e "$(YELLOW)🏗️  Kind 클러스터 + ECR 설정 (dev)...$(NC)"
+kind-dev-setup: ## [ArgoCD] Kind 클러스터 + DB 컨테이너 + ArgoCD + 앱 배포 (dev 환경)
+	@echo -e "$(YELLOW)🏗️  Kind 클러스터 + DB 컨테이너 설정 (dev)...$(NC)"
 	@if [ -f "k8s/helm/scripts/dev/0.setup-cluster.sh" ]; then \
 		chmod +x k8s/helm/scripts/dev/0.setup-cluster.sh; \
 		./k8s/helm/scripts/dev/0.setup-cluster.sh; \
@@ -448,19 +472,7 @@ kind-dev-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (dev �
 		echo -e "$(RED)❌ dev/0.setup-cluster.sh not found$(NC)"; \
 		exit 1; \
 	fi
-	@echo -e "$(GREEN)✅ Kind 클러스터 (dev) 준비 완료$(NC)"
-	@echo ""
-	@echo -e "$(YELLOW)🐘 Host PostgreSQL 초기화 (dev)...$(NC)"
-	@if [ -f "scripts/init-local-postgres.sh" ]; then \
-		chmod +x scripts/init-local-postgres.sh; \
-		if [ "$$(uname)" = "Darwin" ]; then \
-			DEV_DB_PASSWORD=$${DEV_DB_PASSWORD:-wealist-dev-password} ./scripts/init-local-postgres.sh dev; \
-		else \
-			sudo DEV_DB_PASSWORD=$${DEV_DB_PASSWORD:-wealist-dev-password} ./scripts/init-local-postgres.sh dev; \
-		fi; \
-	else \
-		echo -e "$(YELLOW)⚠️  init-local-postgres.sh not found, skipping DB init$(NC)"; \
-	fi
+	@echo -e "$(GREEN)✅ Kind 클러스터 + DB 컨테이너 준비 완료$(NC)"
 	@echo ""
 	@echo -e "$(YELLOW)🚀 ArgoCD 설치 중...$(NC)"
 	$(MAKE) argo-install-simple
@@ -475,11 +487,18 @@ kind-dev-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (dev �
 	@echo -e "$(GREEN)✅ Dev 환경 전체 설정 완료!$(NC)"
 	@echo -e "$(GREEN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
 	@echo ""
-	@echo "ArgoCD UI: https://dev.wealist.co.kr/api/argo"
-	@echo "Username: admin"
-	@echo "Password: $$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo '(생성 중...)')"
+	@echo "📊 환경 상태: make kind-dev-env-status"
 	@echo ""
-	@echo "상태 확인: make argo-status"
+	@echo "🌐 접속 정보:"
+	@echo "   - ArgoCD: https://dev.wealist.co.kr/api/argo"
+	@echo "   - PostgreSQL: localhost:9432"
+	@echo "   - Redis: localhost:9379"
+	@echo ""
+	@echo "🔐 팀원 RBAC 설정: make kind-dev-rbac"
+	@echo "🔑 팀원 kubeconfig: make kind-dev-kubeconfig USERNAME=<이름>"
+	@echo ""
+	@echo "ArgoCD 로그인: Google OAuth (LOG IN VIA GOOGLE 버튼)"
+	@echo "   또는 admin 계정: make argo-admin-password"
 
 # ============================================
 # 리셋 명령어
@@ -487,10 +506,10 @@ kind-dev-setup: ## [ArgoCD] Kind 클러스터 + ECR + ArgoCD + 앱 배포 (dev �
 
 # kind-dev-reset: 클러스터 완전 리셋 (삭제 + 재생성)
 # - Kind 클러스터 삭제 (ArgoCD, Helm, Pod 전부 삭제)
-# - 로컬 변경사항 제거 (git checkout)
+# - DB 데이터는 hostPath에 보존됨 (wealist-project-data/db_data)
 # - 클러스터 + ArgoCD + 앱 전부 새로 생성
-kind-dev-reset: ## [Reset] Dev 클러스터 완전 리셋 (삭제 후 재생성)
-	@echo -e "$(RED)⚠️  Dev 클러스터를 완전히 리셋합니다...$(NC)"
+kind-dev-reset: ## [Reset] Dev 환경 완전 리셋 (삭제 후 재생성)
+	@echo -e "$(RED)⚠️  Dev 환경을 완전히 리셋합니다...$(NC)"
 	@echo ""
 	@read -p "정말 리셋하시겠습니까? (y/N): " confirm; \
 	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
@@ -498,19 +517,20 @@ kind-dev-reset: ## [Reset] Dev 클러스터 완전 리셋 (삭제 후 재생성)
 		echo -e "$(YELLOW)1. Kind 클러스터 삭제 중...$(NC)"; \
 		kind delete cluster --name wealist 2>/dev/null || true; \
 		echo ""; \
-		echo -e "$(YELLOW)2. 로컬 변경사항 정리 중...$(NC)"; \
-		git checkout -- . 2>/dev/null || true; \
-		echo ""; \
-		echo -e "$(YELLOW)3. Dev 클러스터 재생성 중...$(NC)"; \
+		echo -e "$(YELLOW)2. Dev 환경 재생성 중...$(NC)"; \
 		$(MAKE) kind-dev-setup; \
 	else \
 		echo "리셋 취소됨"; \
 	fi
 
-kind-dev-clean: ## [Reset] Dev 클러스터만 삭제 (재생성 없음)
-	@echo -e "$(RED)🗑️  Dev 클러스터 삭제 중...$(NC)"
-	kind delete cluster --name wealist 2>/dev/null || echo "클러스터 없음"
-	@echo -e "$(GREEN)✅ 클러스터 삭제 완료$(NC)"
+kind-dev-clean: ## [Reset] Dev 클러스터 삭제 (재생성 없음)
+	@echo -e "$(RED)🗑️  Dev 환경 삭제 중...$(NC)"
+	@echo ""
+	@echo "Kind 클러스터 삭제..."
+	@kind delete cluster --name wealist 2>/dev/null || echo "클러스터 없음"
+	@echo ""
+	@echo -e "$(GREEN)✅ Dev 환경 삭제 완료$(NC)"
+	@echo "   DB 데이터는 wealist-project-data/db_data에 보존됩니다."
 	@echo ""
 	@echo "재생성: make kind-dev-setup"
 

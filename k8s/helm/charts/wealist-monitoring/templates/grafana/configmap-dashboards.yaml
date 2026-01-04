@@ -64,4 +64,79 @@ data:
   {{ base $path }}: |
 {{ $files.Get $path | indent 4 }}
   {{- end }}
+{{- if .Values.grafana.dashboardsV3.enabled }}
+---
+# =============================================================================
+# Dashboards V3 - OTEL Native Monitoring (2025-2026 best practices)
+# =============================================================================
+# Structure:
+#   otel-native/   - OTEL Collector metrics (spanmetrics, servicegraph)
+#   application/   - Application observability (RED, Golden Signals)
+#   logs/          - Log exploration and trace correlation
+#   slo/           - SLO tracking and error budgets
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-v3-otel-native
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+    grafana_dashboard: "1"
+data:
+  {{- range $path, $_ := .Files.Glob "dashboards-v3/otel-native/*.json" }}
+  {{ base $path }}: |
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-v3-application
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+    grafana_dashboard: "1"
+data:
+  {{- range $path, $_ := .Files.Glob "dashboards-v3/application/*.json" }}
+  {{ base $path }}: |
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-v3-logs
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+    grafana_dashboard: "1"
+data:
+  {{- range $path, $_ := .Files.Glob "dashboards-v3/logs/*.json" }}
+  {{ base $path }}: |
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-v3-slo
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+    grafana_dashboard: "1"
+data:
+  {{- range $path, $_ := .Files.Glob "dashboards-v3/slo/*.json" }}
+  {{ base $path }}: |
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
+{{- end }}
 {{- end }}

@@ -21,9 +21,9 @@ spec:
       labels:
         app: alloy
         app.kubernetes.io/name: alloy
-        # Ambient mesh 제외 - 노드 레벨 로그 수집
-        istio.io/dataplane-mode: none
       annotations:
+        # Sidecar 모드 제외 - 노드 레벨 로그 수집
+        sidecar.istio.io/inject: "false"
         checksum/config: {{ include (print $.Template.BasePath "/alloy/configmap.yaml") . | sha256sum }}
     spec:
       serviceAccountName: alloy

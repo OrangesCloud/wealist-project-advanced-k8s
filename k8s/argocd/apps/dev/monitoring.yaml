@@ -5,6 +5,9 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "12" # Istio 설정 이후에 설치
+    notifications.argoproj.io/subscribe.on-deployed.webhook: discord
+    notifications.argoproj.io/subscribe.on-sync-failed.webhook: discord
+    notifications.argoproj.io/subscribe.on-health-degraded.webhook: discord
 spec:
   project: wealist-dev
   source:
