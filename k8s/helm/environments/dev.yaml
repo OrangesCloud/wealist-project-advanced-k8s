@@ -77,14 +77,14 @@ shared:
     LOG_LEVEL: "info"
     CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
 
-    # Database (외부 호스트 - Docker bridge gateway)
-    DB_HOST: "172.17.0.1"
-    POSTGRES_HOST: "172.17.0.1"
+    # Database (클러스터 내부 - postgres Service)
+    DB_HOST: "postgres"
+    POSTGRES_HOST: "postgres"
     DB_AUTO_MIGRATE: "true"
 
-    # Redis (외부 호스트)
-    REDIS_HOST: "172.17.0.1"
-    SPRING_REDIS_HOST: "172.17.0.1"
+    # Redis (클러스터 내부 - redis Service)
+    REDIS_HOST: "redis"
+    SPRING_REDIS_HOST: "redis"
     SPRING_DATA_REDIS_SSL_ENABLED: "false"
 
     # S3/MinIO Configuration
@@ -111,21 +111,41 @@ ingress:
   enabled: false
 
 # -----------------------------------------------------------------------------
-# Database (External - Host machine or AWS RDS)
+# Database (클러스터 내부 - hostPath로 데이터 영속화)
 # -----------------------------------------------------------------------------
+# 데이터 저장 위치: ${WEALIST_DATA_PATH}/postgres, ${WEALIST_DATA_PATH}/redis
+# Kind extraMounts로 /data에 마운트됨
 postgres:
-  enabled: false
+  enabled: true
   external:
+    enabled: false
+  image:
+    repository: postgres
+    tag: "17-alpine"
+  persistence:
     enabled: true
-    host: "172.17.0.1"
-    port: 5432
+    hostPath:
+      enabled: true
+      path: /data/db_data/postgres  # Kind 노드 내부 경로 (호스트의 wealist-project-data/db_data/postgres)
+  config:
+    superuser: "postgres"
+    superuserPassword: "wealist-dev-password"
+    databases:
+      - name: wealist
+        user: wealist
 
 redis:
-  enabled: false
+  enabled: true
   external:
+    enabled: false
+  image:
+    repository: redis
+    tag: "7.2-alpine"
+  persistence:
     enabled: true
-    host: "172.17.0.1"
-    port: 6379
+    hostPath:
+      enabled: true
+      path: /data/db_data/redis  # Kind 노드 내부 경로 (호스트의 wealist-project-data/db_data/redis)
 
 # -----------------------------------------------------------------------------
 # MinIO (S3 Compatible Object Storage)
@@ -347,7 +367,7 @@ postgresExporter:
     repository: prometheuscommunity/postgres-exporter
     tag: "v0.15.0"
   config:
-    host: "172.17.0.1"
+    host: "postgres"  # 클러스터 내부 서비스
     port: 5432
 
 redisExporter:
@@ -356,7 +376,7 @@ redisExporter:
     repository: oliver006/redis_exporter
     tag: "v1.55.0"
   config:
-    host: "172.17.0.1"
+    host: "redis"  # 클러스터 내부 서비스
     port: 6379
 
 # =============================================================================
