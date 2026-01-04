@@ -77,6 +77,21 @@ shared:
     LOG_LEVEL: "info"
     CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
 
+    # Service URLs (K8s 내부 통신) - base.yaml 값 재정의 필요 (Helm은 deep merge 안함)
+    AUTH_SERVICE_URL: "http://auth-service:8080"
+    USER_SERVICE_URL: "http://user-service:8081"
+    BOARD_SERVICE_URL: "http://board-service:8000"
+    CHAT_SERVICE_URL: "http://chat-service:8001"
+    NOTI_SERVICE_URL: "http://noti-service:8002"
+    STORAGE_SERVICE_URL: "http://storage-service:8003"
+    VIDEO_SERVICE_URL: "http://video-service:8004"
+    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/api/svc/livekit"
+
+    # Infrastructure Ports
+    POSTGRES_PORT: "5432"
+    DB_PORT: "5432"
+    REDIS_PORT: "6379"
+
     # Database (클러스터 내부 - postgres Service)
     DB_HOST: "postgres"
     POSTGRES_HOST: "postgres"
@@ -97,11 +112,15 @@ shared:
     OAUTH2_CLIENT_REDIRECT_URI: "https://api.dev.wealist.co.kr/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "https://dev.wealist.co.kr/oauth/callback"
 
-    # LiveKit
-    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/api/svc/livekit"
+    # Internal API Key (dev용)
+    INTERNAL_API_KEY: "dev-internal-key-2024"
 
-    # OTEL (dev: 50% 샘플링)
+    # OTEL Configuration
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
     OTEL_TRACES_SAMPLER_ARG: "0.5"
+    OTEL_PROPAGATORS: "tracecontext,baggage"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev"
 
 # -----------------------------------------------------------------------------
