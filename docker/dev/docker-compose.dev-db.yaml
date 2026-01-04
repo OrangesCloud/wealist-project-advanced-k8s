@@ -1,0 +1,95 @@
+# =============================================================================
+# Wealist-Oranges Dev DB Stack
+# =============================================================================
+# PostgreSQL + Redis 컨테이너 (Kind 클러스터 외부)
+#
+# 사용법:
+#   docker compose -f docker-compose.dev-db.yaml up -d
+#
+# 데이터 영속화:
+#   - PostgreSQL: ${WEALIST_DATA_PATH}/db_data/postgres
+#   - Redis: ${WEALIST_DATA_PATH}/db_data/redis
+#
+# Kind Pod에서 접근:
+#   - PostgreSQL: postgres-dev:5432 (Docker 네트워크) 또는 172.17.0.1:5432 (브릿지)
+#   - Redis: redis-dev:6379 (Docker 네트워크) 또는 172.17.0.1:6379 (브릿지)
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16
+  # ---------------------------------------------------------------------------
+  postgres-dev:
+    image: postgres:16-alpine
+    container_name: postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wealist}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wealist-dev-2024}
+      POSTGRES_DB: ${POSTGRES_DB:-wealist}
+      # 성능 튜닝
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - ${WEALIST_DATA_PATH:-/home/wealist-oranges/wealist-project-data}/db_data/postgres:/var/lib/postgresql/data
+      # 초기화 스크립트 (선택사항)
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    ports:
+      # oranges 전용 포트 대역 (9000-9999)
+      - "9432:5432"
+    networks:
+      - wealist-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wealist} -d ${POSTGRES_DB:-wealist}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # Kind Pod 네트워크에서 접근 허용
+    # pg_hba.conf 자동 설정
+    command: >
+      postgres
+      -c listen_addresses='*'
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+
+  # ---------------------------------------------------------------------------
+  # Redis 7
+  # ---------------------------------------------------------------------------
+  redis-dev:
+    image: redis:7-alpine
+    container_name: redis-dev
+    restart: unless-stopped
+    volumes:
+      - ${WEALIST_DATA_PATH:-/home/wealist-oranges/wealist-project-data}/db_data/redis:/data
+    ports:
+      # oranges 전용 포트 대역 (9000-9999)
+      - "9379:6379"
+    networks:
+      - wealist-dev-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+
+# =============================================================================
+# Networks
+# =============================================================================
+# Kind 클러스터와 동일한 Docker 네트워크에 연결
+# Kind 노드에서 컨테이너명으로 접근 가능
+networks:
+  wealist-dev-network:
+    name: kind
+    external: true

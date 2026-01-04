@@ -1,6 +1,26 @@
 # =============================================================================
 # Kubernetes (Kind) 명령어
 # =============================================================================
+#
+# ⚠️  wealist-oranges 환경에서는 argo.mk의 명령어를 사용하세요:
+#     - make kind-dev-setup       : 클러스터 + ArgoCD + 앱 배포 (권장)
+#     - make kind-dev-rbac        : 팀원 RBAC 설정
+#     - make kind-dev-kubeconfig  : 팀원 kubeconfig 생성
+#     - make kind-dev-env-status  : 환경 상태 확인
+#     - make kind-dev-reset       : 완전 리셋
+#     - make kind-dev-clean       : 클러스터 삭제 (데이터 보존)
+#
+# 이 파일의 명령어는 Helm 직접 배포용 또는 레거시 환경용입니다.
+# ArgoCD GitOps 환경에서는 argo.mk 사용을 권장합니다.
+#
+# DB 아키텍처 (현재):
+#     - PostgreSQL/Redis가 클러스터 내부에서 실행 (hostPath 영속화)
+#     - 데이터 저장: /home/wealist-oranges/wealist-project-data/db_data/
+#
+# 포트 매핑 (oranges 전용 대역):
+#     - hostPort 9080 → Istio Gateway HTTP
+#     - hostPort 9443 → Istio Gateway HTTPS
+# =============================================================================
 
 ##@ Kubernetes (Kind)
 
@@ -1475,3 +1495,72 @@ init-local-db: ## 로컬 PostgreSQL/Redis 초기화 (Ubuntu, ENV=local-ubuntu)
 	@echo "로컬 데이터베이스 초기화 완료!"
 	@echo ""
 	@echo "다음: make helm-install-all ENV=dev"
+
+# =============================================================================
+# Kind-Dev RBAC (wealist-oranges 환경)
+# =============================================================================
+# DB는 클러스터 내부 Deployment로 실행됨 (wealist-infrastructure 차트)
+# 데이터는 hostPath로 ${WEALIST_DATA_PATH}/db_data에 영속화
+
+##@ Kind-Dev RBAC
+
+.PHONY: kind-dev-rbac kind-dev-kubeconfig kind-dev-env-status
+
+KIND_DEV_DATA_PATH ?= /home/wealist-oranges/wealist-project-data
+
+kind-dev-rbac: ## 🔐 팀원용 RBAC 설정 (wealist-dev 네임스페이스만 접근)
+	@echo "=== 팀원용 RBAC 설정 ==="
+	@echo ""
+	@if ! kubectl get namespace wealist-dev >/dev/null 2>&1; then \
+		echo "❌ wealist-dev 네임스페이스가 없습니다. 먼저 make kind-dev-setup 실행하세요."; \
+		exit 1; \
+	fi
+	@kubectl apply -f k8s/rbac/team-developer.yaml
+	@echo ""
+	@echo "✅ RBAC 설정 완료!"
+	@echo ""
+	@echo "팀원 kubeconfig 생성:"
+	@echo "  make kind-dev-kubeconfig USERNAME=<이름>"
+
+kind-dev-kubeconfig: ## 🔑 팀원용 제한된 kubeconfig 생성 (USERNAME=xxx)
+	@if [ -z "$(USERNAME)" ]; then \
+		echo "Usage: make kind-dev-kubeconfig USERNAME=<이름>"; \
+		echo "예시: make kind-dev-kubeconfig USERNAME=member1"; \
+		exit 1; \
+	fi
+	@./scripts/create-team-kubeconfig.sh $(USERNAME)
+
+kind-dev-env-status: ## 📊 Kind-Dev 환경 상태 확인 (클러스터 + 내부 DB)
+	@echo "=============================================="
+	@echo "  📊 Kind-Dev 환경 상태"
+	@echo "=============================================="
+	@echo ""
+	@echo "📦 Kind 클러스터:"
+	@if kind get clusters 2>/dev/null | grep -q "wealist"; then \
+		echo "   ✅ wealist 클러스터 실행 중"; \
+		kubectl get nodes 2>/dev/null || true; \
+	else \
+		echo "   ❌ 클러스터 없음"; \
+	fi
+	@echo ""
+	@echo "🐘 PostgreSQL (클러스터 내부):"
+	@if kubectl get pod -n wealist-dev -l app=postgres -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then \
+		echo "   ✅ postgres 실행 중"; \
+		echo "   데이터: $(KIND_DEV_DATA_PATH)/db_data/postgres"; \
+	else \
+		echo "   ❌ postgres 없음 또는 시작 중"; \
+	fi
+	@echo ""
+	@echo "📮 Redis (클러스터 내부):"
+	@if kubectl get pod -n wealist-dev -l app=redis -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then \
+		echo "   ✅ redis 실행 중"; \
+		echo "   데이터: $(KIND_DEV_DATA_PATH)/db_data/redis"; \
+	else \
+		echo "   ❌ redis 없음 또는 시작 중"; \
+	fi
+	@echo ""
+	@echo "🌐 접속 정보:"
+	@echo "   - ArgoCD: http://localhost:9080/api/argo"
+	@echo "   - Grafana: http://localhost:9080/api/monitoring/grafana"
+	@echo ""
+	@echo "=============================================="
