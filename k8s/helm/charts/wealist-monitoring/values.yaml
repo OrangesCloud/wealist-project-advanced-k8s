@@ -10,6 +10,15 @@ global:
   namespace: wealist
 
 # =============================================================================
+# Istio Configuration (for Prometheus scrape jobs)
+# =============================================================================
+# When sidecar.enabled is true, Prometheus will scrape Envoy sidecar metrics
+# When sidecar.enabled is false (Ambient mode), Prometheus will scrape ztunnel/waypoint metrics
+istio:
+  sidecar:
+    enabled: true  # Default to Sidecar mode
+
+# =============================================================================
 # External Secrets (ESO) Configuration
 # =============================================================================
 # enabled: true → ExternalSecret에서 시크릿 가져옴 (dev/prod)
@@ -253,6 +262,10 @@ grafana:
       index: "logstash-*"
       # Production에서는 AWS OpenSearch 사용 가능
       # url: "https://search-xxx.ap-northeast-2.es.amazonaws.com"
+
+  # V3 Dashboards - OTEL Native (2025-2026 best practices)
+  dashboardsV3:
+    enabled: false  # Enable when OTEL Collector connectors are configured
 
 # =============================================================================
 # Monitoring Ingress - External Access via domain/monitoring/*
@@ -592,6 +605,46 @@ otelCollector:
       latencyThresholdMs: 1000
       # 정상 트래픽 샘플링 비율 (%)
       defaultSamplingPercentage: 10
+
+  # =============================================================================
+  # Connectors (2025-2026 OTEL Best Practice)
+  # =============================================================================
+  # Connectors bridge pipelines - receive from one, export to another
+  # spanmetrics: traces → RED metrics (Request, Error, Duration)
+  # servicegraph: traces → service dependency metrics
+  connectors:
+    # Prometheus Remote Write endpoint (for connector metrics)
+    prometheusRemoteWrite:
+      endpoint: "http://prometheus:9090/api/v1/write"
+      resourceToTelemetryConversion: true
+
+    # Span Metrics Connector
+    # Generates: traces_spanmetrics_calls_total, traces_spanmetrics_duration_seconds_bucket
+    spanmetrics:
+      enabled: false  # localhost.yaml에서 true로 활성화
+      namespace: traces.spanmetrics
+      histogram:
+        # Grafana compatible buckets (in seconds)
+        buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+      dimensions:
+        - service.name
+        - http.method
+        - http.status_code
+        - http.route
+      exemplars:
+        enabled: true  # Link metrics to traces
+
+    # Service Graph Connector
+    # Generates: traces_service_graph_request_total, traces_service_graph_request_failed_total
+    servicegraph:
+      enabled: false  # localhost.yaml에서 true로 활성화
+      store:
+        ttl: 2m
+        maxItems: 10000
+      cacheLoop: 1m
+      dimensions:
+        - service.namespace
+        - http.method
 
 # =============================================================================
 # Tempo - Distributed Tracing Backend

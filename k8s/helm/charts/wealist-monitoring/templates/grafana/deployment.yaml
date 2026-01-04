@@ -94,6 +94,16 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards/json
             - name: dashboards-v2
               mountPath: /etc/grafana/provisioning/dashboards/v2
+            {{- if .Values.grafana.dashboardsV3.enabled }}
+            - name: dashboards-v3-otel-native
+              mountPath: /etc/grafana/provisioning/dashboards/v3/otel-native
+            - name: dashboards-v3-application
+              mountPath: /etc/grafana/provisioning/dashboards/v3/application
+            - name: dashboards-v3-logs
+              mountPath: /etc/grafana/provisioning/dashboards/v3/logs
+            - name: dashboards-v3-slo
+              mountPath: /etc/grafana/provisioning/dashboards/v3/slo
+            {{- end }}
             - name: data
               mountPath: /var/lib/grafana
       volumes:
@@ -109,6 +119,20 @@ spec:
         - name: dashboards-v2
           configMap:
             name: grafana-dashboards-v2
+        {{- if .Values.grafana.dashboardsV3.enabled }}
+        - name: dashboards-v3-otel-native
+          configMap:
+            name: grafana-dashboards-v3-otel-native
+        - name: dashboards-v3-application
+          configMap:
+            name: grafana-dashboards-v3-application
+        - name: dashboards-v3-logs
+          configMap:
+            name: grafana-dashboards-v3-logs
+        - name: dashboards-v3-slo
+          configMap:
+            name: grafana-dashboards-v3-slo
+        {{- end }}
         - name: data
           {{- if .Values.grafana.persistence.enabled }}
           persistentVolumeClaim:
