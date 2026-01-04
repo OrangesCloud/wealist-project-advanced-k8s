@@ -123,6 +123,13 @@ shared:
     OTEL_PROPAGATORS: "tracecontext,baggage"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev"
 
+  # Shared Secrets (dev 환경용 - 프로덕션은 ExternalSecrets 사용)
+  secrets:
+    DB_PASSWORD: "wealist-dev-password"
+    REDIS_PASSWORD: ""
+    JWT_SECRET: "dev-jwt-secret-key-2024-wealist"
+    INTERNAL_API_KEY: "dev-internal-key-2024"
+
 # -----------------------------------------------------------------------------
 # Ingress (Disabled - Istio Gateway)
 # -----------------------------------------------------------------------------
