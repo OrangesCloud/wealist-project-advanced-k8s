@@ -22,6 +22,8 @@ spec:
     - "https://kubernetes.github.io/autoscaler"
     - "https://kubernetes-sigs.github.io/external-dns"
     - "https://kubernetes-sigs.github.io/metrics-server"
+    # Istio Service Mesh
+    - "https://istio-release.storage.googleapis.com/charts"
     # LiveKit WebRTC SFU Server
     - "https://helm.livekit.io"
 

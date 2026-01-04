@@ -1,15 +1,16 @@
-{{- if and .Values.enabled .Values.gateway.enabled }}
+{{- $gw := .Values.istio.gateway }}
+{{- if and .Values.enabled $gw.enabled }}
 apiVersion: networking.istio.io/v1
 kind: Gateway
 metadata:
-  name: {{ .Values.gateway.name }}
-  namespace: {{ .Values.gateway.namespace | default "istio-system" }}
+  name: {{ $gw.name }}
+  namespace: {{ $gw.namespace | default "istio-system" }}
   labels:
     {{- include "istio-config.labels" . | nindent 4 }}
 spec:
   selector:
-    {{- if .Values.gateway.selector }}
-    {{- toYaml .Values.gateway.selector | nindent 4 }}
+    {{- if $gw.selector }}
+    {{- toYaml $gw.selector | nindent 4 }}
     {{- else }}
     istio: ingressgateway
     {{- end }}
@@ -19,19 +20,19 @@ spec:
       name: http
       protocol: HTTP
     hosts:
-    {{- range .Values.gateway.hosts }}
+    {{- range $gw.hosts }}
     - {{ . | quote }}
     {{- end }}
-  {{- if .Values.gateway.tls.enabled }}
+  {{- if $gw.tls.enabled }}
   - port:
       number: 443
       name: https
       protocol: HTTPS
     tls:
-      mode: {{ .Values.gateway.tls.mode }}
-      credentialName: {{ .Values.gateway.tls.credentialName }}
+      mode: {{ $gw.tls.mode }}
+      credentialName: {{ $gw.tls.credentialName }}
     hosts:
-    {{- range .Values.gateway.hosts }}
+    {{- range $gw.hosts }}
     - {{ . | quote }}
     {{- end }}
   {{- end }}
