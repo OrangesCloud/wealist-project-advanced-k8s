@@ -432,12 +432,24 @@ if [ -n "$OAUTH_CLIENT_ID" ] && [ -n "$OAUTH_CLIENT_SECRET" ]; then
     }" 2>/dev/null || true
 
     # ArgoCD ConfigMap에 Dex config 추가
-    kubectl patch configmap argocd-cm -n argocd --type merge -p "{
-      \"data\": {
-        \"url\": \"https://dev.wealist.co.kr/api/argo\",
-        \"dex.config\": \"connectors:\\n  - type: google\\n    id: google\\n    name: Google\\n    config:\\n      clientID: ${OAUTH_CLIENT_ID}\\n      clientSecret: \\\$dex.google.clientSecret\\n      redirectURI: https://dev.wealist.co.kr/api/argo/api/dex/callback\"
-      }
-    }"
+    DEX_CONFIG="connectors:
+  - type: google
+    id: google
+    name: Google
+    config:
+      clientID: ${OAUTH_CLIENT_ID}
+      clientSecret: \$dex.google.clientSecret
+      redirectURI: https://dev.wealist.co.kr/api/argo/api/dex/callback"
+
+    kubectl patch configmap argocd-cm -n argocd --type merge -p "$(cat <<EOF
+{
+  "data": {
+    "url": "https://dev.wealist.co.kr/api/argo",
+    "dex.config": $(echo "$DEX_CONFIG" | jq -Rs .)
+  }
+}
+EOF
+)"
 
     # ArgoCD 서버 재시작 (Dex 설정 적용)
     echo "⏳ ArgoCD 서버 재시작 중 (Google OAuth 적용)..."

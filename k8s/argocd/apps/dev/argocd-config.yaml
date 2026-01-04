@@ -21,6 +21,9 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-5" # 다른 앱보다 먼저 sync
+    notifications.argoproj.io/subscribe.on-deployed.webhook: discord
+    notifications.argoproj.io/subscribe.on-sync-failed.webhook: discord
+    notifications.argoproj.io/subscribe.on-health-degraded.webhook: discord
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
