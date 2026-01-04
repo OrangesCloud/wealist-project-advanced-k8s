@@ -53,6 +53,14 @@ public class JwtTokenProvider {
      * Access Token 생성 (RS256)
      */
     public String generateToken(UUID userId) {
+        return generateToken(userId, null);
+    }
+
+    /**
+     * Access Token 생성 with email claim (RS256)
+     * ops-portal 등 email 기반 인증이 필요한 서비스용
+     */
+    public String generateToken(UUID userId, String email) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + accessTokenExpirationMs);
 
@@ -61,14 +69,19 @@ public class JwtTokenProvider {
         header.put("alg", "RS256");
         header.put("kid", keyId);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .setHeader(header)
                 .setSubject(userId.toString())
                 .setIssuer(issuer)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .claim("type", "access")
-                .signWith(privateKey, SignatureAlgorithm.RS256)
+                .claim("type", "access");
+
+        if (email != null && !email.isBlank()) {
+            builder.claim("email", email);
+        }
+
+        return builder.signWith(privateKey, SignatureAlgorithm.RS256)
                 .compact();
     }
 
@@ -76,6 +89,13 @@ public class JwtTokenProvider {
      * Refresh Token 생성 (RS256)
      */
     public String generateRefreshToken(UUID userId) {
+        return generateRefreshToken(userId, null);
+    }
+
+    /**
+     * Refresh Token 생성 with email claim (RS256)
+     */
+    public String generateRefreshToken(UUID userId, String email) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + refreshTokenExpirationMs);
 
@@ -84,14 +104,19 @@ public class JwtTokenProvider {
         header.put("alg", "RS256");
         header.put("kid", keyId);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .setHeader(header)
                 .setSubject(userId.toString())
                 .setIssuer(issuer)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .claim("type", "refresh")
-                .signWith(privateKey, SignatureAlgorithm.RS256)
+                .claim("type", "refresh");
+
+        if (email != null && !email.isBlank()) {
+            builder.claim("email", email);
+        }
+
+        return builder.signWith(privateKey, SignatureAlgorithm.RS256)
                 .compact();
     }
 
@@ -167,6 +192,22 @@ public class JwtTokenProvider {
                     .parseClaimsJws(token)
                     .getBody();
             return claims.get("type", String.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Token에서 이메일 추출 (있는 경우)
+     */
+    public String getEmailFromToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(publicKey)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.get("email", String.class);
         } catch (Exception e) {
             return null;
         }

@@ -32,8 +32,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         log.info("OAuth2 인증 성공: userId={}, email={}", oAuth2User.getUserId(), oAuth2User.getEmail());
 
-        // 토큰 발행
-        AuthResponse authResponse = authService.generateTokens(oAuth2User.getUserId());
+        // 토큰 발행 (email claim 포함 - ops-portal 등에서 필요)
+        AuthResponse authResponse = authService.generateTokens(oAuth2User.getUserId(), oAuth2User.getEmail());
 
         // 클라이언트가 지정한 redirect_uri 확인 (세션에서)
         String redirectUrl = getClientRedirectUri(request);
