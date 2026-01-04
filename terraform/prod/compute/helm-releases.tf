@@ -1,17 +1,24 @@
 # =============================================================================
 # Helm Releases for EKS Add-ons
 # =============================================================================
-# 설치 순서:
+# 설치 순서 (Bootstrap 순환 의존성 해결):
 # 1. Gateway API CRDs (Istio 의존성)
 # 2. Istio (Base → Istiod) - Sidecar Mode
-# 3. ArgoCD
-# 4. 인프라 컴포넌트 (ALB Controller, External Secrets, cert-manager, Cluster Autoscaler)
+# 3. External Secrets Operator + ClusterSecretStore ← ArgoCD보다 먼저!
+# 4. ArgoCD (ESO가 argocd-secret 생성 가능)
 # 5. ArgoCD Bootstrap App (App of Apps로 나머지 관리)
 #
+# 왜 ESO를 Terraform에서 설치하는가?
+#   - ArgoCD는 argocd-secret이 있어야 시작 가능
+#   - argocd-secret은 ExternalSecret이 생성
+#   - ExternalSecret은 ESO가 필요
+#   - ESO를 ArgoCD로 설치하면 순환 의존성 발생!
+#   - 따라서 ESO는 Terraform에서 ArgoCD보다 먼저 설치
+#
 # ArgoCD가 관리하는 항목 (k8s/argocd/apps/prod/):
-# - external-secrets-config (ClusterSecretStore + ExternalSecret)
+# - external-secrets-config (ExternalSecret 리소스들)
 # - wealist-infrastructure (공통 ConfigMap)
-# - 마이크로서비스 (auth, user, board, chat, noti, storage, video)
+# - 마이크로서비스 (auth, user, board, chat, noti, storage)
 # - istio-config (HTTPRoute, Gateway, AuthorizationPolicy)
 # - monitoring (Prometheus, Grafana, Loki)
 
@@ -91,7 +98,129 @@ resource "helm_release" "istiod" {
 # =============================================================================
 
 # =============================================================================
-# 3. ArgoCD
+# 3. External Secrets Operator (ArgoCD보다 먼저 설치 - Bootstrap 필수)
+# =============================================================================
+# 왜 ArgoCD보다 먼저?
+#   - ArgoCD는 argocd-secret이 있어야 시작 가능 (createSecret=false 설정)
+#   - argocd-secret은 ExternalSecret이 생성
+#   - ExternalSecret은 ESO + ClusterSecretStore가 필요
+#   - ESO를 ArgoCD로 설치하면 순환 의존성 발생!
+#
+# 설치 구성요소:
+#   - external-secrets Helm chart (CRDs 포함)
+#   - ClusterSecretStore (AWS Secrets Manager 연동)
+# =============================================================================
+resource "helm_release" "external_secrets" {
+  name       = "external-secrets"
+  repository = "https://charts.external-secrets.io"
+  chart      = "external-secrets"
+  version    = "1.2.0"  # K8s 1.34 호환
+  namespace  = "external-secrets"
+
+  create_namespace = true
+
+  # CRDs 설치
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+
+  # v1beta1 → v1 conversion webhook 비활성화
+  set {
+    name  = "crds.conversion.enabled"
+    value = "false"
+  }
+
+  # Service Account 설정 (Pod Identity 연결용)
+  set {
+    name  = "serviceAccount.create"
+    value = "true"
+  }
+
+  set {
+    name  = "serviceAccount.name"
+    value = "external-secrets"
+  }
+
+  # Webhook 리소스
+  set {
+    name  = "webhook.resources.requests.memory"
+    value = "64Mi"
+  }
+
+  set {
+    name  = "webhook.resources.requests.cpu"
+    value = "50m"
+  }
+
+  set {
+    name  = "webhook.resources.limits.memory"
+    value = "128Mi"
+  }
+
+  set {
+    name  = "webhook.resources.limits.cpu"
+    value = "200m"
+  }
+
+  # Cert Controller 리소스
+  set {
+    name  = "certController.resources.requests.memory"
+    value = "64Mi"
+  }
+
+  set {
+    name  = "certController.resources.requests.cpu"
+    value = "50m"
+  }
+
+  set {
+    name  = "certController.resources.limits.memory"
+    value = "128Mi"
+  }
+
+  set {
+    name  = "certController.resources.limits.cpu"
+    value = "200m"
+  }
+
+  depends_on = [
+    helm_release.istiod,
+    module.pod_identity_external_secrets
+  ]
+}
+
+# ESO CRDs가 완전히 등록될 때까지 대기
+resource "time_sleep" "wait_for_eso_crds" {
+  depends_on = [helm_release.external_secrets]
+
+  create_duration = "30s"
+}
+
+# -----------------------------------------------------------------------------
+# ClusterSecretStore - AWS Secrets Manager
+# -----------------------------------------------------------------------------
+# Pod Identity를 통해 AWS Secrets Manager에 접근
+# kubectl_manifest 사용: kubernetes_manifest는 plan 시 CRD 검증을 하지만,
+# ESO가 아직 설치 안됐으면 CRD가 없어서 실패함. kubectl은 apply 시에만 검증.
+resource "kubectl_manifest" "cluster_secret_store" {
+  yaml_body = <<-YAML
+    apiVersion: external-secrets.io/v1
+    kind: ClusterSecretStore
+    metadata:
+      name: aws-secrets-manager
+    spec:
+      provider:
+        aws:
+          service: SecretsManager
+          region: ${var.aws_region}
+  YAML
+
+  depends_on = [time_sleep.wait_for_eso_crds]
+}
+
+# =============================================================================
+# 4. ArgoCD
 # =============================================================================
 resource "helm_release" "argocd" {
   name       = "argocd"
@@ -156,7 +285,8 @@ resource "helm_release" "argocd" {
     value = "false"
   }
 
-  depends_on = [helm_release.istiod]
+  # ESO + ClusterSecretStore가 먼저 설치되어야 argocd-secret 생성 가능
+  depends_on = [kubectl_manifest.cluster_secret_store]
 }
 
 # =============================================================================

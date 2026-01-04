@@ -88,7 +88,7 @@ variable "addon_versions" {
 variable "scheduled_scaling_enabled" {
   description = "Enable scheduled scaling for cost optimization (노드 자동 on/off)"
   type        = bool
-  default     = true
+  default     = false  # 임시 비활성화 - EKS 설정 완료 후 true로 변경
 }
 
 # -----------------------------------------------------------------------------
