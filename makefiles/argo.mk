@@ -1,5 +1,23 @@
 # ============================================
-# ArgoCD Makefile
+# ArgoCD Makefile (wealist-oranges 환경)
+# ============================================
+#
+# 주요 명령어:
+#   make kind-dev-setup       - 전체 환경 설정 (클러스터+ArgoCD+앱)
+#   make kind-dev-rbac        - 팀원 RBAC 설정
+#   make kind-dev-kubeconfig  - 팀원 kubeconfig 생성
+#   make kind-dev-env-status  - 환경 상태 확인
+#   make kind-dev-reset       - 완전 리셋 (클러스터 재생성)
+#   make kind-dev-clean       - 클러스터 삭제 (데이터 보존)
+#
+# DB 아키텍처:
+#   - PostgreSQL/Redis가 클러스터 내부에서 실행
+#   - hostPath로 데이터 영속화 (/home/wealist-oranges/wealist-project-data/db_data/)
+#
+# 포트 매핑 (oranges 전용: 9000-9999):
+#   - 9080 → Istio Gateway HTTP
+#   - 9443 → Istio Gateway HTTPS
+#
 # ============================================
 .PHONY: argo-help cluster-up cluster-down bootstrap deploy argo-clean argo-status helm-install-infra all
 .PHONY: setup-local-argocd kind-setup-ecr load-infra-images-ecr
@@ -187,7 +205,7 @@ argo-install-simple: ## ArgoCD만 간단 설치 (Sealed Secrets 없이)
 	@echo "=============================================="
 	@echo ""
 	@echo "  웹 접속 (Istio Gateway 통해):"
-	@echo "    http://localhost:8080/api/argo"
+	@echo "    http://localhost:9080/api/argo"
 	@echo "    https://dev.wealist.co.kr/api/argo"
 	@echo ""
 	@echo "  포트 포워딩 (직접 접속):"
