@@ -39,13 +39,18 @@ spec:
 
   # ==========================================================================
   # API Service Routes (/api/svc/{service}/*)
+  # NOTE: uriRegexRewrite 사용 - prefix rewrite는 이중 슬래시 문제 발생
+  #       예: /api/svc/auth/foo → //foo (잘못됨)
+  #       uriRegexRewrite로 prefix만 제거: /api/svc/auth/foo → /foo (정상)
   # ==========================================================================
   # Auth Service
   - match:
     - uri:
         prefix: /api/svc/auth
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/auth(.*)$"
+        rewrite: '\1'
     route:
     {{- if and $vs.canary $vs.canary.enabled }}
     - destination:
@@ -77,7 +82,9 @@ spec:
     - uri:
         prefix: /api/svc/user
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/user(.*)$"
+        rewrite: '\1'
     route:
     {{- if and $vs.canary $vs.canary.enabled }}
     - destination:
@@ -109,7 +116,9 @@ spec:
     - uri:
         prefix: /api/svc/board
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/board(.*)$"
+        rewrite: '\1'
     route:
     {{- if and $vs.canary $vs.canary.enabled }}
     - destination:
@@ -130,14 +139,16 @@ spec:
         port:
           number: 8000
     {{- end }}
-    timeout: 0s  # WebSocket: no timeout
+    # WebSocket: disable timeout (Istio 1.28+ requires omitting timeout field)
 
   # Chat Service (WebSocket support - no retries)
   - match:
     - uri:
         prefix: /api/svc/chat
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/chat(.*)$"
+        rewrite: '\1'
     route:
     {{- if and $vs.canary $vs.canary.enabled }}
     - destination:
@@ -158,14 +169,16 @@ spec:
         port:
           number: 8001
     {{- end }}
-    timeout: 0s  # WebSocket: no timeout
+    # WebSocket: disable timeout (Istio 1.28+ requires omitting timeout field)
 
   # Noti Service (SSE support - long timeout)
   - match:
     - uri:
         prefix: /api/svc/noti
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/noti(.*)$"
+        rewrite: '\1'
     route:
     {{- if and $vs.canary $vs.canary.enabled }}
     - destination:
@@ -186,14 +199,16 @@ spec:
         port:
           number: 8002
     {{- end }}
-    timeout: 0s  # SSE: no timeout
+    # SSE: disable timeout (Istio 1.28+ requires omitting timeout field)
 
   # Storage Service
   - match:
     - uri:
         prefix: /api/svc/storage
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/storage(.*)$"
+        rewrite: '\1'
     route:
     {{- if and $vs.canary $vs.canary.enabled }}
     - destination:
@@ -225,7 +240,9 @@ spec:
     - uri:
         prefix: /api/svc/video
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/video(.*)$"
+        rewrite: '\1'
     route:
     {{- if and $vs.canary $vs.canary.enabled }}
     - destination:
@@ -257,13 +274,15 @@ spec:
     - uri:
         prefix: /api/svc/livekit
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/livekit(.*)$"
+        rewrite: '\1'
     route:
     - destination:
         host: livekit
         port:
           number: 7880
-    timeout: 0s  # WebRTC: no timeout
+    # WebRTC: disable timeout (Istio 1.28+ requires omitting timeout field)
 
   # ==========================================================================
   # Ops Service (if enabled)
@@ -273,7 +292,9 @@ spec:
     - uri:
         prefix: /api/ops
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/ops(.*)$"
+        rewrite: '\1'
     route:
     - destination:
         host: ops-service
@@ -294,7 +315,9 @@ spec:
     - uri:
         prefix: /api/minio
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/minio(.*)$"
+        rewrite: '\1'
     route:
     - destination:
         host: {{ $vs.minio.host | default "minio" }}
@@ -311,7 +334,9 @@ spec:
     - uri:
         prefix: /api/argo
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/argo(.*)$"
+        rewrite: '\1'
     route:
     - destination:
         host: argocd-server.argocd.svc.cluster.local
