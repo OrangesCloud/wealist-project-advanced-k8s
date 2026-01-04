@@ -32,6 +32,9 @@ spec:
           value: "true"
         - name: config.DB_NAME
           value: "ops_db"
+        # ops-service는 Istio RequestAuthentication이 없으므로 직접 JWT 검증
+        - name: config.ISTIO_JWT_MODE
+          value: "false"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-prod

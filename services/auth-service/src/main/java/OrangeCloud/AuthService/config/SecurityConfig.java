@@ -1,6 +1,7 @@
 package OrangeCloud.AuthService.config;
 
 import OrangeCloud.AuthService.oauth.CustomOAuth2UserService;
+import OrangeCloud.AuthService.oauth.OAuth2FailureHandler;
 import OrangeCloud.AuthService.oauth.OAuth2RedirectUriFilter;
 import OrangeCloud.AuthService.oauth.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -27,12 +28,15 @@ public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
     private final OAuth2RedirectUriFilter oAuth2RedirectUriFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .addFilterBefore(oAuth2RedirectUriFilter, UsernamePasswordAuthenticationFilter.class)
+                // Must run BEFORE OAuth2AuthorizationRequestRedirectFilter to capture redirect_uri
+                // before it redirects to the OAuth provider
+                .addFilterBefore(oAuth2RedirectUriFilter, OAuth2AuthorizationRequestRedirectFilter.class)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 // OAuth2 로그인은 세션이 필요함 (state 파라미터 저장용)
@@ -62,6 +66,7 @@ public class SecurityConfig {
                                 .userService(customOAuth2UserService)
                         )
                         .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler)
                 );
 
         return http.build();
