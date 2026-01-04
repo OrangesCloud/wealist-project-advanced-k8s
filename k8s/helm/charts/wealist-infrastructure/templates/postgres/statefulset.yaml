@@ -95,6 +95,8 @@ spec:
       labels:
         app: postgres
         app.kubernetes.io/part-of: wealist
+      annotations:
+        sidecar.istio.io/inject: "false"
     spec:
       containers:
         - name: postgres

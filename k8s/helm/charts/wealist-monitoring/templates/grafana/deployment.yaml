@@ -21,9 +21,9 @@ spec:
       labels:
         app: grafana
         app.kubernetes.io/name: grafana
-        # Ambient 모드에 포함 - mTLS로 Prometheus 데이터 수집
-        # PeerAuthentication에서 PERMISSIVE 설정으로 외부 접근도 허용
       annotations:
+        # Sidecar 모드 제외 - 모니터링 인프라는 mesh 외부에서 동작
+        sidecar.istio.io/inject: "false"
         # ConfigMap 변경 시 자동 Pod 재시작을 위한 checksum
         checksum/config: {{ include (print $.Template.BasePath "/grafana/configmap.yaml") . | sha256sum }}
         checksum/dashboards: {{ include (print $.Template.BasePath "/grafana/configmap-dashboards.yaml") . | sha256sum }}
@@ -94,6 +94,16 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards/json
             - name: dashboards-v2
               mountPath: /etc/grafana/provisioning/dashboards/v2
+            {{- if .Values.grafana.dashboardsV3.enabled }}
+            - name: dashboards-v3-otel-native
+              mountPath: /etc/grafana/provisioning/dashboards/v3/otel-native
+            - name: dashboards-v3-application
+              mountPath: /etc/grafana/provisioning/dashboards/v3/application
+            - name: dashboards-v3-logs
+              mountPath: /etc/grafana/provisioning/dashboards/v3/logs
+            - name: dashboards-v3-slo
+              mountPath: /etc/grafana/provisioning/dashboards/v3/slo
+            {{- end }}
             - name: data
               mountPath: /var/lib/grafana
       volumes:
@@ -109,6 +119,20 @@ spec:
         - name: dashboards-v2
           configMap:
             name: grafana-dashboards-v2
+        {{- if .Values.grafana.dashboardsV3.enabled }}
+        - name: dashboards-v3-otel-native
+          configMap:
+            name: grafana-dashboards-v3-otel-native
+        - name: dashboards-v3-application
+          configMap:
+            name: grafana-dashboards-v3-application
+        - name: dashboards-v3-logs
+          configMap:
+            name: grafana-dashboards-v3-logs
+        - name: dashboards-v3-slo
+          configMap:
+            name: grafana-dashboards-v3-slo
+        {{- end }}
         - name: data
           {{- if .Values.grafana.persistence.enabled }}
           persistentVolumeClaim:

@@ -7,7 +7,7 @@ istio:
   namespace: wealist-localhost
 
   httpRoute:
-    enabled: true
+    enabled: false  # Disabled for Sidecar mode (using VirtualService instead)
     gatewayRef:
       name: istio-ingressgateway
       namespace: istio-system
@@ -87,11 +87,16 @@ istio:
   serviceAuthorization:
     enabled: false
 
-  ambient:
+  # Sidecar Mode Configuration
+  sidecar:
     enabled: true
-    waypoint:
-      enabled: true
-      name: wealist-waypoint
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
 
   # Kubernetes Gateway API - Ingress Gateway
   # Istio automatically provisions Deployment and Service
@@ -115,9 +120,16 @@ istio:
         allowedRoutes:
           from: All
 
-# VirtualService (legacy - disabled by default for Ambient mode)
+# VirtualService (enabled for Sidecar mode - canary deployment support)
 virtualService:
-  enabled: false
+  enabled: true
+  hosts:
+    - "*"
+  # Canary deployment configuration
+  canary:
+    enabled: false
+    stableWeight: 100
+    canaryWeight: 0
 
 # Telemetry (tracing and access logging)
 telemetry:
@@ -135,7 +147,7 @@ jwtAuth:
   issuer: ""
   jwksUri: ""
 
-# Old Istio Gateway API (disabled by default for Ambient mode)
+# Old Istio Gateway API (disabled by default, use Kubernetes Gateway API)
 gateway:
   enabled: false
 

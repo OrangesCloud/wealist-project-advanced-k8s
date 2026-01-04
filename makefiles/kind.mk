@@ -42,7 +42,7 @@ kind-check-db-setup: ## 🚀 통합 설정: Secrets → DB 확인 → 클러스�
 	@echo "  0. 필수 도구 확인 (istioctl)"
 	@echo "  1. Secrets 파일 확인/생성"
 	@echo "  2. PostgreSQL/Redis 설치 상태 확인 [Y/N]"
-	@echo "  3. Kind 클러스터 생성 + Istio Ambient"
+	@echo "  3. Kind 클러스터 생성 + Istio Sidecar"
 	@echo "  4. 서비스 이미지 로드 (DB 이미지 제외)"
 	@echo ""
 	@echo "----------------------------------------------"
@@ -129,8 +129,8 @@ kind-check-db-setup: ## 🚀 통합 설정: Secrets → DB 확인 → 클러스�
 	@echo ""
 	@# istioctl 확인 및 설치
 	@if ! command -v istioctl >/dev/null 2>&1; then \
-		if [ -f "./istio-1.24.0/bin/istioctl" ]; then \
-			echo "✅ istioctl: 로컬 설치됨 (./istio-1.24.0/bin/istioctl)"; \
+		if [ -f "./istio-1.28.2/bin/istioctl" ]; then \
+			echo "✅ istioctl: 로컬 설치됨 (./istio-1.28.2/bin/istioctl)"; \
 		else \
 			echo "❌ istioctl: 미설치"; \
 			echo ""; \
@@ -139,7 +139,7 @@ kind-check-db-setup: ## 🚀 통합 설정: Secrets → DB 확인 → 클러스�
 			if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
 				echo ""; \
 				echo "istioctl 설치 중..."; \
-				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.24.0 sh -; \
+				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.28.2 sh -; \
 				echo ""; \
 				echo "✅ istioctl 설치 완료!"; \
 			else \
@@ -250,7 +250,7 @@ kind-localhost-setup: ## 🏠 통합 환경: 클러스터 생성 → 모든 이�
 	@echo "이 명령어는 다음을 순서대로 실행합니다:"
 	@echo "  0. 필수 도구 확인 (istioctl)"
 	@echo "  1. Secrets 파일 확인/생성"
-	@echo "  2. Kind 클러스터 생성 + Istio Ambient"
+	@echo "  2. Kind 클러스터 생성 + Istio Sidecar"
 	@echo "  3. 모든 이미지 로드 (DB + Backend + Frontend)"
 	@echo ""
 	@echo "※ 이 환경은 모든 컴포넌트가 클러스터 내부에서 실행됩니다."
@@ -342,8 +342,8 @@ kind-localhost-setup: ## 🏠 통합 환경: 클러스터 생성 → 모든 이�
 	@echo ""
 	@# istioctl 확인 및 설치
 	@if ! command -v istioctl >/dev/null 2>&1; then \
-		if [ -f "./istio-1.24.0/bin/istioctl" ]; then \
-			echo "✅ istioctl: 로컬 설치됨 (./istio-1.24.0/bin/istioctl)"; \
+		if [ -f "./istio-1.28.2/bin/istioctl" ]; then \
+			echo "✅ istioctl: 로컬 설치됨 (./istio-1.28.2/bin/istioctl)"; \
 		else \
 			echo "❌ istioctl: 미설치"; \
 			echo ""; \
@@ -352,7 +352,7 @@ kind-localhost-setup: ## 🏠 통합 환경: 클러스터 생성 → 모든 이�
 			if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
 				echo ""; \
 				echo "istioctl 설치 중..."; \
-				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.24.0 sh -; \
+				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.28.2 sh -; \
 				echo ""; \
 				echo "✅ istioctl 설치 완료!"; \
 			else \
@@ -416,7 +416,7 @@ kind-dev-setup-legacy: ## [Legacy] 개발 환경 (argo.mk의 kind-dev-setup 사�
 	@echo "  1. 필수 도구 확인 (kubectl, kind, helm, istioctl, aws)"
 	@echo "  2. Secrets 파일 확인/생성"
 	@echo "  3. AWS 로그인 확인"
-	@echo "  4. Kind 클러스터 생성 + Istio Ambient + ECR Secret"
+	@echo "  4. Kind 클러스터 생성 + Istio Sidecar + ECR Secret"
 	@echo "  5. 외부 DB 확인 + 연결 테스트 (172.18.0.1)"
 	@echo "  6. 인프라 이미지 로드"
 	@echo "  7. ECR 서비스 이미지 확인"
@@ -510,8 +510,8 @@ kind-dev-setup-legacy: ## [Legacy] 개발 환경 (argo.mk의 kind-dev-setup 사�
 	@echo ""
 	@# istioctl 확인 및 설치
 	@if ! command -v istioctl >/dev/null 2>&1; then \
-		if [ -f "./istio-1.24.0/bin/istioctl" ]; then \
-			echo "✅ istioctl: 로컬 설치됨 (./istio-1.24.0/bin/istioctl)"; \
+		if [ -f "./istio-1.28.2/bin/istioctl" ]; then \
+			echo "✅ istioctl: 로컬 설치됨 (./istio-1.28.2/bin/istioctl)"; \
 		else \
 			echo "❌ istioctl: 미설치"; \
 			echo ""; \
@@ -520,7 +520,7 @@ kind-dev-setup-legacy: ## [Legacy] 개발 환경 (argo.mk의 kind-dev-setup 사�
 			if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
 				echo ""; \
 				echo "istioctl 설치 중..."; \
-				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.24.0 sh -; \
+				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.28.2 sh -; \
 				echo ""; \
 				echo "✅ istioctl 설치 완료!"; \
 			else \
@@ -988,7 +988,7 @@ kind-dev-setup-legacy: ## [Legacy] 개발 환경 (argo.mk의 kind-dev-setup 사�
 	@echo "=============================================="
 	@echo ""
 	@echo "  ✅ 설치 완료:"
-	@echo "    - Kind 클러스터 + Istio Ambient"
+	@echo "    - Kind 클러스터 + Istio Sidecar"
 	@echo "    - ECR Secret (ecr-secret)"
 	@echo "    - dev.yaml AWS Account ID 자동 설정 완료"
 	@echo "    - Kiali, Jaeger (Istio 관측성)"
@@ -1036,8 +1036,8 @@ kind-dev-setup-legacy: ## [Legacy] 개발 환경 (argo.mk의 kind-dev-setup 사�
 # 개별 설정 명령어
 # =============================================================================
 
-kind-setup: ## 클러스터 생성 + Istio Ambient (ENV에 따라 스크립트 선택)
-	@echo "=== Kind 클러스터 + Istio Ambient 생성 (ENV=$(ENV)) ==="
+kind-setup: ## 클러스터 생성 + Istio Sidecar (ENV에 따라 스크립트 선택)
+	@echo "=== Kind 클러스터 + Istio Sidecar 생성 (ENV=$(ENV)) ==="
 	@echo ""
 ifeq ($(ENV),localhost)
 	./k8s/helm/scripts/localhost/0.setup-cluster.sh
@@ -1353,7 +1353,7 @@ kind-info: ## 클러스터 배포 정보 (Git 레포/브랜치/배포자) 확인
 		DEPLOYED_BY=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.annotations.wealist\.io/deployed-by}' 2>/dev/null); \
 		DEPLOYED_BY_EMAIL=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.annotations.wealist\.io/deployed-by-email}' 2>/dev/null); \
 		DEPLOY_TIME=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.annotations.wealist\.io/deploy-time}' 2>/dev/null); \
-		ISTIO_MODE=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.labels.istio\.io/dataplane-mode}' 2>/dev/null); \
+		ISTIO_MODE=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.labels.istio-injection}' 2>/dev/null); \
 		echo "  📦 Git Repository"; \
 		echo "    - Repo:     https://github.com/$${GIT_REPO:-unknown}"; \
 		echo "    - Branch:   $${GIT_BRANCH:-unknown}"; \

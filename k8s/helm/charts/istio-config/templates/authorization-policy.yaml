@@ -38,25 +38,6 @@ spec:
         principals:
         - "cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"
 
-{{- if .Values.ambient.enabled }}
-# Allow traffic from Waypoint Proxy (L4 - required for mesh traffic flow)
----
-apiVersion: security.istio.io/v1
-kind: AuthorizationPolicy
-metadata:
-  name: allow-from-waypoint
-  namespace: {{ $namespace }}
-  labels:
-    {{- include "istio-config.labels" . | nindent 4 }}
-spec:
-  action: ALLOW
-  rules:
-  - from:
-    - source:
-        principals:
-        - "cluster.local/ns/{{ $namespace }}/sa/{{ .Values.ambient.waypoint.name }}"
-{{- end }}
-
 # Health check policy - allow Kubernetes probes (kubelet doesn't have SPIFFE identity)
 ---
 apiVersion: security.istio.io/v1
@@ -112,7 +93,8 @@ spec:
 
 {{- if and .Values.serviceAuthorization .Values.serviceAuthorization.enabled }}
 # ============================================================================
-# L7 Policies (Waypoint level via targetRef) - Fine-grained service-to-service control
+# Service-to-Service Authorization Policies (Sidecar Mode)
+# Uses 'selector' to apply policy directly to pod's sidecar
 # ============================================================================
 {{- range $serviceName, $serviceConfig := .Values.serviceAuthorization.rules }}
 {{- if $serviceConfig.allowedCallers }}
@@ -120,17 +102,16 @@ spec:
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
-  name: {{ $serviceName }}-l7-policy
+  name: {{ $serviceName }}-authz-policy
   namespace: {{ $namespace }}
   labels:
     {{- include "istio-config.labels" $ | nindent 4 }}
   annotations:
-    description: "L7 service-to-service access control for {{ $serviceName }} (Waypoint)"
+    description: "Service-to-service access control for {{ $serviceName }} (Sidecar)"
 spec:
-  targetRef:
-    kind: Service
-    group: ""
-    name: {{ $serviceName }}
+  selector:
+    matchLabels:
+      app: {{ $serviceName }}
   action: ALLOW
   rules:
   # Allow from external (Gateway handles external traffic)

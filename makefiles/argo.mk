@@ -443,7 +443,7 @@ verify-secrets: ## Secrets 확인 (ESO 동기화 상태)
 # ============================================
 # 로컬 개발 (Kind + Registry) - ArgoCD용
 # ============================================
-# NOTE: kind-setup은 kind.mk에서 정의됨 (Istio Ambient + 로컬 레지스트리)
+# NOTE: kind-setup은 kind.mk에서 정의됨 (Istio Sidecar + 로컬 레지스트리)
 # 아래는 ECR 직접 연결이 필요한 ArgoCD 환경용
 
 setup-local-argocd: ## [ArgoCD] 로컬 개발 환경 전체 설정 (ECR + Bootstrap)

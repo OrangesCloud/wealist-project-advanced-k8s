@@ -68,8 +68,9 @@ make kind-dev-setup
 ```
 
 **수행 내용:**
-1. Kind 클러스터 생성 (3노드: control-plane + worker x2)
-2. Istio Ambient 모드 설치
+
+1. Kind 클러스터 생성 (3노드)
+2. Istio Sidecar 모드 설치
 3. Gateway API + HTTPRoute 설정
 4. **PostgreSQL/Redis 클러스터 내부 배포** (hostPath로 데이터 영속화)
 5. ArgoCD 설치
