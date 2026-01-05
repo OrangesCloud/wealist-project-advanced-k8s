@@ -21,6 +21,8 @@ global:
   imageRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
   # EKS Pod Identity 사용 - imagePullSecrets 불필요
 imagePullSecrets: []
+podLabels:
+    stage: prod
 
 # -----------------------------------------------------------------------------
 # Init Container - Secret 대기 설정
