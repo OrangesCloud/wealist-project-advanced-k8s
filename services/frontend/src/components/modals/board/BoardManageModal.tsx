@@ -26,7 +26,7 @@ import {
 } from '../../../api/boardService';
 import { getWorkspaceMembers } from '../../../api/userService';
 import { WorkspaceMemberResponse } from '../../../types/user';
-import { AvatarStack } from '../../common/AvartarStack';
+import { AvatarStack, MemberAvatar } from '../../common/AvartarStack';
 import Portal from '../../common/Portal';
 import { useFileUpload } from '../../../hooks/useFileUpload';
 
@@ -459,9 +459,7 @@ export const BoardManageModal: React.FC<BoardManageModalProps> = ({
                       <span className="flex items-center gap-2 truncate">
                         {currentAssignee ? (
                           <>
-                            <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
-                              {currentAssignee.nickName?.[0] || currentAssignee.userEmail?.[0] || '?'}
-                            </div>
+                            <MemberAvatar member={currentAssignee} index={0} size="sm" />
                             {currentAssignee.nickName || currentAssignee.userEmail || 'Unknown'}
                           </>
                         ) : (
@@ -482,7 +480,7 @@ export const BoardManageModal: React.FC<BoardManageModalProps> = ({
                         >
                           <X className="w-4 h-4" /> 할당 해제
                         </button>
-                        {workspaceMembers.map((m) => (
+                        {workspaceMembers.map((m, idx) => (
                           <button
                             key={m.userId}
                             type="button"
@@ -494,9 +492,7 @@ export const BoardManageModal: React.FC<BoardManageModalProps> = ({
                               selectedAssigneeId === m.userId ? 'bg-blue-50 text-blue-700' : ''
                             }`}
                           >
-                            <div className="w-5 h-5 rounded-full bg-gray-300 text-white flex items-center justify-center text-xs font-bold">
-                              {m.nickName?.[0] || m.userEmail?.[0] || '?'}
-                            </div>
+                            <MemberAvatar member={m} index={idx} size="sm" />
                             {m.nickName || m.userEmail || 'Unknown'}
                           </button>
                         ))}
@@ -534,7 +530,7 @@ export const BoardManageModal: React.FC<BoardManageModalProps> = ({
                     </button>
                     {showParticipantDropdown && (
                       <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto p-1">
-                        {workspaceMembers.map((m) => (
+                        {workspaceMembers.map((m, idx) => (
                           <button
                             key={m.userId}
                             type="button"
@@ -549,9 +545,7 @@ export const BoardManageModal: React.FC<BoardManageModalProps> = ({
                             }`}
                           >
                             <div className="flex items-center gap-2">
-                              <div className="w-5 h-5 rounded-full bg-gray-300 text-white flex items-center justify-center text-xs font-bold">
-                                {m.nickName?.[0] || m.userEmail?.[0] || '?'}
-                              </div>
+                              <MemberAvatar member={m} index={idx} size="sm" />
                               {m.nickName || m.userEmail || 'Unknown'}
                             </div>
                             {selectedParticipantIds.includes(m.userId) && (
