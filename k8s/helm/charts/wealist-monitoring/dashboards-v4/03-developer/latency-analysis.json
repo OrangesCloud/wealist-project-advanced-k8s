@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "Latency Analysis Dashboard - Deep dive into response times (Istio Ambient compatible)",
+  "description": "Latency Analysis Dashboard - Deep dive into response times using OTEL Span Metrics",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -24,7 +24,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 100,
       "panels": [],
-      "title": "Latency Summary",
+      "title": "📊 Latency Summary",
       "type": "row"
     },
     {
@@ -59,7 +59,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.50, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
+          "expr": "histogram_quantile(0.50, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -99,7 +99,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.90, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
+          "expr": "histogram_quantile(0.90, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -139,7 +139,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
+          "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -179,7 +179,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.99, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
+          "expr": "histogram_quantile(0.99, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -219,7 +219,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.999, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
+          "expr": "histogram_quantile(0.999, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -252,7 +252,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "(sum(rate({__name__=~\".*_service_http_request_duration_seconds_sum\", namespace=~\"$namespace\"}[5m])) / sum(rate({__name__=~\".*_service_http_request_duration_seconds_count\", namespace=~\"$namespace\"}[5m]))) * 1000",
+          "expr": "sum(rate(traces_spanmetrics_latency_sum{span_kind=\"SPAN_KIND_SERVER\"}[5m])) / sum(rate(traces_spanmetrics_latency_count{span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -265,7 +265,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
       "id": 101,
       "panels": [],
-      "title": "Latency Heatmap",
+      "title": "🔥 Latency Heatmap",
       "type": "row"
     },
     {
@@ -299,13 +299,13 @@
         "legend": { "show": true },
         "rowsFrame": { "layout": "auto" },
         "tooltip": { "show": true, "yHistogram": true },
-        "yAxis": { "axisPlacement": "left", "reverse": false, "unit": "s" }
+        "yAxis": { "axisPlacement": "left", "reverse": false, "unit": "ms" }
       },
       "pluginVersion": "10.2.0",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[1m])) by (le)",
+          "expr": "sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[1m])) by (le)",
           "format": "heatmap",
           "legendFormat": "{{le}}",
           "refId": "A"
@@ -319,7 +319,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
       "id": 102,
       "panels": [],
-      "title": "Latency Percentiles Over Time",
+      "title": "📈 Latency Percentiles Over Time",
       "type": "row"
     },
     {
@@ -376,25 +376,25 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.50, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
+          "expr": "histogram_quantile(0.50, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le))",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.90, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
+          "expr": "histogram_quantile(0.90, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le))",
           "legendFormat": "p90",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
+          "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le))",
           "legendFormat": "p95",
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.99, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
+          "expr": "histogram_quantile(0.99, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le))",
           "legendFormat": "p99",
           "refId": "D"
         }
@@ -407,11 +407,12 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
       "id": 103,
       "panels": [],
-      "title": "Latency by Service",
+      "title": "🎯 Latency by Service",
       "type": "row"
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "p95 latency for each service - grouped automatically by service_name",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -459,39 +460,9 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate(board_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "board-service",
+          "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le, service_name))",
+          "legendFormat": "{{service_name}}",
           "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate(user_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "user-service",
-          "refId": "B"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate(chat_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "chat-service",
-          "refId": "C"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate(noti_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "noti-service",
-          "refId": "D"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate(storage_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "storage-service",
-          "refId": "E"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate(video_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "video-service",
-          "refId": "F"
         }
       ],
       "title": "p95 Latency by Service",
@@ -499,6 +470,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "description": "p99 latency for each service - grouped automatically by service_name",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -546,39 +518,9 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.99, sum(rate(board_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "board-service",
+          "expr": "histogram_quantile(0.99, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le, service_name))",
+          "legendFormat": "{{service_name}}",
           "refId": "A"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.99, sum(rate(user_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "user-service",
-          "refId": "B"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.99, sum(rate(chat_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "chat-service",
-          "refId": "C"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.99, sum(rate(noti_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "noti-service",
-          "refId": "D"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.99, sum(rate(storage_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "storage-service",
-          "refId": "E"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.99, sum(rate(video_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "video-service",
-          "refId": "F"
         }
       ],
       "title": "p99 Latency by Service",
@@ -589,7 +531,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
       "id": 104,
       "panels": [],
-      "title": "Latency Comparison",
+      "title": "⏰ Latency Comparison",
       "type": "row"
     },
     {
@@ -637,19 +579,19 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
+          "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le))",
           "legendFormat": "Current p95",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m] offset 1d)) by (le)) * 1000",
+          "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m] offset 1d)) by (le))",
           "legendFormat": "Previous Day p95",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate({__name__=~\".*_service_http_request_duration_seconds_bucket\", namespace=~\"$namespace\"}[5m] offset 7d)) by (le)) * 1000",
+          "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_latency_bucket{span_kind=\"SPAN_KIND_SERVER\"}[5m] offset 7d)) by (le))",
           "legendFormat": "Previous Week p95",
           "refId": "C"
         }
@@ -660,7 +602,7 @@
   ],
   "refresh": "30s",
   "schemaVersion": 38,
-  "tags": ["wealist", "latency", "performance", "v2", "sidecar-compatible"],
+  "tags": ["wealist", "latency", "performance", "v3", "otel"],
   "templating": {
     "list": [
       {
@@ -676,31 +618,14 @@
         "regex": "",
         "skipUrlSync": false,
         "type": "datasource"
-      },
-      {
-        "current": {},
-        "datasource": { "type": "prometheus", "uid": "${datasource}" },
-        "definition": "label_values(kube_pod_info, namespace)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Namespace",
-        "multi": false,
-        "name": "namespace",
-        "options": [],
-        "query": { "query": "label_values(kube_pod_info, namespace)", "refId": "StandardVariableQuery" },
-        "refresh": 2,
-        "regex": "wealist.*",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
       }
     ]
   },
   "time": { "from": "now-3h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Latency Analysis (v2)",
-  "uid": "latency-analysis-v2",
+  "title": "Latency Analysis (v3)",
+  "uid": "latency-analysis-v3",
   "version": 1,
   "weekStart": ""
 }
