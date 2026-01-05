@@ -75,10 +75,18 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("*"));
+        // allowCredentials: true 사용 시 origin에 "*" 사용 불가
+        // allowedOriginPatterns로 패턴 매칭 사용
+        configuration.setAllowedOriginPatterns(List.of(
+            "http://localhost:*",           // 로컬 개발
+            "https://wealist.co.kr",        // Production
+            "https://www.wealist.co.kr",    // Production (www)
+            "https://dev.wealist.co.kr",    // Dev 환경
+            "https://*.wealist.co.kr"       // 서브도메인 전체
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(false);
+        configuration.setAllowCredentials(true);  // credentials 허용 (axios withCredentials: true)
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

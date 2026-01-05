@@ -54,6 +54,40 @@ const getApiBaseUrl = (path: string): string => {
   //     axios.get('/api/workspaces/all') → '/api/svc/user/api/workspaces/all'
   if (isIngressMode) {
     const hostname = window.location.hostname;
+
+    // ============================================================================
+    // 💡 Production/Dev 환경: API 도메인으로 직접 요청
+    // CloudFront에는 API behavior가 없으므로 api.{env}.wealist.co.kr로 직접 요청해야 함
+    // ============================================================================
+    if (hostname === 'wealist.co.kr' || hostname === 'www.wealist.co.kr') {
+      const apiDomain = window.__ENV__?.API_DOMAIN || 'api.wealist.co.kr';
+      const prodBaseUrl = `https://${apiDomain}`;
+      if (path?.includes('/api/auth')) return `${prodBaseUrl}/api/svc/auth`;
+      if (path?.includes('/api/users')) return `${prodBaseUrl}/api/svc/user`;
+      if (path?.includes('/api/workspaces')) return `${prodBaseUrl}/api/svc/user`;
+      if (path?.includes('/api/profiles')) return `${prodBaseUrl}/api/svc/user`;
+      if (path?.includes('/api/boards')) return `${prodBaseUrl}/api/svc/board/api`;
+      if (path?.includes('/api/chats')) return `${prodBaseUrl}/api/svc/chat/api/chats`;
+      if (path?.includes('/api/notifications')) return `${prodBaseUrl}/api/svc/noti`;
+      if (path?.includes('/api/storage')) return `${prodBaseUrl}/api/svc/storage`;
+      return prodBaseUrl;
+    }
+
+    // Dev 환경 (dev.wealist.co.kr): api.dev.wealist.co.kr로 직접 요청
+    if (hostname === 'dev.wealist.co.kr') {
+      const apiDomain = window.__ENV__?.API_DOMAIN || 'api.dev.wealist.co.kr';
+      const devBaseUrl = `https://${apiDomain}`;
+      if (path?.includes('/api/auth')) return `${devBaseUrl}/api/svc/auth`;
+      if (path?.includes('/api/users')) return `${devBaseUrl}/api/svc/user`;
+      if (path?.includes('/api/workspaces')) return `${devBaseUrl}/api/svc/user`;
+      if (path?.includes('/api/profiles')) return `${devBaseUrl}/api/svc/user`;
+      if (path?.includes('/api/boards')) return `${devBaseUrl}/api/svc/board/api`;
+      if (path?.includes('/api/chats')) return `${devBaseUrl}/api/svc/chat/api/chats`;
+      if (path?.includes('/api/notifications')) return `${devBaseUrl}/api/svc/noti`;
+      if (path?.includes('/api/storage')) return `${devBaseUrl}/api/svc/storage`;
+      return devBaseUrl;
+    }
+
     // Kind 로컬 개발 환경 (localhost): Istio Gateway 사용
     // /svc/{service}/* 경로로 라우팅 (프론트엔드와 동일한 포트 사용)
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
@@ -71,7 +105,6 @@ const getApiBaseUrl = (path: string): string => {
       if (path?.includes('/api/chats')) return `${localBaseUrl}/api/svc/chat/api/chats`; // chat: 프론트가 /my만 호출 (basePath 필요)
       if (path?.includes('/api/notifications')) return `${localBaseUrl}/api/svc/noti`;  // noti: 프론트가 /api/notifications 포함
       if (path?.includes('/api/storage')) return `${localBaseUrl}/api/svc/storage`;     // storage: 프론트가 /api/storage 포함
-      if (path?.includes('/api/video')) return `${localBaseUrl}/api/svc/video`;         // video: 프론트가 /api/video 포함
       return localBaseUrl;
     }
     return getIngressServicePrefix(path);

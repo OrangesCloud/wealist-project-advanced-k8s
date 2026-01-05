@@ -67,7 +67,8 @@ spec:
   #       uriRegexRewrite로 prefix만 제거: /api/svc/auth/foo → /foo (정상)
   # ==========================================================================
   # Auth Service
-  - match:
+  - name: auth-service-primary
+    match:
     - uri:
         prefix: /api/svc/auth
     rewrite:
@@ -101,7 +102,8 @@ spec:
       retryOn: "5xx,reset,connect-failure"
 
   # User Service
-  - match:
+  - name: user-service-primary
+    match:
     - uri:
         prefix: /api/svc/user
     rewrite:
@@ -135,7 +137,8 @@ spec:
       retryOn: "5xx,reset,connect-failure"
 
   # Board Service (WebSocket support - no retries)
-  - match:
+  - name: board-service-primary
+    match:
     - uri:
         prefix: /api/svc/board
     rewrite:
@@ -165,7 +168,8 @@ spec:
     # WebSocket: disable timeout (Istio 1.28+ requires omitting timeout field)
 
   # Chat Service (WebSocket support - no retries)
-  - match:
+  - name: chat-service-primary
+    match:
     - uri:
         prefix: /api/svc/chat
     rewrite:
@@ -195,7 +199,8 @@ spec:
     # WebSocket: disable timeout (Istio 1.28+ requires omitting timeout field)
 
   # Noti Service (SSE support - long timeout)
-  - match:
+  - name: noti-service-primary
+    match:
     - uri:
         prefix: /api/svc/noti
     rewrite:
@@ -225,7 +230,8 @@ spec:
     # SSE: disable timeout (Istio 1.28+ requires omitting timeout field)
 
   # Storage Service
-  - match:
+  - name: storage-service-primary
+    match:
     - uri:
         prefix: /api/svc/storage
     rewrite:
