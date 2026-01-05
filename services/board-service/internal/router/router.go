@@ -31,6 +31,7 @@ type Config struct {
 	AuthServiceURL     string // auth-service URL for SmartValidator
 	JWTIssuer          string // JWT issuer for JWKS validation
 	UserClient         client.UserClient
+	NotiClient         client.NotiClient // Notification service client
 	BasePath           string
 	UserServiceBaseURL string
 	Metrics            *metrics.Metrics
@@ -102,7 +103,7 @@ func Setup(cfg Config) *gin.Engine {
 
 	// Initialize handlers with service dependencies
 	projectHandler := handler.NewProjectHandler(projectService)
-	boardHandler := handler.NewBoardHandler(boardService)
+	boardHandler := handler.NewBoardHandler(boardService, cfg.NotiClient)
 	participantHandler := handler.NewParticipantHandler(participantService)
 	commentHandler := handler.NewCommentHandler(commentService)
 	fieldOptionHandler := handler.NewFieldOptionHandler(fieldOptionService)
