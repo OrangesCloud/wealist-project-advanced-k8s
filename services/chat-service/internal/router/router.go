@@ -117,6 +117,20 @@ func Setup(routerCfg RouterConfig) *gin.Engine {
 	// Initialize WebSocket hub
 	wsHub := websocket.NewHub(chatService, presenceService, wsValidator, redisClient, logger)
 
+	// Initialize S3 client (optional, for file uploads)
+	var fileHandler *handler.FileHandler
+	if cfg.S3.Bucket != "" && cfg.S3.Region != "" {
+		s3Client, err := client.NewS3Client(&cfg.S3)
+		if err != nil {
+			logger.Warn("Failed to initialize S3 client, file upload will be disabled", zap.Error(err))
+		} else {
+			fileHandler = handler.NewFileHandler(s3Client, logger)
+			logger.Info("S3 client initialized for file uploads")
+		}
+	} else {
+		logger.Warn("S3 configuration not provided, file upload will be disabled")
+	}
+
 	// Initialize handlers
 	chatHandler := handler.NewChatHandler(chatService, presenceService, logger)
 	messageHandler := handler.NewMessageHandler(chatService, logger)
@@ -164,6 +178,11 @@ func Setup(routerCfg RouterConfig) *gin.Engine {
 			// Presence routes
 			authenticated.GET("/presence/online", presenceHandler.GetOnlineUsers)
 			authenticated.GET("/presence/status/:userId", presenceHandler.GetUserStatus)
+
+			// File upload routes (only if S3 is configured)
+			if fileHandler != nil {
+				authenticated.POST("/files/presigned-url", fileHandler.GeneratePresignedURL)
+			}
 		}
 	}
 
