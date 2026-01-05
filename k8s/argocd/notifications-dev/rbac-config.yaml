@@ -1,0 +1,59 @@
+# =============================================================================
+# ArgoCD RBAC ConfigMap
+# =============================================================================
+# Google OAuth로 로그인한 사용자의 권한을 정의
+#
+# 현재 설정:
+#   - 기본 권한: readonly (모든 사용자)
+#   - admin 권한: 필요 시 이메일 추가
+#
+# 권한 추가 방법:
+#   g, your-email@gmail.com, role:admin
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # -------------------------------------------------------------------------
+  # 기본 정책: 읽기 전용
+  # -------------------------------------------------------------------------
+  policy.default: role:readonly
+
+  # -------------------------------------------------------------------------
+  # RBAC 정책 정의
+  # -------------------------------------------------------------------------
+  policy.csv: |
+    # ===========================================================================
+    # 읽기 전용 역할 (기본)
+    # ===========================================================================
+    # 모든 로그인 사용자에게 적용
+    p, role:readonly, applications, get, */*, allow
+    p, role:readonly, applications, list, */*, allow
+    p, role:readonly, clusters, get, *, allow
+    p, role:readonly, repositories, get, *, allow
+    p, role:readonly, projects, get, *, allow
+    p, role:readonly, logs, get, */*, allow
+
+    # ===========================================================================
+    # 관리자 역할 (sync, delete 가능)
+    # ===========================================================================
+    p, role:admin, applications, *, */*, allow
+    p, role:admin, clusters, *, *, allow
+    p, role:admin, repositories, *, *, allow
+    p, role:admin, projects, *, *, allow
+    p, role:admin, accounts, *, *, allow
+    p, role:admin, gpgkeys, *, *, allow
+
+    # ===========================================================================
+    # 관리자 이메일 목록
+    # ===========================================================================
+    # 형식: g, email@example.com, role:admin
+    g, chamchi0129@gmail.com, role:admin
+    g, ressk4149@gmail.com, role:admin
+    g, fbaudwo144@gmail.com, role:admin
+    g, 212clab@gmail.com, role:admin
