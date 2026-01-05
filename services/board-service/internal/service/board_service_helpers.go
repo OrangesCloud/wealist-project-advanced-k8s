@@ -41,6 +41,11 @@ func (s *boardServiceImpl) convertBoardCustomFieldsToValues(ctx context.Context,
 
 // toBoardResponse converts domain.Board to dto.BoardResponse
 func (s *boardServiceImpl) toBoardResponse(board *domain.Board) *dto.BoardResponse {
+	return s.toBoardResponseWithWorkspace(context.Background(), board)
+}
+
+// toBoardResponseWithWorkspace converts domain.Board to dto.BoardResponse with context for workspace lookup
+func (s *boardServiceImpl) toBoardResponseWithWorkspace(ctx context.Context, board *domain.Board) *dto.BoardResponse {
 	// Convert datatypes.JSON to map[string]interface{}
 	var customFields map[string]interface{}
 	if len(board.CustomFields) > 0 {
@@ -70,9 +75,23 @@ func (s *boardServiceImpl) toBoardResponse(board *domain.Board) *dto.BoardRespon
 		})
 	}
 
+	// Get WorkspaceID from project
+	var workspaceID uuid.UUID
+	if board.Project.ID != uuid.Nil {
+		// Project was preloaded
+		workspaceID = board.Project.WorkspaceID
+	} else {
+		// Fetch project to get WorkspaceID
+		project, err := s.projectRepo.FindByID(ctx, board.ProjectID)
+		if err == nil && project != nil {
+			workspaceID = project.WorkspaceID
+		}
+	}
+
 	return &dto.BoardResponse{
 		ID:             board.ID,
 		ProjectID:      board.ProjectID,
+		WorkspaceID:    workspaceID,
 		AuthorID:       board.AuthorID,
 		AssigneeID:     board.AssigneeID,
 		Title:          board.Title,
@@ -88,7 +107,7 @@ func (s *boardServiceImpl) toBoardResponse(board *domain.Board) *dto.BoardRespon
 }
 
 // toBoardDetailResponse converts domain.Board to dto.BoardDetailResponse
-func (s *boardServiceImpl) toBoardDetailResponse(board *domain.Board) *dto.BoardDetailResponse {
+func (s *boardServiceImpl) toBoardDetailResponse(ctx context.Context, board *domain.Board) *dto.BoardDetailResponse {
 	// Convert participants
 	participants := make([]dto.ParticipantResponse, len(board.Participants))
 	for i, p := range board.Participants {
@@ -114,7 +133,7 @@ func (s *boardServiceImpl) toBoardDetailResponse(board *domain.Board) *dto.Board
 	}
 
 	return &dto.BoardDetailResponse{
-		BoardResponse: *s.toBoardResponse(board),
+		BoardResponse: *s.toBoardResponseWithWorkspace(ctx, board),
 		Participants:  participants,
 		Comments:      comments,
 	}

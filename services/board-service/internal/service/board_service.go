@@ -222,7 +222,7 @@ func (s *boardServiceImpl) CreateBoard(ctx context.Context, req *dto.CreateBoard
 	board.Attachments = toDomainAttachments(createdAttachments)
 
 	// Convert to response DTO
-	return s.toBoardResponse(board), nil
+	return s.toBoardResponseWithWorkspace(ctx, board), nil
 }
 
 // GetBoard retrieves a board by ID with participants and comments
@@ -258,7 +258,7 @@ func (s *boardServiceImpl) GetBoard(ctx context.Context, boardID uuid.UUID) (*dt
 	log.Debug("GetBoard completed", zap.String("board.id", boardID.String()))
 
 	// Convert to detailed response DTO
-	return s.toBoardDetailResponse(board), nil
+	return s.toBoardDetailResponse(ctx, board), nil
 }
 
 // GetBoardsByProject retrieves all boards for a project with optional filters
@@ -312,7 +312,7 @@ func (s *boardServiceImpl) GetBoardsByProject(ctx context.Context, projectID uui
 	// Convert to response DTOs
 	responses := make([]*dto.BoardResponse, len(boards))
 	for i, board := range boards {
-		responses[i] = s.toBoardResponse(board)
+		responses[i] = s.toBoardResponseWithWorkspace(ctx, board)
 	}
 
 	return responses, nil

@@ -434,11 +434,20 @@ redisExporter:
 # =============================================================================
 # Dev: 모든 서비스가 공통 DB 사용 (wealist)
 # 호스트 PostgreSQL에 wealist DB가 있어야 함
+
+# -----------------------------------------------------------------------------
+# Multi-pod Replica Configuration (JWT stateless 테스트용)
+# -----------------------------------------------------------------------------
+auth-service:
+  replicaCount: 2
+
 board-service:
+  replicaCount: 2
   config:
     DB_NAME: "wealist"
 
 user-service:
+  replicaCount: 2
   config:
     DB_NAME: "wealist"
 
