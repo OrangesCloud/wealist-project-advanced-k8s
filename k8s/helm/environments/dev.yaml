@@ -353,6 +353,13 @@ prometheus:
   config:
     externalUrl: "https://dev.wealist.co.kr/api/monitoring/prometheus"
     routePrefix: "/api/monitoring/prometheus"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 1Gi  # WAL 로드 시 OOMKilled 방지
   persistence:
     enabled: true
     hostPath:
