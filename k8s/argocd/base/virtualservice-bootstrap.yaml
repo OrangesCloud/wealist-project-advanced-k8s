@@ -6,6 +6,11 @@
 #
 # NOTE: hosts에 "*"와 specific host를 함께 사용하면 Istio validation error 발생
 #       "duplicate hosts in virtual service" 에러 방지를 위해 "*"만 사용
+#
+# ArgoCD 설정:
+#   - server.rootpath=/api/argo
+#   - server.basehref=/api/argo
+#   - /api/argo/* → argocd-server의 /*로 매핑
 apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
@@ -20,11 +25,14 @@ spec:
   gateways:
     - istio-system/istio-ingressgateway
   http:
+    # /api/argo/* → argocd-server/*
     - match:
         - uri:
             prefix: /api/argo
       rewrite:
-        uri: /
+        uriRegexRewrite:
+          match: "^/api/argo(.*)$"
+          rewrite: '\1'
       route:
         - destination:
             host: argocd-server.argocd.svc.cluster.local
