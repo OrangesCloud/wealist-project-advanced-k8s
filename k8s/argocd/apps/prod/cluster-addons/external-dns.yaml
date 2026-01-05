@@ -1,7 +1,8 @@
 # =============================================================================
 # External DNS (sync-wave: -1)
 # =============================================================================
-# Route53 자동 업데이트: Gateway API 리소스의 annotation 기반으로 DNS 레코드 관리
+# Route53 자동 업데이트: Service annotation 기반으로 DNS 레코드 관리
+# - istio-ingressgateway Service의 external-dns.alpha.kubernetes.io/hostname 사용
 # =============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -31,14 +32,9 @@ spec:
         sources:
           - service
           - ingress
-          - gateway-httproute
         serviceAccount:
           create: true
           name: external-dns
-        # Gateway API 지원
-        extraArgs:
-          - "--gateway-namespace=istio-system"
-          - "--gateway-label-filter=gateway.networking.k8s.io/gateway-name=istio-ingressgateway"
   destination:
     server: https://kubernetes.default.svc
     namespace: external-dns

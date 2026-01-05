@@ -52,9 +52,6 @@ services:
       - STORAGE_DB_NAME=${STORAGE_DB_NAME}
       - STORAGE_DB_USER=${STORAGE_DB_USER}
       - STORAGE_DB_PASSWORD=${STORAGE_DB_PASSWORD}
-      - VIDEO_DB_NAME=${VIDEO_DB_NAME}
-      - VIDEO_DB_USER=${VIDEO_DB_USER}
-      - VIDEO_DB_PASSWORD=${VIDEO_DB_PASSWORD}
       - PGDATA=/var/lib/postgresql/data/pgdata
 
     volumes:
@@ -599,90 +596,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Video Service (Go) - Video Call Room Management
-  video-service:
-    build:
-      context: ../..
-      dockerfile: services/video-service/docker/Dockerfile
-    image: wealist/video-service:${VERSION:-latest}
-    container_name: wealist-video-service
-    hostname: video-service
-    env_file:
-      - ../env/.env.dev
-    ports:
-      - "${VIDEO_HOST_PORT:-8004}:8004"
-
-    environment:
-      # Server Configuration
-      - ENV=dev
-      - PORT=8004
-      - SERVER_BASE_PATH=/api/video
-      - LOG_LEVEL=debug
-      - DB_AUTO_MIGRATE=true
-
-      # Database Configuration
-      - DATABASE_URL=postgresql://${VIDEO_DB_USER}:${VIDEO_DB_PASSWORD}@postgres:5432/${VIDEO_DB_NAME}?sslmode=disable
-
-      # Redis Configuration
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-
-      # Auth Service
-      - AUTH_SERVICE_URL=http://auth-service:8080
-      - SECRET_KEY=${JWT_SECRET}
-
-      # User Service (base path for workspace validation)
-      - USER_SERVICE_URL=http://user-service:8081
-
-      # CORS Configuration
-      - CORS_ORIGINS=${CORS_ORIGINS}
-
-      # LiveKit Configuration
-      - LIVEKIT_HOST=http://livekit:7880
-      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
-      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
-      - LIVEKIT_WS_URL=${LIVEKIT_WS_URL:-ws://localhost:7880}
-
-    networks:
-      - frontend-net
-      - backend-net
-      - database-net
-
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      livekit:
-        condition: service_started
-      user-service:
-        condition: service_started
-
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "-O",
-          "/dev/null",
-          "http://localhost:8004/health",
-        ]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
-
-    restart: unless-stopped
-
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   # Auth Service (Spring Boot) - 토큰 관리 전용 (빌드가 느려서 마지막에 배치)
   auth-service:
     build:
@@ -831,7 +744,6 @@ services:
       - chat-service
       - noti-service
       - storage-service
-      - video-service
 
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]

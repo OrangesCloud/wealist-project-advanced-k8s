@@ -18,12 +18,15 @@ spec:
     # Cluster Addons Helm Repos
     - "https://aws.github.io/eks-charts"
     - "https://charts.external-secrets.io"
-    - "https://charts.jetstack.io"
     - "https://kubernetes.github.io/autoscaler"
     - "https://kubernetes-sigs.github.io/external-dns"
     - "https://kubernetes-sigs.github.io/metrics-server"
+    # Istio Service Mesh
+    - "https://istio-release.storage.googleapis.com/charts"
     # LiveKit WebRTC SFU Server
     - "https://helm.livekit.io"
+    # Argo Rollouts (Progressive Delivery)
+    - "https://argoproj.github.io/argo-helm"
 
   # 허용된 배포 대상
   destinations:
@@ -33,13 +36,13 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: external-secrets
       server: https://kubernetes.default.svc
-    - namespace: cert-manager
-      server: https://kubernetes.default.svc
     - namespace: external-dns
       server: https://kubernetes.default.svc
     - namespace: kube-system
       server: https://kubernetes.default.svc
     - namespace: istio-system
+      server: https://kubernetes.default.svc
+    - namespace: argo-rollouts
       server: https://kubernetes.default.svc
 
   # 클러스터 레벨 리소스 허용 (External Secrets, CRDs, RBAC 등)

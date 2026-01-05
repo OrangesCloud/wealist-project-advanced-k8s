@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/user-service"
         - name: image.tag
-          value: "67-84bad8f"
+          value: "93-5e92cda"
         - name: externalSecrets.enabled
           value: "true"
         # Service-specific config (managed here, not in prod.yaml)
@@ -36,6 +36,9 @@ spec:
         # 고가용성: 핵심 사용자 서비스는 minReplicas: 2 유지
         - name: autoscaling.minReplicas
           value: "2"
+        # Canary deployment with Argo Rollouts
+        - name: rollout.enabled
+          value: "true"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-prod

@@ -1,0 +1,38 @@
+# =============================================================================
+# ArgoCD VirtualService 부트스트랩
+# =============================================================================
+# ArgoCD sync 전에 ArgoCD UI에 접근할 수 있도록 하는 라우팅 설정
+# setup script에서 클러스터 초기화 시 적용됨
+#
+# NOTE: hosts에 "*"와 specific host를 함께 사용하면 Istio validation error 발생
+#       "duplicate hosts in virtual service" 에러 방지를 위해 "*"만 사용
+#
+# ArgoCD 설정:
+#   - server.rootpath=/api/argo
+#   - server.basehref=/api/argo
+#   - /api/argo/* 경로를 그대로 전달 (rewrite 하지 않음)
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: argocd-bootstrap-route
+  namespace: argocd
+  labels:
+    app: argocd-bootstrap
+    managed-by: setup-script
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - istio-system/istio-ingressgateway
+  http:
+    # /api/argo/* → argocd-server (경로 그대로 전달)
+    # ArgoCD는 rootpath=/api/argo로 설정되어 있으므로 rewrite하지 않음
+    - match:
+        - uri:
+            prefix: /api/argo
+      route:
+        - destination:
+            host: argocd-server.argocd.svc.cluster.local
+            port:
+              number: 80
+      timeout: 30s

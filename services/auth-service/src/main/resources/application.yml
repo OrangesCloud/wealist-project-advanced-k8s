@@ -85,6 +85,8 @@ oauth2:
   # 클라이언트가 redirect_uri 파라미터로 전달하면 이 패턴과 일치해야 함
   allowed-redirect-patterns:
     - https://wealist.co.kr/**
+    - https://ops.wealist.co.kr/**
+    - https://api.wealist.co.kr/**
     - https://dev.wealist.co.kr/**
     - http://localhost:3000/**
     - http://localhost:3001/**
@@ -143,4 +145,6 @@ management:
       probability: ${OTEL_TRACES_SAMPLER_ARG:1.0}
   otlp:
     tracing:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector:4318/v1/traces}
+      # Spring Boot needs full path with /v1/traces (unlike Go SDK which adds it automatically)
+      # Use separate env var to avoid conflict with Go services' OTEL_EXPORTER_OTLP_ENDPOINT
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://otel-collector:4318/v1/traces}

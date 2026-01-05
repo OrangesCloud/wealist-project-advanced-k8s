@@ -37,6 +37,7 @@ import (
 	"ops-service/internal/client"
 	"ops-service/internal/config"
 	"ops-service/internal/database"
+	"ops-service/internal/middleware"
 	"ops-service/internal/router"
 )
 
@@ -172,6 +173,19 @@ func main() {
 		)
 	}
 
+	// Initialize Auth validator (SmartValidator for RS256 JWKS support)
+	var tokenValidator middleware.TokenValidator
+	if cfg.AuthAPI.BaseURL != "" {
+		jwtIssuer := os.Getenv("JWT_ISSUER")
+		if jwtIssuer == "" {
+			jwtIssuer = "wealist-auth-service"
+		}
+		tokenValidator = middleware.NewSmartValidator(cfg.AuthAPI.BaseURL, jwtIssuer, logger)
+		logger.Info("SmartValidator initialized",
+			zap.String("auth_api_url", cfg.AuthAPI.BaseURL),
+			zap.String("jwt_issuer", jwtIssuer))
+	}
+
 	// Setup router
 	r := router.Setup(router.Config{
 		DB:              db,
@@ -184,6 +198,7 @@ func main() {
 		RedisClient:     database.GetRedis(),
 		RateLimitConfig: cfg.RateLimit,
 		ServiceName:     "ops-service",
+		TokenValidator:  tokenValidator,
 	})
 
 	// Create HTTP server

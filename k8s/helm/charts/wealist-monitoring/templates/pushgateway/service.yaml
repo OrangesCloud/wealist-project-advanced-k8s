@@ -1,0 +1,20 @@
+{{- if .Values.pushgateway.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: pushgateway
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: pushgateway
+    app.kubernetes.io/name: pushgateway
+    app.kubernetes.io/component: monitoring
+spec:
+  type: {{ .Values.pushgateway.service.type }}
+  ports:
+    - port: {{ .Values.pushgateway.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: pushgateway
+{{- end }}

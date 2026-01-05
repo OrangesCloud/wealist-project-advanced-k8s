@@ -1,6 +1,26 @@
 # =============================================================================
 # Kubernetes (Kind) 명령어
 # =============================================================================
+#
+# ⚠️  wealist-oranges 환경에서는 argo.mk의 명령어를 사용하세요:
+#     - make kind-dev-setup       : 클러스터 + ArgoCD + 앱 배포 (권장)
+#     - make kind-dev-rbac        : 팀원 RBAC 설정
+#     - make kind-dev-kubeconfig  : 팀원 kubeconfig 생성
+#     - make kind-dev-env-status  : 환경 상태 확인
+#     - make kind-dev-reset       : 완전 리셋
+#     - make kind-dev-clean       : 클러스터 삭제 (데이터 보존)
+#
+# 이 파일의 명령어는 Helm 직접 배포용 또는 레거시 환경용입니다.
+# ArgoCD GitOps 환경에서는 argo.mk 사용을 권장합니다.
+#
+# DB 아키텍처 (현재):
+#     - PostgreSQL/Redis가 클러스터 내부에서 실행 (hostPath 영속화)
+#     - 데이터 저장: /home/wealist-oranges/wealist-project-data/db_data/
+#
+# 포트 매핑 (oranges 전용 대역):
+#     - hostPort 9080 → Istio Gateway HTTP
+#     - hostPort 9443 → Istio Gateway HTTPS
+# =============================================================================
 
 ##@ Kubernetes (Kind)
 
@@ -22,7 +42,7 @@ kind-check-db-setup: ## 🚀 통합 설정: Secrets → DB 확인 → 클러스�
 	@echo "  0. 필수 도구 확인 (istioctl)"
 	@echo "  1. Secrets 파일 확인/생성"
 	@echo "  2. PostgreSQL/Redis 설치 상태 확인 [Y/N]"
-	@echo "  3. Kind 클러스터 생성 + Istio Ambient"
+	@echo "  3. Kind 클러스터 생성 + Istio Sidecar"
 	@echo "  4. 서비스 이미지 로드 (DB 이미지 제외)"
 	@echo ""
 	@echo "----------------------------------------------"
@@ -109,8 +129,8 @@ kind-check-db-setup: ## 🚀 통합 설정: Secrets → DB 확인 → 클러스�
 	@echo ""
 	@# istioctl 확인 및 설치
 	@if ! command -v istioctl >/dev/null 2>&1; then \
-		if [ -f "./istio-1.24.0/bin/istioctl" ]; then \
-			echo "✅ istioctl: 로컬 설치됨 (./istio-1.24.0/bin/istioctl)"; \
+		if [ -f "./istio-1.28.2/bin/istioctl" ]; then \
+			echo "✅ istioctl: 로컬 설치됨 (./istio-1.28.2/bin/istioctl)"; \
 		else \
 			echo "❌ istioctl: 미설치"; \
 			echo ""; \
@@ -119,7 +139,7 @@ kind-check-db-setup: ## 🚀 통합 설정: Secrets → DB 확인 → 클러스�
 			if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
 				echo ""; \
 				echo "istioctl 설치 중..."; \
-				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.24.0 sh -; \
+				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.28.2 sh -; \
 				echo ""; \
 				echo "✅ istioctl 설치 완료!"; \
 			else \
@@ -230,7 +250,7 @@ kind-localhost-setup: ## 🏠 통합 환경: 클러스터 생성 → 모든 이�
 	@echo "이 명령어는 다음을 순서대로 실행합니다:"
 	@echo "  0. 필수 도구 확인 (istioctl)"
 	@echo "  1. Secrets 파일 확인/생성"
-	@echo "  2. Kind 클러스터 생성 + Istio Ambient"
+	@echo "  2. Kind 클러스터 생성 + Istio Sidecar"
 	@echo "  3. 모든 이미지 로드 (DB + Backend + Frontend)"
 	@echo ""
 	@echo "※ 이 환경은 모든 컴포넌트가 클러스터 내부에서 실행됩니다."
@@ -322,8 +342,8 @@ kind-localhost-setup: ## 🏠 통합 환경: 클러스터 생성 → 모든 이�
 	@echo ""
 	@# istioctl 확인 및 설치
 	@if ! command -v istioctl >/dev/null 2>&1; then \
-		if [ -f "./istio-1.24.0/bin/istioctl" ]; then \
-			echo "✅ istioctl: 로컬 설치됨 (./istio-1.24.0/bin/istioctl)"; \
+		if [ -f "./istio-1.28.2/bin/istioctl" ]; then \
+			echo "✅ istioctl: 로컬 설치됨 (./istio-1.28.2/bin/istioctl)"; \
 		else \
 			echo "❌ istioctl: 미설치"; \
 			echo ""; \
@@ -332,7 +352,7 @@ kind-localhost-setup: ## 🏠 통합 환경: 클러스터 생성 → 모든 이�
 			if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
 				echo ""; \
 				echo "istioctl 설치 중..."; \
-				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.24.0 sh -; \
+				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.28.2 sh -; \
 				echo ""; \
 				echo "✅ istioctl 설치 완료!"; \
 			else \
@@ -396,7 +416,7 @@ kind-dev-setup-legacy: ## [Legacy] 개발 환경 (argo.mk의 kind-dev-setup 사�
 	@echo "  1. 필수 도구 확인 (kubectl, kind, helm, istioctl, aws)"
 	@echo "  2. Secrets 파일 확인/생성"
 	@echo "  3. AWS 로그인 확인"
-	@echo "  4. Kind 클러스터 생성 + Istio Ambient + ECR Secret"
+	@echo "  4. Kind 클러스터 생성 + Istio Sidecar + ECR Secret"
 	@echo "  5. 외부 DB 확인 + 연결 테스트 (172.18.0.1)"
 	@echo "  6. 인프라 이미지 로드"
 	@echo "  7. ECR 서비스 이미지 확인"
@@ -490,8 +510,8 @@ kind-dev-setup-legacy: ## [Legacy] 개발 환경 (argo.mk의 kind-dev-setup 사�
 	@echo ""
 	@# istioctl 확인 및 설치
 	@if ! command -v istioctl >/dev/null 2>&1; then \
-		if [ -f "./istio-1.24.0/bin/istioctl" ]; then \
-			echo "✅ istioctl: 로컬 설치됨 (./istio-1.24.0/bin/istioctl)"; \
+		if [ -f "./istio-1.28.2/bin/istioctl" ]; then \
+			echo "✅ istioctl: 로컬 설치됨 (./istio-1.28.2/bin/istioctl)"; \
 		else \
 			echo "❌ istioctl: 미설치"; \
 			echo ""; \
@@ -500,7 +520,7 @@ kind-dev-setup-legacy: ## [Legacy] 개발 환경 (argo.mk의 kind-dev-setup 사�
 			if [ "$$answer" != "n" ] && [ "$$answer" != "N" ]; then \
 				echo ""; \
 				echo "istioctl 설치 중..."; \
-				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.24.0 sh -; \
+				curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.28.2 sh -; \
 				echo ""; \
 				echo "✅ istioctl 설치 완료!"; \
 			else \
@@ -910,7 +930,7 @@ kind-dev-setup-legacy: ## [Legacy] 개발 환경 (argo.mk의 kind-dev-setup 사�
 	echo "ECR Registry: $$ECR_REGISTRY"; \
 	echo ""; \
 	MISSING_IMAGES=""; \
-	for svc in auth-service user-service board-service chat-service noti-service storage-service video-service; do \
+	for svc in auth-service user-service board-service chat-service noti-service storage-service; do \
 		if aws ecr describe-images --repository-name $$svc --image-ids imageTag=dev-latest --region $$AWS_REGION >/dev/null 2>&1; then \
 			echo "✅ $$svc:dev-latest 존재"; \
 		else \
@@ -968,7 +988,7 @@ kind-dev-setup-legacy: ## [Legacy] 개발 환경 (argo.mk의 kind-dev-setup 사�
 	@echo "=============================================="
 	@echo ""
 	@echo "  ✅ 설치 완료:"
-	@echo "    - Kind 클러스터 + Istio Ambient"
+	@echo "    - Kind 클러스터 + Istio Sidecar"
 	@echo "    - ECR Secret (ecr-secret)"
 	@echo "    - dev.yaml AWS Account ID 자동 설정 완료"
 	@echo "    - Kiali, Jaeger (Istio 관측성)"
@@ -1016,8 +1036,8 @@ kind-dev-setup-legacy: ## [Legacy] 개발 환경 (argo.mk의 kind-dev-setup 사�
 # 개별 설정 명령어
 # =============================================================================
 
-kind-setup: ## 클러스터 생성 + Istio Ambient (ENV에 따라 스크립트 선택)
-	@echo "=== Kind 클러스터 + Istio Ambient 생성 (ENV=$(ENV)) ==="
+kind-setup: ## 클러스터 생성 + Istio Sidecar (ENV에 따라 스크립트 선택)
+	@echo "=== Kind 클러스터 + Istio Sidecar 생성 (ENV=$(ENV)) ==="
 	@echo ""
 ifeq ($(ENV),localhost)
 	./k8s/helm/scripts/localhost/0.setup-cluster.sh
@@ -1142,7 +1162,7 @@ _setup-db-macos:
 	@# wealist 데이터베이스 생성
 	@echo "wealist 데이터베이스 생성 중..."
 	@psql -U postgres -c "SELECT 1" 2>/dev/null || createuser -s postgres 2>/dev/null || true
-	@for db in wealist wealist_auth wealist_user wealist_board wealist_chat wealist_noti wealist_storage wealist_video; do \
+	@for db in wealist wealist_auth wealist_user wealist_board wealist_chat wealist_noti wealist_storage; do \
 		psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$$db'" | grep -q 1 || \
 		psql -U postgres -c "CREATE DATABASE $$db" 2>/dev/null || true; \
 	done
@@ -1170,7 +1190,7 @@ _setup-db-debian:
 	@sudo systemctl restart postgresql
 	@# wealist 데이터베이스 생성
 	@echo "wealist 데이터베이스 생성 중..."
-	@for db in wealist wealist_auth wealist_user wealist_board wealist_chat wealist_noti wealist_storage wealist_video; do \
+	@for db in wealist wealist_auth wealist_user wealist_board wealist_chat wealist_noti wealist_storage; do \
 		sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '$$db'" | grep -q 1 || \
 		sudo -u postgres psql -c "CREATE DATABASE $$db" 2>/dev/null || true; \
 	done
@@ -1272,7 +1292,7 @@ kind-load-images-mono: ## Go 서비스를 모노레포 패턴으로 빌드 (더 
 	./docker/scripts/dev-mono.sh build
 	@echo ""
 	@echo "--- 로컬 레지스트리에 태그 및 푸시 중 ---"
-	@for svc in user-service board-service chat-service noti-service storage-service video-service; do \
+	@for svc in user-service board-service chat-service noti-service storage-service; do \
 		echo "$$svc 푸시 중..."; \
 		docker tag wealist/$$svc:latest $(LOCAL_REGISTRY)/$$svc:$(IMAGE_TAG); \
 		docker push $(LOCAL_REGISTRY)/$$svc:$(IMAGE_TAG); \
@@ -1333,7 +1353,7 @@ kind-info: ## 클러스터 배포 정보 (Git 레포/브랜치/배포자) 확인
 		DEPLOYED_BY=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.annotations.wealist\.io/deployed-by}' 2>/dev/null); \
 		DEPLOYED_BY_EMAIL=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.annotations.wealist\.io/deployed-by-email}' 2>/dev/null); \
 		DEPLOY_TIME=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.annotations.wealist\.io/deploy-time}' 2>/dev/null); \
-		ISTIO_MODE=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.labels.istio\.io/dataplane-mode}' 2>/dev/null); \
+		ISTIO_MODE=$$(kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.labels.istio-injection}' 2>/dev/null); \
 		echo "  📦 Git Repository"; \
 		echo "    - Repo:     https://github.com/$${GIT_REPO:-unknown}"; \
 		echo "    - Branch:   $${GIT_BRANCH:-unknown}"; \
@@ -1475,3 +1495,72 @@ init-local-db: ## 로컬 PostgreSQL/Redis 초기화 (Ubuntu, ENV=local-ubuntu)
 	@echo "로컬 데이터베이스 초기화 완료!"
 	@echo ""
 	@echo "다음: make helm-install-all ENV=dev"
+
+# =============================================================================
+# Kind-Dev RBAC (wealist-oranges 환경)
+# =============================================================================
+# DB는 클러스터 내부 Deployment로 실행됨 (wealist-infrastructure 차트)
+# 데이터는 hostPath로 ${WEALIST_DATA_PATH}/db_data에 영속화
+
+##@ Kind-Dev RBAC
+
+.PHONY: kind-dev-rbac kind-dev-kubeconfig kind-dev-env-status
+
+KIND_DEV_DATA_PATH ?= /home/wealist-oranges/wealist-project-data
+
+kind-dev-rbac: ## 🔐 팀원용 RBAC 설정 (wealist-dev 네임스페이스만 접근)
+	@echo "=== 팀원용 RBAC 설정 ==="
+	@echo ""
+	@if ! kubectl get namespace wealist-dev >/dev/null 2>&1; then \
+		echo "❌ wealist-dev 네임스페이스가 없습니다. 먼저 make kind-dev-setup 실행하세요."; \
+		exit 1; \
+	fi
+	@kubectl apply -f k8s/rbac/team-developer.yaml
+	@echo ""
+	@echo "✅ RBAC 설정 완료!"
+	@echo ""
+	@echo "팀원 kubeconfig 생성:"
+	@echo "  make kind-dev-kubeconfig USERNAME=<이름>"
+
+kind-dev-kubeconfig: ## 🔑 팀원용 제한된 kubeconfig 생성 (USERNAME=xxx)
+	@if [ -z "$(USERNAME)" ]; then \
+		echo "Usage: make kind-dev-kubeconfig USERNAME=<이름>"; \
+		echo "예시: make kind-dev-kubeconfig USERNAME=member1"; \
+		exit 1; \
+	fi
+	@./scripts/create-team-kubeconfig.sh $(USERNAME)
+
+kind-dev-env-status: ## 📊 Kind-Dev 환경 상태 확인 (클러스터 + 내부 DB)
+	@echo "=============================================="
+	@echo "  📊 Kind-Dev 환경 상태"
+	@echo "=============================================="
+	@echo ""
+	@echo "📦 Kind 클러스터:"
+	@if kind get clusters 2>/dev/null | grep -q "wealist"; then \
+		echo "   ✅ wealist 클러스터 실행 중"; \
+		kubectl get nodes 2>/dev/null || true; \
+	else \
+		echo "   ❌ 클러스터 없음"; \
+	fi
+	@echo ""
+	@echo "🐘 PostgreSQL (클러스터 내부):"
+	@if kubectl get pod -n wealist-dev -l app=postgres -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then \
+		echo "   ✅ postgres 실행 중"; \
+		echo "   데이터: $(KIND_DEV_DATA_PATH)/db_data/postgres"; \
+	else \
+		echo "   ❌ postgres 없음 또는 시작 중"; \
+	fi
+	@echo ""
+	@echo "📮 Redis (클러스터 내부):"
+	@if kubectl get pod -n wealist-dev -l app=redis -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q "Running"; then \
+		echo "   ✅ redis 실행 중"; \
+		echo "   데이터: $(KIND_DEV_DATA_PATH)/db_data/redis"; \
+	else \
+		echo "   ❌ redis 없음 또는 시작 중"; \
+	fi
+	@echo ""
+	@echo "🌐 접속 정보:"
+	@echo "   - ArgoCD: https://dev.wealist.co.kr/api/argo"
+	@echo "   - Grafana: https://dev.wealist.co.kr/api/monitoring/grafana"
+	@echo ""
+	@echo "=============================================="

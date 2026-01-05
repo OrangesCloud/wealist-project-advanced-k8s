@@ -21,9 +21,9 @@ spec:
       labels:
         app: prometheus
         app.kubernetes.io/name: prometheus
-        # Ambient 모드에 포함 - mTLS로 서비스 메트릭 수집
-        # PeerAuthentication에서 PERMISSIVE 설정으로 외부 접근도 허용
       annotations:
+        # Sidecar 활성화 - mTLS 서비스 스크레이핑을 위해 필요
+        sidecar.istio.io/inject: "true"
         # ConfigMap 변경 시 자동 Pod 재시작을 위한 checksum
         checksum/config: {{ include (print $.Template.BasePath "/prometheus/configmap.yaml") . | sha256sum }}
         {{- if .Values.prometheus.alerting.enabled }}

@@ -83,7 +83,6 @@ output "pod_identity_roles" {
     board_service      = module.pod_identity_board_service.role_arn
     user_service       = module.pod_identity_user_service.role_arn
     chat_service       = module.pod_identity_chat_service.role_arn
-    video_service      = module.pod_identity_video_service.role_arn
     cluster_autoscaler = module.pod_identity_cluster_autoscaler.role_arn
   }
 }
@@ -125,7 +124,7 @@ output "summary" {
         - Scale Up:   ${var.weekend_scale_up_schedule} (UTC) → 오전 09:00 KST
 
     Add-ons:
-      - vpc-cni (Istio Ambient 지원)
+      - vpc-cni (Istio Sidecar 지원)
       - coredns
       - kube-proxy
       - aws-ebs-csi-driver
@@ -148,7 +147,7 @@ output "summary" {
 
     # 다음 단계:
     # 1. Gateway API CRDs 설치
-    # 2. Istio Ambient 설치: istioctl install --set profile=ambient
+    # 2. Istio Sidecar 설치 (Terraform helm-releases.tf에서 자동 설치)
     # 3. ArgoCD 설치 및 앱 배포
 
   EOT

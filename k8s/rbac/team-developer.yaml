@@ -1,0 +1,165 @@
+# =============================================================================
+# Team Developer RBAC - wealist-dev 네임스페이스 전용 접근
+# =============================================================================
+# 팀원들이 wealist-dev 네임스페이스만 접근할 수 있도록 제한
+#
+# 권한:
+#   - pods, services, deployments, configmaps, secrets: 읽기
+#   - pods/log, pods/exec: 디버깅용
+#   - 다른 네임스페이스: 접근 불가
+#   - Docker 직접 접근: 불가 (kubectl만 사용)
+#
+# 사용법:
+#   1. kubectl apply -f team-developer.yaml
+#   2. ./scripts/create-team-kubeconfig.sh <username>
+# =============================================================================
+
+---
+# ServiceAccount for team developers
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: team-developer
+  namespace: wealist-dev
+  labels:
+    app.kubernetes.io/name: team-developer
+    app.kubernetes.io/part-of: wealist-oranges
+
+---
+# Role: wealist-dev 네임스페이스 내 읽기 + 디버깅 권한
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer-role
+  namespace: wealist-dev
+  labels:
+    app.kubernetes.io/name: developer-role
+    app.kubernetes.io/part-of: wealist-oranges
+rules:
+  # 기본 리소스 읽기
+  - apiGroups: [""]
+    resources:
+      - pods
+      - services
+      - endpoints
+      - configmaps
+      - secrets
+      - persistentvolumeclaims
+      - events
+    verbs: ["get", "list", "watch"]
+
+  # 앱 리소스 읽기
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - statefulsets
+      - daemonsets
+    verbs: ["get", "list", "watch"]
+
+  # 배치 작업 읽기
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: ["get", "list", "watch"]
+
+  # 네트워킹 읽기
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs: ["get", "list", "watch"]
+
+  # Gateway API 읽기
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources:
+      - httproutes
+      - gateways
+    verbs: ["get", "list", "watch"]
+
+  # Istio 리소스 읽기
+  - apiGroups: ["networking.istio.io"]
+    resources:
+      - virtualservices
+      - destinationrules
+      - gateways
+    verbs: ["get", "list", "watch"]
+
+  # 디버깅: 로그 확인
+  - apiGroups: [""]
+    resources:
+      - pods/log
+    verbs: ["get", "list"]
+
+  # 디버깅: exec (제한적)
+  - apiGroups: [""]
+    resources:
+      - pods/exec
+    verbs: ["create"]
+
+  # 디버깅: port-forward
+  - apiGroups: [""]
+    resources:
+      - pods/portforward
+    verbs: ["create"]
+
+---
+# RoleBinding: team-developer ServiceAccount에 developer-role 바인딩
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: developer-binding
+  namespace: wealist-dev
+  labels:
+    app.kubernetes.io/name: developer-binding
+    app.kubernetes.io/part-of: wealist-oranges
+subjects:
+  - kind: ServiceAccount
+    name: team-developer
+    namespace: wealist-dev
+roleRef:
+  kind: Role
+  name: developer-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ClusterRole: 클러스터 수준 최소 권한 (네임스페이스 목록만)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: developer-cluster-role
+  labels:
+    app.kubernetes.io/name: developer-cluster-role
+    app.kubernetes.io/part-of: wealist-oranges
+rules:
+  # 네임스페이스 목록만 (wealist-dev만 보이도록 필터링은 kubeconfig에서)
+  - apiGroups: [""]
+    resources:
+      - namespaces
+    verbs: ["get", "list"]
+    # resourceNames로 제한하면 list가 안 되므로 kubeconfig에서 제한
+
+  # 노드 상태 확인 (읽기만)
+  - apiGroups: [""]
+    resources:
+      - nodes
+    verbs: ["get", "list"]
+
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: developer-cluster-binding
+  labels:
+    app.kubernetes.io/name: developer-cluster-binding
+    app.kubernetes.io/part-of: wealist-oranges
+subjects:
+  - kind: ServiceAccount
+    name: team-developer
+    namespace: wealist-dev
+roleRef:
+  kind: ClusterRole
+  name: developer-cluster-role
+  apiGroup: rbac.authorization.k8s.io

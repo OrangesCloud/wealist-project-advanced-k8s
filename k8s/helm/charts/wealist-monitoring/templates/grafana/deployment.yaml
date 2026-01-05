@@ -21,9 +21,9 @@ spec:
       labels:
         app: grafana
         app.kubernetes.io/name: grafana
-        # Ambient 모드에 포함 - mTLS로 Prometheus 데이터 수집
-        # PeerAuthentication에서 PERMISSIVE 설정으로 외부 접근도 허용
       annotations:
+        # Sidecar 모드 제외 - 모니터링 인프라는 mesh 외부에서 동작
+        sidecar.istio.io/inject: "false"
         # ConfigMap 변경 시 자동 Pod 재시작을 위한 checksum
         checksum/config: {{ include (print $.Template.BasePath "/grafana/configmap.yaml") . | sha256sum }}
         checksum/dashboards: {{ include (print $.Template.BasePath "/grafana/configmap-dashboards.yaml") . | sha256sum }}
@@ -71,6 +71,43 @@ spec:
               value: {{ .Values.grafana.config.rootUrl | default "http://localhost:3000" | quote }}
             - name: GF_SERVER_SERVE_FROM_SUB_PATH
               value: {{ .Values.grafana.config.serveFromSubPath | default "false" | quote }}
+            {{- if .Values.grafana.oauth.google.enabled }}
+            # =============================================================================
+            # Google OAuth Configuration
+            # =============================================================================
+            - name: GF_AUTH_GOOGLE_ENABLED
+              value: "true"
+            - name: GF_AUTH_GOOGLE_ALLOW_SIGN_UP
+              value: "true"
+            - name: GF_AUTH_GOOGLE_AUTO_LOGIN
+              value: {{ .Values.grafana.oauth.google.autoLogin | default false | quote }}
+            - name: GF_AUTH_GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: wealist-shared-secret
+                  key: GOOGLE_CLIENT_ID
+            - name: GF_AUTH_GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: wealist-shared-secret
+                  key: GOOGLE_CLIENT_SECRET
+            - name: GF_AUTH_GOOGLE_SCOPES
+              value: "openid email profile"
+            - name: GF_AUTH_GOOGLE_AUTH_URL
+              value: "https://accounts.google.com/o/oauth2/v2/auth"
+            - name: GF_AUTH_GOOGLE_TOKEN_URL
+              value: "https://oauth2.googleapis.com/token"
+            - name: GF_AUTH_GOOGLE_API_URL
+              value: "https://openidconnect.googleapis.com/v1/userinfo"
+            {{- if .Values.grafana.oauth.google.allowedDomains }}
+            - name: GF_AUTH_GOOGLE_ALLOWED_DOMAINS
+              value: {{ .Values.grafana.oauth.google.allowedDomains | quote }}
+            {{- end }}
+            {{- if .Values.grafana.oauth.google.roleAttributePath }}
+            - name: GF_AUTH_GOOGLE_ROLE_ATTRIBUTE_PATH
+              value: {{ .Values.grafana.oauth.google.roleAttributePath | quote }}
+            {{- end }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /api/health
@@ -90,10 +127,21 @@ spec:
               mountPath: /etc/grafana/provisioning/datasources
             - name: dashboards-provider
               mountPath: /etc/grafana/provisioning/dashboards
-            - name: dashboards-json
-              mountPath: /etc/grafana/provisioning/dashboards/json
-            - name: dashboards-v2
-              mountPath: /etc/grafana/provisioning/dashboards/v2
+            # V4 Dashboard Volumes (Role-based)
+            - name: dashboards-v4-landing
+              mountPath: /etc/grafana/provisioning/dashboards/v4/00-landing
+            - name: dashboards-v4-cicd
+              mountPath: /etc/grafana/provisioning/dashboards/v4/01-cicd
+            - name: dashboards-v4-loadtest
+              mountPath: /etc/grafana/provisioning/dashboards/v4/02-loadtest
+            - name: dashboards-v4-developer
+              mountPath: /etc/grafana/provisioning/dashboards/v4/03-developer
+            - name: dashboards-v4-pm
+              mountPath: /etc/grafana/provisioning/dashboards/v4/04-pm
+            - name: dashboards-v4-operations
+              mountPath: /etc/grafana/provisioning/dashboards/v4/05-operations
+            - name: dashboards-v4-advanced
+              mountPath: /etc/grafana/provisioning/dashboards/v4/06-advanced
             - name: data
               mountPath: /var/lib/grafana
       volumes:
@@ -103,12 +151,28 @@ spec:
         - name: dashboards-provider
           configMap:
             name: grafana-dashboards-provider
-        - name: dashboards-json
+        # V4 Dashboard ConfigMaps (Role-based)
+        - name: dashboards-v4-landing
           configMap:
-            name: grafana-dashboards-json
-        - name: dashboards-v2
+            name: grafana-dashboards-v4-landing
+        - name: dashboards-v4-cicd
           configMap:
-            name: grafana-dashboards-v2
+            name: grafana-dashboards-v4-cicd
+        - name: dashboards-v4-loadtest
+          configMap:
+            name: grafana-dashboards-v4-loadtest
+        - name: dashboards-v4-developer
+          configMap:
+            name: grafana-dashboards-v4-developer
+        - name: dashboards-v4-pm
+          configMap:
+            name: grafana-dashboards-v4-pm
+        - name: dashboards-v4-operations
+          configMap:
+            name: grafana-dashboards-v4-operations
+        - name: dashboards-v4-advanced
+          configMap:
+            name: grafana-dashboards-v4-advanced
         - name: data
           {{- if .Values.grafana.persistence.enabled }}
           persistentVolumeClaim:

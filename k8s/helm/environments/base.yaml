@@ -48,6 +48,33 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
 
 # -----------------------------------------------------------------------------
+# Argo Rollouts (Progressive Delivery)
+# -----------------------------------------------------------------------------
+# Enable rollout to use Argo Rollouts instead of Deployment
+# When enabled, the service will use canary deployment strategy
+rollout:
+  enabled: false  # Disabled by default, enable per-service in prod
+  revisionHistoryLimit: 3
+  maxUnavailable: 0
+  maxSurge: "25%"
+  canary:
+    steps:
+      - setWeight: 10
+      - pause: { duration: 2m }
+      - setWeight: 30
+      - pause: { duration: 2m }
+      - setWeight: 50
+      - pause: { duration: 2m }
+  analysis:
+    enabled: false  # Enable for automated rollback based on metrics
+    startingStep: 1
+    count: 5
+    successThreshold: 0.95
+    latencyThresholdMs: 500
+    failureLimit: 3
+    prometheusAddress: "http://prometheus:9090"
+
+# -----------------------------------------------------------------------------
 # Security Context Defaults (production-ready)
 # -----------------------------------------------------------------------------
 podSecurityContext:
@@ -126,7 +153,6 @@ shared:
     CHAT_SERVICE_URL: "http://chat-service:8001"
     NOTI_SERVICE_URL: "http://noti-service:8002"
     STORAGE_SERVICE_URL: "http://storage-service:8003"
-    VIDEO_SERVICE_URL: "http://video-service:8004"
 
     # Database Migration (default: disabled for safety)
     DB_AUTO_MIGRATE: "false"
@@ -135,8 +161,13 @@ shared:
     # OpenTelemetry Configuration (고정 설정만)
     # -------------------------------------------------------------------------
     # OTLP Exporter - 서비스에서 OTEL Collector로 traces 전송
-    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
-    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    # Protocol: HTTP/protobuf (OpenTelemetry 권장 - 모든 언어 호환)
+    # - Go, Java, Python 등 모든 SDK에서 동일한 endpoint 사용
+    # - Firewall 친화적, 디버깅 용이
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+    # Spring Boot OTLP exporter needs full path (SDK doesn't auto-append /v1/traces)
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://otel-collector:4318/v1/traces"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
 
     # Trace Sampler type (비율은 환경별 설정)
     OTEL_TRACES_SAMPLER: "parentbased_traceidratio"

@@ -14,16 +14,12 @@ data:
       strategy: {{ .Values.kiali.auth.strategy }}
     deployment:
       cluster_wide_access: true
-    # Istio Ambient 모드 설정
     istio_namespace: {{ .Values.namespace }}
-    # Kubernetes Gateway API 설정 (Istio Ambient 모드용)
+    # Kubernetes Gateway API 설정
     kubernetes:
       gateway_api_classes:
         - class_name: istio
           name: Istio Gateway
-        - class_name: istio-waypoint
-          name: Istio Waypoint
-    # Ambient 모드 telemetry 소스 설정
     kiali_feature_flags:
       clustering:
         autodetect_secrets:
@@ -193,7 +189,7 @@ rules:
 - apiGroups: ["networking.istio.io", "security.istio.io", "extensions.istio.io", "telemetry.istio.io"]
   resources: ["*"]
   verbs: ["get", "list", "watch", "create", "delete", "patch"]
-# Gateway API 리소스 (Ambient 모드 waypoint 포함)
+# Gateway API 리소스
 - apiGroups: ["gateway.networking.k8s.io"]
   resources:
   - gateways
@@ -205,7 +201,7 @@ rules:
   - udproutes
   - referencegrants
   verbs: ["get", "list", "watch", "create", "delete", "patch"]
-# Ambient 모드 - ztunnel 및 waypoint 관련 추가 권한
+# Pod exec 권한 (디버깅용)
 - apiGroups: [""]
   resources:
   - pods/exec

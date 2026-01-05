@@ -195,27 +195,15 @@ data:
                 This may indicate network latency or large repository size.
 
   # =============================================================================
-  # Istio Ambient Alert Rules
+  # Istio Sidecar Alert Rules
   # =============================================================================
   istio-alerts.yml: |
     groups:
       - name: istio.alerts
         rules:
           # ---------------------------------------------------------------------
-          # ztunnel (L4) Alerts
+          # Istio Sidecar Alerts
           # ---------------------------------------------------------------------
-          - alert: IstioZtunnelDown
-            expr: |
-              absent(up{job="ztunnel"} == 1)
-            for: 5m
-            labels:
-              severity: critical
-            annotations:
-              summary: "Istio ztunnel is down"
-              description: |
-                Istio ztunnel (L4 proxy) is not responding.
-                This will affect all L4 mesh traffic.
-
           - alert: IstioHighTcpConnectionRate
             expr: |
               sum(rate(istio_tcp_connections_opened_total[5m])) > 1000
@@ -229,9 +217,9 @@ data:
                 This may indicate a connection storm or leak.
 
           # ---------------------------------------------------------------------
-          # Waypoint (L7) Alerts
+          # Sidecar Proxy (L7) Alerts
           # ---------------------------------------------------------------------
-          - alert: IstioWaypointHighErrorRate
+          - alert: IstioSidecarHighErrorRate
             expr: |
               (
                 sum(rate(istio_requests_total{response_code=~"5.*"}[5m]))
@@ -241,19 +229,19 @@ data:
             labels:
               severity: warning
             annotations:
-              summary: "High error rate through Istio Waypoint"
+              summary: "High error rate through Istio Sidecar"
               description: |
-                More than 5% of requests through Waypoint are returning 5xx errors.
+                More than 5% of requests through Sidecar proxy are returning 5xx errors.
                 Service: {{ `{{ $labels.destination_service }}` }}
 
-          - alert: IstioWaypointHighLatency
+          - alert: IstioSidecarHighLatency
             expr: |
               histogram_quantile(0.99, sum(rate(istio_request_duration_milliseconds_bucket[5m])) by (le, destination_service)) > 5000
             for: 10m
             labels:
               severity: warning
             annotations:
-              summary: "High latency through Istio Waypoint"
+              summary: "High latency through Istio Sidecar"
               description: |
                 Request p99 latency to {{ `{{ $labels.destination_service }}` }}
                 is above 5 seconds.
@@ -306,7 +294,7 @@ data:
         rules:
           - alert: ServiceDown
             expr: |
-              up{job=~"user-service|board-service|chat-service|noti-service|storage-service|video-service|auth-service"} == 0
+              up{job=~"user-service|board-service|chat-service|noti-service|storage-service|auth-service"} == 0
             for: 2m
             labels:
               severity: critical
@@ -440,7 +428,6 @@ data:
               or sum(rate(chat_service_http_requests_total[5m])) by (job)
               or sum(rate(noti_service_http_requests_total[5m])) by (job)
               or sum(rate(storage_service_http_requests_total[5m])) by (job)
-              or sum(rate(video_service_http_requests_total[5m])) by (job)
 
           # Request Rate - Spring Boot (auth-service)
           - record: service:http_requests_spring:rate5m
@@ -456,7 +443,6 @@ data:
                 or sum(rate(chat_service_http_requests_total{status=~"5.."}[5m])) by (job)
                 or sum(rate(noti_service_http_requests_total{status=~"5.."}[5m])) by (job)
                 or sum(rate(storage_service_http_requests_total{status=~"5.."}[5m])) by (job)
-                or sum(rate(video_service_http_requests_total{status=~"5.."}[5m])) by (job)
               ) / service:http_requests:rate5m
 
           # Error Rate - Spring Boot
@@ -474,7 +460,6 @@ data:
                 or sum(rate(chat_service_http_request_duration_seconds_bucket[5m])) by (le, job)
                 or sum(rate(noti_service_http_request_duration_seconds_bucket[5m])) by (le, job)
                 or sum(rate(storage_service_http_request_duration_seconds_bucket[5m])) by (le, job)
-                or sum(rate(video_service_http_request_duration_seconds_bucket[5m])) by (le, job)
               )
 
           # Duration p95
@@ -486,7 +471,6 @@ data:
                 or sum(rate(chat_service_http_request_duration_seconds_bucket[5m])) by (le, job)
                 or sum(rate(noti_service_http_request_duration_seconds_bucket[5m])) by (le, job)
                 or sum(rate(storage_service_http_request_duration_seconds_bucket[5m])) by (le, job)
-                or sum(rate(video_service_http_request_duration_seconds_bucket[5m])) by (le, job)
               )
 
           # Duration p99
@@ -498,7 +482,6 @@ data:
                 or sum(rate(chat_service_http_request_duration_seconds_bucket[5m])) by (le, job)
                 or sum(rate(noti_service_http_request_duration_seconds_bucket[5m])) by (le, job)
                 or sum(rate(storage_service_http_request_duration_seconds_bucket[5m])) by (le, job)
-                or sum(rate(video_service_http_request_duration_seconds_bucket[5m])) by (le, job)
               )
 
           # Duration p95 - Spring Boot

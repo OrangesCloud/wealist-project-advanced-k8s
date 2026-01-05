@@ -5,6 +5,9 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "12" # Istio 설정 이후에 설치
+    notifications.argoproj.io/subscribe.on-deployed.webhook: discord
+    notifications.argoproj.io/subscribe.on-sync-failed.webhook: discord
+    notifications.argoproj.io/subscribe.on-health-degraded.webhook: discord
 spec:
   project: wealist-dev
   source:
@@ -18,11 +21,11 @@ spec:
       parameters:
         - name: global.namespace
           value: wealist-dev
-        # External DB Host (WSL/Kind: 172.17.0.1 Docker bridge gateway)
+        # In-cluster DB (postgres/redis Service)
         - name: postgresExporter.config.host
-          value: "172.17.0.1"
+          value: "postgres"
         - name: redisExporter.config.host
-          value: "172.17.0.1"
+          value: "redis"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-dev

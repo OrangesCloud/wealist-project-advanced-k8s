@@ -1,20 +1,30 @@
-{{- if and .Values.enabled .Values.virtualService.enabled }}
+{{- if and .Values.enabled .Values.istio.virtualService.enabled }}
+{{- $namespace := include "istio-config.namespace" . }}
+{{- $vs := .Values.istio.virtualService }}
+{{- $gw := .Values.istio.gateway }}
 apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
   name: wealist-routes
-  namespace: {{ include "istio-config.namespace" . }}
+  namespace: {{ $namespace }}
   labels:
     {{- include "istio-config.labels" . | nindent 4 }}
 spec:
   hosts:
-  {{- range .Values.virtualService.hosts }}
+  {{- range $vs.hosts }}
   - {{ . | quote }}
   {{- end }}
   gateways:
-  - {{ .Values.gateway.name }}
+  {{- if $gw.enabled }}
+  - {{ $gw.namespace | default "istio-system" }}/{{ $gw.name | default "istio-ingressgateway" }}
+  {{- else }}
+  - istio-system/istio-ingressgateway
+  {{- end }}
   http:
-  # Auth Service routes (OAuth paths)
+  # ==========================================================================
+  # OAuth2 Routes (must be first for auth flow)
+  # ==========================================================================
+  # /oauth2/* and /login/oauth2/* - no rewrite needed
   - match:
     - uri:
         prefix: /oauth2
@@ -22,115 +32,417 @@ spec:
         prefix: /login/oauth2
     route:
     - destination:
-        host: {{ .Values.virtualService.routes.auth.host }}
+        host: auth-service
         port:
-          number: {{ .Values.virtualService.routes.auth.port }}
-    timeout: {{ .Values.virtualService.routes.auth.timeout }}
+          number: 8080
+    timeout: 30s
     retries:
-      attempts: {{ .Values.retryPolicy.attempts }}
-      perTryTimeout: {{ .Values.retryPolicy.perTryTimeout }}
-      retryOn: {{ .Values.retryPolicy.retryOn }}
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: "5xx,reset,connect-failure"
 
-  # Auth Service
+  # /api/oauth2/* - rewrite to /oauth2/* (Spring Security expects /oauth2/callback/*)
   - match:
     - uri:
-        prefix: {{ .Values.virtualService.routes.auth.prefix }}
+        prefix: /api/oauth2
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/oauth2(.*)$"
+        rewrite: '/oauth2\1'
     route:
     - destination:
-        host: {{ .Values.virtualService.routes.auth.host }}
+        host: auth-service
         port:
-          number: {{ .Values.virtualService.routes.auth.port }}
-    timeout: {{ .Values.virtualService.routes.auth.timeout }}
+          number: 8080
+    timeout: 30s
     retries:
-      attempts: {{ .Values.retryPolicy.attempts }}
-      perTryTimeout: {{ .Values.retryPolicy.perTryTimeout }}
-      retryOn: {{ .Values.retryPolicy.retryOn }}
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: "5xx,reset,connect-failure"
+
+  # ==========================================================================
+  # API Service Routes (/api/svc/{service}/*)
+  # NOTE: uriRegexRewrite 사용 - prefix rewrite는 이중 슬래시 문제 발생
+  #       예: /api/svc/auth/foo → //foo (잘못됨)
+  #       uriRegexRewrite로 prefix만 제거: /api/svc/auth/foo → /foo (정상)
+  # ==========================================================================
+  # Auth Service
+  - name: auth-service-primary
+    match:
+    - uri:
+        prefix: /api/svc/auth
+    rewrite:
+      uriRegexRewrite:
+        match: "^/api/svc/auth(.*)$"
+        rewrite: '\1'
+    route:
+    {{- if and $vs.canary $vs.canary.enabled }}
+    - destination:
+        host: auth-service
+        port:
+          number: 8080
+        subset: stable
+      weight: {{ $vs.canary.stableWeight | default 100 }}
+    - destination:
+        host: auth-service
+        port:
+          number: 8080
+        subset: canary
+      weight: {{ $vs.canary.canaryWeight | default 0 }}
+    {{- else }}
+    - destination:
+        host: auth-service
+        port:
+          number: 8080
+    {{- end }}
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: "5xx,reset,connect-failure"
 
   # User Service
-  - match:
+  - name: user-service-primary
+    match:
     - uri:
-        prefix: {{ .Values.virtualService.routes.user.prefix }}
+        prefix: /api/svc/user
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/user(.*)$"
+        rewrite: '\1'
     route:
+    {{- if and $vs.canary $vs.canary.enabled }}
     - destination:
-        host: {{ .Values.virtualService.routes.user.host }}
+        host: user-service
         port:
-          number: {{ .Values.virtualService.routes.user.port }}
-    timeout: {{ .Values.virtualService.routes.user.timeout }}
+          number: 8081
+        subset: stable
+      weight: {{ $vs.canary.stableWeight | default 100 }}
+    - destination:
+        host: user-service
+        port:
+          number: 8081
+        subset: canary
+      weight: {{ $vs.canary.canaryWeight | default 0 }}
+    {{- else }}
+    - destination:
+        host: user-service
+        port:
+          number: 8081
+    {{- end }}
+    timeout: 30s
     retries:
-      attempts: {{ .Values.retryPolicy.attempts }}
-      perTryTimeout: {{ .Values.retryPolicy.perTryTimeout }}
-      retryOn: {{ .Values.retryPolicy.retryOn }}
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: "5xx,reset,connect-failure"
 
-  # Board Service (WebSocket support)
-  - match:
+  # Board Service (WebSocket support - no retries)
+  - name: board-service-primary
+    match:
     - uri:
-        prefix: {{ .Values.virtualService.routes.board.prefix }}
+        prefix: /api/svc/board
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/board(.*)$"
+        rewrite: '\1'
     route:
+    {{- if and $vs.canary $vs.canary.enabled }}
     - destination:
-        host: {{ .Values.virtualService.routes.board.host }}
+        host: board-service
         port:
-          number: {{ .Values.virtualService.routes.board.port }}
-    timeout: {{ .Values.virtualService.routes.board.timeout }}
+          number: 8000
+        subset: stable
+      weight: {{ $vs.canary.stableWeight | default 100 }}
+    - destination:
+        host: board-service
+        port:
+          number: 8000
+        subset: canary
+      weight: {{ $vs.canary.canaryWeight | default 0 }}
+    {{- else }}
+    - destination:
+        host: board-service
+        port:
+          number: 8000
+    {{- end }}
+    # WebSocket: disable timeout (Istio 1.28+ requires omitting timeout field)
 
-  # Chat Service (WebSocket support)
-  - match:
+  # Chat Service (WebSocket support - no retries)
+  - name: chat-service-primary
+    match:
     - uri:
-        prefix: {{ .Values.virtualService.routes.chat.prefix }}
+        prefix: /api/svc/chat
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/chat(.*)$"
+        rewrite: '\1'
     route:
+    {{- if and $vs.canary $vs.canary.enabled }}
     - destination:
-        host: {{ .Values.virtualService.routes.chat.host }}
+        host: chat-service
         port:
-          number: {{ .Values.virtualService.routes.chat.port }}
-    timeout: {{ .Values.virtualService.routes.chat.timeout }}
+          number: 8001
+        subset: stable
+      weight: {{ $vs.canary.stableWeight | default 100 }}
+    - destination:
+        host: chat-service
+        port:
+          number: 8001
+        subset: canary
+      weight: {{ $vs.canary.canaryWeight | default 0 }}
+    {{- else }}
+    - destination:
+        host: chat-service
+        port:
+          number: 8001
+    {{- end }}
+    # WebSocket: disable timeout (Istio 1.28+ requires omitting timeout field)
 
-  # Noti Service (SSE support)
-  - match:
+  # Noti Service (SSE support - long timeout)
+  - name: noti-service-primary
+    match:
     - uri:
-        prefix: {{ .Values.virtualService.routes.noti.prefix }}
+        prefix: /api/svc/noti
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/noti(.*)$"
+        rewrite: '\1'
     route:
+    {{- if and $vs.canary $vs.canary.enabled }}
     - destination:
-        host: {{ .Values.virtualService.routes.noti.host }}
+        host: noti-service
         port:
-          number: {{ .Values.virtualService.routes.noti.port }}
-    timeout: {{ .Values.virtualService.routes.noti.timeout }}
+          number: 8002
+        subset: stable
+      weight: {{ $vs.canary.stableWeight | default 100 }}
+    - destination:
+        host: noti-service
+        port:
+          number: 8002
+        subset: canary
+      weight: {{ $vs.canary.canaryWeight | default 0 }}
+    {{- else }}
+    - destination:
+        host: noti-service
+        port:
+          number: 8002
+    {{- end }}
+    # SSE: disable timeout (Istio 1.28+ requires omitting timeout field)
 
   # Storage Service
+  - name: storage-service-primary
+    match:
+    - uri:
+        prefix: /api/svc/storage
+    rewrite:
+      uriRegexRewrite:
+        match: "^/api/svc/storage(.*)$"
+        rewrite: '\1'
+    route:
+    {{- if and $vs.canary $vs.canary.enabled }}
+    - destination:
+        host: storage-service
+        port:
+          number: 8003
+        subset: stable
+      weight: {{ $vs.canary.stableWeight | default 100 }}
+    - destination:
+        host: storage-service
+        port:
+          number: 8003
+        subset: canary
+      weight: {{ $vs.canary.canaryWeight | default 0 }}
+    {{- else }}
+    - destination:
+        host: storage-service
+        port:
+          number: 8003
+    {{- end }}
+    timeout: 120s  # File upload: long timeout
+    retries:
+      attempts: 2
+      perTryTimeout: 60s
+      retryOn: "5xx,reset,connect-failure"
+
+  # LiveKit WebSocket (if available)
   - match:
     - uri:
-        prefix: {{ .Values.virtualService.routes.storage.prefix }}
+        prefix: /api/svc/livekit
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/svc/livekit(.*)$"
+        rewrite: '\1'
     route:
     - destination:
-        host: {{ .Values.virtualService.routes.storage.host }}
+        host: livekit
         port:
-          number: {{ .Values.virtualService.routes.storage.port }}
-    timeout: {{ .Values.virtualService.routes.storage.timeout }}
+          number: 7880
+    # WebRTC: disable timeout (Istio 1.28+ requires omitting timeout field)
 
-  # Video Service
+  # ==========================================================================
+  # Ops Service (if enabled)
+  # ==========================================================================
+  {{- if and $vs.opsPortal $vs.opsPortal.enabled }}
   - match:
     - uri:
-        prefix: {{ .Values.virtualService.routes.video.prefix }}
+        prefix: /api/ops
     rewrite:
-      uri: /
+      uriRegexRewrite:
+        match: "^/api/ops(.*)$"
+        rewrite: '\1'
     route:
     - destination:
-        host: {{ .Values.virtualService.routes.video.host }}
+        host: ops-service
         port:
-          number: {{ .Values.virtualService.routes.video.port }}
-    timeout: {{ .Values.virtualService.routes.video.timeout }}
+          number: 8005
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: "5xx,reset,connect-failure"
+  {{- end }}
 
+  # ==========================================================================
+  # Ops Portal (if enabled) - Admin Dashboard Frontend
+  # ==========================================================================
+  {{- if and $vs.opsPortal $vs.opsPortal.enabled }}
+  - match:
+    - uri:
+        prefix: /api/ops-portal
+    rewrite:
+      uriRegexRewrite:
+        match: "^/api/ops-portal(.*)$"
+        rewrite: '\1'
+    route:
+    - destination:
+        host: ops-portal
+        port:
+          number: 80
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: "5xx,reset,connect-failure"
+  {{- end }}
+
+  # ==========================================================================
+  # MinIO Routes (if enabled)
+  # ==========================================================================
+  {{- if and $vs.minio $vs.minio.enabled }}
+  - match:
+    - uri:
+        prefix: /api/minio
+    rewrite:
+      uriRegexRewrite:
+        match: "^/api/minio(.*)$"
+        rewrite: '\1'
+    route:
+    - destination:
+        host: {{ $vs.minio.host | default "minio" }}
+        port:
+          number: {{ $vs.minio.port | default 9000 }}
+    timeout: 120s
+  {{- end }}
+
+  # ==========================================================================
+  # ArgoCD UI Routes (if enabled)
+  # ==========================================================================
+  {{- if and $vs.argocd $vs.argocd.enabled }}
+  # ArgoCD host-based routing (argocd.wealist.co.kr → argocd-server)
+  {{- if $vs.argocd.host }}
+  - match:
+    - headers:
+        ":authority":
+          exact: {{ $vs.argocd.host | quote }}
+    route:
+    - destination:
+        host: argocd-server.argocd.svc.cluster.local
+        port:
+          number: 80
+    timeout: 30s
+  {{- end }}
+  # Path-based routing (/api/argo/* → argocd-server)
+  # NOTE: ArgoCD는 rootpath=/api/argo로 설정되어 있으므로 경로를 rewrite하지 않음
+  #       ArgoCD가 /api/argo/* 경로를 그대로 받아야 함
+  - match:
+    - uri:
+        prefix: /api/argo
+    route:
+    - destination:
+        host: argocd-server.argocd.svc.cluster.local
+        port:
+          number: 80
+    timeout: 30s
+  {{- end }}
+
+  # ==========================================================================
+  # Monitoring Routes (if enabled)
+  # ==========================================================================
+  {{- if and $vs.monitoring $vs.monitoring.enabled }}
+  # Grafana (path preserved - Grafana handles /api/monitoring/grafana internally)
+  - match:
+    - uri:
+        prefix: /api/monitoring/grafana
+    route:
+    - destination:
+        host: {{ $vs.monitoring.grafana.host | default "grafana" }}
+        port:
+          number: {{ $vs.monitoring.grafana.port | default 3000 }}
+    timeout: 30s
+
+  # Prometheus (path preserved)
+  - match:
+    - uri:
+        prefix: /api/monitoring/prometheus
+    route:
+    - destination:
+        host: {{ $vs.monitoring.prometheus.host | default "prometheus" }}
+        port:
+          number: {{ $vs.monitoring.prometheus.port | default 9090 }}
+    timeout: 30s
+
+  # Loki (path preserved)
+  - match:
+    - uri:
+        prefix: /api/monitoring/loki
+    route:
+    - destination:
+        host: {{ $vs.monitoring.loki.host | default "loki" }}
+        port:
+          number: {{ $vs.monitoring.loki.port | default 3100 }}
+    timeout: 30s
+
+  {{- if and $vs.monitoring.kiali $vs.monitoring.kiali.enabled }}
+  # Kiali (Istio dashboard)
+  - match:
+    - uri:
+        prefix: /api/monitoring/kiali
+    route:
+    - destination:
+        host: {{ $vs.monitoring.kiali.host | default "kiali" }}.{{ $vs.monitoring.kiali.namespace | default "istio-system" }}.svc.cluster.local
+        port:
+          number: {{ $vs.monitoring.kiali.port | default 20001 }}
+    timeout: 30s
+  {{- end }}
+
+  {{- if and $vs.monitoring.jaeger $vs.monitoring.jaeger.enabled }}
+  # Jaeger (Tracing)
+  - match:
+    - uri:
+        prefix: /api/monitoring/jaeger
+    route:
+    - destination:
+        host: {{ $vs.monitoring.jaeger.host | default "tracing" }}.{{ $vs.monitoring.jaeger.namespace | default "istio-system" }}.svc.cluster.local
+        port:
+          number: {{ $vs.monitoring.jaeger.port | default 80 }}
+    timeout: 30s
+  {{- end }}
+  {{- end }}
+
+  # ==========================================================================
   # Frontend (catch-all - must be last)
+  # ==========================================================================
+  {{- if and $vs.frontend $vs.frontend.enabled }}
   - match:
     - uri:
         prefix: /
@@ -139,4 +451,6 @@ spec:
         host: frontend
         port:
           number: 80
+    timeout: 30s
+  {{- end }}
 {{- end }}

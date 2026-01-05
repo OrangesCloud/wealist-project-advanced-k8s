@@ -5,6 +5,9 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+    notifications.argoproj.io/subscribe.on-deployed.webhook: discord
+    notifications.argoproj.io/subscribe.on-sync-failed.webhook: discord
+    notifications.argoproj.io/subscribe.on-health-degraded.webhook: discord
 spec:
   project: wealist-dev
   source:
@@ -26,11 +29,11 @@ spec:
         - name: imagePullSecrets[0].name
           value: "ecr-secret"
         - name: shared.config.DB_HOST
-          value: "172.17.0.1"
+          value: "postgres"
         - name: shared.config.POSTGRES_HOST
-          value: "172.17.0.1"
+          value: "postgres"
         - name: shared.config.REDIS_HOST
-          value: "172.17.0.1"
+          value: "redis"
         - name: config.DB_NAME
           value: "wealist"
         - name: config.DB_USER

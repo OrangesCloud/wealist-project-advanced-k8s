@@ -46,7 +46,7 @@
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │ Add-ons                                                  │   │
-│  │ - vpc-cni (Istio Ambient 지원)                           │   │
+│  │ - vpc-cni (Istio Sidecar 지원)                            │   │
 │  │ - coredns                                                │   │
 │  │ - kube-proxy                                             │   │
 │  │ - aws-ebs-csi-driver                                     │   │
@@ -60,12 +60,12 @@
 
 | 설정 | 값 | 비고 |
 |------|-----|------|
-| Kubernetes 버전 | 1.30 | Istio Ambient GA 지원 |
+| Kubernetes 버전 | 1.30 | Istio 1.28.2 Sidecar 지원 |
 | API 엔드포인트 | Public + Private | 외부/내부 접근 가능 |
 | Secrets 암호화 | KMS | foundation 레이어 키 사용 |
 | 로깅 | 5가지 전부 활성화 | api, audit, authenticator, controllerManager, scheduler |
 
-## Istio Ambient 지원
+## Istio Sidecar 지원
 
 ### VPC CNI 설정
 
@@ -73,7 +73,7 @@
 vpc-cni = {
   configuration_values = jsonencode({
     env = {
-      POD_SECURITY_GROUP_ENFORCING_MODE = "standard"  # 필수!
+      POD_SECURITY_GROUP_ENFORCING_MODE = "standard"
       ENABLE_PREFIX_DELEGATION = "true"
       WARM_PREFIX_TARGET = "1"
     }
@@ -85,9 +85,8 @@ vpc-cni = {
 
 | 포트 | 프로토콜 | 용도 |
 |------|----------|------|
-| 15008 | TCP | HBONE tunnel (ztunnel, Waypoint) |
-| 15001-15006 | TCP | Traffic redirect |
-| 15012 | TCP | XDS (istiod 통신) |
+| 15001-15006 | TCP | Envoy Sidecar 트래픽 redirect |
+| 15012 | TCP | XDS (istiod ↔ Sidecar 통신) |
 | 15020-15021 | TCP | Metrics, readiness |
 | 53 | TCP/UDP | CoreDNS |
 
@@ -166,35 +165,53 @@ terraform apply
 aws eks update-kubeconfig --name wealist-prod-eks --region ap-northeast-2
 ```
 
-### 2. Gateway API CRDs 설치 (Istio Ambient 필수)
+### 2. Gateway API CRDs 설치
 
 ```bash
 kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
 ```
 
-### 3. Istio Ambient 설치
+### 3. Istio Sidecar 설치 (Terraform에서 자동 설치됨)
 
+Terraform의 `helm-releases.tf`에서 Istio가 자동으로 설치됩니다:
+- `istio-base`: Istio CRDs
+- `istiod`: Control plane (Sidecar 모드, profile 설정 없음)
+
+수동 설치가 필요한 경우:
 ```bash
 # Istio CLI 설치 (1.28.2 - EKS 1.34 호환)
 curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.28.2 sh -
 export PATH=$PWD/istio-1.28.2/bin:$PATH
 
-# Ambient 프로필 설치
-istioctl install --set profile=ambient -y
+# Sidecar 모드 설치 (default profile)
+istioctl install -y
 
 # 설치 확인
 kubectl get pods -n istio-system
 istioctl proxy-status
 ```
 
-### 4. 네임스페이스 설정
+### 4. 네임스페이스 설정 (Terraform에서 자동 생성됨)
 
+Terraform의 `namespaces.tf`에서 네임스페이스가 자동으로 생성됩니다:
+```hcl
+resource "kubernetes_namespace" "wealist_prod" {
+  metadata {
+    name = "wealist-prod"
+    labels = {
+      "istio-injection" = "enabled"  # Sidecar 자동 주입
+    }
+  }
+}
+```
+
+수동 생성이 필요한 경우:
 ```bash
 # 네임스페이스 생성
 kubectl create namespace wealist-prod
 
-# Ambient 활성화
-kubectl label namespace wealist-prod istio.io/dataplane-mode=ambient
+# Sidecar 자동 주입 활성화
+kubectl label namespace wealist-prod istio-injection=enabled
 
 # 확인
 kubectl get namespace wealist-prod --show-labels
@@ -283,21 +300,24 @@ aws eks update-addon \
   --resolve-conflicts OVERWRITE
 ```
 
-### Istio Ambient 문제
+### Istio Sidecar 문제
 
 ```bash
-# ztunnel 상태 확인
-kubectl get pods -n istio-system -l app=ztunnel
-
-# ztunnel 로그 (RBAC 거부 확인)
-kubectl logs -n istio-system -l app=ztunnel --tail=50 | grep -i denied
-
 # istiod 상태 확인
 kubectl get pods -n istio-system -l app=istiod
+
+# Sidecar 주입 확인
+kubectl get pods -n wealist-prod -o jsonpath='{.items[*].spec.containers[*].name}' | tr ' ' '\n' | grep -c istio-proxy
+
+# Sidecar 로그 확인
+kubectl logs deploy/<service-name> -n wealist-prod -c istio-proxy --tail=50
+
+# Envoy 설정 확인
+istioctl proxy-config all deploy/<service-name> -n wealist-prod
 ```
 
 ## 관련 문서
 
 - Foundation 레이어: [../foundation/README.md](../foundation/README.md)
 - Pod Identity 모듈: [../../modules/pod-identity/README.md](../../modules/pod-identity/README.md)
-- Istio Ambient 가이드: [../../../docs/ISTIO_AMBIENT.md](../../../docs/ISTIO_AMBIENT.md)
+- Istio Sidecar 가이드: [../../../.claude/docs/ISTIO_SIDECAR.md](../../../.claude/docs/ISTIO_SIDECAR.md)

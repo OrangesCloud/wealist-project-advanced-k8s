@@ -10,6 +10,14 @@ global:
   namespace: wealist
 
 # =============================================================================
+# Istio Configuration (for Prometheus scrape jobs)
+# =============================================================================
+# Prometheus scrapes Envoy sidecar metrics (port 15090)
+istio:
+  sidecar:
+    enabled: true
+
+# =============================================================================
 # External Secrets (ESO) Configuration
 # =============================================================================
 # enabled: true → ExternalSecret에서 시크릿 가져옴 (dev/prod)
@@ -93,11 +101,6 @@ prometheus:
       enabled: true
       host: storage-service
       port: 8003
-      path: /metrics
-    videoService:
-      enabled: true
-      host: video-service
-      port: 8004
       path: /metrics
     # Spring Boot Service
     authService:
@@ -244,6 +247,23 @@ grafana:
     rootUrl: "%(protocol)s://%(domain)s:%(http_port)s/monitoring/grafana"
     serveFromSubPath: "true"
 
+  # Google OAuth Configuration
+  # ArgoCD와 동일한 Google OAuth 앱 사용 가능
+  oauth:
+    google:
+      enabled: false  # dev.yaml/prod.yaml에서 true로 활성화
+      clientId: ""    # 환경별 설정에서 오버라이드
+      clientSecret: "" # 환경별 설정에서 오버라이드 (Secrets Manager 권장)
+      # 허용 도메인 (빈 문자열이면 모든 도메인 허용)
+      allowedDomains: ""
+      # 자동 로그인 (OAuth만 사용할 때)
+      autoLogin: false
+      # 역할 매핑 (Google 이메일 → Grafana 역할)
+      # Admin, Editor, Viewer
+      roleAttributePath: ""
+      # 관리자 이메일 목록 (쉼표 구분)
+      adminEmails: ""
+
   # Additional Datasources (확장용)
   additionalDatasources:
     # Elasticsearch (ELK 스택 연동용)
@@ -253,6 +273,20 @@ grafana:
       index: "logstash-*"
       # Production에서는 AWS OpenSearch 사용 가능
       # url: "https://search-xxx.ap-northeast-2.es.amazonaws.com"
+
+  # =============================================================================
+  # Dashboards V4 - Role-based Dashboard Structure (2026 Best Practice)
+  # =============================================================================
+  # Structure:
+  #   00-landing/    - System overview (entry point)
+  #   01-cicd/       - CI/CD (ArgoCD, GitHub Actions)
+  #   02-loadtest/   - Load testing (k6)
+  #   03-developer/  - Developer (API, traces, service graph)
+  #   04-pm/         - PM (business metrics, SLO)
+  #   05-operations/ - Operations (K8s, DB, incidents, canary)
+  #   06-advanced/   - Advanced (OTEL span metrics, traces)
+  # =============================================================================
+  # Note: V1/V2/V3 are deprecated and removed. V4 is the only supported version.
 
 # =============================================================================
 # Monitoring Ingress - External Access via domain/monitoring/*
@@ -523,9 +557,6 @@ k6:
       - name: storage
         path: /svc/storage
         healthPath: /health/live
-      - name: video
-        path: /svc/video
-        healthPath: /health/live
 
   # SLA 임계값 (Alert과 연동)
   thresholds:
@@ -533,6 +564,35 @@ k6:
     latencyP99Ms: 1000
     errorRatePercent: 1
     availabilityPercent: 99.9
+
+# =============================================================================
+# Pushgateway - GitHub Actions 메트릭 수집용
+# =============================================================================
+# CI/CD 파이프라인 메트릭을 수집하기 위한 Pushgateway
+# GitHub Actions에서 빌드/배포 메트릭을 push하면 Prometheus가 scrape
+pushgateway:
+  enabled: false  # prod.yaml에서 활성화
+
+  image:
+    repository: prom/pushgateway
+    tag: "v1.11.0"  # 2025-12 최신 안정 버전
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 9091
+    type: ClusterIP
+
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "25m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+  # 메트릭 지속성 (기본: 비활성화 - 메트릭은 짧은 수명)
+  persistence:
+    enabled: false
 
 # =============================================================================
 # OpenTelemetry Collector - Trace Collection Gateway
@@ -592,6 +652,48 @@ otelCollector:
       latencyThresholdMs: 1000
       # 정상 트래픽 샘플링 비율 (%)
       defaultSamplingPercentage: 10
+
+  # =============================================================================
+  # Connectors (2025-2026 OTEL Best Practice)
+  # =============================================================================
+  # Connectors bridge pipelines - receive from one, export to another
+  # spanmetrics: traces → RED metrics (Request, Error, Duration)
+  # servicegraph: traces → service dependency metrics
+  connectors:
+    # Prometheus Remote Write endpoint (for connector metrics)
+    prometheusRemoteWrite:
+      # NOTE: Prometheus uses --web.route-prefix=/api/monitoring/prometheus
+      # So the remote write endpoint must include this prefix
+      endpoint: "http://prometheus:9090/api/monitoring/prometheus/api/v1/write"
+      resourceToTelemetryConversion: true
+
+    # Span Metrics Connector
+    # Generates: traces_spanmetrics_calls_total, traces_spanmetrics_duration_seconds_bucket
+    spanmetrics:
+      enabled: false  # localhost.yaml에서 true로 활성화
+      namespace: traces.spanmetrics
+      histogram:
+        # Grafana compatible buckets (in seconds)
+        buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+      dimensions:
+        # Note: service.name is automatically included by spanmetrics connector
+        - http.method
+        - http.status_code
+        - http.route
+      exemplars:
+        enabled: true  # Link metrics to traces
+
+    # Service Graph Connector
+    # Generates: traces_service_graph_request_total, traces_service_graph_request_failed_total
+    servicegraph:
+      enabled: false  # localhost.yaml에서 true로 활성화
+      store:
+        ttl: 2m
+        maxItems: 10000
+      cacheLoop: 1m
+      dimensions:
+        - service.namespace
+        - http.method
 
 # =============================================================================
 # Tempo - Distributed Tracing Backend

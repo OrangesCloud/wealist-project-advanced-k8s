@@ -611,65 +611,14 @@ port-forward-monitoring: ## 모든 모니터링 서비스 포트 포워딩 (백�
 
 ##@ Istio 서비스 메시
 
-.PHONY: istio-install istio-install-ambient istio-install-gateway istio-install-addons istio-install-config
-.PHONY: istio-label-ns istio-label-ns-ambient istio-restart-pods istio-uninstall istio-status
+.PHONY: istio-install istio-install-gateway istio-install-addons istio-install-config
+.PHONY: istio-label-ns istio-restart-pods istio-uninstall istio-status
 
-ISTIO_VERSION ?= 1.24.0
+ISTIO_VERSION ?= 1.28.2
 GATEWAY_API_VERSION ?= v1.2.0
 
-istio-install-ambient: ## Istio Ambient 모드 설치 (권장)
-	@echo "Istio Ambient $(ISTIO_VERSION) 설치 중..."
-	@echo ""
-	@echo "Ambient 모드 구성요소:"
-	@echo "  - ztunnel (DaemonSet): 각 노드에서 L4 mTLS, 기본 인증"
-	@echo "  - Waypoint Proxy: 네임스페이스별 L7 기능 (라우팅, 재시도, JWT)"
-	@echo "  - 사이드카 주입 불필요"
-	@echo ""
-	@echo "단계 1: Kubernetes Gateway API CRDs $(GATEWAY_API_VERSION) 설치 중..."
-	@kubectl get crd gateways.gateway.networking.k8s.io >/dev/null 2>&1 || \
-		kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/$(GATEWAY_API_VERSION)/standard-install.yaml
-	@echo ""
-	@echo "단계 2: Istio Helm 저장소 추가 중..."
-	@helm repo add istio https://istio-release.storage.googleapis.com/charts 2>/dev/null || true
-	@helm repo update
-	@echo ""
-	@echo "단계 3: istio-base (CRDs) 설치 중..."
-	@helm upgrade --install istio-base istio/base \
-		-n istio-system --create-namespace \
-		--version $(ISTIO_VERSION) --wait
-	@echo ""
-	@echo "단계 4: istio-cni (Ambient 필수) 설치 중..."
-	@helm upgrade --install istio-cni istio/cni \
-		-n istio-system \
-		--version $(ISTIO_VERSION) \
-		--set profile=ambient --wait
-	@echo ""
-	@echo "단계 5: istiod (Ambient 프로필) 설치 중..."
-	@helm upgrade --install istiod istio/istiod \
-		-n istio-system \
-		--version $(ISTIO_VERSION) \
-		--set profile=ambient --wait
-	@echo ""
-	@echo "단계 6: ztunnel (L4 보안 오버레이) 설치 중..."
-	@helm upgrade --install ztunnel istio/ztunnel \
-		-n istio-system \
-		--version $(ISTIO_VERSION) --wait
-	@echo ""
-	@echo "Istio Ambient 코어 설치 완료!"
-	@echo ""
-	@echo "다음 단계:"
-	@echo "  1. make istio-label-ns-ambient  # 네임스페이스에 Ambient 활성화"
-	@echo "  2. make istio-install-config    # Gateway, VirtualService, Waypoint 설치"
-	@echo ""
-	@echo "참고: Ambient 모드는 레거시 istio-ingressgateway 대신"
-	@echo "      Kubernetes Gateway API (Waypoint)를 사용합니다."
-	@echo "      레거시 게이트웨이가 필요하면: make istio-install-gateway"
-
-istio-install-gateway: ## Istio Ingress Gateway 설치 (선택사항, 레거시 지원용)
+istio-install-gateway: ## Istio Ingress Gateway 설치 (Helm 방식)
 	@echo "Istio Ingress Gateway 설치 중..."
-	@echo ""
-	@echo "참고: Ambient 모드에서는 Kubernetes Gateway API 사용을 권장합니다."
-	@echo "      이것은 레거시 사이드카 모드 또는 하이브리드 설정용입니다."
 	@echo ""
 	@helm upgrade --install istio-ingressgateway istio/gateway \
 		-n istio-system \
@@ -678,7 +627,7 @@ istio-install-gateway: ## Istio Ingress Gateway 설치 (선택사항, 레거시 
 	@echo ""
 	@echo "Istio Ingress Gateway 설치 완료!"
 
-# (레거시) istio-install - 사이드카 모드, istio-install-ambient 사용 권장
+# Istio Sidecar 모드 설치 (Helm 차트 방식, 권장: setup 스크립트의 istioctl)
 istio-install:
 	@echo "Istio $(ISTIO_VERSION) 설치 중..."
 	@echo ""
@@ -709,21 +658,12 @@ istio-install:
 	@echo "  3. make istio-restart-pods   # 사이드카 주입을 위해 파드 재시작"
 	@echo "  4. make istio-install-addons # Kiali, Jaeger 설치 (선택사항)"
 
-# (레거시) istio-label-ns - 사이드카 모드, istio-label-ns-ambient 사용 권장
-istio-label-ns:
+istio-label-ns: ## Istio Sidecar 주입을 위한 네임스페이스 레이블 적용
 	@echo "$(K8S_NAMESPACE) 네임스페이스에 Istio 사이드카 주입 레이블 적용 중..."
 	@kubectl label namespace $(K8S_NAMESPACE) istio-injection=enabled --overwrite
 	@echo ""
 	@echo "네임스페이스 레이블 적용됨! 재시작 시 파드에 Istio 사이드카가 주입됩니다."
 	@echo "실행: make istio-restart-pods"
-
-istio-label-ns-ambient: ## Istio Ambient 모드용 네임스페이스 레이블 적용
-	@echo "$(K8S_NAMESPACE) 네임스페이스에 Istio Ambient 모드 레이블 적용 중..."
-	@kubectl label namespace $(K8S_NAMESPACE) istio.io/dataplane-mode=ambient --overwrite
-	@kubectl label namespace $(K8S_NAMESPACE) istio-injection- 2>/dev/null || true
-	@echo ""
-	@echo "Ambient 모드용 네임스페이스 레이블 적용됨!"
-	@echo "파드가 자동으로 등록됩니다 - 재시작 불필요."
 
 istio-restart-pods: ## 모든 파드 재시작하여 Istio 사이드카 주입
 	@echo "$(K8S_NAMESPACE)의 모든 deployment 재시작하여 사이드카 주입 중..."
@@ -745,13 +685,13 @@ istio-install-addons: ## Istio 애드온 설치 (Kiali, Jaeger)
 	@echo "Istio 관측성 애드온 설치 중..."
 	@echo ""
 	@echo "Kiali (서비스 그래프) 설치 중..."
-	@kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/kiali.yaml
+	@kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.28/samples/addons/kiali.yaml
 	@echo ""
 	@echo "Jaeger (분산 추적) 설치 중..."
-	@kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/jaeger.yaml
+	@kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.28/samples/addons/jaeger.yaml
 	@echo ""
 	@echo "Prometheus (없으면) 설치 중..."
-	@kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.20/samples/addons/prometheus.yaml 2>/dev/null || true
+	@kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.28/samples/addons/prometheus.yaml 2>/dev/null || true
 	@echo ""
 	@echo "애드온 설치 완료!"
 	@echo ""
@@ -762,17 +702,16 @@ istio-status: ## Istio 설치 상태 확인
 	@echo "=== Istio 시스템 컴포넌트 ==="
 	@kubectl get pods -n istio-system
 	@echo ""
-	@echo "=== Istio 모드 상태 ($(K8S_NAMESPACE)) ==="
-	@echo -n "Ambient 모드: "; kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.labels.istio\.io/dataplane-mode}' 2>/dev/null && echo "" || echo "비활성화"
-	@echo -n "사이드카 주입: "; kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.labels.istio-injection}' 2>/dev/null && echo "" || echo "비활성화"
+	@echo "=== Istio Sidecar 모드 상태 ($(K8S_NAMESPACE)) ==="
+	@echo -n "Sidecar 주입: "; kubectl get namespace $(K8S_NAMESPACE) -o jsonpath='{.metadata.labels.istio-injection}' 2>/dev/null && echo "" || echo "비활성화"
 	@echo ""
-	@echo "=== ztunnel 상태 (Ambient) ==="
-	@kubectl get pods -n istio-system -l app=ztunnel 2>/dev/null || echo "ztunnel 미설치"
+	@echo "=== istiod 상태 ==="
+	@kubectl get pods -n istio-system -l app=istiod 2>/dev/null || echo "istiod 미설치"
 	@echo ""
-	@echo "=== Waypoint Proxy ($(K8S_NAMESPACE)) ==="
-	@kubectl get gateway -n $(K8S_NAMESPACE) -l istio.io/waypoint-for 2>/dev/null || echo "Waypoint 프록시 없음"
+	@echo "=== Sidecar 주입된 파드 ($(K8S_NAMESPACE)) ==="
+	@kubectl get pods -n $(K8S_NAMESPACE) -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{" "}{end}{"\n"}{end}' 2>/dev/null | grep istio-proxy || echo "Sidecar 주입된 파드 없음"
 	@echo ""
-	@echo "=== 파드 ($(K8S_NAMESPACE)) ==="
+	@echo "=== 전체 파드 ($(K8S_NAMESPACE)) ==="
 	@kubectl get pods -n $(K8S_NAMESPACE) -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .spec.containers[*]}{.name}{" "}{end}{"\n"}{end}' 2>/dev/null | grep -v "^$$" || echo "파드 없음"
 
 istio-uninstall: ## Istio 완전 삭제
@@ -783,18 +722,15 @@ istio-uninstall: ## Istio 완전 삭제
 	@echo ""
 	@echo "단계 2: 네임스페이스 레이블 삭제 중..."
 	@kubectl label namespace $(K8S_NAMESPACE) istio-injection- 2>/dev/null || true
-	@kubectl label namespace $(K8S_NAMESPACE) istio.io/dataplane-mode- 2>/dev/null || true
 	@echo ""
 	@echo "단계 3: Istio 애드온 삭제 중..."
 	@kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-$(ISTIO_VERSION)/samples/addons/kiali.yaml 2>/dev/null || true
 	@kubectl delete -f https://raw.githubusercontent.com/istio/istio/release-$(ISTIO_VERSION)/samples/addons/jaeger.yaml 2>/dev/null || true
 	@echo ""
-	@echo "단계 4: Istio 코어 (Ambient 컴포넌트 포함) 삭제 중..."
+	@echo "단계 4: Istio 코어 삭제 중..."
 	@helm uninstall istio-ingressgateway -n istio-system 2>/dev/null || true
-	@helm uninstall ztunnel -n istio-system 2>/dev/null || true
 	@helm uninstall istiod -n istio-system 2>/dev/null || true
-	@helm uninstall istio-cni -n istio-system 2>/dev/null || true
 	@helm uninstall istio-base -n istio-system 2>/dev/null || true
 	@echo ""
 	@echo "Istio 삭제 완료!"
-	@echo "참고: 사이드카 모드의 경우, 사이드카 제거를 위해 파드 재시작: make istio-restart-pods"
+	@echo "참고: Sidecar 제거를 위해 파드 재시작: make istio-restart-pods"

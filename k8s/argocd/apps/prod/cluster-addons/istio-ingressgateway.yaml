@@ -1,0 +1,74 @@
+# =============================================================================
+# Istio Ingress Gateway (sync-wave: -3)
+# =============================================================================
+# Istio Gateway + VirtualService 라우팅을 위한 Ingress Gateway
+# - Envoy 프록시 Deployment + LoadBalancer Service
+# - NLB에서 TLS termination 후 HTTP로 전달
+# - External DNS가 Service annotation으로 Route53 업데이트
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: istio-ingressgateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"  # ALB Controller (-5) 이후, istio-config 이전
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    chart: gateway
+    targetRevision: "1.28.2"  # istiod 버전과 일치
+    helm:
+      valuesObject:
+        name: istio-ingressgateway
+        revision: ""  # default revision
+        replicaCount: 2  # 고가용성
+        autoscaling:
+          enabled: true
+          minReplicas: 2
+          maxReplicas: 5
+          targetCPUUtilizationPercentage: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 2000m
+            memory: 1024Mi
+        service:
+          type: LoadBalancer
+          annotations:
+            # AWS NLB 설정
+            service.beta.kubernetes.io/aws-load-balancer-type: "external"
+            service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+            service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+            # Health Check
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "15021"
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/healthz/ready"
+            service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: "HTTP"
+            # TLS Termination at NLB
+            service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:ap-northeast-2:290008131187:certificate/4843a808-fd9a-478a-8419-3d3f06dfd761"
+            service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+            service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
+            # External DNS - Route53 자동 업데이트
+            external-dns.alpha.kubernetes.io/hostname: "api.wealist.co.kr,argocd.wealist.co.kr,livekit.wealist.co.kr"
+          ports:
+            - name: http
+              port: 80
+              targetPort: 8080
+            - name: https
+              port: 443
+              targetPort: 8080  # NLB TLS termination → HTTP 전달
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: istio-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

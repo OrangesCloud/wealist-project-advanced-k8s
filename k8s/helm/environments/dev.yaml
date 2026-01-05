@@ -47,10 +47,10 @@ securityContext:
 # -----------------------------------------------------------------------------
 # External Secrets Operator (ESO)
 # -----------------------------------------------------------------------------
-# ESO가 AWS Secrets Manager에서 wealist-shared-secret을 자동 생성
-# Helm chart에서 secret 생성을 건너뜀
+# Dev 환경: ESO 비활성화 (Kind 클러스터 내부 DB 사용)
+# Prod 환경: ESO가 AWS Secrets Manager에서 wealist-shared-secret을 자동 생성
 externalSecrets:
-  enabled: true
+  enabled: false
 
 # -----------------------------------------------------------------------------
 # Features
@@ -77,14 +77,28 @@ shared:
     LOG_LEVEL: "info"
     CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
 
-    # Database (외부 호스트 - Docker bridge gateway)
-    DB_HOST: "172.17.0.1"
-    POSTGRES_HOST: "172.17.0.1"
+    # Service URLs (K8s 내부 통신) - base.yaml 값 재정의 필요 (Helm은 deep merge 안함)
+    AUTH_SERVICE_URL: "http://auth-service:8080"
+    USER_SERVICE_URL: "http://user-service:8081"
+    BOARD_SERVICE_URL: "http://board-service:8000"
+    CHAT_SERVICE_URL: "http://chat-service:8001"
+    NOTI_SERVICE_URL: "http://noti-service:8002"
+    STORAGE_SERVICE_URL: "http://storage-service:8003"
+    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/api/svc/livekit"
+
+    # Infrastructure Ports
+    POSTGRES_PORT: "5432"
+    DB_PORT: "5432"
+    REDIS_PORT: "6379"
+
+    # Database (클러스터 내부 - postgres Service)
+    DB_HOST: "postgres"
+    POSTGRES_HOST: "postgres"
     DB_AUTO_MIGRATE: "true"
 
-    # Redis (외부 호스트)
-    REDIS_HOST: "172.17.0.1"
-    SPRING_REDIS_HOST: "172.17.0.1"
+    # Redis (클러스터 내부 - redis Service)
+    REDIS_HOST: "redis"
+    SPRING_REDIS_HOST: "redis"
     SPRING_DATA_REDIS_SSL_ENABLED: "false"
 
     # S3/MinIO Configuration
@@ -97,12 +111,38 @@ shared:
     OAUTH2_CLIENT_REDIRECT_URI: "https://api.dev.wealist.co.kr/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "https://dev.wealist.co.kr/oauth/callback"
 
-    # LiveKit
-    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/api/svc/livekit"
+    # Internal API Key (dev용)
+    INTERNAL_API_KEY: "dev-internal-key-2024"
 
-    # OTEL (dev: 50% 샘플링)
+    # OTEL Configuration
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
     OTEL_TRACES_SAMPLER_ARG: "0.5"
+    OTEL_PROPAGATORS: "tracecontext,baggage"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev"
+
+  # Shared Secrets (dev 환경용 - 프로덕션은 ExternalSecrets 사용)
+  secrets:
+    # Database
+    DB_HOST: "postgres"
+    DB_PORT: "5432"
+    DB_USER: "wealist"
+    DB_USERNAME: "wealist"
+    DB_PASSWORD: "wealist-dev-password"
+    DATABASE_URL: "postgresql://wealist:wealist-dev-password@postgres:5432/wealist?sslmode=disable"
+    POSTGRES_HOST: "postgres"
+    # Redis
+    REDIS_HOST: "redis"
+    REDIS_PASSWORD: ""
+    SPRING_REDIS_HOST: "redis"
+    SPRING_REDIS_PASSWORD: ""
+    # Auth
+    JWT_SECRET: "dev-jwt-secret-key-2024-wealist"
+    INTERNAL_API_KEY: "dev-internal-key-2024"
+    # S3/MinIO
+    S3_ACCESS_KEY: "minioadmin"
+    S3_SECRET_KEY: "minioadmin"
 
 # -----------------------------------------------------------------------------
 # Ingress (Disabled - Istio Gateway)
@@ -111,21 +151,41 @@ ingress:
   enabled: false
 
 # -----------------------------------------------------------------------------
-# Database (External - Host machine or AWS RDS)
+# Database (클러스터 내부 - hostPath로 데이터 영속화)
 # -----------------------------------------------------------------------------
+# 데이터 저장 위치: ${WEALIST_DATA_PATH}/postgres, ${WEALIST_DATA_PATH}/redis
+# Kind extraMounts로 /data에 마운트됨
 postgres:
-  enabled: false
+  enabled: true
   external:
+    enabled: false
+  image:
+    repository: postgres
+    tag: "17-alpine"
+  persistence:
     enabled: true
-    host: "172.17.0.1"
-    port: 5432
+    hostPath:
+      enabled: true
+      path: /data/db_data/postgres  # Kind 노드 내부 경로 (호스트의 wealist-project-data/db_data/postgres)
+  config:
+    superuser: "postgres"
+    superuserPassword: "wealist-dev-password"
+    databases:
+      - name: wealist
+        user: wealist
 
 redis:
-  enabled: false
+  enabled: true
   external:
+    enabled: false
+  image:
+    repository: redis
+    tag: "7.2-alpine"
+  persistence:
     enabled: true
-    host: "172.17.0.1"
-    port: 6379
+    hostPath:
+      enabled: true
+      path: /data/db_data/redis  # Kind 노드 내부 경로 (호스트의 wealist-project-data/db_data/redis)
 
 # -----------------------------------------------------------------------------
 # MinIO (S3 Compatible Object Storage)
@@ -154,32 +214,21 @@ istio:
   enabled: true
   namespace: wealist-dev
 
-  gateway:
-    enabled: false
-    name: wealist-gateway
-    hosts:
-      - "dev.wealist.co.kr"
-      - "api.dev.wealist.co.kr"
-      - "*"
-    tls:
-      enabled: false
-
-  httpRoute:
+  # VirtualService 활성화 (Istio Gateway + VirtualService 방식)
+  # NOTE: hosts에 "*"와 specific host를 함께 사용하면 Istio validation error 발생
+  virtualService:
     enabled: true
-    gatewayRef:
-      name: istio-ingressgateway
-      namespace: istio-system
     hosts:
-      - "dev.wealist.co.kr"
-      - "api.dev.wealist.co.kr"
-      - "localhost"
-      - "*"  # Kind 로컬 접근용
+      - "*"
+    # Frontend (S3/CloudFront에서 서빙하므로 비활성화)
     frontend:
       enabled: false
+    # MinIO 라우팅
     minio:
       enabled: true
       host: minio
       port: 9000
+    # 모니터링 라우팅
     monitoring:
       enabled: true
       grafana:
@@ -207,6 +256,25 @@ istio:
     # Ops Portal (dev에서는 비활성화)
     opsPortal:
       enabled: false
+
+  # Istio Gateway (networking.istio.io) 활성화
+  # NOTE: hosts에 "*"와 specific host를 함께 사용하면 Istio validation error 발생
+  gateway:
+    enabled: true
+    name: istio-ingressgateway
+    namespace: istio-system
+    hosts:
+      - "*"
+    tls:
+      enabled: false
+
+  # Kubernetes Gateway API - 비활성화 (VirtualService 사용)
+  k8sGateway:
+    enabled: false
+
+  # HTTPRoute 비활성화 (VirtualService 사용)
+  httpRoute:
+    enabled: false
 
   mtls:
     enabled: true
@@ -260,10 +328,11 @@ istio:
   jwtAuth:
     enabled: false
 
+  # Ambient 모드 비활성화 (Sidecar 모드 사용)
   ambient:
-    enabled: true
+    enabled: false
     waypoint:
-      enabled: true
+      enabled: false
       name: wealist-waypoint
 
   telemetry:
@@ -321,6 +390,14 @@ grafana:
     allowSignUp: false
     rootUrl: "https://dev.wealist.co.kr/api/monitoring/grafana"
     serveFromSubPath: "true"
+  # Google OAuth - ArgoCD와 동일한 OAuth 앱 사용
+  oauth:
+    google:
+      enabled: true
+      autoLogin: false  # 기본 로그인 폼도 표시 (admin 계정 접근용)
+      # 관리자 이메일 → Admin 역할 자동 부여
+      # JMESPath 표현식: 이메일이 목록에 있으면 Admin, 아니면 Viewer
+      roleAttributePath: "contains(['chamchi0129@gmail.com','ressk4149@gmail.com','fbaudwo144@gmail.com','212clab@gmail.com'], email) && 'Admin' || 'Viewer'"
 
 monitoringIngress:
   enabled: false
@@ -331,7 +408,7 @@ postgresExporter:
     repository: prometheuscommunity/postgres-exporter
     tag: "v0.15.0"
   config:
-    host: "172.17.0.1"
+    host: "postgres"  # 클러스터 내부 서비스
     port: 5432
 
 redisExporter:
@@ -340,7 +417,7 @@ redisExporter:
     repository: oliver006/redis_exporter
     tag: "v1.55.0"
   config:
-    host: "172.17.0.1"
+    host: "redis"  # 클러스터 내부 서비스
     port: 6379
 
 # =============================================================================

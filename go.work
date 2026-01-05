@@ -8,5 +8,4 @@ use (
 	./services/ops-service
 	./services/storage-service
 	./services/user-service
-	./services/video-service
 )

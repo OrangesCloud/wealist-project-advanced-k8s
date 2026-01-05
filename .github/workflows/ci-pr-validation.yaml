@@ -51,8 +51,6 @@ jobs:
               - 'services/storage-service/**'
             user-service:
               - 'services/user-service/**'
-            video-service:
-              - 'services/video-service/**'
 
       - name: Set services to validate
         id: set-services
@@ -63,7 +61,7 @@ jobs:
             echo "Manual trigger with services: ${SERVICES}"
           # 공통 패키지 변경 시 모든 Go 서비스
           elif [ "${{ steps.filter.outputs.common-package }}" = "true" ]; then
-            SERVICES='["board-service","chat-service","noti-service","storage-service","user-service","video-service"]'
+            SERVICES='["board-service","chat-service","noti-service","storage-service","user-service"]'
             echo "Common package changed - building all Go services"
           else
             SERVICES='${{ steps.filter.outputs.changes }}'

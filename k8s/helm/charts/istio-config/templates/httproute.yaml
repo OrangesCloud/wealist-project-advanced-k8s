@@ -149,20 +149,6 @@ spec:
         - name: storage-service
           port: 8003
 
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /api/svc/video
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplacePrefixMatch
-              replacePrefixMatch: /
-      backendRefs:
-        - name: video-service
-          port: 8004
-
     {{- if .Values.istio.httpRoute.opsPortal.enabled }}
     - matches:
         - path:

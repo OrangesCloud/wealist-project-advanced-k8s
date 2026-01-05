@@ -71,6 +71,40 @@ resource "aws_secretsmanager_secret_version" "jwt_secret" {
 }
 
 # -----------------------------------------------------------------------------
+# JWT RSA Key Pair (수동 입력)
+# -----------------------------------------------------------------------------
+# auth-service에서 JWT 토큰 RS256 서명/검증에 사용
+# 모든 Pod이 동일한 키를 공유해야 함 (Multi-pod 환경 필수)
+# openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
+# openssl rsa -pubout -in private_key.pem -out public_key.pem
+# aws secretsmanager put-secret-value \
+#   --secret-id wealist/prod/app/jwt-rsa-keys \
+#   --secret-string '{"public_key":"-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"}'
+resource "aws_secretsmanager_secret" "jwt_rsa_keys" {
+  name       = "wealist/prod/app/jwt-rsa-keys"
+  kms_key_id = module.kms.key_arn
+
+  tags = merge(
+    local.common_tags,
+    {
+      Purpose = "JWT RS256 Token Signing"
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "jwt_rsa_keys" {
+  secret_id = aws_secretsmanager_secret.jwt_rsa_keys.id
+  secret_string = jsonencode({
+    public_key  = "PLACEHOLDER-UPDATE-ME"
+    private_key = "PLACEHOLDER-UPDATE-ME"
+  })
+
+  lifecycle {
+    ignore_changes = [secret_string] # 수동 업데이트 후 덮어쓰지 않음
+  }
+}
+
+# -----------------------------------------------------------------------------
 # Internal API Key (자동 생성)
 # -----------------------------------------------------------------------------
 # 서비스 간 내부 통신 인증에 사용
