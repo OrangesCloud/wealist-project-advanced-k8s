@@ -186,8 +186,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ chatId, onClose, onBack })
       // 🔥 S3에 직접 업로드 (chat-service의 uploadChatFileToS3 사용)
       await uploadChatFileToS3(uploadUrlResponse.uploadUrl, pastedImage);
 
-      // 🔥 S3 URL 구성 (fileKey 사용)
-      const fileUrl = `https://s3.ap-northeast-2.amazonaws.com/wealist-app-resources/${uploadUrlResponse.fileKey}`;
+      // 🔥 chat-service가 제공하는 downloadUrl 사용
+      const fileUrl = uploadUrlResponse.downloadUrl;
 
       // WebSocket으로 이미지 메시지 전송
       const success = sendFileMessage('', {
