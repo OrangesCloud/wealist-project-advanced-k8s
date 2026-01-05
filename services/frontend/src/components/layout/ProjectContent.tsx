@@ -63,7 +63,7 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
     searchQuery: '',
     filterOption: 'all',
     currentLayout: 'board',
-    showCompleted: false,
+    showCompleted: true, // 🔥 기본값 true로 변경
     sortColumn: null,
     sortDirection: 'asc',
   });
@@ -717,9 +717,6 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
             return (
               <div
                 key={column?.stageId}
-                draggable
-                onDragStart={() => handleColumnDragStart(column)}
-                onDragEnd={handleDragEnd}
                 onDragOver={(e) => {
                   handleDragOver(e);
                   if (draggedBoard && !draggedColumn) {
@@ -732,16 +729,11 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
                   }
                 }}
                 onDrop={() => {
-                  console.log('🔍 [DROP] draggedColumn:', draggedColumn);
                   console.log('🔍 [DROP] draggedBoard:', draggedBoard);
                   console.log('🔍 [DROP] column.stageId:', column.stageId);
-                  draggedColumn ? handleColumnDrop(column) : handleDrop(column.stageId);
+                  if (draggedBoard) handleDrop(column.stageId);
                 }}
-                className={`w-full lg:w-80 lg:flex-shrink-0 relative transition-all cursor-move ${
-                  draggedColumn?.stageId === column.stageId
-                    ? 'opacity-50 scale-95 shadow-2xl rotate-2'
-                    : 'opacity-100'
-                }`}
+                className="w-full lg:w-80 lg:flex-shrink-0 relative transition-all"
               >
                 <div
                   className={`relative ${theme.effects.cardBorderWidth} ${

@@ -30,9 +30,10 @@ const DEFAULT_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
 
 interface UserProfileModalProps {
   onClose: () => void;
+  onProfileUpdated?: () => Promise<void>; // 🔥 프로필 업데이트 후 호출될 콜백
 }
 
-const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) => {
+const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileUpdated }) => {
   const { theme } = useTheme();
   const { nickName: authNickName, refreshNickName } = useAuth();
 
@@ -211,6 +212,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose }) => {
       // 4. 기본 프로필 저장 시 AuthContext 닉네임도 갱신
       if (activeTab === 'default') {
         refreshNickName();
+      }
+
+      // 🔥 5. MainLayout/WorkspacePage에 프로필 업데이트 알림
+      if (onProfileUpdated) {
+        await onProfileUpdated();
       }
 
       setSelectedFile(null);

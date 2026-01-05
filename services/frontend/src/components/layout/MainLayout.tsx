@@ -5,27 +5,24 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { UserProfileResponse, WorkspaceMemberResponse } from '../../types/user';
 import { getMyProfile } from '../../api/userService';
 import { createOrGetDMChat, getMyChats } from '../../api/chatService';
-import { videoService, VideoRoom as VideoRoomType } from '../../api/videoService';
 import { Sidebar } from './Sidebar';
-// import { ChatPanel } from '../chat/chatPanel';
 import { ChatListPanel } from '../chat/ChatListPanel';
 import { ChatPanel } from '../chat/ChatPanel';
 import { NotificationPanel } from '../notification/NotificationPanel';
-import { VideoCallPanel } from '../video/VideoCallPanel';
-import { VideoRoom } from '../video/VideoRoom';
 import { LogOut, UserIcon, GripVertical } from 'lucide-react';
 import { usePresence } from '../../hooks/usePresence';
 import { useNotifications } from '../../hooks/useNotifications';
 import type { Notification } from '../../types/notification';
 
-// 🔥 Render prop 타입: handleStartChat을 children에 전달
+// 🔥 Render prop 타입: handleStartChat, refreshProfile을 children에 전달
 type StartChatHandler = (member: WorkspaceMemberResponse) => Promise<void>;
+type RefreshProfileHandler = () => Promise<void>;
 
 interface MainLayoutProps {
   onLogout: () => void;
   workspaceId: string;
   projectId?: string;
-  children: React.ReactNode | ((handleStartChat: StartChatHandler) => React.ReactNode);
+  children: React.ReactNode | ((handleStartChat: StartChatHandler, refreshProfile: RefreshProfileHandler) => React.ReactNode);
   onProfileModalOpen: () => void;
   onNotificationClick?: (notification: Notification) => void;
 }
@@ -46,17 +43,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [chatListRefreshKey, setChatListRefreshKey] = useState(0); // 🔥 채팅 목록 갱신용
   const [totalUnreadCount, setTotalUnreadCount] = useState(0); // 🔥 총 읽지 않은 메시지 수
-  const [activeVideoRoomCount, setActiveVideoRoomCount] = useState(0); // 활성 영상통화방 수
-  const [currentVideoRoom, setCurrentVideoRoom] = useState<{
-    room: VideoRoomType;
-    token: string;
-    wsUrl: string;
-  } | null>(null);
 
   // 알림 훅
   const {
@@ -114,73 +104,29 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     },
   });
 
-  // 프로필 로드
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const profile = await getMyProfile(workspaceId);
-        setUserProfile(profile);
-      } catch (e) {
-        console.error('기본 프로필 로드 실패:', e);
-      } finally {
-        setIsLoadingProfile(false);
-      }
-    };
-    fetchUserProfile();
-  }, [workspaceId]);
-
-  // 영상통화방 카운트 로드
-  useEffect(() => {
-    const fetchVideoRoomCount = async () => {
-      try {
-        const rooms = await videoService.getWorkspaceRooms(workspaceId, true);
-        setActiveVideoRoomCount(rooms.length);
-      } catch (e) {
-        console.error('영상통화방 카운트 로드 실패:', e);
-      }
-    };
-    fetchVideoRoomCount();
-    const interval = setInterval(fetchVideoRoomCount, 10000); // 10초마다 갱신
-    return () => clearInterval(interval);
-  }, [workspaceId]);
-
-  // 영상통화 참여 핸들러
-  const handleJoinVideoRoom = (room: VideoRoomType, token: string, wsUrl: string) => {
-    setCurrentVideoRoom({ room, token, wsUrl });
-    setIsVideoOpen(false);
-  };
-
-  // 영상통화 종료 핸들러
-  const handleLeaveVideoRoom = async () => {
-    if (currentVideoRoom) {
-      try {
-        await videoService.leaveRoom(currentVideoRoom.room.id);
-      } catch (e) {
-        console.error('영상통화 종료 실패:', e);
-      }
-    }
-    setCurrentVideoRoom(null);
-    setIsVideoOpen(true); // 통화 종료 후 패널 다시 열기
-  };
-
-  // 영상통화 토큰 갱신 핸들러 (재연결 시 사용)
-  const handleVideoTokenRefresh = useCallback(async () => {
-    if (!currentVideoRoom || !userProfile) return null;
+  // 프로필 로드 함수
+  const fetchUserProfile = useCallback(async () => {
     try {
-      console.log('[MainLayout] Refreshing video token for room:', currentVideoRoom.room.id);
-      const response = await videoService.joinRoom(currentVideoRoom.room.id, userProfile.nickName);
-      // Update current video room state with new token
-      setCurrentVideoRoom({
-        room: response.room,
-        token: response.token,
-        wsUrl: response.wsUrl,
-      });
-      return { token: response.token, wsUrl: response.wsUrl };
+      const profile = await getMyProfile(workspaceId);
+      setUserProfile(profile);
     } catch (e) {
-      console.error('Failed to refresh video token:', e);
-      return null;
+      console.error('기본 프로필 로드 실패:', e);
+    } finally {
+      setIsLoadingProfile(false);
     }
-  }, [currentVideoRoom, userProfile]);
+  }, [workspaceId]);
+
+  // 초기 프로필 로드
+  useEffect(() => {
+    fetchUserProfile();
+  }, [fetchUserProfile]);
+
+  // 🔥 프로필 새로고침 함수 (프로필 모달에서 호출용)
+  const refreshUserProfile = useCallback(async () => {
+    console.log('🔄 [MainLayout] 프로필 새로고침 중...');
+    await fetchUserProfile();
+    console.log('✅ [MainLayout] 프로필 새로고침 완료');
+  }, [fetchUserProfile]);
 
   useEffect(() => {
     refreshUnreadCount();
@@ -319,11 +265,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         userProfile={userProfile}
         isChatActive={isChatOpen}
         isNotificationActive={isNotificationOpen}
-        isVideoActive={isVideoOpen}
         onChatToggle={() => {
           setIsChatOpen(!isChatOpen);
           setIsNotificationOpen(false); // 채팅 열면 알림 닫기
-          setIsVideoOpen(false); // 채팅 열면 영상통화 닫기
           if (isChatOpen) {
             setActiveChatId(null);
           }
@@ -331,20 +275,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onNotificationToggle={() => {
           setIsNotificationOpen(!isNotificationOpen);
           setIsChatOpen(false); // 알림 열면 채팅 닫기
-          setIsVideoOpen(false); // 알림 열면 영상통화 닫기
-          setActiveChatId(null);
-        }}
-        onVideoToggle={() => {
-          setIsVideoOpen(!isVideoOpen);
-          setIsChatOpen(false); // 영상통화 열면 채팅 닫기
-          setIsNotificationOpen(false); // 영상통화 열면 알림 닫기
           setActiveChatId(null);
         }}
         onUserMenuToggle={() => setShowUserMenu(!showUserMenu)}
         onStartChat={handleStartChat}
         totalUnreadCount={totalUnreadCount}
         notificationUnreadCount={notificationUnreadCount}
-        activeVideoRoomCount={activeVideoRoomCount}
       />
 
       {/* 🔥 ChatPanel 또는 ChatList (왼쪽에 float) */}
@@ -408,41 +344,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         onNotificationClick={onNotificationClick}
       />
 
-      {/* 영상통화 패널 */}
-      {isVideoOpen && (
-        <VideoCallPanel
-          workspaceId={workspaceId}
-          userProfile={
-            userProfile ? { id: userProfile.userId || '', nickName: userProfile.nickName } : null
-          }
-          onClose={() => setIsVideoOpen(false)}
-          onJoinRoom={handleJoinVideoRoom}
-          currentRoomId={currentVideoRoom?.room.id}
-          onLeaveCurrentRoom={() => setCurrentVideoRoom(null)}
-        />
-      )}
-
-      {/* 영상통화 룸 (전체화면) */}
-      {currentVideoRoom && (
-        <VideoRoom
-          room={currentVideoRoom.room}
-          token={currentVideoRoom.token}
-          wsUrl={currentVideoRoom.wsUrl}
-          onLeave={handleLeaveVideoRoom}
-          onTokenRefresh={handleVideoTokenRefresh}
-          userProfile={
-            userProfile
-              ? {
-                  id: userProfile.userId || '',
-                  nickName: userProfile.nickName,
-                  profileImageUrl: userProfile.profileImageUrl,
-                }
-              : null
-          }
-        />
-      )}
-
-      {/* 메인 콘텐츠 영역 - Chat/Notification/Video는 float되므로 margin 변경 없음 */}
+      {/* 메인 콘텐츠 영역 - Chat/Notification은 float되므로 margin 변경 없음 */}
       <main
         className="flex-grow flex flex-col relative z-10"
         style={{
@@ -450,8 +352,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           minHeight: '100vh',
         }}
       >
-        {/* 🔥 Render prop 지원: children이 함수면 handleStartChat 전달 */}
-        {typeof children === 'function' ? children(handleStartChat) : children}
+        {/* 🔥 Render prop 지원: children이 함수면 handleStartChat, refreshUserProfile 전달 */}
+        {typeof children === 'function' ? children(handleStartChat, refreshUserProfile) : children}
       </main>
 
       {/* 유저 메뉴 드롭다운 (사이드바 위에 팝업) */}
