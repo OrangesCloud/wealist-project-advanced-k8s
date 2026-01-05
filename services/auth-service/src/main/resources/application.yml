@@ -85,6 +85,8 @@ oauth2:
   # 클라이언트가 redirect_uri 파라미터로 전달하면 이 패턴과 일치해야 함
   allowed-redirect-patterns:
     - https://wealist.co.kr/**
+    - https://ops.wealist.co.kr/**
+    - https://api.wealist.co.kr/**
     - https://dev.wealist.co.kr/**
     - http://localhost:3000/**
     - http://localhost:3001/**

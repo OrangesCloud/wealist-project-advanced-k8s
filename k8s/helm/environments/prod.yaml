@@ -6,6 +6,11 @@
 # Namespace: wealist-prod
 
 # -----------------------------------------------------------------------------
+# Chart Enable Flag (for istio-config templates)
+# -----------------------------------------------------------------------------
+enabled: true
+
+# -----------------------------------------------------------------------------
 # Global Settings
 # -----------------------------------------------------------------------------
 global:
@@ -287,8 +292,9 @@ istio:
       - "wealist.co.kr"
       - "api.wealist.co.kr"
       - "livekit.wealist.co.kr"
+      - "argocd.wealist.co.kr"
     canary:
-      enabled: false
+      enabled: true  # Enable for Argo Rollouts canary deployment
       stableWeight: 100
       canaryWeight: 0
     frontend:
@@ -346,6 +352,15 @@ istio:
       disableMtls: false
     redis:
       disableMtls: false
+
+  # 서비스 목록 (DestinationRule 생성용)
+  services:
+    - name: auth-service
+    - name: user-service
+    - name: board-service
+    - name: chat-service
+    - name: noti-service
+    - name: storage-service
 
   # 트래픽 제어 - Circuit Breaker, Connection Pool
   destinationRules:
