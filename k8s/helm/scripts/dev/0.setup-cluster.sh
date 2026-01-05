@@ -542,6 +542,8 @@ fi
 
 # ArgoCD VirtualService 부트스트랩 (ArgoCD sync 전에 접근 가능하도록)
 # NOTE: Istio Native Gateway + VirtualService 사용
+#       hosts에 "*"와 specific host를 함께 사용하면 validation error 발생
+#       "*"만 사용하여 모든 호스트에서 /api/argo 경로 라우팅
 echo "🔐 ArgoCD VirtualService 부트스트랩 적용 중..."
 kubectl apply -f - <<EOF
 apiVersion: networking.istio.io/v1
@@ -554,7 +556,6 @@ metadata:
     managed-by: setup-script
 spec:
   hosts:
-  - "dev.wealist.co.kr"
   - "*"
   gateways:
   - istio-system/istio-ingressgateway

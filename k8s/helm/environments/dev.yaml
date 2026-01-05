@@ -215,11 +215,10 @@ istio:
   namespace: wealist-dev
 
   # VirtualService 활성화 (Istio Gateway + VirtualService 방식)
+  # NOTE: hosts에 "*"와 specific host를 함께 사용하면 Istio validation error 발생
   virtualService:
     enabled: true
     hosts:
-      - "dev.wealist.co.kr"
-      - "api.dev.wealist.co.kr"
       - "*"
     # Frontend (S3/CloudFront에서 서빙하므로 비활성화)
     frontend:
@@ -259,13 +258,12 @@ istio:
       enabled: false
 
   # Istio Gateway (networking.istio.io) 활성화
+  # NOTE: hosts에 "*"와 specific host를 함께 사용하면 Istio validation error 발생
   gateway:
     enabled: true
     name: istio-ingressgateway
     namespace: istio-system
     hosts:
-      - "dev.wealist.co.kr"
-      - "api.dev.wealist.co.kr"
       - "*"
     tls:
       enabled: false
