@@ -34,9 +34,10 @@ type PresignedURLRequest struct {
 
 // PresignedURLResponse는 presigned URL 응답 구조체입니다.
 type PresignedURLResponse struct {
-	UploadURL string `json:"uploadUrl"`
-	FileKey   string `json:"fileKey"`
-	ExpiresIn int    `json:"expiresIn"` // 초 단위
+	UploadURL   string `json:"uploadUrl"`
+	DownloadURL string `json:"downloadUrl"` // 업로드 후 파일 접근 URL
+	FileKey     string `json:"fileKey"`
+	ExpiresIn   int    `json:"expiresIn"` // 초 단위
 }
 
 // FileHandler는 파일 업로드 관련 핸들러입니다.
@@ -149,11 +150,15 @@ func (h *FileHandler) GeneratePresignedURL(c *gin.Context) {
 		return
 	}
 
+	// 업로드 후 접근 가능한 URL 생성
+	downloadURL := h.s3Client.GetFileURL(fileKey)
+
 	// 응답 반환
 	resp := PresignedURLResponse{
-		UploadURL: uploadURL,
-		FileKey:   fileKey,
-		ExpiresIn: 300, // 5분
+		UploadURL:   uploadURL,
+		DownloadURL: downloadURL,
+		FileKey:     fileKey,
+		ExpiresIn:   300, // 5분
 	}
 
 	log.Info("GeneratePresignedURL completed",
