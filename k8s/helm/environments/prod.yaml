@@ -539,6 +539,13 @@ argocd:
   metrics:
     enabled: true
 
+# k6 부하테스트 (Production에서 활성화)
+k6:
+  enabled: true
+  prometheus:
+    # routePrefix 포함 필수 (/api/monitoring/prometheus)
+    remoteWriteUrl: "http://prometheus:9090/api/monitoring/prometheus/api/v1/write"
+
 # -----------------------------------------------------------------------------
 # 데이터베이스 Exporter (외부 DB 메트릭 수집)
 # -----------------------------------------------------------------------------

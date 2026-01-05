@@ -622,7 +622,7 @@
   ],
   "refresh": "5m",
   "schemaVersion": 38,
-  "tags": ["wealist", "slo", "error-budget", "v2", "ambient-compatible"],
+  "tags": ["wealist", "slo", "error-budget", "v2", "sidecar-compatible"],
   "templating": {
     "list": [
       {
