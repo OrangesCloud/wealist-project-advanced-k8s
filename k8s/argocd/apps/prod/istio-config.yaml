@@ -18,6 +18,12 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-prod
+  # Argo Rollouts가 VirtualService의 weight를 수정할 때 OutOfSync 방지
+  ignoreDifferences:
+    - group: networking.istio.io
+      kind: VirtualService
+      jqPathExpressions:
+        - .spec.http[].route[].weight
   syncPolicy:
     automated:
       prune: true
