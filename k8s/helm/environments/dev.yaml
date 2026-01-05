@@ -234,7 +234,7 @@ istio:
       - "dev.wealist.co.kr"
       - "api.dev.wealist.co.kr"
       - "localhost"
-      - "*"  # Kind 로컬 접근용
+      # Note: "*" 와일드카드는 특정 호스트와 함께 사용 불가 (Istio validation error)
     frontend:
       enabled: false
     minio:
