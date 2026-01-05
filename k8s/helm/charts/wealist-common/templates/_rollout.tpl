@@ -90,6 +90,8 @@ spec:
     metadata:
       labels:
         {{- include "wealist-common.selectorLabels" . | nindent 8 }}
+        {{/* Version label for DestinationRule subset matching - Rollouts manages this dynamically */}}
+        version: stable
       annotations:
         {{- if .Values.podAnnotations }}
         {{- toYaml .Values.podAnnotations | nindent 8 }}
