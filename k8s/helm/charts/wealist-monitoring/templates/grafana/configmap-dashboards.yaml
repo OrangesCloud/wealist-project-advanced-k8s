@@ -1,40 +1,24 @@
 {{- if .Values.grafana.enabled }}
 {{- $files := .Files }}
-{{- if .Values.grafana.dashboardsV1.enabled }}
 # =============================================================================
-# Dashboards V1 - Legacy (비활성화 권장)
+# Grafana Dashboards V4 - Role-based Dashboard Configuration
 # =============================================================================
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-dashboards-json
-  namespace: {{ .Values.global.namespace }}
-  labels:
-    app: grafana
-    app.kubernetes.io/name: grafana
-    app.kubernetes.io/component: monitoring
-data:
-  # Load dashboards from dashboards directory (legacy)
-  {{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
-  {{ base $path }}: |
-{{ $files.Get $path | indent 4 }}
-  {{- end }}
-{{- end }}
+# Structure (2026 Best Practice):
+#   00-landing/    - System overview (entry point)
+#   01-cicd/       - CI/CD dashboards (ArgoCD, GitHub Actions)
+#   02-loadtest/   - Load testing dashboards (k6)
+#   03-developer/  - Developer dashboards (API, traces, service graph)
+#   04-pm/         - PM dashboards (business metrics, SLO)
+#   05-operations/ - Operations dashboards (K8s, DB, incidents)
+#   06-advanced/   - Advanced OTEL dashboards
+# =============================================================================
+
 ---
-# =============================================================================
-# Dashboards V2 - Role-based dashboards following 2025 best practices
-# =============================================================================
-# Structure:
-#   landing/     - System overview for all roles (starting point)
-#   developer/   - Developer-focused dashboards (API, latency, debugging)
-#   pm/          - PM/Planner dashboards (business metrics, SLO, usage)
-#   operations/  - Operations/SRE dashboards (incidents, errors, k8s)
-#   shared/      - Shared dashboards referenced by multiple roles
-# =============================================================================
+# 00. Landing - System Entry Point
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboards-v2
+  name: grafana-dashboards-v4-landing
   namespace: {{ .Values.global.namespace }}
   labels:
     app: grafana
@@ -42,58 +26,17 @@ metadata:
     app.kubernetes.io/component: monitoring
     grafana_dashboard: "1"
 data:
-  # Placeholder to ensure ConfigMap is always created (even if dashboards-v2 is empty)
-  .gitkeep: ""
-  # Landing dashboards - Entry points for all roles
-  {{- range $path, $_ := .Files.Glob "dashboards-v2/landing/*.json" }}
-  {{ base $path }}: |
+  {{- range $path, $_ := .Files.Glob "dashboards-v4/00-landing/*.json" }}
+  {{ base $path }}: |-
 {{ $files.Get $path | indent 4 }}
   {{- end }}
-  # Developer dashboards - API performance, latency analysis, debugging
-  {{- range $path, $_ := .Files.Glob "dashboards-v2/developer/*.json" }}
-  {{ base $path }}: |
-{{ $files.Get $path | indent 4 }}
-  {{- end }}
-  # PM dashboards - Business metrics, SLO overview, usage analytics
-  {{- range $path, $_ := .Files.Glob "dashboards-v2/pm/*.json" }}
-  {{ base $path }}: |
-{{ $files.Get $path | indent 4 }}
-  {{- end }}
-  # Operations dashboards - Incidents, error budget, K8s cluster, DB/Redis
-  {{- range $path, $_ := .Files.Glob "dashboards-v2/operations/*.json" }}
-  {{ base $path }}: |
-{{ $files.Get $path | indent 4 }}
-  {{- end }}
-  # Shared dashboards - Common dashboards for all roles
-  {{- range $path, $_ := .Files.Glob "dashboards-v2/shared/*.json" }}
-  {{ base $path }}: |
-{{ $files.Get $path | indent 4 }}
-  {{- end }}
-  # CI/CD dashboards - ArgoCD, GitHub Actions
-  {{- range $path, $_ := .Files.Glob "dashboards-v2/cicd/*.json" }}
-  {{ base $path }}: |
-{{ $files.Get $path | indent 4 }}
-  {{- end }}
-  # LoadTest dashboards - k6 performance testing
-  {{- range $path, $_ := .Files.Glob "dashboards-v2/loadtest/*.json" }}
-  {{ base $path }}: |
-{{ $files.Get $path | indent 4 }}
-  {{- end }}
-{{- if .Values.grafana.dashboardsV3.enabled }}
+
 ---
-# =============================================================================
-# Dashboards V3 - OTEL Native Monitoring (2025-2026 best practices)
-# =============================================================================
-# Structure:
-#   otel-native/   - OTEL Collector metrics (spanmetrics, servicegraph)
-#   application/   - Application observability (RED, Golden Signals)
-#   logs/          - Log exploration and trace correlation
-#   slo/           - SLO tracking and error budgets
-# =============================================================================
+# 01. CI/CD - ArgoCD, GitHub Actions
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboards-v3-otel-native
+  name: grafana-dashboards-v4-cicd
   namespace: {{ .Values.global.namespace }}
   labels:
     app: grafana
@@ -101,15 +44,17 @@ metadata:
     app.kubernetes.io/component: monitoring
     grafana_dashboard: "1"
 data:
-  {{- range $path, $_ := .Files.Glob "dashboards-v3/otel-native/*.json" }}
-  {{ base $path }}: |
+  {{- range $path, $_ := .Files.Glob "dashboards-v4/01-cicd/*.json" }}
+  {{ base $path }}: |-
 {{ $files.Get $path | indent 4 }}
   {{- end }}
+
 ---
+# 02. LoadTest - k6 Performance Testing
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboards-v3-application
+  name: grafana-dashboards-v4-loadtest
   namespace: {{ .Values.global.namespace }}
   labels:
     app: grafana
@@ -117,15 +62,17 @@ metadata:
     app.kubernetes.io/component: monitoring
     grafana_dashboard: "1"
 data:
-  {{- range $path, $_ := .Files.Glob "dashboards-v3/application/*.json" }}
-  {{ base $path }}: |
+  {{- range $path, $_ := .Files.Glob "dashboards-v4/02-loadtest/*.json" }}
+  {{ base $path }}: |-
 {{ $files.Get $path | indent 4 }}
   {{- end }}
+
 ---
+# 03. Developer - API Performance, Traces, Service Graph
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboards-v3-logs
+  name: grafana-dashboards-v4-developer
   namespace: {{ .Values.global.namespace }}
   labels:
     app: grafana
@@ -133,15 +80,17 @@ metadata:
     app.kubernetes.io/component: monitoring
     grafana_dashboard: "1"
 data:
-  {{- range $path, $_ := .Files.Glob "dashboards-v3/logs/*.json" }}
-  {{ base $path }}: |
+  {{- range $path, $_ := .Files.Glob "dashboards-v4/03-developer/*.json" }}
+  {{ base $path }}: |-
 {{ $files.Get $path | indent 4 }}
   {{- end }}
+
 ---
+# 04. PM - Business Metrics, SLO Overview
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboards-v3-slo
+  name: grafana-dashboards-v4-pm
   namespace: {{ .Values.global.namespace }}
   labels:
     app: grafana
@@ -149,21 +98,17 @@ metadata:
     app.kubernetes.io/component: monitoring
     grafana_dashboard: "1"
 data:
-  {{- range $path, $_ := .Files.Glob "dashboards-v3/slo/*.json" }}
-  {{ base $path }}: |
+  {{- range $path, $_ := .Files.Glob "dashboards-v4/04-pm/*.json" }}
+  {{ base $path }}: |-
 {{ $files.Get $path | indent 4 }}
   {{- end }}
+
 ---
-# =============================================================================
-# Dashboards V3 - Canary Deployment Monitoring
-# =============================================================================
-# Structure:
-#   canary/   - Canary deployment observability (rollout status, traffic split)
-# =============================================================================
+# 05. Operations - Kubernetes, Database, Incidents, Canary
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboards-v3-canary
+  name: grafana-dashboards-v4-operations
   namespace: {{ .Values.global.namespace }}
   labels:
     app: grafana
@@ -171,9 +116,26 @@ metadata:
     app.kubernetes.io/component: monitoring
     grafana_dashboard: "1"
 data:
-  {{- range $path, $_ := .Files.Glob "dashboards-v3/canary/*.json" }}
-  {{ base $path }}: |
+  {{- range $path, $_ := .Files.Glob "dashboards-v4/05-operations/*.json" }}
+  {{ base $path }}: |-
 {{ $files.Get $path | indent 4 }}
   {{- end }}
-{{- end }}
+
+---
+# 06. Advanced - OTEL Span Metrics, Traces, SLO Burndown
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-v4-advanced
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+    grafana_dashboard: "1"
+data:
+  {{- range $path, $_ := .Files.Glob "dashboards-v4/06-advanced/*.json" }}
+  {{ base $path }}: |-
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
 {{- end }}
