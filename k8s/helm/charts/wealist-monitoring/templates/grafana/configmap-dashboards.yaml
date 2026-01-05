@@ -1,4 +1,9 @@
 {{- if .Values.grafana.enabled }}
+{{- $files := .Files }}
+{{- if .Values.grafana.dashboardsV1.enabled }}
+# =============================================================================
+# Dashboards V1 - Legacy (비활성화 권장)
+# =============================================================================
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -10,11 +15,11 @@ metadata:
     app.kubernetes.io/component: monitoring
 data:
   # Load dashboards from dashboards directory (legacy)
-  {{- $files := .Files }}
   {{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
   {{ base $path }}: |
 {{ $files.Get $path | indent 4 }}
   {{- end }}
+{{- end }}
 ---
 # =============================================================================
 # Dashboards V2 - Role-based dashboards following 2025 best practices
@@ -61,6 +66,16 @@ data:
   {{- end }}
   # Shared dashboards - Common dashboards for all roles
   {{- range $path, $_ := .Files.Glob "dashboards-v2/shared/*.json" }}
+  {{ base $path }}: |
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
+  # CI/CD dashboards - ArgoCD, GitHub Actions
+  {{- range $path, $_ := .Files.Glob "dashboards-v2/cicd/*.json" }}
+  {{ base $path }}: |
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
+  # LoadTest dashboards - k6 performance testing
+  {{- range $path, $_ := .Files.Glob "dashboards-v2/loadtest/*.json" }}
   {{ base $path }}: |
 {{ $files.Get $path | indent 4 }}
   {{- end }}
