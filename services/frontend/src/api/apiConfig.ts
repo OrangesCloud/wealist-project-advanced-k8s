@@ -55,12 +55,12 @@ const getApiBaseUrl = (path: string): string => {
     const hostname = window.location.hostname;
 
     // ============================================================================
-    // 💡 Production/Dev 환경: API 도메인으로 직접 요청
-    // CloudFront에는 API behavior가 없으므로 api.{env}.wealist.co.kr로 직접 요청해야 함
+    // 💡 Production/Dev 환경: CloudFront /api/* behavior 사용 (same-origin)
+    // CloudFront가 /api/* → api.{env}.wealist.co.kr 백엔드로 라우팅
     // ============================================================================
     if (hostname === 'wealist.co.kr' || hostname === 'www.wealist.co.kr') {
-      const apiDomain = window.__ENV__?.API_DOMAIN || 'api.wealist.co.kr';
-      const prodBaseUrl = `https://${apiDomain}`;
+      // CloudFront behavior가 /api/* → backend로 라우팅하므로 same-origin 사용
+      const prodBaseUrl = window.location.origin;
       if (path?.includes('/api/auth')) return `${prodBaseUrl}/api/svc/auth`;
       if (path?.includes('/api/users')) return `${prodBaseUrl}/api/svc/user`;
       if (path?.includes('/api/workspaces')) return `${prodBaseUrl}/api/svc/user`;
@@ -72,10 +72,10 @@ const getApiBaseUrl = (path: string): string => {
       return prodBaseUrl;
     }
 
-    // Dev 환경 (dev.wealist.co.kr): api.dev.wealist.co.kr로 직접 요청
+    // Dev 환경 (dev.wealist.co.kr): CloudFront /api/* behavior 사용 (same-origin)
     if (hostname === 'dev.wealist.co.kr') {
-      const apiDomain = window.__ENV__?.API_DOMAIN || 'api.dev.wealist.co.kr';
-      const devBaseUrl = `https://${apiDomain}`;
+      // CloudFront behavior가 /api/* → backend로 라우팅하므로 same-origin 사용
+      const devBaseUrl = window.location.origin;
       if (path?.includes('/api/auth')) return `${devBaseUrl}/api/svc/auth`;
       if (path?.includes('/api/users')) return `${devBaseUrl}/api/svc/user`;
       if (path?.includes('/api/workspaces')) return `${devBaseUrl}/api/svc/user`;
