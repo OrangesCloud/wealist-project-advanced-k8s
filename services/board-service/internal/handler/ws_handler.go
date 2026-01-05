@@ -39,6 +39,7 @@ type Client struct {
 	conn      *websocket.Conn
 	send      chan []byte
 	projectID string
+	userID    string // 🔥 온라인 상태 추적용
 }
 
 type WSHandler struct {
@@ -105,14 +106,14 @@ func (h *WSHandler) HandleWebSocket(c *gin.Context) {
 	authCtx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 	defer cancel()
 
-	_, err := h.AuthClient.ValidateToken(authCtx, tokenStr)
+	userID, err := h.AuthClient.ValidateToken(authCtx, tokenStr)
 	if err != nil {
 		log.Error("WebSocket Auth Failed", zap.Error(err), zap.String("projectId", projectID))
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	log.Info("WebSocket auth successful", zap.String("projectId", projectID))
+	log.Info("WebSocket auth successful", zap.String("projectId", projectID), zap.String("userId", userID.String()))
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -126,6 +127,7 @@ func (h *WSHandler) HandleWebSocket(c *gin.Context) {
 		conn:      conn,
 		send:      make(chan []byte, 256),
 		projectID: projectID,
+		userID:    userID.String(), // 🔥 사용자 ID 저장
 	}
 
 	clientsMu.Lock()
@@ -298,6 +300,52 @@ func subscribeToRedis(projectID string, client *Client, log *zap.Logger) {
 			return
 		}
 	}
+}
+
+// GetOnlineUsersForProject returns all online user IDs for a given project
+// 🔥 프로젝트에 연결된 사용자 목록 반환
+func GetOnlineUsersForProject(projectID string) []string {
+	clientsMu.RLock()
+	defer clientsMu.RUnlock()
+
+	userSet := make(map[string]bool)
+	if projectClients, ok := clients[projectID]; ok {
+		for client := range projectClients {
+			if client.userID != "" {
+				userSet[client.userID] = true
+			}
+		}
+	}
+
+	users := make([]string, 0, len(userSet))
+	for userID := range userSet {
+		users = append(users, userID)
+	}
+	return users
+}
+
+// HandleGetOnlineUsers godoc
+// @Summary      프로젝트 온라인 사용자 목록 조회
+// @Description  현재 프로젝트에 WebSocket으로 연결된 온라인 사용자 목록을 반환합니다
+// @Tags         websocket
+// @Produce      json
+// @Param        projectId path string true "Project ID (UUID)"
+// @Success      200 {object} map[string]interface{} "onlineUsers: []string, count: int"
+// @Router       /api/projects/{projectId}/online-users [get]
+func (h *WSHandler) HandleGetOnlineUsers(c *gin.Context) {
+	projectID := c.Param("projectId")
+	log := getLogger(c)
+
+	users := GetOnlineUsersForProject(projectID)
+
+	log.Debug("Online users requested",
+		zap.String("projectId", projectID),
+		zap.Int("count", len(users)))
+
+	c.JSON(http.StatusOK, gin.H{
+		"onlineUsers": users,
+		"count":       len(users),
+	})
 }
 
 // BroadcastEvent broadcasts a WebSocket event to all clients subscribed to the given project.

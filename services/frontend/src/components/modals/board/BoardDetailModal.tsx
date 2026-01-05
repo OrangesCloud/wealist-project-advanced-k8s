@@ -445,7 +445,7 @@ export const BoardDetailModal: React.FC<BoardDetailModalProps> = ({
                 </label>
                 {assigneeMember ? (
                   <div className="flex items-center gap-2">
-                    <AvatarStack members={[assigneeMember]} />
+                    <AvatarStack members={[assigneeMember]} projectId={boardData.projectId} />
                     <span className="text-sm">
                       {assigneeMember.nickName || assigneeMember.userEmail || 'Unknown'}
                     </span>
@@ -462,7 +462,7 @@ export const BoardDetailModal: React.FC<BoardDetailModalProps> = ({
                 </label>
                 {participantMembers.length > 0 ? (
                   <div className="flex items-center gap-2">
-                    <AvatarStack members={participantMembers} />
+                    <AvatarStack members={participantMembers} projectId={boardData.projectId} />
                     <span className="text-sm text-gray-700">
                       {participantMembers
                         .slice(0, 3)
