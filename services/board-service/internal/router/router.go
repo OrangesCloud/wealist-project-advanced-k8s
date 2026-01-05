@@ -165,7 +165,7 @@ func Setup(cfg Config) *gin.Engine {
 	}
 
 	// Setup API routes
-	setupRoutes(baseGroup, authMiddleware, projectHandler, boardHandler, participantHandler, commentHandler, fieldOptionHandler, projectMemberHandler, projectJoinRequestHandler, attachmentHandler)
+	setupRoutes(baseGroup, authMiddleware, projectHandler, boardHandler, participantHandler, commentHandler, fieldOptionHandler, projectMemberHandler, projectJoinRequestHandler, attachmentHandler, wsHandler)
 
 	// 🔥 [중요] WebSocket은 baseGroup에 직접 등록 (chat-service와 동일한 패턴)
 	// basePath가 /api/boards일 때: /api/boards/ws/project/:projectId
@@ -186,6 +186,7 @@ func setupRoutes(
 	projectMemberHandler *handler.ProjectMemberHandler,
 	projectJoinRequestHandler *handler.ProjectJoinRequestHandler,
 	attachmentHandler *handler.AttachmentHandler,
+	wsHandler *handler.WSHandler, // 🔥 온라인 사용자 조회용
 ) {
 	// API group with authentication
 	api := baseGroup.Group("/api")
@@ -221,6 +222,9 @@ func setupRoutes(
 
 			// Attachment routes for projects
 			projects.GET("/:projectId/attachments", attachmentHandler.GetProjectAttachments)
+
+			// 🔥 온라인 사용자 조회 (프로젝트에 WebSocket으로 연결된 사용자)
+			projects.GET("/:projectId/online-users", wsHandler.HandleGetOnlineUsers)
 		}
 
 		// Join request routes (not nested under project)
