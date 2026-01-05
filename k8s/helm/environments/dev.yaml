@@ -167,7 +167,7 @@ postgres:
     enabled: true
     hostPath:
       enabled: true
-      path: /data/db_data/postgres # Kind 노드 내부 경로 (호스트의 wealist-project-data/db_data/postgres)
+      path: /data/db_data/postgres  # Kind 노드 내부 경로 (호스트의 wealist-project-data/db_data/postgres)
   config:
     superuser: "postgres"
     superuserPassword: "wealist-dev-password"
@@ -186,7 +186,7 @@ redis:
     enabled: true
     hostPath:
       enabled: true
-      path: /data/db_data/redis # Kind 노드 내부 경로 (호스트의 wealist-project-data/db_data/redis)
+      path: /data/db_data/redis  # Kind 노드 내부 경로 (호스트의 wealist-project-data/db_data/redis)
 
 # -----------------------------------------------------------------------------
 # MinIO (S3 Compatible Object Storage)
@@ -215,13 +215,16 @@ istio:
   enabled: true
   namespace: wealist-dev
 
+  # VirtualService 비활성화 (Gateway API HTTPRoute 사용)
+  virtualService:
+    enabled: false
+
   gateway:
     enabled: false
     name: wealist-gateway
     hosts:
       - "dev.wealist.co.kr"
       - "api.dev.wealist.co.kr"
-      # - "*" fix(dev): Istio hosts에서 모든 wildcard(*) 제거
     tls:
       enabled: false
 
@@ -392,7 +395,7 @@ postgresExporter:
     repository: prometheuscommunity/postgres-exporter
     tag: "v0.15.0"
   config:
-    host: "postgres" # 클러스터 내부 서비스
+    host: "postgres"  # 클러스터 내부 서비스
     port: 5432
 
 redisExporter:
@@ -401,7 +404,7 @@ redisExporter:
     repository: oliver006/redis_exporter
     tag: "v1.55.0"
   config:
-    host: "redis" # 클러스터 내부 서비스
+    host: "redis"  # 클러스터 내부 서비스
     port: 6379
 
 # =============================================================================
