@@ -1,11 +1,10 @@
 package OrangeCloud.AuthService.config;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
-import org.springframework.session.web.context.AbstractHttpSessionApplicationInitializer;
 
 import jakarta.annotation.PostConstruct;
 
@@ -30,21 +29,22 @@ import jakarta.annotation.PostConstruct;
     redisNamespace = "wealist:auth:session"
 )
 @Slf4j
-public class RedisSessionConfig extends AbstractHttpSessionApplicationInitializer {
+@RequiredArgsConstructor
+public class RedisSessionConfig {
 
-    @Autowired
-    private RedisConnectionFactory redisConnectionFactory;
+    private final RedisConnectionFactory redisConnectionFactory;
 
     @PostConstruct
     public void logRedisConnection() {
         try {
             // Redis 연결 테스트
             var connection = redisConnectionFactory.getConnection();
-            log.info("✅ Redis Session connected successfully. Redis info: {}",
-                connection.serverCommands().info("server").substring(0, 100));
+            String info = connection.serverCommands().info("server");
+            log.info("Redis Session connected successfully. Server: {}",
+                info != null ? info.substring(0, Math.min(100, info.length())) : "connected");
             connection.close();
         } catch (Exception e) {
-            log.error("❌ Redis Session connection FAILED: {}", e.getMessage(), e);
+            log.error("Redis Session connection FAILED: {}", e.getMessage(), e);
         }
     }
 }
