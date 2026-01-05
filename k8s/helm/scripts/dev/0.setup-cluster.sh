@@ -712,10 +712,10 @@ data:
       - on-health-degraded
 DISCORD_CM_EOF
 
-    # Secret 생성 (webhook URL)
-    kubectl create secret generic argocd-notifications-secret \
-        --from-literal=discord-webhook-url="$DISCORD_WEBHOOK_URL" \
-        -n argocd --dry-run=client -o yaml | kubectl apply -f -
+    # Secret에 webhook URL 추가 (Helm이 관리하는 Secret이므로 patch 사용)
+    kubectl patch secret argocd-notifications-secret -n argocd \
+        --type merge \
+        -p "{\"stringData\":{\"discord-webhook-url\":\"$DISCORD_WEBHOOK_URL\"}}"
 
     # Notifications Controller 재시작
     kubectl rollout restart deployment/argocd-notifications-controller -n argocd 2>/dev/null || true
