@@ -50,14 +50,10 @@ data:
     p, role:admin, gpgkeys, *, *, allow
 
     # ===========================================================================
-    # 관리자 이메일 목록 (추후 추가)
+    # 관리자 이메일 목록
     # ===========================================================================
     # 형식: g, email@example.com, role:admin
-    # 예시:
-    # g, admin@wealist.co.kr, role:admin
-    # g, devops@orangescloud.com, role:admin
+    g, chamchi0129@gmail.com, role:admin
     g, ressk4149@gmail.com, role:admin
     g, fbaudwo144@gmail.com, role:admin
     g, 212clab@gmail.com, role:admin
-    g, chamchi0129@gmail.com, role:admin
-  scopes: '[email]'
