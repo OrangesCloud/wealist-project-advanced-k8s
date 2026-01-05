@@ -43,7 +43,7 @@
       "gridPos": { "h": 3, "w": 4, "x": 0, "y": 1 },
       "id": 1,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "up{app=\"$service\"}", "legendFormat": "{{app}}", "refId": "A" }],
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "up{job=\"$service\"}", "legendFormat": "{{job}}", "refId": "A" }],
       "title": "서비스 상태",
       "type": "stat"
     },
@@ -61,8 +61,8 @@
       "gridPos": { "h": 3, "w": 5, "x": 4, "y": 1 },
       "id": 2,
       "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(http_server_request_duration_seconds_count{app=\"$service\", http_status_code=~\"5..\"}[5m])) / sum(rate(http_server_request_duration_seconds_count{app=\"$service\"}[5m])) or vector(0)", "legendFormat": "", "refId": "A" }],
-      "title": "에러율 (5xx)",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(traces_spanmetrics_calls_total{service_name=\"$service\", status_code=\"STATUS_CODE_ERROR\"}[5m])) / sum(rate(traces_spanmetrics_calls_total{service_name=\"$service\"}[5m])) or vector(0)", "legendFormat": "", "refId": "A" }],
+      "title": "에러율",
       "type": "stat"
     },
     {
@@ -79,7 +79,7 @@
       "gridPos": { "h": 3, "w": 5, "x": 9, "y": 1 },
       "id": 3,
       "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{app=\"$service\"}[5m])) by (le)) or vector(0)", "legendFormat": "", "refId": "A" }],
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_latency_bucket{service_name=\"$service\"}[5m])) by (le)) / 1000 or vector(0)", "legendFormat": "", "refId": "A" }],
       "title": "응답시간 p95",
       "type": "stat"
     },
@@ -97,7 +97,7 @@
       "gridPos": { "h": 3, "w": 5, "x": 14, "y": 1 },
       "id": 4,
       "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(http_server_request_duration_seconds_count{app=\"$service\"}[5m])) or vector(0)", "legendFormat": "", "refId": "A" }],
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(traces_spanmetrics_calls_total{service_name=\"$service\"}[5m])) or vector(0)", "legendFormat": "", "refId": "A" }],
       "title": "요청률 (RPS)",
       "type": "stat"
     },
@@ -115,7 +115,7 @@
       "gridPos": { "h": 3, "w": 5, "x": 19, "y": 1 },
       "id": 5,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(http_server_request_duration_seconds_count{app=\"$service\"}[1h]))", "legendFormat": "", "refId": "A" }],
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(traces_spanmetrics_calls_total{service_name=\"$service\"}[1h])) or vector(0)", "legendFormat": "", "refId": "A" }],
       "title": "지난 1시간 요청 수",
       "type": "stat"
     },
@@ -173,7 +173,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{app=\"$service\"} | json | trace_id != \"\" | line_format \"[{{.level}}] {{.message}} (trace_id={{.trace_id}})\"",
+          "expr": "{pod=~\"$service.*\"} | json | trace_id != \"\" | line_format \"[{{.level}}] {{.message}} (trace_id={{.trace_id}})\"",
           "legendFormat": "",
           "refId": "A"
         }
@@ -207,7 +207,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{app=\"$service\"} |~ \"error|ERROR|Error\" | json | line_format \"[{{.level}}] {{.message}} (trace_id={{.trace_id}})\"",
+          "expr": "{pod=~\"$service.*\"} |~ \"error|ERROR|Error\" | json | line_format \"[{{.level}}] {{.message}} (trace_id={{.trace_id}})\"",
           "legendFormat": "",
           "refId": "A"
         }
@@ -259,7 +259,7 @@
       "id": 40,
       "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(http_server_request_duration_seconds_count{app=\"$service\"}[5m])) by (http_route)", "legendFormat": "{{http_route}}", "refId": "A" }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(traces_spanmetrics_calls_total{service_name=\"$service\"}[5m])) by (span_name)", "legendFormat": "{{span_name}}", "refId": "A" }
       ],
       "title": "요청률 by 엔드포인트",
       "type": "timeseries"
@@ -299,8 +299,8 @@
       "id": 41,
       "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{app=\"$service\"}[5m])) by (le, http_route))", "legendFormat": "p95 {{http_route}}", "refId": "A" },
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.50, sum(rate(http_server_request_duration_seconds_bucket{app=\"$service\"}[5m])) by (le, http_route))", "legendFormat": "p50 {{http_route}}", "refId": "B" }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_latency_bucket{service_name=\"$service\"}[5m])) by (le, span_name)) / 1000", "legendFormat": "p95 {{span_name}}", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.50, sum(rate(traces_spanmetrics_latency_bucket{service_name=\"$service\"}[5m])) by (le, span_name)) / 1000", "legendFormat": "p50 {{span_name}}", "refId": "B" }
       ],
       "title": "응답시간 by 엔드포인트",
       "type": "timeseries"
@@ -313,14 +313,14 @@
     "list": [
       {
         "current": { "selected": false, "text": "board-service", "value": "board-service" },
-        "definition": "label_values(up{job=~\".*-service\"}, app)",
+        "definition": "label_values(up{job=~\".*-service\"}, job)",
         "hide": 0,
         "includeAll": false,
         "label": "서비스",
         "multi": false,
         "name": "service",
         "options": [],
-        "query": { "query": "label_values(up{job=~\".*-service\"}, app)", "refId": "StandardVariableQuery" },
+        "query": { "query": "label_values(up{job=~\".*-service\"}, job)", "refId": "StandardVariableQuery" },
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
