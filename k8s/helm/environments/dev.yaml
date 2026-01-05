@@ -47,10 +47,10 @@ securityContext:
 # -----------------------------------------------------------------------------
 # External Secrets Operator (ESO)
 # -----------------------------------------------------------------------------
-# ESO가 AWS Secrets Manager에서 wealist-shared-secret을 자동 생성
-# Helm chart에서 secret 생성을 건너뜀
+# Dev 환경: ESO 비활성화 (Kind 클러스터 내부 DB 사용)
+# Prod 환경: ESO가 AWS Secrets Manager에서 wealist-shared-secret을 자동 생성
 externalSecrets:
-  enabled: true
+  enabled: false
 
 # -----------------------------------------------------------------------------
 # Features
@@ -115,10 +115,35 @@ shared:
     # Internal API Key (dev용)
     INTERNAL_API_KEY: "dev-internal-key-2024"
 
-    # OTEL Configuration (base.yaml 상속, 환경별 오버라이드만)
-    # Protocol: HTTP/protobuf (http://otel-collector:4318) - base.yaml에서 정의
-    OTEL_TRACES_SAMPLER_ARG: "0.5"  # dev: 50% 샘플링
+    # OTEL Configuration
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
+    OTEL_TRACES_SAMPLER_ARG: "0.5"
+    OTEL_PROPAGATORS: "tracecontext,baggage"
     OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev"
+
+  # Shared Secrets (dev 환경용 - 프로덕션은 ExternalSecrets 사용)
+  secrets:
+    # Database
+    DB_HOST: "postgres"
+    DB_PORT: "5432"
+    DB_USER: "wealist"
+    DB_USERNAME: "wealist"
+    DB_PASSWORD: "wealist-dev-password"
+    DATABASE_URL: "postgresql://wealist:wealist-dev-password@postgres:5432/wealist?sslmode=disable"
+    POSTGRES_HOST: "postgres"
+    # Redis
+    REDIS_HOST: "redis"
+    REDIS_PASSWORD: ""
+    SPRING_REDIS_HOST: "redis"
+    SPRING_REDIS_PASSWORD: ""
+    # Auth
+    JWT_SECRET: "dev-jwt-secret-key-2024-wealist"
+    INTERNAL_API_KEY: "dev-internal-key-2024"
+    # S3/MinIO
+    S3_ACCESS_KEY: "minioadmin"
+    S3_SECRET_KEY: "minioadmin"
 
 # -----------------------------------------------------------------------------
 # Ingress (Disabled - Istio Gateway)
@@ -201,7 +226,7 @@ istio:
       enabled: false
 
   httpRoute:
-    enabled: false  # Disabled for Sidecar mode (using VirtualService instead)
+    enabled: true
     gatewayRef:
       name: istio-ingressgateway
       namespace: istio-system
@@ -209,18 +234,7 @@ istio:
       - "dev.wealist.co.kr"
       - "api.dev.wealist.co.kr"
       - "localhost"
-      - "*"  # Kind 로컬 접근용
-
-  # VirtualService 설정 (Sidecar mode에서 활성화)
-  virtualService:
-    enabled: true
-    hosts:
-      - "dev.wealist.co.kr"
-      - "api.dev.wealist.co.kr"
-      - "localhost"
-      - "*"
-    canary:
-      enabled: false
+      # Note: "*" 와일드카드는 특정 호스트와 함께 사용 불가 (Istio validation error)
     frontend:
       enabled: false
     minio:
@@ -272,6 +286,7 @@ istio:
     - name: chat-service
     - name: noti-service
     - name: storage-service
+    - name: video-service
 
   destinationRules:
     enabled: true
@@ -306,16 +321,11 @@ istio:
   jwtAuth:
     enabled: false
 
-  # Sidecar Mode Configuration (2025 Best Practice)
-  sidecar:
+  ambient:
     enabled: true
-    resources:
-      requests:
-        cpu: 100m
-        memory: 128Mi
-      limits:
-        cpu: 500m
-        memory: 256Mi
+    waypoint:
+      enabled: true
+      name: wealist-waypoint
 
   telemetry:
     tracing:
@@ -416,5 +426,9 @@ noti-service:
     DB_NAME: "wealist"
 
 storage-service:
+  config:
+    DB_NAME: "wealist"
+
+video-service:
   config:
     DB_NAME: "wealist"
