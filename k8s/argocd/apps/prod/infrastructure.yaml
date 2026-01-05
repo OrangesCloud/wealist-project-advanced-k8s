@@ -1,0 +1,35 @@
+# =============================================================================
+# Wealist Infrastructure - ConfigMaps, SharedConfig
+# =============================================================================
+# 서비스들이 공유하는 ConfigMap 등 인프라 설정
+# sync-wave: 2 (ExternalSecret 이후, db-init 이전)
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wealist-infrastructure-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    environment: production
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-prod
+    path: k8s/helm/charts/wealist-infrastructure
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../environments/base.yaml
+        - ../../environments/prod.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wealist-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

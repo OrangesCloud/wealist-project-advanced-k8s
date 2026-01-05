@@ -17,19 +17,29 @@ data:
 
     datasources:
       # Prometheus - 메트릭 데이터
+      # routePrefix 설정으로 인해 /api/monitoring/prometheus 경로 필요
       - name: Prometheus
         type: prometheus
         uid: prometheus
         access: proxy
-        url: http://prometheus:9090
+        url: http://prometheus:9090{{ .Values.prometheus.config.routePrefix }}
         isDefault: true
         editable: false
         jsonData:
           httpMethod: POST
           manageAlerts: true
           prometheusType: Prometheus
+          {{- if .Values.prometheus.exemplarStorage.enabled }}
+          # =============================================================================
+          # Exemplars (2025 Best Practice)
+          # =============================================================================
+          # Prometheus 메트릭에서 Tempo 트레이스로 직접 연결
+          exemplarTraceIdDestinations:
+            - name: traceID
+              datasourceUid: tempo
+          {{- end }}
 
-      # Loki - 로그 데이터
+      # Loki - 로그 데이터 (Tempo 연동 포함)
       - name: Loki
         type: loki
         uid: loki
@@ -38,6 +48,83 @@ data:
         editable: false
         jsonData:
           maxLines: 1000
+          {{- if .Values.tempo.enabled }}
+          # Traces-Logs Correlation: trace_id로 Tempo 트레이스 연결
+          derivedFields:
+            - datasourceUid: tempo
+              matcherRegex: '"trace_id":"([a-f0-9]+)"'
+              name: TraceID
+              url: '$${__value.raw}'
+              urlDisplayLabel: 'View Trace'
+            - datasourceUid: tempo
+              matcherRegex: 'trace_id=([a-f0-9]+)'
+              name: TraceID
+              url: '$${__value.raw}'
+              urlDisplayLabel: 'View Trace'
+          {{- end }}
+
+      {{- if .Values.tempo.enabled }}
+      # Tempo - 분산 추적 (2025 OTEL 통합)
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        access: proxy
+        url: http://tempo:{{ .Values.tempo.service.httpPort }}
+        editable: false
+        jsonData:
+          httpMethod: GET
+          # Traces to Logs: 트레이스에서 관련 로그로 이동
+          tracesToLogsV2:
+            datasourceUid: 'loki'
+            filterByTraceID: true
+            filterBySpanID: false
+            spanStartTimeShift: '-1m'
+            spanEndTimeShift: '1m'
+            tags:
+              - key: 'service.name'
+                value: 'app'
+            customQuery: true
+            query: '{trace_id="${__span.traceId}"} | json'
+          # Traces to Metrics: 트레이스에서 메트릭으로 연결
+          tracesToMetrics:
+            datasourceUid: 'prometheus'
+            spanStartTimeShift: '-5m'
+            spanEndTimeShift: '5m'
+            tags:
+              - key: 'service.name'
+                value: 'app'
+            queries:
+              - name: 'Request Rate'
+                query: 'sum(rate(http_server_request_duration_seconds_count{app="${__span.tags["service.name"]}"}[5m]))'
+              - name: 'Error Rate'
+                query: 'sum(rate(http_server_request_duration_seconds_count{app="${__span.tags["service.name"]}", http_status_code=~"5.."}[5m]))'
+          # Service Graph: 서비스 간 관계 시각화
+          serviceMap:
+            datasourceUid: 'prometheus'
+          # Node Graph: 트레이스 스팬 그래프
+          nodeGraph:
+            enabled: true
+          search:
+            hide: false
+          lokiSearch:
+            datasourceUid: 'loki'
+      {{- end }}
+
+      {{- if .Values.grafana.additionalDatasources.elasticsearch.enabled }}
+      # Elasticsearch - ELK 스택 로그/검색 데이터
+      - name: Elasticsearch
+        type: elasticsearch
+        uid: elasticsearch
+        access: proxy
+        url: {{ .Values.grafana.additionalDatasources.elasticsearch.url }}
+        editable: false
+        jsonData:
+          index: {{ .Values.grafana.additionalDatasources.elasticsearch.index | default "logstash-*" }}
+          timeField: "@timestamp"
+          esVersion: "8.0.0"
+          logMessageField: message
+          logLevelField: level
+      {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -51,19 +138,94 @@ metadata:
 data:
   dashboards.yaml: |
     # =============================================================================
-    # Grafana Dashboard Provisioning Configuration
+    # Grafana Dashboard Provisioning Configuration (V4 - Role-based Folders)
+    # =============================================================================
+    # 2026 Best Practice: 역할별 폴더로 구분하여 탐색 용이성 향상
     # =============================================================================
     apiVersion: 1
 
     providers:
-      - name: 'wealist-dashboards'
+      # 00. Landing - 전체 시스템 진입점
+      - name: 'landing'
         orgId: 1
-        folder: 'weAlist'
-        folderUid: 'wealist'
+        folder: '🏠 Landing'
+        folderUid: 'landing'
         type: file
         disableDeletion: false
         updateIntervalSeconds: 30
         allowUiUpdates: true
         options:
-          path: /etc/grafana/provisioning/dashboards/json
+          path: /etc/grafana/provisioning/dashboards/v4/00-landing
+
+      # 01. CI/CD - CI/CD 담당자용
+      - name: 'cicd'
+        orgId: 1
+        folder: '🚀 CI/CD'
+        folderUid: 'cicd'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v4/01-cicd
+
+      # 02. LoadTest - QA/성능 테스터용
+      - name: 'loadtest'
+        orgId: 1
+        folder: '⚡ Load Test'
+        folderUid: 'loadtest'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v4/02-loadtest
+
+      # 03. Developer - 개발자용
+      - name: 'developer'
+        orgId: 1
+        folder: '💻 Developer'
+        folderUid: 'developer'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v4/03-developer
+
+      # 04. PM - PM/기획자용
+      - name: 'pm'
+        orgId: 1
+        folder: '📊 PM'
+        folderUid: 'pm'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v4/04-pm
+
+      # 05. Operations - DevOps/SRE용
+      - name: 'operations'
+        orgId: 1
+        folder: '🔧 Operations'
+        folderUid: 'operations'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v4/05-operations
+
+      # 06. Advanced - 고급 사용자용 (OTEL 상세)
+      - name: 'advanced'
+        orgId: 1
+        folder: '🔬 Advanced'
+        folderUid: 'advanced'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v4/06-advanced
 {{- end }}

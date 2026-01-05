@@ -1,0 +1,161 @@
+{{- if .Values.k6.enabled }}
+---
+# =============================================================================
+# k6 Load Test Job
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-load-test
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: k6
+    app.kubernetes.io/name: k6
+    app.kubernetes.io/component: load-test
+  annotations:
+    # Job은 수동으로 생성됨. CronJob에서 schedule 필요 시 별도 생성
+    "helm.sh/hook": ""
+spec:
+  # 1번만 실행, 실패 시 재시도 안함
+  backoffLimit: 0
+  # 완료 후 1시간 뒤 자동 삭제
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: k6
+        test-type: load
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: k6
+          image: {{ .Values.k6.image.repository }}:{{ .Values.k6.image.tag }}
+          imagePullPolicy: {{ .Values.k6.image.pullPolicy }}
+          command:
+            - k6
+            - run
+            - --out
+            - experimental-prometheus-rw
+            - /scripts/load-test.js
+          env:
+            - name: K6_PROMETHEUS_RW_SERVER_URL
+              value: {{ .Values.k6.prometheus.remoteWriteUrl }}
+            - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+              value: "true"
+          resources:
+            {{- toYaml .Values.k6.resources | nindent 12 }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: k6-scripts
+---
+# =============================================================================
+# k6 Stress Test Job
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-stress-test
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: k6
+    app.kubernetes.io/name: k6
+    app.kubernetes.io/component: stress-test
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: k6
+        test-type: stress
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: k6
+          image: {{ .Values.k6.image.repository }}:{{ .Values.k6.image.tag }}
+          imagePullPolicy: {{ .Values.k6.image.pullPolicy }}
+          command:
+            - k6
+            - run
+            - --out
+            - experimental-prometheus-rw
+            - /scripts/stress-test.js
+          env:
+            - name: K6_PROMETHEUS_RW_SERVER_URL
+              value: {{ .Values.k6.prometheus.remoteWriteUrl }}
+            - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+              value: "true"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: k6-scripts
+---
+# =============================================================================
+# k6 Spike Test Job
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-spike-test
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: k6
+    app.kubernetes.io/name: k6
+    app.kubernetes.io/component: spike-test
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: k6
+        test-type: spike
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: k6
+          image: {{ .Values.k6.image.repository }}:{{ .Values.k6.image.tag }}
+          imagePullPolicy: {{ .Values.k6.image.pullPolicy }}
+          command:
+            - k6
+            - run
+            - --out
+            - experimental-prometheus-rw
+            - /scripts/spike-test.js
+          env:
+            - name: K6_PROMETHEUS_RW_SERVER_URL
+              value: {{ .Values.k6.prometheus.remoteWriteUrl }}
+            - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+              value: "true"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: k6-scripts
+{{- end }}

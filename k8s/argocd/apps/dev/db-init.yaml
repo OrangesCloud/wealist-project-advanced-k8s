@@ -1,0 +1,59 @@
+# =============================================================================
+# DB Init - ArgoCD Application (Dev)
+# =============================================================================
+# Host PostgreSQL 초기화 (데이터베이스 생성, 확장 설치)
+#
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │                        ArgoCD Sync-Wave 배포 순서                            │
+# ├─────────────────────────────────────────────────────────────────────────────┤
+# │  Wave 0: Namespace, RBAC, CRDs                                              │
+# │     ↓                                                                       │
+# │  Wave 1: External Secrets (ESO → AWS Secrets Manager → K8s Secret)          │
+# │     ↓    - wealist-shared-secret 생성 (DB_HOST, DB_PASSWORD 등)             │
+# │     ↓                                                                       │
+# │  Wave 2: DB Init Job (이 파일) ← PreSync Hook으로 실행                       │
+# │     ↓    - PostgreSQL 연결 테스트                                            │
+# │     ↓    - 데이터베이스 생성 (CREATE DATABASE IF NOT EXISTS)                 │
+# │     ↓    - 확장 설치 (uuid-ossp, pgcrypto)                                   │
+# │     ↓                                                                       │
+# │  Wave 3+: 서비스 배포 (board-service, user-service 등)                       │
+# │          - DB가 준비된 상태에서 시작                                          │
+# └─────────────────────────────────────────────────────────────────────────────┘
+#
+# 동작 원리:
+# 1. ArgoCD가 sync-wave 순서대로 리소스 배포
+# 2. db-init Job은 PreSync hook으로 서비스 Pod 생성 전에 실행
+# 3. Job이 ESO에서 생성된 wealist-shared-secret의 credentials 사용
+# 4. PostgreSQL에 연결하여 DB/확장 생성
+# 5. Job 완료 후 서비스 배포 진행
+#
+# 참고: dev은 Host PostgreSQL 사용 (172.17.0.1 - Docker bridge)
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: db-init-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    notifications.argoproj.io/subscribe.on-deployed.webhook: discord
+    notifications.argoproj.io/subscribe.on-sync-failed.webhook: discord
+    notifications.argoproj.io/subscribe.on-health-degraded.webhook: discord
+spec:
+  project: wealist-dev
+  source:
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-dev
+    path: k8s/helm/charts/db-init
+    helm:
+      valueFiles:
+        - ../../../helm/environments/dev-db-init.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wealist-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

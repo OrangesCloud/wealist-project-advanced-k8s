@@ -1,0 +1,59 @@
+# =============================================================================
+# DB Init - Dev Values
+# =============================================================================
+# Host PostgreSQL 초기화 (Kind 클러스터용)
+# ESO에서 가져온 credentials 사용
+
+# DB 연결 정보 (ESO secret에서 가져옴)
+database:
+  host: ""  # secretRef.hostKey로 가져옴
+  port: 5432
+  adminUser: ""  # secretRef.usernameKey로 가져옴
+  adminDatabase: wealist
+  sslMode: disable  # 로컬 PostgreSQL은 SSL 미사용
+
+# 생성할 데이터베이스 목록 (dev: 공통 wealist DB 사용)
+# wealist DB가 이미 있으면 skip됨
+databases:
+  - name: wealist
+    owner: wealist
+
+# PostgreSQL 확장
+extensions:
+  - uuid-ossp
+  - pgcrypto
+
+# Job 설정
+job:
+  image:
+    repository: postgres
+    tag: "17-alpine"
+    pullPolicy: IfNotPresent
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  # ArgoCD hook 설정
+  argocd:
+    enabled: true
+    hook: PreSync
+    hookDeletePolicy: BeforeHookCreation
+
+# Secret 참조 (External Secrets에서 생성된 secret)
+secretRef:
+  name: wealist-shared-secret
+  passwordKey: DB_PASSWORD
+  hostKey: DB_HOST
+  usernameKey: DB_USERNAME
+
+# PostgreSQL 15+ schema 권한 설정 (dev용)
+# postgres superuser로 연결해서 wealist 유저에게 public schema 권한 부여
+schemaGrant:
+  enabled: true
+  superuser: postgres
+  superuserPassword: postgres  # init-local-postgres.sh에서 설정한 비밀번호

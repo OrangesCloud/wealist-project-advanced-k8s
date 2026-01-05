@@ -1,3 +1,9 @@
+{{/*
+Standard Kubernetes Deployment
+Only rendered when rollout.enabled is false (default)
+When rollout.enabled is true, use Argo Rollout instead
+*/}}
+{{- if not (and .Values.rollout .Values.rollout.enabled) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -23,6 +29,8 @@ spec:
     metadata:
       labels:
         {{- include "wealist-common.selectorLabels" . | nindent 8 }}
+        {{/* Version label for DestinationRule subset matching */}}
+        version: stable
       annotations:
         {{- if .Values.podAnnotations }}
         {{- toYaml .Values.podAnnotations | nindent 8 }}
@@ -30,6 +38,23 @@ spec:
         {{- if .Values.metrics }}
         {{- if .Values.metrics.enabled }}
         {{- include "wealist-common.prometheusAnnotations" (dict "port" .Values.service.targetPort "path" (.Values.metrics.path | default "/metrics")) | nindent 8 }}
+        {{- end }}
+        {{- end }}
+        checksum/config: {{ include "wealist-common.configChecksum" . }}
+        {{/* Istio Sidecar injection and resource configuration */}}
+        {{- if .Values.istio }}
+        {{- if and .Values.istio.sidecar .Values.istio.sidecar.enabled }}
+        sidecar.istio.io/inject: "true"
+        {{- if .Values.istio.sidecar.resources }}
+        {{- if .Values.istio.sidecar.resources.requests }}
+        sidecar.istio.io/proxyCPU: {{ .Values.istio.sidecar.resources.requests.cpu | default "100m" | quote }}
+        sidecar.istio.io/proxyMemory: {{ .Values.istio.sidecar.resources.requests.memory | default "128Mi" | quote }}
+        {{- end }}
+        {{- if .Values.istio.sidecar.resources.limits }}
+        sidecar.istio.io/proxyCPULimit: {{ .Values.istio.sidecar.resources.limits.cpu | default "500m" | quote }}
+        sidecar.istio.io/proxyMemoryLimit: {{ .Values.istio.sidecar.resources.limits.memory | default "256Mi" | quote }}
+        {{- end }}
+        {{- end }}
         {{- end }}
         {{- end }}
     spec:
@@ -88,6 +113,8 @@ spec:
           {{- end }}
           envFrom:
             - configMapRef:
+                name: wealist-shared-config
+            - configMapRef:
                 name: {{ include "wealist-common.fullname" . }}-config
             - secretRef:
                 name: wealist-shared-secret
@@ -121,3 +148,4 @@ spec:
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
       {{- end }}
+{{- end }}

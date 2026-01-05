@@ -24,6 +24,11 @@ configs/config.yaml
 !configs/config.yaml.example
 
 # ============================================
+# Local Documentation (Issue Tracking)
+# ============================================
+PROD_DEPLOYMENT_ISSUES.md
+
+# ============================================
 # Kubernetes Secrets
 # ============================================
 # Plain text secrets (NEVER commit)
@@ -43,6 +48,9 @@ sealed-secrets-*.key
 !k8s/argocd/sealed-secrets/
 !k8s/argocd/sealed-secrets/*.yaml
 !k8s/argocd/sealed-secrets/**/*.yaml
+!k8s/argocd/apps/*/external-secrets.yaml
+!k8s/argocd/base/external-secrets/
+!k8s/argocd/base/external-secrets/*.yaml
 !k8s/helm/charts/wealist-infrastructure/templates/shared-secret.yaml
 !**/sealed-secret-*.yaml
 !**/sealed-secret.yaml
@@ -53,10 +61,15 @@ sealed-secrets-*.key
 # ============================================
 k8s/helm/environments/*-secrets.yaml
 k8s/helm/environments/secrets-*.yaml
+k8s/helm/environments/prod-registry.yaml
+!k8s/helm/environments/prod-registry.example.yaml
 k8s/helm/charts/**/values-prod.yaml
 k8s/helm/charts/**/values-production.yaml
 k8s/helm/charts/**/secrets.yaml
+# Allow example/template files (safe to commit)
 !k8s/helm/**/*.example
+!k8s/helm/environments/secrets.example.yaml
+!k8s/helm/environments/*-secrets.example.yaml
 k8s/helm/charts/**/charts/*.tgz
 k8s/helm/charts/**/*.lock
 
@@ -88,6 +101,7 @@ coverage.html
 # ============================================
 .gradle/
 build/
+**/bin/
 BOOT-INF/
 out/
 !gradle/wrapper/gradle-wrapper.jar
@@ -178,4 +192,31 @@ CLAUDE.md
 # ============================================
 # Terraform
 # ============================================
-terraform/dev/*
+# Local .terraform directories
+**/.terraform/
+
+# Terraform state files (contain secrets!)
+*.tfstate
+*.tfstate.*
+
+# Terraform variables files (contain secrets!)
+*.tfvars
+!*.tfvars.example
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Terraform plan files
+*.tfplan
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform sensitive files (tfvars may contain secrets)
+terraform/**/terraform.tfvars
+terraform/**/.terraform/**/node_modules/
+**/node_modules/

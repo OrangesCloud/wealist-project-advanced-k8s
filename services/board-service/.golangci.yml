@@ -16,6 +16,8 @@ linters:
         - "-SA1019"  # deprecated 함수 사용 경고 무시 (AWS SDK v2 마이그레이션 필요)
         - "-SA1029"  # context key 타입 경고 무시
         - "-S1009"   # nil check before len() 경고 무시 (gosimple이 staticcheck에 통합됨)
+        - "-ST1020"  # 함수 주석 형식 무시 (한글 주석 사용)
+        - "-ST1021"  # 타입 주석 형식 무시 (한글 주석 사용)
   exclusions:
     # 테스트 파일에서는 일부 규칙 완화
     rules:

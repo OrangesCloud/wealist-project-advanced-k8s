@@ -2,8 +2,12 @@
 Standard deployment template for weAlist services
 Usage in service chart:
   {{- include "wealist-common.deployment" . }}
+
+Note: This template is only rendered when rollout.enabled is false (default).
+When rollout.enabled is true, use the Argo Rollout template instead.
 */}}
 {{- define "wealist-common.deployment" -}}
+{{- if not (and .Values.rollout .Values.rollout.enabled) }}
 {{/* Validate required values */}}
 {{- include "wealist-common.validateRequired" (dict "values" .Values "required" (list "image.repository" "service.port" "service.targetPort")) }}
 apiVersion: apps/v1
@@ -25,14 +29,38 @@ spec:
     metadata:
       labels:
         {{- include "wealist-common.selectorLabels" . | nindent 8 }}
+        {{/* Version label for DestinationRule subset matching - always required */}}
+        {{- if and .Values.canary .Values.canary.enabled }}
+        version: {{ .Values.canary.version | default "stable" }}
+        {{- else }}
+        version: stable
+        {{- end }}
       annotations:
         {{- if .Values.podAnnotations }}
         {{- toYaml .Values.podAnnotations | nindent 8 }}
         {{- end }}
+        {{/* ConfigMap checksum - triggers pod restart on config change */}}
+        checksum/config: {{ include "wealist-common.configChecksum" . }}
         {{/* Auto-add Prometheus annotations if metrics enabled */}}
         {{- if .Values.metrics }}
         {{- if .Values.metrics.enabled }}
         {{- include "wealist-common.prometheusAnnotations" (dict "port" .Values.service.targetPort "path" (.Values.metrics.path | default "/metrics")) | nindent 8 }}
+        {{- end }}
+        {{- end }}
+        {{/* Istio Sidecar injection and resource configuration */}}
+        {{- if .Values.istio }}
+        {{- if and .Values.istio.sidecar .Values.istio.sidecar.enabled }}
+        sidecar.istio.io/inject: "true"
+        {{- if .Values.istio.sidecar.resources }}
+        {{- if .Values.istio.sidecar.resources.requests }}
+        sidecar.istio.io/proxyCPU: {{ .Values.istio.sidecar.resources.requests.cpu | default "100m" | quote }}
+        sidecar.istio.io/proxyMemory: {{ .Values.istio.sidecar.resources.requests.memory | default "128Mi" | quote }}
+        {{- end }}
+        {{- if .Values.istio.sidecar.resources.limits }}
+        sidecar.istio.io/proxyCPULimit: {{ .Values.istio.sidecar.resources.limits.cpu | default "500m" | quote }}
+        sidecar.istio.io/proxyMemoryLimit: {{ .Values.istio.sidecar.resources.limits.memory | default "256Mi" | quote }}
+        {{- end }}
+        {{- end }}
         {{- end }}
         {{- end }}
     spec:
@@ -44,6 +72,41 @@ spec:
       {{- if .Values.podSecurityContext }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- end }}
+      {{- /* Init Container: Secret이 준비될 때까지 대기 */}}
+      {{- if .Values.waitForSecrets }}
+      {{- if .Values.waitForSecrets.enabled }}
+      initContainers:
+        - name: wait-for-secrets
+          image: {{ .Values.waitForSecrets.image | default "bitnami/kubectl:1.30" }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for secret {{ .Values.waitForSecrets.secretName }}..."
+              TIMEOUT={{ .Values.waitForSecrets.timeout | default 300 }}
+              ELAPSED=0
+              while [ $ELAPSED -lt $TIMEOUT ]; do
+                if kubectl get secret {{ .Values.waitForSecrets.secretName }} -n {{ .Release.Namespace }} -o jsonpath='{.data.DB_HOST}' 2>/dev/null | base64 -d | grep -q .; then
+                  echo "Secret {{ .Values.waitForSecrets.secretName }} is ready!"
+                  exit 0
+                fi
+                echo "Waiting for secret... ($ELAPSED/$TIMEOUT seconds)"
+                sleep 5
+                ELAPSED=$((ELAPSED + 5))
+              done
+              echo "Timeout waiting for secret {{ .Values.waitForSecrets.secretName }}!"
+              exit 1
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      {{- end }}
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}
@@ -91,6 +154,9 @@ spec:
           {{- end }}
           envFrom:
             - configMapRef:
+                name: wealist-shared-config
+                
+            - configMapRef:
                 name: {{ include "wealist-common.fullname" . }}-config
             {{- /* Include shared secret from wealist-infrastructure */}}
             - secretRef:
@@ -99,6 +165,7 @@ spec:
             - secretRef:
                 name: wealist-argocd-secret
                 optional: true
+            
           {{- if .Values.envFrom }}
             {{- toYaml .Values.envFrom | nindent 12 }}
           {{- end }}
@@ -126,4 +193,5 @@ spec:
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
       {{- end }}
+{{- end }}{{/* end if not rollout.enabled */}}
 {{- end }}

@@ -4,27 +4,36 @@ namespace: istio-system
 # =============================================================================
 # 이미지 레지스트리 설정
 # =============================================================================
-# Docker Hub rate limit 회피를 위해 GHCR 미러 사용 가능
-# 기본값: Docker Hub 직접 사용
-# dev 환경: GHCR 미러 사용 (ghcr.io/orangescloud/base/*)
-imageRegistry: ""  # "" = Docker Hub, "ghcr.io/orangescloud/base" = GHCR 미러
+# 인프라 이미지는 Docker Hub에서 직접 사용
+# 서비스 이미지는 AWS ECR에서 pull (별도 환경 설정)
+imageRegistry: "" # "" = Docker Hub 직접 사용
+
+# =============================================================================
+# 모니터링 네임스페이스 (Prometheus/Grafana가 설치된 곳)
+# =============================================================================
+# 빈 문자열 → global.namespace 사용 (환경 파일에서 설정)
+# 환경별: wealist-kind-local, wealist-dev, wealist-prod
+monitoringNamespace: ""
 
 # Kiali - Service Mesh Dashboard
 kiali:
   enabled: true
   image:
     repository: quay.io/kiali/kiali
-    tag: v1.77
+    tag: v2.4
   service:
     type: ClusterIP
     port: 20001
   auth:
-    strategy: anonymous  # anonymous, token, openid
+    strategy: anonymous # anonymous, token, openid
+  # wealist-monitoring의 Prometheus 참조 (cross-namespace)
+  # Note: Prometheus has routePrefix configured
   prometheus:
-    url: "http://prometheus:9090"
+    url: "" # 템플릿에서 동적 생성
+  # wealist-monitoring의 Grafana 참조 (cross-namespace)
   grafana:
     enabled: true
-    url: "http://grafana:3000"
+    url: "" # 템플릿에서 동적 생성
   tracing:
     enabled: true
     url: "http://jaeger-query:16686"
@@ -32,7 +41,7 @@ kiali:
 # Jaeger - Distributed Tracing
 jaeger:
   enabled: true
-  allInOne: true  # For dev/test. Set false for production
+  allInOne: true # For dev/test. Set false for production
   image:
     repository: jaegertracing/all-in-one
     tag: "1.52"
@@ -44,7 +53,7 @@ jaeger:
     zipkin:
       port: 9411
   storage:
-    type: memory  # memory, elasticsearch, cassandra
+    type: memory # memory, elasticsearch, cassandra
     # For production, use:
     # type: elasticsearch
     # elasticsearch:
@@ -52,8 +61,10 @@ jaeger:
     #   port: 9200
 
 # Prometheus - Metrics (Istio telemetry)
+# 참고: wealist-monitoring에서 이미 Prometheus를 설치하므로 여기서는 비활성화
+# Kiali는 wealist-monitoring의 Prometheus를 참조함
 prometheus:
-  enabled: true
+  enabled: false
   image:
     repository: prom/prometheus
     tag: v2.48.0
@@ -63,8 +74,9 @@ prometheus:
   scrapeInterval: 15s
 
 # Grafana - Visualization
+# 참고: wealist-monitoring에서 이미 Grafana를 설치하므로 여기서는 비활성화
 grafana:
-  enabled: true
+  enabled: false
   image:
     repository: grafana/grafana
     tag: "10.2.2"
@@ -86,3 +98,4 @@ referenceGrant:
   allowedNamespaces:
     - wealist-localhost
     - wealist-dev
+    - wealist-prod

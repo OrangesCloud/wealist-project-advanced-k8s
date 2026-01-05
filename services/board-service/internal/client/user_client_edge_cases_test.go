@@ -43,6 +43,7 @@ func TestUserClient_Timeout(t *testing.T) {
 
 	if profile == nil {
 		t.Fatal("GetUserProfile() returned nil profile")
+		return
 	}
 
 	if profile.UserID != userID {
@@ -108,6 +109,7 @@ func TestUserClient_InvalidJSON(t *testing.T) {
 
 	if profile == nil {
 		t.Fatal("GetUserProfile() returned nil profile")
+		return
 	}
 
 	if profile.UserID != userID {
@@ -289,6 +291,7 @@ func TestProperty_ExternalAPIMetricsWithNilMetrics(t *testing.T) {
 
 	if profile == nil {
 		t.Fatal("GetUserProfile() returned nil profile")
+		return
 	}
 
 	if profile.UserID != userID {

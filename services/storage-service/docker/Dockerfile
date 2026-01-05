@@ -2,6 +2,9 @@
 # Builder stage - optimized layer caching (2025-12-18)
 FROM public.ecr.aws/docker/library/golang:1.24-bookworm AS builder
 
+# Multi-platform support
+ARG TARGETARCH
+
 # Install build dependencies (cached layer)
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
 
@@ -23,10 +26,10 @@ RUN echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packa
 # Download dependencies (cached if go.mod/go.sum unchanged)
 RUN --mount=type=cache,target=/go/pkg/mod \
     GOWORK=off go mod download -x
-
+    
 # Copy source code (changes here don't invalidate dependency cache)
 COPY services/storage-service/ ./
-
+   
 # Re-add replace directive (COPY overwrites go.mod)
 RUN echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packages/wealist-advanced-go-pkg' >> go.mod
 
@@ -34,7 +37,7 @@ RUN echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packa
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     GOWORK=off go mod tidy && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -ldflags="-w -s" -o storage-api ./cmd/api
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GOWORK=off go build -ldflags="-w -s" -o storage-api ./cmd/api
 
 # Runtime stage
 FROM public.ecr.aws/docker/library/alpine:latest

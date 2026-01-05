@@ -1,8 +1,8 @@
 # =============================================================================
-# Development Server Environment
+# Dev Environment (Kind + ArgoCD Auto-Deploy)
 # =============================================================================
-# Development environment with dev.wealist.co.kr domain
-# Uses AWS ECR + ArgoCD for deployment
+# Dev environment with dev.wealist.co.kr domain
+# Uses AWS ECR + ArgoCD for GitOps deployment (like prod EKS)
 # Namespace: wealist-dev
 
 # -----------------------------------------------------------------------------
@@ -10,51 +10,27 @@
 # -----------------------------------------------------------------------------
 global:
   namespace: wealist-dev
-  environment: development
+  environment: dev
   domain: dev.wealist.co.kr
-  # imageRegistry는 ArgoCD Application parameters에서 ECR URL로 덮어씁니다
-  # 예: <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
-  imageRegistry: ""
-  # ECR은 IAM 기반 인증 사용 (EKS IRSA)
+  # AWS ECR Registry
+  imageRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
+
+# imagePullSecrets (Kind + ECR)
+imagePullSecrets:
+  - name: ecr-secret
 
 # -----------------------------------------------------------------------------
 # cert-manager Configuration (Disabled - CloudFront handles SSL termination)
 # -----------------------------------------------------------------------------
 certManager:
   enabled: false
-  # Note: SSL is handled by CloudFront, K8s receives HTTP only
 
 # -----------------------------------------------------------------------------
 # Deployment Settings
 # -----------------------------------------------------------------------------
-auth-service:
-  replicaCount: 2
-board-service:
-  replicaCount: 2
-
 image:
   pullPolicy: Always
-  tag: "latest"  # Local registry uses :latest tag
-
-# -----------------------------------------------------------------------------
-# Resources (Development)
-# -----------------------------------------------------------------------------
-resources:
-  requests:
-    memory: "128Mi"
-    cpu: "100m"
-  limits:
-    memory: "512Mi"
-    cpu: "500m"
-
-# -----------------------------------------------------------------------------
-# Health Check
-# -----------------------------------------------------------------------------
-healthCheck:
-  liveness:
-    initialDelaySeconds: 30
-  readiness:
-    initialDelaySeconds: 10
+  tag: "dev-latest"
 
 # -----------------------------------------------------------------------------
 # Security (Standard)
@@ -66,7 +42,15 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   runAsNonRoot: true
-  readOnlyRootFilesystem: false  # Spring Boot (Tomcat) needs /tmp write access
+  readOnlyRootFilesystem: false
+
+# -----------------------------------------------------------------------------
+# External Secrets Operator (ESO)
+# -----------------------------------------------------------------------------
+# Dev 환경: ESO 비활성화 (Kind 클러스터 내부 DB 사용)
+# Prod 환경: ESO가 AWS Secrets Manager에서 wealist-shared-secret을 자동 생성
+externalSecrets:
+  enabled: false
 
 # -----------------------------------------------------------------------------
 # Features
@@ -88,97 +72,231 @@ podDisruptionBudget:
 # -----------------------------------------------------------------------------
 shared:
   config:
-    ENV: "development"
-    LOG_LEVEL: "debug"
-    DB_AUTO_MIGRATE: "true"  # Create tables on startup
+    # Environment
+    ENV: "dev"
+    LOG_LEVEL: "info"
     CORS_ORIGINS: "https://dev.wealist.co.kr,https://api.dev.wealist.co.kr"
-    # S3/MinIO Configuration
-    S3_ENDPOINT: "http://minio:9000"
-    S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/minio"
-    S3_BUCKET: "wealist-files"
+
+    # Service URLs (K8s 내부 통신) - base.yaml 값 재정의 필요 (Helm은 deep merge 안함)
+    AUTH_SERVICE_URL: "http://auth-service:8080"
+    USER_SERVICE_URL: "http://user-service:8081"
+    BOARD_SERVICE_URL: "http://board-service:8000"
+    CHAT_SERVICE_URL: "http://chat-service:8001"
+    NOTI_SERVICE_URL: "http://noti-service:8002"
+    STORAGE_SERVICE_URL: "http://storage-service:8003"
+    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/api/svc/livekit"
+
+    # Infrastructure Ports
+    POSTGRES_PORT: "5432"
+    DB_PORT: "5432"
+    REDIS_PORT: "6379"
+
+    # Database (클러스터 내부 - postgres Service)
+    DB_HOST: "postgres"
+    POSTGRES_HOST: "postgres"
+    DB_AUTO_MIGRATE: "true"
+
+    # Redis (클러스터 내부 - redis Service)
+    REDIS_HOST: "redis"
+    SPRING_REDIS_HOST: "redis"
+    SPRING_DATA_REDIS_SSL_ENABLED: "false"
+
+    # S3 Configuration (AWS S3)
+    S3_ENDPOINT: ""  # AWS S3 사용 시 비워둠
+    S3_PUBLIC_ENDPOINT: "https://s3.ap-northeast-2.amazonaws.com"  # path-style URL (서비스가 bucket을 path에 추가함)
+    S3_BUCKET: "wealist-app-resources"
     S3_REGION: "ap-northeast-2"
-    LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/svc/livekit"
-    # OAuth2 Redirect URLs
-    # Google redirects here after user authenticates (must match Google Console)
-    OAUTH2_CLIENT_REDIRECT_URI: "https://api.dev.wealist.co.kr/oauth2/callback/google"
-    # auth-service redirects here (frontend) after processing OAuth
+    S3_PATH_PREFIX: "dev"  # dev 환경은 /dev/ 폴더 사용
+
+    # OAuth2
+    OAUTH2_CLIENT_REDIRECT_URI: "https://api.dev.wealist.co.kr/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "https://dev.wealist.co.kr/oauth/callback"
 
+    # Internal API Key (dev용)
+    INTERNAL_API_KEY: "dev-internal-key-2024"
+
+    # OTEL Configuration
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
+    OTEL_TRACES_SAMPLER_ARG: "0.5"
+    OTEL_PROPAGATORS: "tracecontext,baggage"
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=dev"
+
+  # Shared Secrets (dev 환경용 - 프로덕션은 ExternalSecrets 사용)
+  secrets:
+    # Database
+    DB_HOST: "postgres"
+    DB_PORT: "5432"
+    DB_USER: "wealist"
+    DB_USERNAME: "wealist"
+    DB_PASSWORD: "wealist-dev-password"
+    DATABASE_URL: "postgresql://wealist:wealist-dev-password@postgres:5432/wealist?sslmode=disable"
+    POSTGRES_HOST: "postgres"
+    # Redis
+    REDIS_HOST: "redis"
+    REDIS_PASSWORD: ""
+    SPRING_REDIS_HOST: "redis"
+    SPRING_REDIS_PASSWORD: ""
+    # Auth
+    JWT_SECRET: "dev-jwt-secret-key-2024-wealist"
+    INTERNAL_API_KEY: "dev-internal-key-2024"
+    # S3 (AWS) - ExternalSecrets로 관리하거나 여기에 직접 입력
+    # TODO: AWS IAM 자격증명 설정 필요
+    S3_ACCESS_KEY: ""
+    S3_SECRET_KEY: ""
+
 # -----------------------------------------------------------------------------
-# Ingress (nginx - 비활성화, Istio Gateway 사용)
+# Ingress (Disabled - Istio Gateway)
 # -----------------------------------------------------------------------------
 ingress:
-  enabled: false  # Istio HTTPRoute 사용
+  enabled: false
 
 # -----------------------------------------------------------------------------
-# 데이터베이스 설정 (외부 DB 사용 - AWS RDS/ElastiCache)
+# Database (클러스터 내부 - hostPath로 데이터 영속화)
 # -----------------------------------------------------------------------------
+# 데이터 저장 위치: ${WEALIST_DATA_PATH}/postgres, ${WEALIST_DATA_PATH}/redis
+# Kind extraMounts로 /data에 마운트됨
 postgres:
-  enabled: false   # 내부 PostgreSQL 비활성화
+  enabled: true
   external:
-    enabled: true  # 외부 DB (AWS RDS 등) 사용
-    # host/port는 secrets.yaml에서 설정
+    enabled: false
+  image:
+    repository: postgres
+    tag: "17-alpine"
+  persistence:
+    enabled: true
+    hostPath:
+      enabled: true
+      path: /data/db_data/postgres  # Kind 노드 내부 경로 (호스트의 wealist-project-data/db_data/postgres)
+  config:
+    superuser: "postgres"
+    superuserPassword: "wealist-dev-password"
+    databases:
+      - name: wealist
+        user: wealist
 
 redis:
-  enabled: false   # 내부 Redis 비활성화
+  enabled: true
   external:
-    enabled: true  # 외부 Redis (AWS ElastiCache 등) 사용
-    # host/port는 secrets.yaml에서 설정
+    enabled: false
+  image:
+    repository: redis
+    tag: "7.2-alpine"
+  persistence:
+    enabled: true
+    hostPath:
+      enabled: true
+      path: /data/db_data/redis  # Kind 노드 내부 경로 (호스트의 wealist-project-data/db_data/redis)
 
 # -----------------------------------------------------------------------------
-# 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)
+# MinIO (S3 Compatible Object Storage) - AWS S3 사용으로 비활성화
 # -----------------------------------------------------------------------------
-# dev.wealist.co.kr → CloudFront → S3 (정적 파일)
-# api.dev.wealist.co.kr → CloudFront → ALB → EKS (API)
+minio:
+  enabled: false
+  # image:
+  #   repository: minio/minio
+  #   tag: "latest"
+  # persistence:
+  #   enabled: true
+  #   hostPath:
+  #     enabled: true
+  #     path: /data/minio
+
+# -----------------------------------------------------------------------------
+# Frontend (CDN - S3/CloudFront)
+# -----------------------------------------------------------------------------
 frontend:
-  enabled: false  # Frontend pod 비활성화 (CDN 사용)
+  enabled: false
 
 # -----------------------------------------------------------------------------
-# Istio 서비스 메시 설정
+# Istio Service Mesh
 # -----------------------------------------------------------------------------
 istio:
   enabled: true
   namespace: wealist-dev
 
-  gateway:
-    enabled: false  # setup-cluster.sh에서 이미 생성됨
-    name: wealist-gateway
+  # VirtualService 활성화 (Istio Gateway + VirtualService 방식)
+  # NOTE: hosts에 "*"와 specific host를 함께 사용하면 Istio validation error 발생
+  virtualService:
+    enabled: true
     hosts:
-      - "dev.wealist.co.kr"
-      - "api.dev.wealist.co.kr"
+      - "*"
+    # Frontend (S3/CloudFront에서 서빙하므로 비활성화)
+    frontend:
+      enabled: false
+    # MinIO 라우팅 - AWS S3 직접 사용으로 비활성화
+    minio:
+      enabled: false
+      # host: minio
+      # port: 9000
+    # 모니터링 라우팅
+    monitoring:
+      enabled: true
+      grafana:
+        host: grafana
+        port: 3000
+      prometheus:
+        host: prometheus
+        port: 9090
+      loki:
+        host: loki
+        port: 3100
+      kiali:
+        enabled: true
+        host: kiali
+        namespace: istio-system
+        port: 20001
+      jaeger:
+        enabled: true
+        host: tracing
+        namespace: istio-system
+        port: 80
+    # ArgoCD UI (/api/argo)
+    argocd:
+      enabled: true
+    # Ops Portal (dev에서는 비활성화)
+    opsPortal:
+      enabled: false
+
+  # Istio Gateway (networking.istio.io) 활성화
+  # NOTE: hosts에 "*"와 specific host를 함께 사용하면 Istio validation error 발생
+  gateway:
+    enabled: true
+    name: istio-ingressgateway
+    namespace: istio-system
+    hosts:
       - "*"
     tls:
       enabled: false
 
-  # HTTPRoute 설정 (Kubernetes Gateway API)
-  httpRoute:
-    enabled: true
-    gatewayRef:
-      name: istio-ingressgateway
-      namespace: istio-system
-    hosts:
-      - "dev.wealist.co.kr"
-      - "api.dev.wealist.co.kr"
-    # Frontend Pod 라우팅 (비활성화 - CDN 사용)
-    frontend:
-      enabled: false
-    # Monitoring routes (활성화 - dev.wealist.co.kr/monitoring/*)
-    monitoring:
-      enabled: true
+  # Kubernetes Gateway API - 비활성화 (VirtualService 사용)
+  k8sGateway:
+    enabled: false
 
-  # mTLS - 서비스 간 암호화
+  # HTTPRoute 비활성화 (VirtualService 사용)
+  httpRoute:
+    enabled: false
+
   mtls:
     enabled: true
-    mode: STRICT  # dev 환경: mTLS 강제 (보안 강화)
+    mode: STRICT
 
-  # Database mTLS 설정 (외부 DB 사용 - 해당 없음)
   database:
     postgres:
-      disableMtls: false  # 내부 postgres pod 없음
+      disableMtls: false
     redis:
-      disableMtls: false  # 내부 redis pod 없음
+      disableMtls: false
 
-  # 트래픽 제어 - Circuit Breaker, Connection Pool
+  services:
+    - name: auth-service
+    - name: user-service
+    - name: board-service
+    - name: chat-service
+    - name: noti-service
+    - name: storage-service
+    - name: video-service
+
   destinationRules:
     enabled: true
     loadBalancer:
@@ -193,7 +311,6 @@ istio:
         http2MaxRequests: 1000
         maxRequestsPerConnection: 100
         maxRetries: 3
-    # Circuit Breaker - 장애 서비스 격리
     outlierDetection:
       consecutive5xxErrors: 5
       consecutiveGatewayErrors: 5
@@ -202,93 +319,141 @@ istio:
       maxEjectionPercent: 50
       minHealthPercent: 30
 
-  # 서비스 간 통신 제어
-  # dev: Zero Trust 정책 적용
   authorizationPolicy:
     enabled: true
-    denyAll: true  # dev: 기본 거부 (Zero Trust)
+    denyAll: true
+    allowSameNamespace: true
 
-  # 서비스별 호출 권한 (L7 정책)
   serviceAuthorization:
-    enabled: true  # dev: 활성화 (보안 강화)
-
-  # JWT 인증
-  # dev: Istio에서 JWT 검증
-  jwtAuth:
-    enabled: false  # 서비스에서 직접 처리 (추후 활성화 가능)
-
-  # Ambient 모드 (Sidecar-less)
-  ambient:
     enabled: true
+
+  jwtAuth:
+    enabled: false
+
+  # Ambient 모드 비활성화 (Sidecar 모드 사용)
+  ambient:
+    enabled: false
     waypoint:
-      enabled: true
+      enabled: false
       name: wealist-waypoint
 
-  # 텔레메트리 - 트레이싱, 로깅
   telemetry:
     tracing:
       enabled: true
-      samplingPercentage: 50  # dev 환경 50%
+      samplingPercentage: 50
     accessLogging:
       enabled: true
 
 # =============================================================================
-# 모니터링 스택 설정 (ECR Public 이미지 사용)
+# Monitoring Stack
 # =============================================================================
-# Docker Hub rate limit 회피를 위해 ECR Public Gallery 이미지 사용
-
-# Prometheus - 메트릭 수집
 prometheus:
   enabled: true
   image:
-    repository: public.ecr.aws/prometheus/prometheus
+    repository: prom/prometheus
     tag: "v2.48.0"
+  config:
+    externalUrl: "https://dev.wealist.co.kr/api/monitoring/prometheus"
+    routePrefix: "/api/monitoring/prometheus"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 1Gi  # WAL 로드 시 OOMKilled 방지
+  persistence:
+    enabled: true
+    hostPath:
+      enabled: true
+      path: /data/prometheus
 
-# Loki - 로그 수집
 loki:
   enabled: true
   image:
-    repository: public.ecr.aws/grafana/loki
+    repository: grafana/loki
     tag: "2.9.2"
+  persistence:
+    enabled: true
+    hostPath:
+      enabled: true
+      path: /data/loki
 
-# Promtail - 로그 수집 에이전트
 promtail:
   enabled: true
   image:
-    repository: public.ecr.aws/grafana/promtail
+    repository: grafana/promtail
     tag: "2.9.2"
 
-# Grafana - 시각화 대시보드
 grafana:
   enabled: true
   image:
-    repository: public.ecr.aws/grafana/grafana
+    repository: grafana/grafana
     tag: "10.2.2"
+  persistence:
+    enabled: true
+    hostPath:
+      enabled: true
+      path: /data/grafana
+  config:
+    allowSignUp: false
+    rootUrl: "https://dev.wealist.co.kr/api/monitoring/grafana"
+    serveFromSubPath: "true"
+  # Google OAuth - ArgoCD와 동일한 OAuth 앱 사용
+  oauth:
+    google:
+      enabled: true
+      autoLogin: false  # 기본 로그인 폼도 표시 (admin 계정 접근용)
+      # 관리자 이메일 → Admin 역할 자동 부여
+      # JMESPath 표현식: 이메일이 목록에 있으면 Admin, 아니면 Viewer
+      roleAttributePath: "contains(['chamchi0129@gmail.com','ressk4149@gmail.com','fbaudwo144@gmail.com','212clab@gmail.com'], email) && 'Admin' || 'Viewer'"
 
-# 모니터링 Ingress (Istio HTTPRoute로 처리)
 monitoringIngress:
   enabled: false
 
-# -----------------------------------------------------------------------------
-# 데이터베이스 Exporter (외부 DB 메트릭 수집)
-# -----------------------------------------------------------------------------
-# DB 호스트 설정:
-#   - Mac/WSL (Docker Desktop): host.docker.internal
-#   - Native Linux: 172.18.0.1 (Kind bridge gateway)
 postgresExporter:
   enabled: true
   image:
-    repository: public.ecr.aws/bitnami/postgres-exporter
-    tag: "0.15.0"
+    repository: prometheuscommunity/postgres-exporter
+    tag: "v0.15.0"
   config:
-    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
+    host: "postgres"  # 클러스터 내부 서비스
     port: 5432
 
 redisExporter:
   enabled: true
   image:
-    repository: public.ecr.aws/bitnami/redis-exporter
-    tag: "1.55.0"
+    repository: oliver006/redis_exporter
+    tag: "v1.55.0"
   config:
-    host: "host.docker.internal"  # Docker Desktop (Mac/WSL)
+    host: "redis"  # 클러스터 내부 서비스
     port: 6379
+
+# =============================================================================
+# Service-specific Database Configuration
+# =============================================================================
+# Dev: 모든 서비스가 공통 DB 사용 (wealist)
+# 호스트 PostgreSQL에 wealist DB가 있어야 함
+board-service:
+  config:
+    DB_NAME: "wealist"
+
+user-service:
+  config:
+    DB_NAME: "wealist"
+
+chat-service:
+  config:
+    DB_NAME: "wealist"
+
+noti-service:
+  config:
+    DB_NAME: "wealist"
+
+storage-service:
+  config:
+    DB_NAME: "wealist"
+
+video-service:
+  config:
+    DB_NAME: "wealist"

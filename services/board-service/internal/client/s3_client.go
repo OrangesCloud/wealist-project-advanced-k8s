@@ -245,6 +245,12 @@ func (c *S3Client) DeleteFile(ctx context.Context, key string) error {
 // GetFileURL returns the public URL for a file
 // S3 Key를 기반으로 다운로드 가능한 URL을 생성합니다.
 func (c *S3Client) GetFileURL(key string) string {
+	// CDN mode: publicEndpoint is set but endpoint is empty (AWS S3 + CloudFront)
+	// CloudFront origin is the S3 bucket, so bucket name is not in the URL
+	if c.publicEndpoint != "" && c.endpoint == "" {
+		return fmt.Sprintf("%s/%s", strings.TrimSuffix(c.publicEndpoint, "/"), key)
+	}
+
 	// MinIO 환경인 경우 (publicEndpoint가 설정된 경우 우선 사용)
 	if c.publicEndpoint != "" {
 		// 예: https://local.wealist.co.kr/minio/bucket/key

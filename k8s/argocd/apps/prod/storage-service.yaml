@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: storage-service-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    # Discord 배포 알림 설정 (Production)
+    notifications.argoproj.io/subscribe.on-deployed.discord: ""
+    notifications.argoproj.io/subscribe.on-sync-failed.discord: ""
+    notifications.argoproj.io/subscribe.on-sync-running.discord: ""
+  labels:
+    environment: production
+    service: storage-service
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-prod
+    path: k8s/helm/charts/storage-service
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../environments/base.yaml
+        - ../../environments/prod.yaml
+      parameters:
+        - name: image.repository
+          value: "prod/storage-service"
+        - name: image.tag
+          value: "93-5e92cda"
+        - name: externalSecrets.enabled
+          value: "true"
+        # Service-specific config (managed here, not in prod.yaml)
+        - name: config.DB_NAME
+          value: "storage_db"
+        - name: config.SERVER_BASE_PATH
+          value: ""  # Istio HTTPRoute 리라이트 호환 (/api/svc/storage → /)
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wealist-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

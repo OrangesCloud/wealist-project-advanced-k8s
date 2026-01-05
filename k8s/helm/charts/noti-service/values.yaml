@@ -47,16 +47,7 @@ config:
 
   # Database (service-specific)
   DB_NAME: "wealist_noti_service_db"
-  DATABASE_URL: "postgresql://noti_service:postgres@postgres:5432/wealist_noti_service_db?sslmode=disable"
-
-# -----------------------------------------------------------------------------
-# External Secrets
-# -----------------------------------------------------------------------------
-externalSecrets:
-  enabled: false
-  secretStore: aws-secrets-manager
-  secretStoreKind: ClusterSecretStore
-  refreshInterval: 1h
+  # DATABASE_URL is built from individual components (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE)
 
 # -----------------------------------------------------------------------------
 # Health Check Configuration
@@ -155,12 +146,6 @@ podDisruptionBudget:
   minAvailable: 1
 
 # -----------------------------------------------------------------------------
-# Network Policy
-# -----------------------------------------------------------------------------
-networkPolicy:
-  enabled: false
-
-# -----------------------------------------------------------------------------
 # Monitoring
 # -----------------------------------------------------------------------------
 metrics:
@@ -172,8 +157,3 @@ podAnnotations: {}
 nodeSelector: {}
 tolerations: []
 affinity: {}
-
-extraEnv: []
-extraEnvFrom: []
-extraVolumes: []
-extraVolumeMounts: []

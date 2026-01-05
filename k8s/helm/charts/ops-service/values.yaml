@@ -1,0 +1,165 @@
+# =============================================================================
+# ops-service Helm Chart - Default Values
+# =============================================================================
+# Admin Portal Backend - Operations Management API
+# Service-specific configuration only.
+# Global settings (namespace, environment, imageRegistry, domain) are defined
+# in helm/environments/*.yaml files.
+
+# -----------------------------------------------------------------------------
+# Image Configuration
+# -----------------------------------------------------------------------------
+image:
+  repository: ops-service
+  # pullPolicy and tag are set in helm/environments/*.yaml
+
+imagePullSecrets: []
+
+# -----------------------------------------------------------------------------
+# Deployment Configuration
+# -----------------------------------------------------------------------------
+replicaCount: 1
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# -----------------------------------------------------------------------------
+# Service Configuration
+# -----------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 8005
+  targetPort: 8005
+  annotations: {}
+
+# -----------------------------------------------------------------------------
+# Application Configuration (Service-Specific Only)
+# -----------------------------------------------------------------------------
+config:
+  # Server
+  PORT: "8005"
+  SERVER_PORT: "8005"
+  SERVER_BASE_PATH: "/api"
+
+  # Database (ops-specific database)
+  DB_NAME: "ops_db"
+
+  # Kubernetes (for ArgoCD RBAC management)
+  K8S_IN_CLUSTER: "true"
+  ARGOCD_NAMESPACE: "argocd"
+
+  # ArgoCD API (optional - for monitoring)
+  # ARGOCD_SERVER_URL: "https://argocd.wealist.co.kr"
+  # ARGOCD_TOKEN is set via secret
+
+# -----------------------------------------------------------------------------
+# Secrets (DO NOT COMMIT ACTUAL VALUES)
+# -----------------------------------------------------------------------------
+secrets: {}
+  # ARGOCD_TOKEN: ""
+
+# -----------------------------------------------------------------------------
+# Health Checks
+# -----------------------------------------------------------------------------
+healthCheck:
+  liveness:
+    enabled: true
+    path: /health/live
+    port: 8005
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+
+  readiness:
+    enabled: true
+    path: /health/ready
+    port: 8005
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 3
+
+# -----------------------------------------------------------------------------
+# Resource Limits
+# -----------------------------------------------------------------------------
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "50m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
+# -----------------------------------------------------------------------------
+# Autoscaling (HPA)
+# -----------------------------------------------------------------------------
+autoscaling:
+  enabled: false  # Admin portal typically has low traffic
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# -----------------------------------------------------------------------------
+# Security Configuration
+# -----------------------------------------------------------------------------
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Service Account (needs K8s API access for ArgoCD RBAC)
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# -----------------------------------------------------------------------------
+# RBAC (Required for ArgoCD ConfigMap access)
+# -----------------------------------------------------------------------------
+rbac:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["configmaps"]
+      resourceNames: ["argocd-rbac-cm"]
+      verbs: ["get", "update", "patch"]
+
+# -----------------------------------------------------------------------------
+# Monitoring & Observability
+# -----------------------------------------------------------------------------
+metrics:
+  enabled: true
+  path: /metrics
+
+podAnnotations: {}
+
+# -----------------------------------------------------------------------------
+# Pod Disruption Budget
+# -----------------------------------------------------------------------------
+podDisruptionBudget:
+  enabled: false  # Single replica admin portal
+
+# -----------------------------------------------------------------------------
+# Advanced Configuration
+# -----------------------------------------------------------------------------
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -44,3 +44,41 @@ ServiceAccount name
 {{- "default" }}
 {{- end }}
 {{- end }}
+
+{{/*
+Role for init container to read secrets
+Usage: {{- include "wealist-common.secretReaderRole" . }}
+*/}}
+{{- define "wealist-common.secretReaderRole" -}}
+{{- if .Values.waitForSecrets }}
+{{- if .Values.waitForSecrets.enabled }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "wealist-common.fullname" . }}-secret-reader
+  labels:
+    {{- include "wealist-common.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["{{ .Values.waitForSecrets.secretName }}"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "wealist-common.fullname" . }}-secret-reader
+  labels:
+    {{- include "wealist-common.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "wealist-common.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "wealist-common.fullname" . }}-secret-reader
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}
+{{- end }}

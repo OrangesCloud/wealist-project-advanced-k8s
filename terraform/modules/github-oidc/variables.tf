@@ -29,6 +29,12 @@ variable "allowed_branches" {
   default     = ["main"]
 }
 
+variable "allowed_environments" {
+  description = "List of GitHub Environments allowed to assume the role"
+  type        = list(string)
+  default     = []
+}
+
 variable "role_name" {
   description = "Name of the IAM role for GitHub Actions"
   type        = string
@@ -69,4 +75,19 @@ variable "create_oidc_provider" {
   description = "Whether to create OIDC provider (set to false if it already exists)"
   type        = bool
   default     = true
+}
+
+# -----------------------------------------------------------------------------
+# EKS Access (for kubectl/Helm deployments in CI/CD)
+# -----------------------------------------------------------------------------
+variable "enable_eks_access" {
+  description = "Enable EKS access for kubectl/Helm deployments"
+  type        = bool
+  default     = false
+}
+
+variable "eks_cluster_arns" {
+  description = "List of EKS cluster ARNs to grant access (e.g., arn:aws:eks:region:account:cluster/name)"
+  type        = list(string)
+  default     = []
 }

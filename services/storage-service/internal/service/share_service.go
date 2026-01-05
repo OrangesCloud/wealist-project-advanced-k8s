@@ -53,7 +53,8 @@ func generateShareLink() (string, error) {
 func (s *ShareService) CreateShare(ctx context.Context, req domain.CreateShareRequest, userID uuid.UUID) (*domain.ShareResponse, error) {
 	// 엔티티 존재 여부 확인
 	var entityName string
-	if req.EntityType == domain.ShareTypeFile {
+	switch req.EntityType {
+	case domain.ShareTypeFile:
 		file, err := s.fileRepo.FindByID(ctx, req.EntityID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -62,7 +63,7 @@ func (s *ShareService) CreateShare(ctx context.Context, req domain.CreateShareRe
 			return nil, err
 		}
 		entityName = file.Name
-	} else if req.EntityType == domain.ShareTypeFolder {
+	case domain.ShareTypeFolder:
 		folder, err := s.folderRepo.FindByID(ctx, req.EntityID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -71,7 +72,7 @@ func (s *ShareService) CreateShare(ctx context.Context, req domain.CreateShareRe
 			return nil, err
 		}
 		entityName = folder.Name
-	} else {
+	default:
 		return nil, response.NewValidationError("invalid entity type", string(req.EntityType))
 	}
 

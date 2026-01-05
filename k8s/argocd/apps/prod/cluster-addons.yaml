@@ -1,0 +1,30 @@
+# =============================================================================
+# Cluster Addons - App of Apps
+# =============================================================================
+# cluster-addons/ 디렉토리의 모든 addon Application을 관리
+# sync-wave: -6 (개별 addons보다 먼저 sync)
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cluster-addons-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-6"  # addons보다 먼저 sync
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-prod
+    path: k8s/argocd/apps/prod/cluster-addons
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

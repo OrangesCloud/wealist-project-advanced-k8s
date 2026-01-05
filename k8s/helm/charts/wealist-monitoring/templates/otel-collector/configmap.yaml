@@ -1,0 +1,181 @@
+{{- if .Values.otelCollector.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: otel-collector
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:{{ .Values.otelCollector.service.otlpGrpcPort }}
+          http:
+            endpoint: 0.0.0.0:{{ .Values.otelCollector.service.otlpHttpPort }}
+
+    processors:
+      batch:
+        timeout: {{ .Values.otelCollector.config.batchTimeout }}
+        send_batch_size: {{ .Values.otelCollector.config.sendBatchSize }}
+
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: {{ .Values.otelCollector.config.memoryLimitMiB }}
+        spike_limit_mib: {{ .Values.otelCollector.config.spikeLimitMiB }}
+
+      # K8s 메타데이터 자동 추가 (2025 Best Practice)
+      k8sattributes:
+        extract:
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.deployment.name
+            - k8s.node.name
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.ip
+          - sources:
+              - from: connection
+
+      {{- if .Values.otelCollector.tailSampling.enabled }}
+      # =============================================================================
+      # Tail Sampling (2025 Best Practice)
+      # =============================================================================
+      # 에러/슬로우 트레이스 100% 유지 + 정상 트래픽 샘플링
+      # Head sampling과 달리 trace 완료 후 샘플링 결정
+      tail_sampling:
+        decision_wait: {{ .Values.otelCollector.tailSampling.decisionWaitSeconds }}s
+        num_traces: {{ .Values.otelCollector.tailSampling.numTraces }}
+        expected_new_traces_per_sec: {{ .Values.otelCollector.tailSampling.expectedNewTracesPerSec }}
+        policies:
+          {{- if .Values.otelCollector.tailSampling.policies.errorSampling }}
+          # 1. 모든 에러 트레이스 100% 유지
+          - name: errors-policy
+            type: status_code
+            status_code:
+              status_codes: [ERROR]
+          {{- end }}
+          # 2. 느린 트레이스 유지 (latencyThresholdMs 이상)
+          - name: latency-policy
+            type: latency
+            latency:
+              threshold_ms: {{ .Values.otelCollector.tailSampling.policies.latencyThresholdMs }}
+          # 3. 정상 트래픽 확률적 샘플링
+          - name: probabilistic-policy
+            type: probabilistic
+            probabilistic:
+              sampling_percentage: {{ .Values.otelCollector.tailSampling.policies.defaultSamplingPercentage }}
+      {{- end }}
+
+    # =============================================================================
+    # Connectors (2025-2026 OTEL Best Practice)
+    # =============================================================================
+    # Connectors are both receivers and exporters - they connect pipelines
+    connectors:
+      {{- if .Values.otelCollector.connectors.spanmetrics.enabled }}
+      # Span Metrics Connector - Generate RED metrics from traces
+      # Output: traces_spanmetrics_calls_total, traces_spanmetrics_duration_seconds_bucket
+      spanmetrics:
+        namespace: {{ .Values.otelCollector.connectors.spanmetrics.namespace }}
+        histogram:
+          unit: s
+          explicit:
+            buckets: {{ toJson .Values.otelCollector.connectors.spanmetrics.histogram.buckets }}
+        dimensions:
+          {{- range .Values.otelCollector.connectors.spanmetrics.dimensions }}
+          - name: {{ . }}
+          {{- end }}
+        exemplars:
+          enabled: {{ .Values.otelCollector.connectors.spanmetrics.exemplars.enabled }}
+      {{- end }}
+
+      {{- if .Values.otelCollector.connectors.servicegraph.enabled }}
+      # Service Graph Connector - Generate service dependency metrics
+      # Output: traces_service_graph_request_total, traces_service_graph_request_failed_total
+      servicegraph:
+        store:
+          ttl: {{ .Values.otelCollector.connectors.servicegraph.store.ttl }}
+          max_items: {{ .Values.otelCollector.connectors.servicegraph.store.maxItems }}
+        cache_loop: {{ .Values.otelCollector.connectors.servicegraph.cacheLoop }}
+        dimensions:
+          {{- range .Values.otelCollector.connectors.servicegraph.dimensions }}
+          - {{ . }}
+          {{- end }}
+      {{- end }}
+
+    exporters:
+      # Tempo로 trace 전송
+      {{- if .Values.tempo.enabled }}
+      otlp/tempo:
+        endpoint: tempo:{{ .Values.tempo.service.otlpGrpcPort }}
+        tls:
+          insecure: true
+      {{- end }}
+
+      {{- if or .Values.otelCollector.connectors.spanmetrics.enabled .Values.otelCollector.connectors.servicegraph.enabled }}
+      # Prometheus Remote Write - Send connector metrics to Prometheus
+      prometheusremotewrite:
+        endpoint: {{ .Values.otelCollector.connectors.prometheusRemoteWrite.endpoint }}
+        tls:
+          insecure: true
+        {{- if .Values.otelCollector.connectors.prometheusRemoteWrite.resourceToTelemetryConversion }}
+        resource_to_telemetry_conversion:
+          enabled: true
+        {{- end }}
+      {{- end }}
+
+      # 디버깅용 로깅 (0.114.0부터 logging → debug로 변경)
+      debug:
+        verbosity: normal
+        sampling_initial: 5
+        sampling_thereafter: 200
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
+    service:
+      extensions: [health_check]
+      pipelines:
+        # Main traces pipeline
+        traces:
+          receivers: [otlp]
+          {{- if .Values.otelCollector.tailSampling.enabled }}
+          # Tail Sampling 활성화: memory_limiter → k8sattributes → tail_sampling → batch
+          processors: [memory_limiter, k8sattributes, tail_sampling, batch]
+          {{- else }}
+          # 기본: memory_limiter → k8sattributes → batch
+          processors: [memory_limiter, k8sattributes, batch]
+          {{- end }}
+          exporters:
+            {{- if .Values.tempo.enabled }}
+            - otlp/tempo
+            {{- end }}
+            {{- if .Values.otelCollector.connectors.spanmetrics.enabled }}
+            - spanmetrics
+            {{- end }}
+            {{- if .Values.otelCollector.connectors.servicegraph.enabled }}
+            - servicegraph
+            {{- end }}
+            - debug
+
+        {{- if .Values.otelCollector.connectors.spanmetrics.enabled }}
+        # Span Metrics pipeline - receives from spanmetrics connector
+        metrics/spanmetrics:
+          receivers: [spanmetrics]
+          processors: [batch]
+          exporters: [prometheusremotewrite]
+        {{- end }}
+
+        {{- if .Values.otelCollector.connectors.servicegraph.enabled }}
+        # Service Graph pipeline - receives from servicegraph connector
+        metrics/servicegraph:
+          receivers: [servicegraph]
+          processors: [batch]
+          exporters: [prometheusremotewrite]
+        {{- end }}
+{{- end }}

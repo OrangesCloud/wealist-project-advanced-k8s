@@ -1,0 +1,155 @@
+# =============================================================================
+# Team Developer RBAC - wealist-dev 네임스페이스 전용 접근 (보강판)
+# =============================================================================
+# 팀원들이 wealist-dev 네임스페이스만 접근할 수 있도록 제한
+#
+# 권한:
+#   - pods, services, deployments, configmaps, secrets: 읽기
+#   - pods/log, pods/exec, pods/portforward: 디버깅용
+#   - Istio, Gateway API: 읽기
+#   - Argo Rollouts: 읽기
+#   - External Secrets: 읽기
+#   - 다른 네임스페이스: 접근 불가
+#
+# 사용법:
+#   1. kubectl apply -f team-developer.yaml
+#   2. ./scripts/create-team-kubeconfig.sh <username>
+# =============================================================================
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: team-developer
+  namespace: wealist-dev
+  labels:
+    app.kubernetes.io/name: team-developer
+    app.kubernetes.io/part-of: wealist-oranges
+
+---
+# Role: wealist-dev 네임스페이스 내 읽기 + 디버깅 권한
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer-role
+  namespace: wealist-dev
+  labels:
+    app.kubernetes.io/name: developer-role
+    app.kubernetes.io/part-of: wealist-oranges
+rules:
+  # 1. 기본 및 앱 리소스 읽기
+  - apiGroups: ["", "apps", "batch", "networking.k8s.io", "autoscaling"]
+    resources:
+      - pods
+      - pods/log
+      - services
+      - endpoints
+      - configmaps
+      - secrets
+      - persistentvolumeclaims
+      - events
+      - deployments
+      - replicasets
+      - statefulsets
+      - daemonsets
+      - jobs
+      - cronjobs
+      - ingresses
+      - networkpolicies
+      - horizontalpodautoscalers
+    verbs: ["get", "list", "watch"]
+
+  # 2. 인프라 확장 리소스 읽기 (Istio, Gateway API)
+  - apiGroups: ["gateway.networking.k8s.io", "networking.istio.io", "security.istio.io"]
+    resources:
+      - httproutes
+      - gateways
+      - virtualservices
+      - destinationrules
+      - serviceentries
+      - peerauthentications
+    verbs: ["get", "list", "watch"]
+
+  # 3. Argo 프로젝트 리소스 읽기 (Rollouts, Analysis)
+  - apiGroups: ["argoproj.io"]
+    resources:
+      - rollouts
+      - analysisruns
+      - analysistemplates
+      - experiments
+    verbs: ["get", "list", "watch"]
+
+  # 4. External Secrets 리소스 읽기
+  - apiGroups: ["external-secrets.io"]
+    resources:
+      - externalsecrets
+      - secretstores
+    verbs: ["get", "list", "watch"]
+
+  # 5. 디버깅 및 운영 도구
+  - apiGroups: [""]
+    resources:
+      - pods/exec
+      - pods/portforward
+    verbs: ["create"]
+
+---
+# RoleBinding: team-developer ServiceAccount에 developer-role 바인딩
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: developer-binding
+  namespace: wealist-dev
+  labels:
+    app.kubernetes.io/name: developer-binding
+    app.kubernetes.io/part-of: wealist-oranges
+subjects:
+  - kind: ServiceAccount
+    name: team-developer
+    namespace: wealist-dev
+roleRef:
+  kind: Role
+  name: developer-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ClusterRole: 클러스터 수준 최소 권한
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: developer-cluster-role
+  labels:
+    app.kubernetes.io/name: developer-cluster-role
+    app.kubernetes.io/part-of: wealist-oranges
+rules:
+  # 네임스페이스, 노드 목록 조회
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - nodes
+    verbs: ["get", "list"]
+
+  # k9s 등에서 리소스 사용량 조회 (metrics-server)
+  - apiGroups: ["metrics.k8s.io"]
+    resources:
+      - nodes
+      - pods
+    verbs: ["get", "list"]
+
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: developer-cluster-binding
+  labels:
+    app.kubernetes.io/name: developer-cluster-binding
+    app.kubernetes.io/part-of: wealist-oranges
+subjects:
+  - kind: ServiceAccount
+    name: team-developer
+    namespace: wealist-dev
+roleRef:
+  kind: ClusterRole
+  name: developer-cluster-role
+  apiGroup: rbac.authorization.k8s.io

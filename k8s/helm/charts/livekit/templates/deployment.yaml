@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: livekit
+  labels:
+    app: livekit
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: livekit
+  template:
+    metadata:
+      labels:
+        app: livekit
+      annotations:
+        {{/* Istio Sidecar injection and resource configuration */}}
+        {{- if .Values.istio }}
+        {{- if and .Values.istio.sidecar .Values.istio.sidecar.enabled }}
+        sidecar.istio.io/inject: "true"
+        {{- if .Values.istio.sidecar.resources }}
+        {{- if .Values.istio.sidecar.resources.requests }}
+        sidecar.istio.io/proxyCPU: {{ .Values.istio.sidecar.resources.requests.cpu | default "100m" | quote }}
+        sidecar.istio.io/proxyMemory: {{ .Values.istio.sidecar.resources.requests.memory | default "128Mi" | quote }}
+        {{- end }}
+        {{- if .Values.istio.sidecar.resources.limits }}
+        sidecar.istio.io/proxyCPULimit: {{ .Values.istio.sidecar.resources.limits.cpu | default "500m" | quote }}
+        sidecar.istio.io/proxyMemoryLimit: {{ .Values.istio.sidecar.resources.limits.memory | default "256Mi" | quote }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
+    spec:
+      # Disable automatic service environment variables injection
+      # Prevents LIVEKIT_PORT=tcp://... from conflicting with LiveKit's port flag
+      enableServiceLinks: false
+      containers:
+        - name: livekit
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --config
+            - /etc/livekit/livekit.yaml
+          ports:
+            - name: http
+              containerPort: 7880
+              protocol: TCP
+            - name: rtc
+              containerPort: 7881
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/livekit
+          env:
+            - name: LIVEKIT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: wealist-shared-secret
+                  key: LIVEKIT_API_KEY
+            - name: LIVEKIT_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: wealist-shared-secret
+                  key: LIVEKIT_API_SECRET
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: livekit-config

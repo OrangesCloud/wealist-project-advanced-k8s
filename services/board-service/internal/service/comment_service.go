@@ -44,6 +44,9 @@ func NewCommentService(commentRepo repository.CommentRepository, boardRepo repos
 
 // CreateComment creates a new comment on a board
 func (s *commentServiceImpl) CreateComment(ctx context.Context, userID uuid.UUID, req *dto.CreateCommentRequest) (*dto.CommentResponse, error) {
+	// Filter out zero/nil UUIDs from attachment IDs (handles frontend sending null values)
+	validAttachmentIDs := filterValidUUIDs(req.AttachmentIDs)
+
 	// Verify board exists
 	_, err := s.boardRepo.FindByID(ctx, req.BoardID)
 	if err != nil {
@@ -54,8 +57,8 @@ func (s *commentServiceImpl) CreateComment(ctx context.Context, userID uuid.UUID
 	}
 
 	// Validate and confirm attachments if provided
-	if len(req.AttachmentIDs) > 0 {
-		if err := s.validateAndConfirmAttachments(ctx, req.AttachmentIDs, domain.EntityTypeComment); err != nil {
+	if len(validAttachmentIDs) > 0 {
+		if err := s.validateAndConfirmAttachments(ctx, validAttachmentIDs, domain.EntityTypeComment); err != nil {
 			return nil, err
 		}
 	}
@@ -74,14 +77,14 @@ func (s *commentServiceImpl) CreateComment(ctx context.Context, userID uuid.UUID
 
 	// Confirm attachments after comment creation
 	var createdAttachments []*domain.Attachment
-	if len(req.AttachmentIDs) > 0 {
+	if len(validAttachmentIDs) > 0 {
 		// 에러 발생 시 comment도 롤백
-		if err := s.attachmentRepo.ConfirmAttachments(ctx, req.AttachmentIDs, comment.ID); err != nil {
+		if err := s.attachmentRepo.ConfirmAttachments(ctx, validAttachmentIDs, comment.ID); err != nil {
 			s.logger.Error("Failed to confirm attachments, rolling back comment creation",
 				zap.String("comment_id", comment.ID.String()),
 				zap.Strings("attachment_ids", func() []string {
-					ids := make([]string, len(req.AttachmentIDs))
-					for i, id := range req.AttachmentIDs {
+					ids := make([]string, len(validAttachmentIDs))
+					for i, id := range validAttachmentIDs {
 						ids[i] = id.String()
 					}
 					return ids
@@ -101,7 +104,7 @@ func (s *commentServiceImpl) CreateComment(ctx context.Context, userID uuid.UUID
 		}
 
 		// Confirm 후 Attachments 메타데이터를 조회하여 comment 객체에 할당
-		attachments, err := s.attachmentRepo.FindByIDs(ctx, req.AttachmentIDs)
+		attachments, err := s.attachmentRepo.FindByIDs(ctx, validAttachmentIDs)
 		if err != nil {
 			s.logger.Warn("Failed to fetch confirmed attachments for response", zap.Error(err))
 		} else {
@@ -153,6 +156,9 @@ func (s *commentServiceImpl) GetComments(ctx context.Context, boardID uuid.UUID)
 
 // UpdateComment updates a comment's content
 func (s *commentServiceImpl) UpdateComment(ctx context.Context, commentID uuid.UUID, req *dto.UpdateCommentRequest) (*dto.CommentResponse, error) {
+	// Filter out zero/nil UUIDs from attachment IDs (handles frontend sending null values)
+	validAttachmentIDs := filterValidUUIDs(req.AttachmentIDs)
+
 	// Fetch existing comment
 	comment, err := s.commentRepo.FindByID(ctx, commentID)
 	if err != nil {
@@ -163,8 +169,8 @@ func (s *commentServiceImpl) UpdateComment(ctx context.Context, commentID uuid.U
 	}
 
 	// Validate and confirm attachments if provided
-	if len(req.AttachmentIDs) > 0 {
-		if err := s.validateAndConfirmAttachments(ctx, req.AttachmentIDs, domain.EntityTypeComment); err != nil {
+	if len(validAttachmentIDs) > 0 {
+		if err := s.validateAndConfirmAttachments(ctx, validAttachmentIDs, domain.EntityTypeComment); err != nil {
 			return nil, err
 		}
 	}
@@ -178,14 +184,14 @@ func (s *commentServiceImpl) UpdateComment(ctx context.Context, commentID uuid.U
 	}
 
 	// Attachments 처리 로직 개선 및 Confirm
-	if len(req.AttachmentIDs) > 0 {
+	if len(validAttachmentIDs) > 0 {
 		// 에러 발생 시 업데이트 실패 처리
-		if err := s.attachmentRepo.ConfirmAttachments(ctx, req.AttachmentIDs, comment.ID); err != nil {
+		if err := s.attachmentRepo.ConfirmAttachments(ctx, validAttachmentIDs, comment.ID); err != nil {
 			s.logger.Error("Failed to confirm attachments during comment update",
 				zap.String("comment_id", comment.ID.String()),
 				zap.Strings("attachment_ids", func() []string {
-					ids := make([]string, len(req.AttachmentIDs))
-					for i, id := range req.AttachmentIDs {
+					ids := make([]string, len(validAttachmentIDs))
+					for i, id := range validAttachmentIDs {
 						ids[i] = id.String()
 					}
 					return ids
@@ -275,8 +281,21 @@ func (s *commentServiceImpl) toCommentResponse(comment *domain.Comment) *dto.Com
 	}
 }
 
+// filterValidUUIDs filters out zero/nil UUIDs from the slice
+func filterValidUUIDs(ids []uuid.UUID) []uuid.UUID {
+	var valid []uuid.UUID
+	for _, id := range ids {
+		if id != uuid.Nil {
+			valid = append(valid, id)
+		}
+	}
+	return valid
+}
+
 // validateAndConfirmAttachments validates that attachments exist and are in TEMP status
 func (s *commentServiceImpl) validateAndConfirmAttachments(ctx context.Context, attachmentIDs []uuid.UUID, entityType domain.EntityType) error {
+	// Filter out zero/nil UUIDs (handles frontend sending null values)
+	attachmentIDs = filterValidUUIDs(attachmentIDs)
 	if len(attachmentIDs) == 0 {
 		return nil
 	}

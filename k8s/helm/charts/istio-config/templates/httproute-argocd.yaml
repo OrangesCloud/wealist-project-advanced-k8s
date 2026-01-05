@@ -1,0 +1,41 @@
+{{- if and .Values.istio.enabled .Values.istio.httpRoute.enabled }}
+{{- if and .Values.istio.httpRoute.argocd .Values.istio.httpRoute.argocd.enabled }}
+{{- if .Values.istio.httpRoute.argocd.host }}
+# =============================================================================
+# ArgoCD HTTPRoute - 별도 호스트 기반 라우팅
+# =============================================================================
+# argocd.wealist.co.kr 도메인의 모든 경로를 argocd-server로 라우팅
+# 메인 HTTPRoute(wealist-routes)와 분리하여 호스트 기반 라우팅 구현
+#
+# 라우팅 흐름:
+#   argocd.wealist.co.kr/* → argocd-server (argocd namespace)
+#
+# 참고: External DNS가 Gateway의 argocd.wealist.co.kr 호스트를 감지하여
+#       Route53에 자동으로 DNS 레코드를 생성합니다.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd-route
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+    app.kubernetes.io/component: argocd-ingress
+spec:
+  parentRefs:
+    - name: {{ .Values.istio.httpRoute.gatewayRef.name }}
+      namespace: {{ .Values.istio.httpRoute.gatewayRef.namespace }}
+  hostnames:
+    - {{ .Values.istio.httpRoute.argocd.host | quote }}
+  rules:
+    # 모든 경로를 argocd-server로 라우팅
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: argocd-server
+          namespace: argocd
+          port: 80
+{{- end }}
+{{- end }}
+{{- end }}

@@ -10,6 +10,9 @@ metadata:
     app.kubernetes.io/component: logging
 spec:
   replicas: {{ .Values.loki.replicas }}
+  # Recreate strategy required for PVC-based deployments to avoid lock conflicts
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: loki
@@ -19,8 +22,11 @@ spec:
         app: loki
         app.kubernetes.io/name: loki
       annotations:
+        # Sidecar 모드 제외 - 모니터링 인프라는 mesh 외부에서 동작
+        sidecar.istio.io/inject: "false"
         checksum/config: {{ include (print $.Template.BasePath "/loki/configmap.yaml") . | sha256sum }}
     spec:
+      serviceAccountName: loki
       securityContext:
         fsGroup: 10001
         runAsGroup: 10001

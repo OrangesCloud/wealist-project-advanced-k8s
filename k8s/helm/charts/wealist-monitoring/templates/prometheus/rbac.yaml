@@ -1,0 +1,65 @@
+{{- if .Values.prometheus.enabled }}
+# =============================================================================
+# Prometheus RBAC
+# =============================================================================
+# Required for Kubernetes service discovery and kubelet cAdvisor metrics
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: prometheus
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: monitoring
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-{{ .Values.global.namespace }}
+  labels:
+    app: prometheus
+rules:
+  # Kubernetes service discovery
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/metrics
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+  # kubelet cAdvisor metrics (nodes/proxy)
+  - apiGroups: [""]
+    resources:
+      - nodes/proxy
+    verbs: ["get"]
+  # Non-resource URLs for metrics endpoints
+  - nonResourceURLs:
+      - /metrics
+      - /metrics/cadvisor
+    verbs: ["get"]
+  # Ingress discovery
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-{{ .Values.global.namespace }}
+  labels:
+    app: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-{{ .Values.global.namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: {{ .Values.global.namespace }}
+{{- end }}

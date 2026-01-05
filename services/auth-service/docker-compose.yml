@@ -27,7 +27,8 @@ services:
       - JWT_SECRET=dev-jwt-secret-key-change-in-production
       - JWT_ACCESS_TOKEN_EXPIRATION_MS=3600000
       - JWT_REFRESH_TOKEN_EXPIRATION_MS=604800000
-      # OAuth
+      # OAuth (standalone 모드 - nginx 없이 직접 접근)
+      # 전체 스택 사용 시: docker/compose/docker-compose.yml 사용 (nginx port 80)
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-your-google-client-id}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-your-google-client-secret}
       - OAUTH2_CLIENT_REDIRECT_URI=http://localhost:8080/oauth2/callback/google

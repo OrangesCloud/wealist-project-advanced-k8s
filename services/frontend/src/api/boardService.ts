@@ -685,9 +685,14 @@ export const saveAttachmentMetadata = async (
   data: SaveAttachmentMetadataRequest,
 ): Promise<AttachmentResponse> => {
   try {
-    const response: AxiosResponse<SuccessResponse<AttachmentResponse>> =
+    const response: AxiosResponse<SuccessResponse<AttachmentResponse & { id?: string }>> =
       await boardServiceClient.post('/attachments', data);
-    return response.data.data;
+    const rawData = response.data.data;
+    // API returns 'id' but frontend expects 'attachmentId' - map accordingly
+    return {
+      ...rawData,
+      attachmentId: rawData.attachmentId || rawData.id || '',
+    };
   } catch (error) {
     console.error('saveAttachmentMetadata error:', error);
     throw error;

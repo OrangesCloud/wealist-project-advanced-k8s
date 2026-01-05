@@ -1,0 +1,47 @@
+# =============================================================================
+# External DNS (sync-wave: -1)
+# =============================================================================
+# Route53 자동 업데이트: Service annotation 기반으로 DNS 레코드 관리
+# - istio-ingressgateway Service의 external-dns.alpha.kubernetes.io/hostname 사용
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://kubernetes-sigs.github.io/external-dns
+    chart: external-dns
+    targetRevision: "1.14.5"
+    helm:
+      valuesObject:
+        provider: aws
+        aws:
+          region: "ap-northeast-2"
+        domainFilters:
+          - "wealist.co.kr"
+        policy: sync  # create, update, delete records
+        registry: txt
+        txtOwnerId: "wealist-prod"
+        sources:
+          - service
+          - ingress
+        serviceAccount:
+          create: true
+          name: external-dns
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

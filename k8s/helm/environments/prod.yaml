@@ -6,56 +6,98 @@
 # Namespace: wealist-prod
 
 # -----------------------------------------------------------------------------
+# Chart Enable Flag (for istio-config templates)
+# -----------------------------------------------------------------------------
+enabled: true
+
+# -----------------------------------------------------------------------------
 # Global Settings
 # -----------------------------------------------------------------------------
 global:
   namespace: wealist-prod
   environment: production
   domain: wealist.co.kr
-  # imageRegistry는 ArgoCD Application parameters에서 ECR URL로 덮어씁니다
-  # 예: <AWS_ACCOUNT_ID>.dkr.ecr.ap-northeast-2.amazonaws.com
-  imageRegistry: ""
-  # ECR은 IAM 기반 인증 사용 (EKS IRSA)
+  # ECR Registry URL
+  imageRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
+  # EKS Pod Identity 사용 - imagePullSecrets 불필요
+imagePullSecrets: []
+podLabels:
+    stage: prod
 
 # -----------------------------------------------------------------------------
-# cert-manager Configuration (Disabled - CloudFront handles SSL termination)
+# Init Container - Secret 대기 설정
 # -----------------------------------------------------------------------------
-certManager:
-  enabled: false
-  # Note: SSL is handled by CloudFront, K8s receives HTTP only
+# ESO가 Secret을 생성할 때까지 서비스 Pod가 대기
+# sync-wave로 순서를 보장하지만, 추가 안전장치로 init container 사용
+waitForSecrets:
+  enabled: true
+  secretName: wealist-shared-secret
+  timeout: 300  # 5분 대기
+  image: bitnami/kubectl:1.30
+
+# -----------------------------------------------------------------------------
+# External Secrets Operator (AWS Secrets Manager 연동)
+# -----------------------------------------------------------------------------
+# Production 환경에서는 ESO를 통해 AWS Secrets Manager에서 시크릿 가져옴
+externalSecrets:
+  enabled: true
 
 # -----------------------------------------------------------------------------
 # Deployment Settings (Production)
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Service Replica Settings (HPA 비활성화 시 사용)
+# -----------------------------------------------------------------------------
+# 참고: 서비스별 config 값은 ArgoCD Application parameters에서 관리
+# k8s/argocd/apps/prod/{service}.yaml 참조
+
+# 핵심 서비스 - Spring Boot (Java)
 auth-service:
-  replicaCount: 3
+  replicaCount: 2
+  # Spring Boot용 리소스 (javaResources 키 사용 - Go 서비스의 resources와 분리)
+  javaResources:
+    requests:
+      memory: "384Mi"   # 실제 사용량 ~300Mi
+      cpu: "100m"       # 실제 사용량 ~50m
+    limits:
+      memory: "768Mi"   # Spring Boot 충분
+      cpu: "500m"
+  # NOTE: Java OTEL config는 ArgoCD Application parameters에서 관리
+  # k8s/argocd/apps/prod/auth-service.yaml 참조
+
+# 핵심 서비스 - 2 replicas
 board-service:
-  replicaCount: 3
-user-service:
-  replicaCount: 3
-chat-service:
-  replicaCount: 3
-noti-service:
-  replicaCount: 2
-storage-service:
-  replicaCount: 2
-video-service:
   replicaCount: 2
 
+user-service:
+  replicaCount: 2
+
+# 보조 서비스 - 1 replica (비용 절감, 필요시 HPA로 확장)
+chat-service:
+  replicaCount: 1
+
+noti-service:
+  replicaCount: 1
+
+storage-service:
+  replicaCount: 1
+
 image:
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: "latest"
 
 # -----------------------------------------------------------------------------
-# Resources (Production - Higher limits)
+# Resources (Production - Go 서비스용 경량화된 설정)
 # -----------------------------------------------------------------------------
+# Go 서비스는 매우 가벼움 (실제 사용량: CPU ~5m, Memory ~30Mi)
+# 2개 노드로 운영하기 위해 requests 최소화
 resources:
   requests:
-    memory: "256Mi"
-    cpu: "200m"
+    memory: "64Mi"
+    cpu: "25m"
   limits:
-    memory: "1Gi"
-    cpu: "1000m"
+    memory: "256Mi"
+    cpu: "500m"
 
 # -----------------------------------------------------------------------------
 # Health Check
@@ -84,12 +126,36 @@ securityContext:
 # -----------------------------------------------------------------------------
 # Features (Production)
 # -----------------------------------------------------------------------------
+# 기본 HPA 설정 (모든 서비스 공통)
+# auth-service, user-service는 ArgoCD parameters에서 minReplicas: 2로 오버라이드
 autoscaling:
   enabled: true
-  minReplicas: 2
+  minReplicas: 1  # 기본값 1, 핵심 서비스만 2로 오버라이드
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
-  targetMemoryUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 90
+  # 스케일 다운 속도 개선 (기본 5분 → 2분, 더 공격적으로)
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120  # 2분 안정화 (기본 5분에서 단축)
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+        - type: Pods
+          value: 2  # 한 번에 최대 2개 제거 (기본 1개에서 증가)
+          periodSeconds: 60
+      selectPolicy: Max  # 더 공격적으로 스케일 다운 (기본 Min에서 변경)
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 4
+          periodSeconds: 30
+      selectPolicy: Max
 
 serviceAccount:
   create: true
@@ -108,17 +174,39 @@ shared:
   config:
     ENV: "production"
     LOG_LEVEL: "info"
+    # Database - RDS PostgreSQL (hosts from ExternalSecret)
+    POSTGRES_PORT: "5432"
+    DB_PORT: "5432"
+    DB_USER: "wealist_admin"
     DB_AUTO_MIGRATE: "false"  # Production: No auto migration
+    DB_SSL_MODE: "require"    # RDS는 SSL 연결 필요
+    DB_SSLMODE: "require"
+    # Redis (hosts from ExternalSecret)
+    REDIS_PORT: "6379"
     CORS_ORIGINS: "https://wealist.co.kr,https://api.wealist.co.kr"
-    # S3/MinIO Configuration
-    S3_ENDPOINT: ""  # AWS S3 기본 엔드포인트 사용
+    # Rate Limiting (Application Level - Redis 기반)
+    RATE_LIMIT_ENABLED: "true"
+    RATE_LIMIT_PER_MINUTE: "60"
+    RATE_LIMIT_BURST: "10"
+    # Istio JWT Mode (Istio가 JWT 검증, Go 서비스는 파싱만)
+    ISTIO_JWT_MODE: "true"
+    # S3 Configuration (AWS S3 - Terraform: wealist-prod-storage)
+    # S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY: 빈 값으로 설정하여 config.yaml 기본값 오버라이드
+    # 빈 값이면 AWS SDK가 IAM Role (IRSA) 자격증명을 자동으로 사용
+    S3_ENDPOINT: ""  # 빈 값 = AWS S3 기본 엔드포인트 사용
+    S3_ACCESS_KEY: ""  # 빈 값 = IAM Role 사용 (IRSA)
+    S3_SECRET_KEY: ""  # 빈 값 = IAM Role 사용 (IRSA)
     S3_PUBLIC_ENDPOINT: "https://cdn.wealist.co.kr"
-    S3_BUCKET: "wealist-prod-files"
+    S3_BUCKET: "wealist-prod-files-290008131187"
     S3_REGION: "ap-northeast-2"
+    # LiveKit (Video Service)
     LIVEKIT_WS_URL: "wss://wealist.co.kr/svc/livekit"
     # OAuth2 Redirect URLs
-    OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/oauth2/callback/google"
+    OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "https://wealist.co.kr/oauth/callback"
+    # OpenTelemetry Configuration (Production - 10% sampling)
+    OTEL_TRACES_SAMPLER_ARG: "0.1"  # 10% 샘플링 (base.yaml 1.0 override)
+    OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=production"
 
 # -----------------------------------------------------------------------------
 # Ingress (nginx - 비활성화, Istio Gateway 사용)
@@ -129,17 +217,19 @@ ingress:
 # -----------------------------------------------------------------------------
 # 데이터베이스 설정 (외부 DB 사용 - AWS RDS/ElastiCache)
 # -----------------------------------------------------------------------------
+# DB/Redis 호스트는 AWS Secrets Manager에서 ExternalSecret으로 가져옴
 postgres:
   enabled: false   # 내부 PostgreSQL 비활성화
   external:
-    enabled: true  # 외부 DB (AWS RDS 등) 사용
-    # host/port는 secrets.yaml에서 설정
+    enabled: false  # ExternalName Service 불필요 (서비스가 DB_HOST 환경변수로 직접 연결)
 
 redis:
   enabled: false   # 내부 Redis 비활성화
   external:
-    enabled: true  # 외부 Redis (AWS ElastiCache 등) 사용
-    # host/port는 secrets.yaml에서 설정
+    enabled: false  # ExternalName Service 불필요 (서비스가 REDIS_HOST 환경변수로 직접 연결)
+
+minio:
+  enabled: false   # S3 사용 (AWS)
 
 # -----------------------------------------------------------------------------
 # 프론트엔드 설정 (CDN 사용 - S3/CloudFront/Route53)
@@ -154,28 +244,104 @@ istio:
   enabled: true
   namespace: wealist-prod
 
+  # EnvoyFilter for X-Forwarded-Proto header
+  # NLB terminates TLS and forwards HTTP to Istio
+  # This filter adds X-Forwarded-Proto: https so backend services know original was HTTPS
+  envoyFilter:
+    forwardedProto:
+      enabled: true
+
+  # Istio Gateway (VirtualService용)
+  # istio-ingressgateway ArgoCD Application에서 Deployment/Service 생성
+  # 이 Gateway 리소스는 VirtualService의 진입점으로 사용됨
   gateway:
-    enabled: false  # EKS ALB Ingress 또는 별도 Gateway 사용
-    name: wealist-gateway
+    enabled: true
+    name: istio-ingressgateway
+    namespace: istio-system  # Gateway 리소스 위치
+    selector:
+      istio: ingressgateway  # Ingress Gateway Pod selector
     hosts:
       - "wealist.co.kr"
       - "api.wealist.co.kr"
+      - "livekit.wealist.co.kr"
+      - "argocd.wealist.co.kr"
     tls:
-      enabled: false  # CloudFront에서 SSL 처리
+      enabled: false  # NLB에서 TLS termination
 
-  # HTTPRoute 설정 (Kubernetes Gateway API)
+  # Kubernetes Gateway API - 비활성화 (Istio Gateway로 전환)
+  # K8s Gateway API와 VirtualService는 호환되지 않음
+  k8sGateway:
+    enabled: false  # K8s Gateway API 비활성화
+    name: istio-ingressgateway
+    namespace: istio-system
+    gatewayClassName: istio
+
+  # HTTPRoute 설정 (Kubernetes Gateway API) - Disabled for Sidecar mode
   httpRoute:
-    enabled: true
+    enabled: false  # Using VirtualService instead for Sidecar mode
     gatewayRef:
       name: istio-ingressgateway
       namespace: istio-system
     hosts:
       - "wealist.co.kr"
       - "api.wealist.co.kr"
+      - "livekit.wealist.co.kr"  # LiveKit WebRTC SFU Server
+
+  # VirtualService 설정 (Sidecar mode에서 활성화)
+  virtualService:
+    enabled: true
+    hosts:
+      - "wealist.co.kr"
+      - "api.wealist.co.kr"
+      - "livekit.wealist.co.kr"
+      - "argocd.wealist.co.kr"
+    canary:
+      enabled: true  # Enable for Argo Rollouts canary deployment
+      stableWeight: 100
+      canaryWeight: 0
     frontend:
       enabled: false
+    # Monitoring routes (VPN/Bastion 통해 접근)
+    # 직접 외부 노출이 아닌 /api/monitoring/* 경로로만 접근 가능
     monitoring:
-      enabled: false  # Production: 모니터링 외부 노출 비활성화
+      enabled: true
+      grafana:
+        host: grafana
+        port: 3000
+      prometheus:
+        host: prometheus
+        port: 9090
+      loki:
+        host: loki
+        port: 3100
+      # Istio 관측성 도구 (istio-system 네임스페이스)
+      kiali:
+        enabled: true
+        host: kiali
+        namespace: istio-system
+        port: 20001
+      jaeger:
+        enabled: true
+        host: tracing
+        namespace: istio-system
+        port: 80
+    # ArgoCD UI
+    # - /api/argo/* → argocd-server (경로 기반, 메인 HTTPRoute)
+    # - argocd.wealist.co.kr/* → argocd-server (호스트 기반, 별도 HTTPRoute)
+    argocd:
+      enabled: true
+      host: "argocd.wealist.co.kr"  # 별도 HTTPRoute에서 사용
+    # LiveKit WebRTC SFU Server
+    # - Frontend에서 wss://livekit.wealist.co.kr로 WebSocket 연결
+    # - video-service에서 http://livekit-livekit-server:7880으로 API 호출
+    livekit:
+      enabled: true
+      hostname: "livekit.wealist.co.kr"
+      serviceName: livekit-livekit-server  # LiveKit Helm 차트 기본 서비스명
+      port: 7880
+    # Ops Portal (Admin Dashboard)
+    opsPortal:
+      enabled: true
 
   # mTLS - 서비스 간 암호화
   mtls:
@@ -188,6 +354,15 @@ istio:
       disableMtls: false
     redis:
       disableMtls: false
+
+  # 서비스 목록 (DestinationRule 생성용)
+  services:
+    - name: auth-service
+    - name: user-service
+    - name: board-service
+    - name: chat-service
+    - name: noti-service
+    - name: storage-service
 
   # 트래픽 제어 - Circuit Breaker, Connection Pool
   destinationRules:
@@ -226,12 +401,16 @@ istio:
   jwtAuth:
     enabled: false
 
-  # Ambient 모드 (Sidecar-less)
-  ambient:
+  # Sidecar Mode Configuration (2025 Best Practice)
+  sidecar:
     enabled: true
-    waypoint:
-      enabled: true
-      name: wealist-waypoint
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 1000m      # Production: 더 높은 CPU limit
+        memory: 512Mi   # Production: 더 높은 메모리 limit
 
   # 텔레메트리 - 트레이싱, 로깅
   telemetry:
@@ -250,51 +429,238 @@ istio:
 prometheus:
   enabled: true
   image:
-    repository: public.ecr.aws/prometheus/prometheus
-    tag: "v2.48.0"
+    repository: prom/prometheus
+    tag: "v2.55.1"  # v2.48.0 → v2.55.1 (2025-12 최신 안정 버전)
+  config:
+    externalUrl: "https://api.wealist.co.kr/api/monitoring/prometheus"
+    routePrefix: "/api/monitoring/prometheus"
+  # 프로덕션 알림 규칙 활성화
+  alerting:
+    enabled: true
+    alertmanager:
+      enabled: false  # Alertmanager 별도 구축 시 true로 변경
+  # 프로덕션 리소스 (WAL replay 메모리 필요)
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "100m"
+    limits:
+      memory: "1Gi"  # 기본 512Mi → 1Gi (WAL replay OOMKilled 방지)
+      cpu: "500m"
+  # V3: Tempo Metrics Generator → Prometheus 연동
+  remoteWriteReceiver:
+    enabled: true  # --web.enable-remote-write-receiver
+  # V3: Exemplars (메트릭 → 트레이스 직접 연결)
+  exemplarStorage:
+    enabled: true  # --enable-feature=exemplar-storage
 
-# Loki - 로그 수집
+# Loki - 로그 수집 (S3 백엔드)
 loki:
   enabled: true
   image:
-    repository: public.ecr.aws/grafana/loki
-    tag: "2.9.2"
+    repository: grafana/loki
+    tag: "3.6.3"  # 2.9.2 → 3.6.3 (2025-12 최신 안정 버전, TSDB 스키마 v13)
+  persistence:
+    enabled: false  # S3 사용 시 PVC 불필요
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"  # 기본 256Mi → 512Mi (실사용 127Mi, 여유 확보)
+      cpu: "300m"
+  config:
+    s3:
+      enabled: true
+      bucket: "wealist-prod-loki-logs-290008131187"
+      region: "ap-northeast-2"
 
-# Promtail - 로그 수집 에이전트
+# Promtail - 로그 수집 에이전트 (Alloy로 대체)
 promtail:
+  enabled: false  # Alloy로 마이그레이션
+
+# Alloy - 로그 수집 에이전트 (Promtail 대체)
+alloy:
   enabled: true
   image:
-    repository: public.ecr.aws/grafana/promtail
-    tag: "2.9.2"
+    repository: grafana/alloy
+    tag: "v1.12.1"  # 2025-12 최신 안정 버전
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
 
 # Grafana - 시각화 대시보드
 grafana:
   enabled: true
   image:
-    repository: public.ecr.aws/grafana/grafana
-    tag: "10.2.2"
+    repository: grafana/grafana
+    tag: "10.4.12"  # 10.2.2 → 10.4.12 (2025-12 안정 버전)
+  resources:
+    requests:
+      memory: "192Mi"
+      cpu: "100m"
+    limits:
+      memory: "384Mi"  # 기본 256Mi → 384Mi (실사용 123Mi, 여유 확보)
+      cpu: "300m"
+  config:
+    allowSignUp: false
+    rootUrl: "https://api.wealist.co.kr/api/monitoring/grafana"
+    serveFromSubPath: "true"
+  # Note: V4 role-based dashboards are now the default (V1/V2/V3 deprecated)
 
 # 모니터링 Ingress
 monitoringIngress:
   enabled: false  # Production: 별도 VPN/Bastion 통해 접근
 
+# kube-state-metrics (Kubernetes 오브젝트 상태 메트릭)
+# Kubernetes Cluster 대시보드와 Service Health Overview에 필요
+kubeStateMetrics:
+  enabled: true
+  image:
+    repository: registry.k8s.io/kube-state-metrics/kube-state-metrics
+    tag: "v2.14.0"  # v2.10.1 → v2.14.0 (2025-12 안정 버전)
+
+# node-exporter (노드 시스템 메트릭)
+# Kubernetes Cluster 대시보드의 노드 CPU/메모리 사용률에 필요
+nodeExporter:
+  enabled: true
+  image:
+    repository: prom/node-exporter
+    tag: "v1.9.0"  # v1.7.0 → v1.9.0 (2025-12 안정 버전)
+
+# ArgoCD 메트릭 수집
+argocd:
+  metrics:
+    enabled: true
+
+# k6 부하테스트 (테스트 시에만 수동 활성화)
+k6:
+  enabled: false  # 수동으로 테스트할 때만 true로 변경
+  prometheus:
+    # routePrefix 포함 필수 (/api/monitoring/prometheus)
+    remoteWriteUrl: "http://prometheus:9090/api/monitoring/prometheus/api/v1/write"
+
+# Pushgateway (GitHub Actions CI/CD 메트릭 수집용)
+pushgateway:
+  enabled: true
+
 # -----------------------------------------------------------------------------
 # 데이터베이스 Exporter (외부 DB 메트릭 수집)
 # -----------------------------------------------------------------------------
+# host는 prod-secrets.yaml에서 설정 (postgres/redis와 동일)
 postgresExporter:
   enabled: true
   image:
-    repository: public.ecr.aws/bitnami/postgres-exporter
-    tag: "0.15.0"
+    repository: prometheuscommunity/postgres-exporter
+    tag: "v0.18.1"
   config:
-    host: ""  # secrets.yaml에서 설정
+    # host/password: ExternalSecret (wealist-shared-secret)에서 가져옴
     port: 5432
+    user: "wealist_admin"   # shared.config.DB_USER와 동일
+    database: "postgres"    # 메트릭 수집용 기본 DB
+    sslmode: "require"      # AWS RDS SSL 필수
 
 redisExporter:
   enabled: true
   image:
-    repository: public.ecr.aws/bitnami/redis-exporter
-    tag: "1.55.0"
+    repository: oliver006/redis_exporter
+    tag: "v1.80.1"
   config:
-    host: ""  # secrets.yaml에서 설정
+    # host/password: ExternalSecret (wealist-shared-secret)에서 가져옴
     port: 6379
+
+# =============================================================================
+# OpenTelemetry 통합 (2025 Best Practice - Full OTEL Stack)
+# =============================================================================
+# 분산 추적(Traces) + 로그(Logs) + 메트릭(Metrics) 통합
+
+# OTEL Collector - 트레이스/메트릭 수집 게이트웨이
+otelCollector:
+  enabled: true
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.114.0"  # 2025-12 최신 안정 버전
+  replicas: 2  # Production HA
+  service:
+    otlpGrpcPort: 4317
+    otlpHttpPort: 4318
+    metricsPort: 8888
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  config:
+    batchTimeout: 5s
+    sendBatchSize: 1000
+    memoryLimitMiB: 400
+    spikeLimitMiB: 100
+  # V3: Tail Sampling (에러/슬로우 100% + 정상 10%)
+  tailSampling:
+    enabled: true
+    decisionWaitSeconds: 10
+    numTraces: 100000
+    expectedNewTracesPerSec: 1000
+    policies:
+      errorSampling: true
+      latencyThresholdMs: 1000
+      defaultSamplingPercentage: 10
+  # V3: OTEL Connectors (Span Metrics + Service Graph)
+  connectors:
+    spanmetrics:
+      enabled: true
+    servicegraph:
+      enabled: true
+    prometheusRemoteWrite:
+      endpoint: "http://prometheus:9090/api/monitoring/prometheus/api/v1/write"
+
+# Tempo - 분산 추적 백엔드 (S3 저장)
+tempo:
+  enabled: true
+  image:
+    repository: grafana/tempo
+    tag: "2.9.0"  # 2025-12 최신 안정 버전 (Pod Identity 지원)
+  service:
+    httpPort: 3200
+    otlpGrpcPort: 4317
+    otlpHttpPort: 4318
+  persistence:
+    enabled: false  # S3 사용 시 로컬 PVC 불필요
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  config:
+    retentionPeriod: 168h  # 7 days
+    backend: s3
+    s3:
+      enabled: true
+      bucket: "wealist-prod-tempo-traces-290008131187"
+      region: "ap-northeast-2"
+  # V3: Tempo Metrics Generator (RED 메트릭 자동 생성)
+  metricsGenerator:
+    enabled: true
+    # routePrefix 포함 필수 (/api/monitoring/prometheus)
+    remoteWriteUrl: "http://prometheus:9090/api/monitoring/prometheus/api/v1/write"
+    spanMetrics:
+      enabled: true
+      dimensions:
+        - service.name
+        - http.method
+        - http.status_code
+        - http.route
+    serviceGraphs:
+      enabled: true
+      dimensions:
+        - service.name
+    localBlocks:
+      enabled: true  # TraceQL Metrics 지원

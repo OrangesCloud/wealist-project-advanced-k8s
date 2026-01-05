@@ -4,8 +4,8 @@ FROM public.ecr.aws/docker/library/gradle:8-jdk21 AS builder
 WORKDIR /home/gradle/src
 
 # Use Gradle Wrapper for consistent builds
-# Copy wrapper files
-COPY --chown=gradle:gradle gradlew build.gradle settings.gradle ./
+# Copy wrapper files and properties
+COPY --chown=gradle:gradle gradlew build.gradle settings.gradle gradle.properties ./
 COPY --chown=gradle:gradle gradle ./gradle
 
 # Download dependencies with cache mount (dramatically speeds up rebuilds)
@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/home/gradle/.gradle \
     ./gradlew bootJar --no-daemon
 
 # Runtime stage
-FROM public.ecr.aws/docker/library/eclipse-temurin:21-jre-jammy AS final
+FROM public.ecr.aws/docker/library/eclipse-temurin:21-jre-noble AS final
 ENV TZ=Asia/Seoul
 
 # Create a non-root user

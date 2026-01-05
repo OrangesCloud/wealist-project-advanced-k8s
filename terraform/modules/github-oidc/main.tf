@@ -37,6 +37,23 @@ locals {
 # -----------------------------------------------------------------------------
 # IAM Role for GitHub Actions
 # -----------------------------------------------------------------------------
+locals {
+  # Branch-based claims (for push events)
+  branch_claims = [
+    for branch in var.allowed_branches :
+    "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/${branch}"
+  ]
+
+  # Environment-based claims (for workflow jobs with environment)
+  environment_claims = [
+    for env in var.allowed_environments :
+    "repo:${var.github_org}/${var.github_repo}:environment:${env}"
+  ]
+
+  # Combined claims
+  all_claims = concat(local.branch_claims, local.environment_claims)
+}
+
 resource "aws_iam_role" "github_actions" {
   name = var.role_name
   path = "/github-actions/"
@@ -55,10 +72,7 @@ resource "aws_iam_role" "github_actions" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = [
-              for branch in var.allowed_branches :
-              "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/${branch}"
-            ]
+            "token.actions.githubusercontent.com:sub" = local.all_claims
           }
         }
       }
@@ -164,6 +178,34 @@ resource "aws_iam_role_policy" "cloudfront_access" {
           "cloudfront:ListInvalidations"
         ]
         Resource = "*"
+      }
+    ]
+  })
+}
+
+# -----------------------------------------------------------------------------
+# IAM Policy - EKS Access (kubectl/Helm deployments)
+# -----------------------------------------------------------------------------
+resource "aws_iam_role_policy" "eks_access" {
+  count = var.enable_eks_access ? 1 : 0
+
+  name = "eks-access"
+  role = aws_iam_role.github_actions.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EKSDescribe"
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListClusters",
+          "eks:DescribeNodegroup",
+          "eks:ListNodegroups",
+          "eks:AccessKubernetesApi"
+        ]
+        Resource = length(var.eks_cluster_arns) > 0 ? var.eks_cluster_arns : ["arn:aws:eks:${var.aws_region}:${var.aws_account_id}:cluster/*"]
       }
     ]
   })

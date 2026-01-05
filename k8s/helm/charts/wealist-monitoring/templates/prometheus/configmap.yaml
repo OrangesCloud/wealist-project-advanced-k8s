@@ -20,9 +20,26 @@ data:
       external_labels:
         monitor: 'wealist-k8s-monitor'
 
+    {{- if .Values.prometheus.alerting.enabled }}
+    # Alert Rules 경로
+    rule_files:
+      - /etc/prometheus/rules/*.yml
+
+    # Alertmanager 설정 (선택 사항)
+    {{- if .Values.prometheus.alerting.alertmanager.enabled }}
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - {{ .Values.prometheus.alerting.alertmanager.host }}:{{ .Values.prometheus.alerting.alertmanager.port }}
+    {{- end }}
+    {{- end }}
+
     scrape_configs:
       # Prometheus 자체 메트릭
+      # routePrefix 설정으로 인해 /api/monitoring/prometheus/metrics 경로 사용
       - job_name: 'prometheus'
+        metrics_path: '{{ .Values.prometheus.config.routePrefix }}/metrics'
         static_configs:
           - targets: ['localhost:9090']
 
@@ -64,13 +81,6 @@ data:
         metrics_path: '{{ .Values.prometheus.scrapeTargets.storageService.path }}'
       {{- end }}
 
-      {{- if .Values.prometheus.scrapeTargets.videoService.enabled }}
-      - job_name: 'video-service'
-        static_configs:
-          - targets: ['{{ .Values.prometheus.scrapeTargets.videoService.host }}:{{ .Values.prometheus.scrapeTargets.videoService.port }}']
-        metrics_path: '{{ .Values.prometheus.scrapeTargets.videoService.path }}'
-      {{- end }}
-
       # ==========================================================================
       # Spring Boot Service (auth-service)
       # ==========================================================================
@@ -99,8 +109,72 @@ data:
       {{- end }}
 
       # ==========================================================================
+      # Pushgateway (GitHub Actions CI/CD Metrics)
+      # ==========================================================================
+      {{- if .Values.pushgateway.enabled }}
+      - job_name: 'pushgateway'
+        honor_labels: true  # Push된 메트릭의 라벨 유지
+        static_configs:
+          - targets: ['pushgateway:{{ .Values.pushgateway.service.port }}']
+        metrics_path: '/metrics'
+      {{- end }}
+
+      # ==========================================================================
+      # kube-state-metrics (Kubernetes Objects State)
+      # ==========================================================================
+      {{- if .Values.kubeStateMetrics.enabled }}
+      - job_name: 'kube-state-metrics'
+        static_configs:
+          - targets: ['kube-state-metrics:{{ .Values.kubeStateMetrics.service.port }}']
+        metrics_path: '/metrics'
+      {{- end }}
+
+      # ==========================================================================
+      # node-exporter (Node System Metrics)
+      # ==========================================================================
+      {{- if .Values.nodeExporter.enabled }}
+      - job_name: 'node-exporter'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: node-exporter
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            action: replace
+            target_label: node
+          - source_labels: [__meta_kubernetes_pod_host_ip]
+            action: replace
+            regex: (.+)
+            replacement: $1:{{ .Values.nodeExporter.service.port }}
+            target_label: __address__
+      {{- end }}
+
+      # ==========================================================================
+      # kubelet cAdvisor (Container Metrics)
+      # ==========================================================================
+      - job_name: 'kubelet-cadvisor'
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+
+      # ==========================================================================
       # Kubernetes Service Discovery (Pod Annotations)
       # ==========================================================================
+      # Note: Excludes services with dedicated static scrape jobs above
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
           - role: pod
@@ -112,6 +186,10 @@ data:
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
             action: keep
             regex: true
+          # Exclude services that have dedicated static scrape jobs
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: drop
+            regex: (auth-service|user-service|board-service|chat-service|noti-service|storage-service)
           # prometheus.io/path 어노테이션으로 메트릭 경로 설정
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
             action: replace
@@ -134,10 +212,10 @@ data:
             target_label: pod
 
       # ==========================================================================
-      # Istio 메트릭 수집 (Ambient 모드)
+      # Istio 메트릭 수집
       # ==========================================================================
 
-      # istiod 컨트롤 플레인 메트릭
+      # istiod 컨트롤 플레인 메트릭 (모든 모드에서 사용)
       - job_name: 'istiod'
         kubernetes_sd_configs:
           - role: pod
@@ -158,70 +236,173 @@ data:
             action: replace
             target_label: pod
 
-      # ztunnel 메트릭 (Ambient 모드 L4 프록시)
-      - job_name: 'ztunnel'
-        kubernetes_sd_configs:
-          - role: pod
-            namespaces:
-              names:
-                - istio-system
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_label_app]
-            action: keep
-            regex: ztunnel
-          - source_labels: [__meta_kubernetes_pod_container_port_number]
-            action: keep
-            regex: "15020"
-          - source_labels: [__meta_kubernetes_namespace]
-            action: replace
-            target_label: namespace
-          - source_labels: [__meta_kubernetes_pod_name]
-            action: replace
-            target_label: pod
+      # ==========================================================================
+      # Istio Sidecar 메트릭
+      # ==========================================================================
 
-      # Istio 메시 메트릭 (서비스간 트래픽)
-      # Ambient 모드에서는 ztunnel이 메트릭을 노출
-      - job_name: 'istio-mesh'
+      # Envoy Sidecar 메트릭 (istio-proxy 컨테이너)
+      - job_name: 'envoy-stats'
+        metrics_path: /stats/prometheus
         kubernetes_sd_configs:
           - role: pod
             namespaces:
               names:
                 - {{ .Values.global.namespace }}
         relabel_configs:
-          # Istio 프록시가 있는 Pod (Ambient 모드에서는 ztunnel 통해 수집)
-          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          # istio-proxy 컨테이너가 있는 Pod만 스크래핑
+          - source_labels: [__meta_kubernetes_pod_container_name]
             action: keep
-            regex: true
-          - source_labels: [__meta_kubernetes_pod_container_port_name]
-            action: keep
-            regex: ".*-envoy-prom"
-          - source_labels: [__meta_kubernetes_namespace]
+            regex: istio-proxy
+          # Envoy 메트릭 포트 (15090)로 변경
+          - source_labels: [__address__]
             action: replace
-            target_label: namespace
-          - source_labels: [__meta_kubernetes_pod_name]
-            action: replace
-            target_label: pod
+            regex: ([^:]+)(?::\d+)?
+            replacement: $1:15090
+            target_label: __address__
+          # Pod 메타데이터 라벨 추가
           - action: labelmap
             regex: __meta_kubernetes_pod_label_(.+)
-
-      # Waypoint 프록시 메트릭 (L7 기능 사용 시)
-      - job_name: 'istio-waypoint'
-        kubernetes_sd_configs:
-          - role: pod
-            namespaces:
-              names:
-                - {{ .Values.global.namespace }}
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_pod_label_gateway_networking_k8s_io_gateway_name]
-            action: keep
-            regex: .+
-          - source_labels: [__meta_kubernetes_pod_container_port_number]
-            action: keep
-            regex: "15020"
           - source_labels: [__meta_kubernetes_namespace]
             action: replace
             target_label: namespace
           - source_labels: [__meta_kubernetes_pod_name]
             action: replace
             target_label: pod
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: replace
+            target_label: app
+
+      # ==========================================================================
+      # Argo Rollouts 메트릭 수집
+      # ==========================================================================
+      - job_name: 'argo-rollouts'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - argo-rollouts
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: keep
+            regex: argo-rollouts
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: metrics
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      # ==========================================================================
+      # ArgoCD 메트릭 수집 (Pod 직접 스크래핑)
+      # ==========================================================================
+      # ArgoCD Helm에서 metrics 서비스가 비활성화된 경우 Pod를 직접 스크래핑
+      {{- if .Values.argocd.metrics.enabled }}
+      # ArgoCD Application Controller (port: 8082)
+      - job_name: 'argocd-application-controller'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - argocd
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: keep
+            regex: argocd-application-controller
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: metrics
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      # ArgoCD Server (port: 8083)
+      - job_name: 'argocd-server'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - argocd
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: keep
+            regex: argocd-server
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: metrics
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      # ArgoCD Repo Server (port: 8084)
+      - job_name: 'argocd-repo-server'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - argocd
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: keep
+            regex: argocd-repo-server
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: metrics
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      # ArgoCD ApplicationSet Controller (port: 8080)
+      - job_name: 'argocd-applicationset-controller'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - argocd
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: keep
+            regex: argocd-applicationset-controller
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: metrics
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      # ArgoCD Notifications Controller (port: 9001)
+      - job_name: 'argocd-notifications-controller'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - argocd
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: keep
+            regex: argocd-notifications-controller
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: metrics
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+      {{- end }}
 {{- end }}

@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  # ArgoCD URL 설정
+  context: |
+    argocdUrl: https://argocd.wealist.co.kr
+  
+  # Discord Webhook 서비스 설정 (수정됨!)
+  service.webhook.discord: |
+    url: $discord-webhook-url
+    headers:
+    - name: Content-Type
+      value: application/json
+  
+  # 배포 성공 템플릿 (Discord webhook 형식으로 수정)
+  template.app-deployed: |
+    webhook:
+      discord:
+        method: POST
+        body: |
+          {
+            "content": "🚀 **배포 완료**\n\n**애플리케이션**: {{.app.metadata.name}}\n**환경**: {{.app.metadata.namespace}}\n**상태**: {{.app.status.health.status}}\n**동기화**: {{.app.status.sync.status}}\n**리비전**: {{.app.status.sync.revision}}\n**시간**: {{.app.status.operationState.finishedAt}}"
+          }
+  
+  # 배포 실패 템플릿 (Discord webhook 형식으로 수정)
+  template.app-sync-failed: |
+    webhook:
+      discord:
+        method: POST
+        body: |
+          {
+            "content": "❌ **배포 실패**\n\n**애플리케이션**: {{.app.metadata.name}}\n**환경**: {{.app.metadata.namespace}}\n**오류**: {{.app.status.operationState.message}}\n**시간**: {{.app.status.operationState.finishedAt}}"
+          }
+  
+  # 배포 시작 템플릿 (Discord webhook 형식으로 수정)
+  template.app-sync-running: |
+    webhook:
+      discord:
+        method: POST
+        body: |
+          {
+            "content": "⏳ **배포 시작**\n\n**애플리케이션**: {{.app.metadata.name}}\n**환경**: {{.app.metadata.namespace}}\n**시작 시간**: {{.app.status.operationState.startedAt}}"
+          }
+  
+  # 트리거 설정
+  trigger.on-deployed: |
+    - description: 배포 완료 시 알림
+      send:
+      - app-deployed
+      when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+  
+  trigger.on-sync-failed: |
+    - description: 배포 실패 시 알림
+      send:
+      - app-sync-failed
+      when: app.status.operationState.phase in ['Error', 'Failed']
+  
+  trigger.on-sync-running: |
+    - description: 배포 시작 시 알림
+      send:
+      - app-sync-running
+      when: app.status.operationState.phase in ['Running']
+# Note: ExternalSecret for discord webhook is defined in:
+# k8s/argocd/base/external-secrets/prod/argocd-notifications-secret.yaml
+# This ensures ESO is ready before creating the ExternalSecret

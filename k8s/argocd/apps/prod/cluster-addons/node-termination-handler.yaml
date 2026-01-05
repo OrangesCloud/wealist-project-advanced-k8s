@@ -1,0 +1,40 @@
+# =============================================================================
+# AWS Node Termination Handler (sync-wave: -3)
+# =============================================================================
+# Spot 인스턴스 중단 시 graceful shutdown 보장
+# EC2 Spot Interruption, Scheduled Events, Rebalance Recommendation 처리
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aws-node-termination-handler
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://aws.github.io/eks-charts
+    chart: aws-node-termination-handler
+    targetRevision: "0.21.0"
+    helm:
+      valuesObject:
+        enableSpotInterruptionDraining: true
+        enableRebalanceMonitoring: true
+        enableScheduledEventDraining: true
+        enableRebalanceDraining: true
+        nodeTerminationGracePeriod: 120
+        podTerminationGracePeriod: 60
+        deleteLocalData: true
+        ignoreDaemonSets: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

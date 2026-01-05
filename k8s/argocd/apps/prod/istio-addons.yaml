@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: wealist-istio-addons-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "11"  # istio-config 이후에 설치
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-prod
+    path: k8s/helm/charts/istio-addons
+    helm:
+      valueFiles:
+        - ../../environments/base.yaml
+        - ../../environments/prod.yaml
+      parameters:
+        # Kiali/Jaeger가 참조할 모니터링 네임스페이스 (Prometheus, Grafana 위치)
+        - name: monitoringNamespace
+          value: wealist-prod
+        # Prometheus/Grafana는 wealist-monitoring에서 관리
+        - name: prometheus.enabled
+          value: "false"
+        - name: grafana.enabled
+          value: "false"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: istio-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

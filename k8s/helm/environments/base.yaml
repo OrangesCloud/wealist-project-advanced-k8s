@@ -48,6 +48,33 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
 
 # -----------------------------------------------------------------------------
+# Argo Rollouts (Progressive Delivery)
+# -----------------------------------------------------------------------------
+# Enable rollout to use Argo Rollouts instead of Deployment
+# When enabled, the service will use canary deployment strategy
+rollout:
+  enabled: false  # Disabled by default, enable per-service in prod
+  revisionHistoryLimit: 3
+  maxUnavailable: 0
+  maxSurge: "25%"
+  canary:
+    steps:
+      - setWeight: 10
+      - pause: { duration: 2m }
+      - setWeight: 30
+      - pause: { duration: 2m }
+      - setWeight: 50
+      - pause: { duration: 2m }
+  analysis:
+    enabled: false  # Enable for automated rollback based on metrics
+    startingStep: 1
+    count: 5
+    successThreshold: 0.95
+    latencyThresholdMs: 500
+    failureLimit: 3
+    prometheusAddress: "http://prometheus:9090"
+
+# -----------------------------------------------------------------------------
 # Security Context Defaults (production-ready)
 # -----------------------------------------------------------------------------
 podSecurityContext:
@@ -109,74 +136,48 @@ affinity: {}
 # These values are available to all services via shared.config (ConfigMap)
 # Service-specific config in charts/*/values.yaml will override these
 #
-# IMPORTANT: Sensitive data goes to shared.secrets (Secret), not here!
+# IMPORTANT: Only truly global settings here!
+# Environment-specific settings (ENV, LOG_LEVEL, DB_HOST, S3_*, OAuth2_*, etc.)
+# should be in environment files (localhost.yaml, dev.yaml, prod.yaml)
 shared:
   config:
-    # Environment
-    ENV: "production"
-    LOG_LEVEL: "info"
-
-    # Infrastructure URLs (K8s internal DNS)
-    POSTGRES_HOST: "postgres"
+    # Infrastructure Ports (모든 환경 동일)
     POSTGRES_PORT: "5432"
-    DB_HOST: "postgres"
     DB_PORT: "5432"
-    DB_USER: "postgres"
-    DB_SSLMODE: "disable"
-    REDIS_HOST: "redis"
     REDIS_PORT: "6379"
 
-    # Service URLs
+    # Service URLs (K8s 내부 통신, 모든 환경 동일)
     AUTH_SERVICE_URL: "http://auth-service:8080"
     USER_SERVICE_URL: "http://user-service:8081"
     BOARD_SERVICE_URL: "http://board-service:8000"
     CHAT_SERVICE_URL: "http://chat-service:8001"
     NOTI_SERVICE_URL: "http://noti-service:8002"
     STORAGE_SERVICE_URL: "http://storage-service:8003"
-    VIDEO_SERVICE_URL: "http://video-service:8004"
-
-    # S3/MinIO Configuration (non-sensitive)
-    S3_ENDPOINT: "http://minio:9000"
-    S3_PUBLIC_ENDPOINT: "http://minio:9000"
-    S3_BUCKET: "wealist-files"
-    S3_REGION: "ap-northeast-2"
-
-    # CORS
-    CORS_ORIGINS: "*"
-
-    # OAuth2 Redirect URLs (override per environment)
-    OAUTH2_CLIENT_REDIRECT_URI: "http://localhost/login/oauth2/code/google"
-    OAUTH2_REDIRECT_URL_ENV: "http://localhost/oauth/callback"
-
-    # LiveKit (WebRTC) - non-sensitive
-    LIVEKIT_URL: "http://livekit:7880"
-    LIVEKIT_WS_URL: "ws://localhost/svc/livekit"
 
     # Database Migration (default: disabled for safety)
     DB_AUTO_MIGRATE: "false"
 
+    # -------------------------------------------------------------------------
+    # OpenTelemetry Configuration (고정 설정만)
+    # -------------------------------------------------------------------------
+    # OTLP Exporter - 서비스에서 OTEL Collector로 traces 전송
+    # Protocol: HTTP/protobuf (OpenTelemetry 권장 - 모든 언어 호환)
+    # - Go, Java, Python 등 모든 SDK에서 동일한 endpoint 사용
+    # - Firewall 친화적, 디버깅 용이
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+    # Spring Boot OTLP exporter needs full path (SDK doesn't auto-append /v1/traces)
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://otel-collector:4318/v1/traces"
+    OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+
+    # Trace Sampler type (비율은 환경별 설정)
+    OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
+
+    # Propagators - W3C Trace Context 전파
+    OTEL_PROPAGATORS: "tracecontext,baggage"
+
   # ---------------------------------------------------------------------------
-  # Shared Secrets (stored in K8s Secret, base64 encoded)
+  # Shared Secrets - 환경별 파일에서 설정
   # ---------------------------------------------------------------------------
-  # Override in environment-specific files or use External Secrets Operator
-  # For production: use helm/environments/secrets-prod.yaml (gitignored)
-  secrets:
-    # Database
-    DB_PASSWORD: "postgres"
-    REDIS_PASSWORD: ""
-
-    # S3/MinIO Credentials
-    S3_ACCESS_KEY: "minioadmin"
-    S3_SECRET_KEY: "minioadmin"
-
-    # Security
-    INTERNAL_API_KEY: "internal-key-change-me"
-    JWT_SECRET: "dev-jwt-secret-change-in-production"
-
-    # OAuth2 Credentials (placeholder for local)
-    GOOGLE_CLIENT_ID: "placeholder-client-id.apps.googleusercontent.com"
-    GOOGLE_CLIENT_SECRET: "placeholder-client-secret"
-
-    # LiveKit Credentials
-    LIVEKIT_API_KEY: "devkey"
-    LIVEKIT_API_SECRET: "devsecret"
+  # localhost.yaml, dev.yaml: secrets 섹션에서 직접 설정
+  # prod.yaml: ExternalSecret (AWS Secrets Manager)로 주입
+  # secrets: {} # 각 환경 파일에서 override

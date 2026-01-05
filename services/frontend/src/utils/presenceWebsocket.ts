@@ -1,7 +1,7 @@
 // src/utils/presenceWebSocket.ts
 // 🔥 Global Presence WebSocket - 앱 접속 시 온라인 상태 등록
 
-import { getPresenceWebSocketUrl } from '../api/apiConfig';
+import { getPresenceWebSocketUrl, refreshAccessToken } from '../api/apiConfig';
 
 let presenceWs: WebSocket | null = null;
 let pingInterval: number | null = null;
@@ -77,7 +77,7 @@ export const connectPresenceWebSocket = (onStatusChange?: (data: any) => void) =
       isConnecting = false;
     };
 
-    presenceWs.onclose = (event) => {
+    presenceWs.onclose = async (event) => {
       console.log(`🔌 [Presence WS] 연결 닫힘: ${event.code}`);
       isConnecting = false;
 
@@ -90,6 +90,17 @@ export const connectPresenceWebSocket = (onStatusChange?: (data: any) => void) =
       if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
         reconnectAttempts++;
         console.log(`🔄 [Presence WS] 재연결 시도 ${reconnectAttempts}/${maxReconnectAttempts}...`);
+
+        // 🔥 재연결 전 토큰 갱신 시도
+        try {
+          console.log('🔄 [Presence WS] 토큰 갱신 시도...');
+          await refreshAccessToken();
+          console.log('✅ [Presence WS] 토큰 갱신 성공');
+        } catch (error) {
+          console.error('❌ [Presence WS] 토큰 갱신 실패, 재연결 중단');
+          return; // 토큰 갱신 실패 시 재연결하지 않음 (로그아웃 처리됨)
+        }
+
         setTimeout(connect, reconnectDelay);
       }
     };

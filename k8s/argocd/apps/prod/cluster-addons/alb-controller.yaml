@@ -1,0 +1,54 @@
+# =============================================================================
+# AWS Load Balancer Controller (sync-wave: -5)
+# =============================================================================
+# NLB/ALB를 Kubernetes Service/Ingress에 연결
+# Terraform에서 VPC ID, Cluster Name 주입 필요
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aws-load-balancer-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://aws.github.io/eks-charts
+    chart: aws-load-balancer-controller
+    targetRevision: "1.17.0"
+    helm:
+      skipCrds: false  # CRD 설치 필요 (IngressClassParams 등)
+      valuesObject:
+        clusterName: "wealist-prod-eks"
+        region: "ap-northeast-2"
+        vpcId: "vpc-093f3aade1e124d11"
+        # CRD 설치는 Helm에서 수행 (crds.enabled: false로 중복 방지 안됨, Replace 사용)
+        crds:
+          keep: true
+        serviceAccount:
+          create: true
+          name: aws-load-balancer-controller
+        # 비용 절감: WAF 비활성화
+        enableShield: false
+        enableWaf: false
+        enableWafv2: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

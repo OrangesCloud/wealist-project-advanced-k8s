@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: user-service-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    # Discord 배포 알림 설정 (Production)
+    notifications.argoproj.io/subscribe.on-deployed.discord: ""
+    notifications.argoproj.io/subscribe.on-sync-failed.discord: ""
+    notifications.argoproj.io/subscribe.on-sync-running.discord: ""
+  labels:
+    environment: production
+    service: user-service
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://github.com/OrangesCloud/wealist-project-advanced-k8s.git
+    targetRevision: k8s-deploy-prod
+    path: k8s/helm/charts/user-service
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../environments/base.yaml
+        - ../../environments/prod.yaml
+      parameters:
+        - name: image.repository
+          value: "prod/user-service"
+        - name: image.tag
+          value: "93-5e92cda"
+        - name: externalSecrets.enabled
+          value: "true"
+        # Service-specific config (managed here, not in prod.yaml)
+        - name: config.DB_NAME
+          value: "user_db"
+        # 고가용성: 핵심 사용자 서비스는 minReplicas: 2 유지
+        - name: autoscaling.minReplicas
+          value: "2"
+        # Canary deployment with Argo Rollouts
+        - name: rollout.enabled
+          value: "true"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: wealist-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

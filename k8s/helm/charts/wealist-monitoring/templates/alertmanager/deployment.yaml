@@ -1,0 +1,86 @@
+{{- if .Values.alertmanager.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: alertmanager
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/component: alerting
+spec:
+  replicas: {{ .Values.alertmanager.replicas }}
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+        app.kubernetes.io/name: alertmanager
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/alertmanager/configmap.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+        - name: alertmanager
+          image: "{{ .Values.alertmanager.image.repository }}:{{ .Values.alertmanager.image.tag }}"
+          imagePullPolicy: {{ .Values.alertmanager.image.pullPolicy }}
+          args:
+            - "--config.file=/etc/alertmanager/alertmanager.yml"
+            - "--storage.path=/alertmanager"
+            - "--web.external-url=http://alertmanager:{{ .Values.alertmanager.service.port }}"
+          ports:
+            - containerPort: 9093
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.alertmanager.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+            - name: storage
+              mountPath: /alertmanager
+          env:
+            {{- if .Values.alertmanager.config.receivers.discord.enabled }}
+            - name: DISCORD_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-secrets
+                  key: DISCORD_WEBHOOK_URL
+                  optional: true
+            {{- end }}
+            {{- if .Values.alertmanager.config.receivers.slack.enabled }}
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-secrets
+                  key: SLACK_WEBHOOK_URL
+                  optional: true
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+        - name: storage
+          {{- if .Values.alertmanager.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: alertmanager-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

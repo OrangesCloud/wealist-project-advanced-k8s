@@ -18,6 +18,12 @@ spring:
       port: ${SPRING_REDIS_PORT:6379}
       password: ${SPRING_REDIS_PASSWORD:}
 
+  # Spring Session Redis 설정 (OAuth2 state 공유)
+  session:
+    store-type: redis
+    redis:
+      namespace: wealist:auth:session
+
   # Google OAuth2 설정
   security:
     oauth2:
@@ -58,13 +64,32 @@ server:
     context-path: ""
 
 jwt:
-  secret: ${JWT_SECRET}
+  # RSA 키 설정 (RS256 알고리즘)
+  rsa:
+    # PEM 형식 공개키 (선택적 - 없으면 자동 생성)
+    public-key: ${JWT_RSA_PUBLIC_KEY:}
+    # PEM 형식 개인키 (선택적 - 없으면 자동 생성)
+    private-key: ${JWT_RSA_PRIVATE_KEY:}
+    # 키 ID (JWKS kid 필드)
+    key-id: ${JWT_RSA_KEY_ID:wealist-auth-key-1}
+  # JWT issuer (토큰 발급자)
+  issuer: ${JWT_ISSUER:wealist-auth-service}
+  # 토큰 만료 시간
   access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:1800000}
   refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:604800000}
 
 # OAuth2 리다이렉트 URL (프론트엔드)
 oauth2:
   redirect-url: ${OAUTH2_REDIRECT_URL_ENV:http://localhost:3000/oauth/callback}
+  # 허용된 redirect URI 패턴 (보안)
+  # 클라이언트가 redirect_uri 파라미터로 전달하면 이 패턴과 일치해야 함
+  allowed-redirect-patterns:
+    - https://wealist.co.kr/**
+    - https://ops.wealist.co.kr/**
+    - https://api.wealist.co.kr/**
+    - https://dev.wealist.co.kr/**
+    - http://localhost:3000/**
+    - http://localhost:3001/**
 
 # User Service URL (유저 조회/생성용)
 user-service:
@@ -74,6 +99,9 @@ logging:
   level:
     OrangeCloud: DEBUG
     org.springframework.security: DEBUG
+  # Trace ID를 로그에 포함 (Traces-Logs Correlation)
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
 
 management:
   endpoints:
@@ -110,3 +138,13 @@ management:
     metrics:
       export:
         enabled: true
+  # OpenTelemetry Tracing (분산 추적)
+  tracing:
+    enabled: ${OTEL_TRACING_ENABLED:true}
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLER_ARG:1.0}
+  otlp:
+    tracing:
+      # Spring Boot needs full path with /v1/traces (unlike Go SDK which adds it automatically)
+      # Use separate env var to avoid conflict with Go services' OTEL_EXPORTER_OTLP_ENDPOINT
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://otel-collector:4318/v1/traces}

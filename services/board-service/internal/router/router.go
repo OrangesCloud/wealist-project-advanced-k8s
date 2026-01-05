@@ -7,8 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
@@ -39,6 +37,7 @@ type Config struct {
 	S3Client           *client.S3Client
 	RedisClient        *redis.Client
 	RateLimitConfig    config.RateLimitConfig
+	ServiceName        string // Service name for tracing (default: "board-service")
 }
 
 // Setup initializes the router with all dependencies and routes.
@@ -46,11 +45,18 @@ func Setup(cfg Config) *gin.Engine {
 	// Create Gin router
 	router := gin.New()
 
+	// Determine service name for tracing
+	serviceName := cfg.ServiceName
+	if serviceName == "" {
+		serviceName = "board-service"
+	}
+
 	// Apply global middleware chain (using common package)
 	router.Use(
-		commonmw.Recovery(cfg.Logger), // 1. Panic recovery
-		commonmw.Logger(cfg.Logger),   // 2. Request logging (includes request ID)
-		commonmw.DefaultCORS(),        // 3. CORS configuration (includes X-Workspace-Id)
+		commonmw.Recovery(cfg.Logger),                       // 1. Panic recovery
+		commonmw.OTELTracing(serviceName),                   // 2. OpenTelemetry HTTP tracing (otelgin)
+		commonmw.LoggerWithTracing(cfg.Logger, serviceName), // 3. Request logging with trace context
+		commonmw.DefaultCORS(),                              // 4. CORS configuration (includes X-Workspace-Id)
 	)
 
 	// Add metrics middleware if metrics is configured
@@ -121,8 +127,9 @@ func Setup(cfg Config) *gin.Engine {
 	healthChecker := commonhealth.NewHealthChecker(cfg.DB, database.GetRedis())
 	healthChecker.RegisterRoutes(router, cfg.BasePath)
 
-	// Swagger documentation endpoint
-	baseGroup.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger documentation endpoint - temporarily disabled for CI compatibility
+	// TODO: Re-enable after upgrading gin-swagger to resolve genproto conflict
+	// baseGroup.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Metrics endpoint (no authentication required)
 	// Add metrics endpoint at root level for compatibility

@@ -1,4 +1,80 @@
 {{- if .Values.redis.enabled }}
+{{- if .Values.redis.persistence.hostPath.enabled }}
+# =============================================================================
+# Redis Deployment (hostPath 모드 - Kind/로컬 환경)
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "wealist-infrastructure.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        app.kubernetes.io/part-of: wealist
+    spec:
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
+          ports:
+            - containerPort: 6379
+              name: redis
+          args:
+            - redis-server
+            - --appendonly
+            - "yes"
+            {{- if .Values.redis.config.password }}
+            - --requirepass
+            - $(REDIS_PASSWORD)
+            {{- end }}
+          {{- if .Values.redis.config.password }}
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: REDIS_PASSWORD
+          {{- end }}
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: redis-data
+          hostPath:
+            path: {{ .Values.redis.persistence.hostPath.path }}
+            type: DirectoryOrCreate
+{{- else }}
+# =============================================================================
+# Redis StatefulSet (PVC 모드 - EKS/프로덕션 환경)
+# =============================================================================
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -18,6 +94,8 @@ spec:
       labels:
         app: redis
         app.kubernetes.io/part-of: wealist
+      annotations:
+        sidecar.istio.io/inject: "false"
     spec:
       containers:
         - name: redis
@@ -72,4 +150,5 @@ spec:
         resources:
           requests:
             storage: {{ .Values.redis.persistence.size }}
+{{- end }}
 {{- end }}
