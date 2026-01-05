@@ -10,7 +10,7 @@
 # ArgoCD 설정:
 #   - server.rootpath=/api/argo
 #   - server.basehref=/api/argo
-#   - /api/argo/* → argocd-server의 /*로 매핑
+#   - /api/argo/* 경로를 그대로 전달 (rewrite 하지 않음)
 apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
@@ -25,14 +25,11 @@ spec:
   gateways:
     - istio-system/istio-ingressgateway
   http:
-    # /api/argo/* → argocd-server/*
+    # /api/argo/* → argocd-server (경로 그대로 전달)
+    # ArgoCD는 rootpath=/api/argo로 설정되어 있으므로 rewrite하지 않음
     - match:
         - uri:
             prefix: /api/argo
-      rewrite:
-        uriRegexRewrite:
-          match: "^/api/argo(.*)$"
-          rewrite: '\1'
       route:
         - destination:
             host: argocd-server.argocd.svc.cluster.local
