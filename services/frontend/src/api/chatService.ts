@@ -235,6 +235,7 @@ interface ChatPresignedURLRequest {
  */
 interface ChatPresignedURLResponse {
   uploadUrl: string;
+  downloadUrl: string; // 업로드 후 파일 접근 URL
   fileKey: string;
   expiresIn: number;
 }

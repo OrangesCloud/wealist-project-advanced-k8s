@@ -177,7 +177,7 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 	}
 
 	// Convert to response DTO
-	return s.toBoardResponse(board), nil
+	return s.toBoardResponseWithWorkspace(ctx, board), nil
 }
 
 // DeleteBoard soft deletes a board and its associated attachments

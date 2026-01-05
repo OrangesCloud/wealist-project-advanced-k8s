@@ -250,6 +250,25 @@ export const removeProjectMember = async (projectId: string, memberId: string): 
 };
 
 // ============================================================================
+// 🔥 프로젝트 온라인 사용자 조회 API (WebSocket 연결 기반)
+// ============================================================================
+
+/**
+ * 프로젝트에 WebSocket으로 연결된 온라인 사용자 목록을 조회합니다.
+ * [API] GET /api/projects/{projectId}/online-users
+ */
+export const getProjectOnlineUsers = async (projectId: string): Promise<string[]> => {
+  try {
+    const response: AxiosResponse<{ onlineUsers: string[]; count: number }> =
+      await boardServiceClient.get(`/projects/${projectId}/online-users`);
+    return response.data?.onlineUsers || [];
+  } catch (error) {
+    console.error('getProjectOnlineUsers error:', error);
+    return []; // 에러 시 빈 배열 반환
+  }
+};
+
+// ============================================================================
 // 프로젝트 가입 요청 관련 API
 // ============================================================================
 

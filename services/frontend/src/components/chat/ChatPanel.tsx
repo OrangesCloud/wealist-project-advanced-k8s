@@ -1,12 +1,95 @@
 // src/components/chat/ChatPanel.tsx
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { ChevronLeft, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { ChevronLeft, X, Image as ImageIcon, Loader2, ZoomIn } from 'lucide-react';
 import { useChatWebSocket } from '../../hooks/useChatWebsocket';
 import { getMessages, updateLastRead, getChat, generateChatPresignedURL, uploadChatFileToS3 } from '../../api/chatService';
 import { getWorkspaceMembers } from '../../api/userService';
 import type { Message } from '../../types/chat';
 import type { WorkspaceMemberResponse } from '../../types/user';
+
+// 이미지 메시지 컴포넌트 (로딩 상태 + 썸네일)
+const ChatImage: React.FC<{
+  src: string;
+  alt: string;
+  isUploading?: boolean;
+  onClickView: (src: string) => void;
+}> = ({ src, alt, isUploading, onClickView }) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <div className="relative group">
+      {/* 로딩/업로드 중 표시 */}
+      {(isLoading || isUploading) && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg min-h-[60px] min-w-[80px]">
+          <div className="flex flex-col items-center gap-1">
+            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+            <span className="text-xs text-gray-500">{isUploading ? '업로드 중...' : '로딩...'}</span>
+          </div>
+        </div>
+      )}
+      {/* 에러 표시 */}
+      {hasError && (
+        <div className="flex items-center justify-center bg-gray-100 rounded-lg p-4 min-h-[60px]">
+          <span className="text-xs text-gray-500">이미지를 불러올 수 없습니다</span>
+        </div>
+      )}
+      {/* 실제 이미지 */}
+      {!hasError && (
+        <img
+          src={src}
+          alt={alt}
+          className={`max-w-full rounded-lg cursor-pointer hover:opacity-90 transition ${isLoading ? 'invisible h-0' : ''}`}
+          style={{ maxHeight: '150px', maxWidth: '200px', objectFit: 'cover' }}
+          onLoad={() => setIsLoading(false)}
+          onError={() => {
+            setIsLoading(false);
+            setHasError(true);
+          }}
+          onClick={() => onClickView(src)}
+        />
+      )}
+      {/* 확대 아이콘 */}
+      {!isLoading && !hasError && (
+        <button
+          onClick={() => onClickView(src)}
+          className="absolute bottom-1 right-1 p-1 bg-black/50 rounded opacity-0 group-hover:opacity-100 transition"
+        >
+          <ZoomIn className="w-3 h-3 text-white" />
+        </button>
+      )}
+    </div>
+  );
+};
+
+// 이미지 모달 뷰어
+const ImageModal: React.FC<{
+  src: string | null;
+  onClose: () => void;
+}> = ({ src, onClose }) => {
+  if (!src) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-full transition"
+      >
+        <X className="w-6 h-6 text-white" />
+      </button>
+      <img
+        src={src}
+        alt="확대 이미지"
+        className="max-w-full max-h-full object-contain rounded-lg"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+};
 
 interface ChatPanelProps {
   chatId: string;
@@ -23,6 +106,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ chatId, onClose, onBack })
   const [pastedImage, setPastedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [modalImage, setModalImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -186,8 +270,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ chatId, onClose, onBack })
       // 🔥 S3에 직접 업로드 (chat-service의 uploadChatFileToS3 사용)
       await uploadChatFileToS3(uploadUrlResponse.uploadUrl, pastedImage);
 
-      // 🔥 S3 URL 구성 (fileKey 사용)
-      const fileUrl = `https://s3.ap-northeast-2.amazonaws.com/wealist-app-resources/${uploadUrlResponse.fileKey}`;
+      // 🔥 chat-service가 제공하는 downloadUrl 사용
+      const fileUrl = uploadUrlResponse.downloadUrl;
 
       // WebSocket으로 이미지 메시지 전송
       const success = sendFileMessage('', {
@@ -318,12 +402,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ chatId, onClose, onBack })
                   )}
                   {/* 이미지 메시지 */}
                   {msg.messageType === 'IMAGE' && msg.fileUrl && (
-                    <img
+                    <ChatImage
                       src={msg.fileUrl}
                       alt={msg.fileName || '이미지'}
-                      className="max-w-full rounded-lg mb-1 cursor-pointer hover:opacity-90"
-                      style={{ maxHeight: '200px' }}
-                      onClick={() => window.open(msg.fileUrl, '_blank')}
+                      isUploading={msg.messageId.startsWith('temp-')}
+                      onClickView={setModalImage}
                     />
                   )}
                   {/* 텍스트 메시지 */}
@@ -397,6 +480,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ chatId, onClose, onBack })
           </button>
         </div>
       </div>
+
+      {/* 이미지 확대 모달 */}
+      <ImageModal src={modalImage} onClose={() => setModalImage(null)} />
     </div>
   );
 };

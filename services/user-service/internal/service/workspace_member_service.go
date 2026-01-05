@@ -25,6 +25,7 @@ func (s *WorkspaceService) GetMembers(workspaceID uuid.UUID) ([]domain.Workspace
 
 // GetMembersWithProfiles는 프로필 정보를 포함한 멤버 목록을 조회합니다.
 // 닉네임과 프로필 이미지 URL을 포함합니다.
+// 🔥 워크스페이스별 프로필이 없으면 기본 프로필(default)로 fallback합니다.
 func (s *WorkspaceService) GetMembersWithProfiles(workspaceID uuid.UUID) ([]domain.WorkspaceMemberResponse, error) {
 	// 멤버 목록 조회
 	members, err := s.memberRepo.FindByWorkspace(workspaceID)
@@ -35,7 +36,7 @@ func (s *WorkspaceService) GetMembersWithProfiles(workspaceID uuid.UUID) ([]doma
 		return nil, err
 	}
 
-	// 프로필 목록 조회
+	// 워크스페이스별 프로필 목록 조회
 	profiles, err := s.profileRepo.FindByWorkspace(workspaceID)
 	if err != nil {
 		s.logger.Warn("프로필 목록 조회 실패, 기본 응답 반환",
@@ -43,10 +44,20 @@ func (s *WorkspaceService) GetMembersWithProfiles(workspaceID uuid.UUID) ([]doma
 			zap.Error(err))
 	}
 
-	// UserID -> Profile 매핑 생성
+	// 🔥 기본 프로필도 조회 (fallback용)
+	defaultWorkspaceID := uuid.MustParse("00000000-0000-0000-0000-000000000000")
+	defaultProfiles, _ := s.profileRepo.FindByWorkspace(defaultWorkspaceID)
+
+	// UserID -> Profile 매핑 생성 (워크스페이스별)
 	profileMap := make(map[uuid.UUID]*domain.UserProfile)
 	for i := range profiles {
 		profileMap[profiles[i].UserID] = &profiles[i]
+	}
+
+	// 🔥 UserID -> Default Profile 매핑 생성 (fallback용)
+	defaultProfileMap := make(map[uuid.UUID]*domain.UserProfile)
+	for i := range defaultProfiles {
+		defaultProfileMap[defaultProfiles[i].UserID] = &defaultProfiles[i]
 	}
 
 	// 응답 생성
@@ -54,11 +65,20 @@ func (s *WorkspaceService) GetMembersWithProfiles(workspaceID uuid.UUID) ([]doma
 	for i, member := range members {
 		resp := member.ToResponse()
 
-		// 프로필 정보 추가
+		// 🔥 워크스페이스별 프로필 우선, 없으면 기본 프로필로 fallback
 		if profile, ok := profileMap[member.UserID]; ok {
 			resp.NickName = profile.NickName
 			if profile.ProfileImageURL != nil {
 				resp.ProfileImageUrl = *profile.ProfileImageURL
+			} else if defaultProfile, hasDefault := defaultProfileMap[member.UserID]; hasDefault && defaultProfile.ProfileImageURL != nil {
+				// 워크스페이스 프로필에 이미지가 없으면 기본 프로필 이미지 사용
+				resp.ProfileImageUrl = *defaultProfile.ProfileImageURL
+			}
+		} else if defaultProfile, hasDefault := defaultProfileMap[member.UserID]; hasDefault {
+			// 워크스페이스 프로필이 없으면 기본 프로필 사용
+			resp.NickName = defaultProfile.NickName
+			if defaultProfile.ProfileImageURL != nil {
+				resp.ProfileImageUrl = *defaultProfile.ProfileImageURL
 			}
 		}
 

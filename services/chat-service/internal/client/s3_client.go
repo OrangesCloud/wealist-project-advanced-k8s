@@ -200,9 +200,15 @@ func (c *S3Client) GeneratePresignedURL(ctx context.Context, workspaceID, fileNa
 
 // GetFileURL returns the public URL for a file
 func (c *S3Client) GetFileURL(key string) string {
-	// CDN mode: publicEndpoint is set but endpoint is empty (AWS S3 + CloudFront)
-	if c.publicEndpoint != "" && c.endpoint == "" {
+	// CDN mode: publicEndpoint가 CloudFront 등 CDN 도메인인 경우 (s3.amazonaws.com이 아닌 경우)
+	// CDN은 이미 버킷을 가리키므로 key만 추가
+	if c.publicEndpoint != "" && c.endpoint == "" && !strings.Contains(c.publicEndpoint, "s3.amazonaws.com") {
 		return fmt.Sprintf("%s/%s", strings.TrimSuffix(c.publicEndpoint, "/"), key)
+	}
+
+	// AWS S3 path-style: publicEndpoint가 s3.amazonaws.com 형태인 경우 버킷 포함
+	if c.publicEndpoint != "" && c.endpoint == "" && strings.Contains(c.publicEndpoint, "s3.amazonaws.com") {
+		return fmt.Sprintf("%s/%s/%s", strings.TrimSuffix(c.publicEndpoint, "/"), c.bucket, key)
 	}
 
 	// MinIO 환경인 경우 (publicEndpoint가 설정된 경우 우선 사용)
@@ -215,6 +221,6 @@ func (c *S3Client) GetFileURL(key string) string {
 		return fmt.Sprintf("%s/%s/%s", strings.TrimSuffix(c.endpoint, "/"), c.bucket, key)
 	}
 
-	// AWS S3 환경인 경우 (기본)
+	// AWS S3 환경인 경우 (기본 - virtual-hosted style)
 	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", c.bucket, c.region, key)
 }
