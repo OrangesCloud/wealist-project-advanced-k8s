@@ -101,11 +101,12 @@ shared:
     SPRING_REDIS_HOST: "redis"
     SPRING_DATA_REDIS_SSL_ENABLED: "false"
 
-    # S3/MinIO Configuration
-    S3_ENDPOINT: "http://minio:9000"
-    S3_PUBLIC_ENDPOINT: "https://dev.wealist.co.kr/api/minio"
-    S3_BUCKET: "wealist-files"
+    # S3 Configuration (AWS S3)
+    S3_ENDPOINT: ""  # AWS S3 사용 시 비워둠
+    S3_PUBLIC_ENDPOINT: "https://wealist-app-resources.s3.ap-northeast-2.amazonaws.com"
+    S3_BUCKET: "wealist-app-resources"
     S3_REGION: "ap-northeast-2"
+    S3_PATH_PREFIX: "dev"  # dev 환경은 /dev/ 폴더 사용
 
     # OAuth2
     OAUTH2_CLIENT_REDIRECT_URI: "https://api.dev.wealist.co.kr/api/oauth2/callback/google"
@@ -140,9 +141,10 @@ shared:
     # Auth
     JWT_SECRET: "dev-jwt-secret-key-2024-wealist"
     INTERNAL_API_KEY: "dev-internal-key-2024"
-    # S3/MinIO
-    S3_ACCESS_KEY: "minioadmin"
-    S3_SECRET_KEY: "minioadmin"
+    # S3 (AWS) - ExternalSecrets로 관리하거나 여기에 직접 입력
+    # TODO: AWS IAM 자격증명 설정 필요
+    S3_ACCESS_KEY: ""
+    S3_SECRET_KEY: ""
 
 # -----------------------------------------------------------------------------
 # Ingress (Disabled - Istio Gateway)
@@ -188,18 +190,18 @@ redis:
       path: /data/db_data/redis  # Kind 노드 내부 경로 (호스트의 wealist-project-data/db_data/redis)
 
 # -----------------------------------------------------------------------------
-# MinIO (S3 Compatible Object Storage)
+# MinIO (S3 Compatible Object Storage) - AWS S3 사용으로 비활성화
 # -----------------------------------------------------------------------------
 minio:
-  enabled: true
-  image:
-    repository: minio/minio
-    tag: "latest"
-  persistence:
-    enabled: true
-    hostPath:
-      enabled: true
-      path: /data/minio
+  enabled: false
+  # image:
+  #   repository: minio/minio
+  #   tag: "latest"
+  # persistence:
+  #   enabled: true
+  #   hostPath:
+  #     enabled: true
+  #     path: /data/minio
 
 # -----------------------------------------------------------------------------
 # Frontend (CDN - S3/CloudFront)
@@ -223,11 +225,11 @@ istio:
     # Frontend (S3/CloudFront에서 서빙하므로 비활성화)
     frontend:
       enabled: false
-    # MinIO 라우팅
+    # MinIO 라우팅 - AWS S3 직접 사용으로 비활성화
     minio:
-      enabled: true
-      host: minio
-      port: 9000
+      enabled: false
+      # host: minio
+      # port: 9000
     # 모니터링 라우팅
     monitoring:
       enabled: true
