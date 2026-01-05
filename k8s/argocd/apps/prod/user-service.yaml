@@ -36,6 +36,9 @@ spec:
         # 고가용성: 핵심 사용자 서비스는 minReplicas: 2 유지
         - name: autoscaling.minReplicas
           value: "2"
+        # Canary deployment with Argo Rollouts
+        - name: rollout.enabled
+          value: "true"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-prod

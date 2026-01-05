@@ -45,7 +45,7 @@ spec:
             routes:
             - primary
           destinationRule:
-            name: {{ include "wealist-common.fullname" . }}
+            name: {{ include "wealist-common.fullname" . }}-dr
             stableSubsetName: stable
             canarySubsetName: canary
       {{/* Canary Steps */}}
