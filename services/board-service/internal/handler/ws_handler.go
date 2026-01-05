@@ -336,11 +336,24 @@ func (h *WSHandler) HandleGetOnlineUsers(c *gin.Context) {
 	projectID := c.Param("projectId")
 	log := getLogger(c)
 
+	// 🔥 디버그: 현재 연결된 모든 프로젝트 로깅
+	clientsMu.RLock()
+	allProjects := make([]string, 0, len(clients))
+	totalClients := 0
+	for pid, projectClients := range clients {
+		allProjects = append(allProjects, pid)
+		totalClients += len(projectClients)
+	}
+	clientsMu.RUnlock()
+
 	users := GetOnlineUsersForProject(projectID)
 
-	log.Debug("Online users requested",
-		zap.String("projectId", projectID),
-		zap.Int("count", len(users)))
+	log.Info("🔍 Online users requested",
+		zap.String("requestedProjectId", projectID),
+		zap.Int("onlineCount", len(users)),
+		zap.Strings("users", users),
+		zap.Strings("allConnectedProjects", allProjects),
+		zap.Int("totalClientsAcrossProjects", totalClients))
 
 	c.JSON(http.StatusOK, gin.H{
 		"onlineUsers": users,
