@@ -5,7 +5,7 @@ import { ChevronLeft, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { useChatWebSocket } from '../../hooks/useChatWebsocket';
 import { getMessages, updateLastRead, getChat } from '../../api/chatService';
 import { getWorkspaceMembers } from '../../api/userService';
-import { uploadFileToS3 } from '../../utils/uploadFileToS3';
+import { generateUploadURL, uploadFileToS3 } from '../../api/storageService';
 import type { Message } from '../../types/chat';
 import type { WorkspaceMemberResponse } from '../../types/user';
 
@@ -176,9 +176,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ chatId, onClose, onBack })
 
     setIsUploading(true);
     try {
-      // S3에 업로드
-      const uploadResult = await uploadFileToS3(pastedImage, workspaceId, 'chat');
-      const fileUrl = `https://s3.ap-northeast-2.amazonaws.com/wealist-app-resources/${uploadResult.fileKey}`;
+      // 🔥 storage-service를 통해 S3 업로드 URL 생성
+      const uploadUrlResponse = await generateUploadURL({
+        workspaceId,
+        fileName: pastedImage.name,
+        contentType: pastedImage.type,
+        fileSize: pastedImage.size,
+      });
+
+      // 🔥 S3에 직접 업로드 (storage-service의 uploadFileToS3 사용)
+      await uploadFileToS3(uploadUrlResponse.uploadUrl, pastedImage);
+
+      // 🔥 S3 URL 구성 (fileKey 사용)
+      const fileUrl = `https://s3.ap-northeast-2.amazonaws.com/wealist-app-resources/${uploadUrlResponse.fileKey}`;
 
       // WebSocket으로 이미지 메시지 전송
       const success = sendFileMessage('', {
