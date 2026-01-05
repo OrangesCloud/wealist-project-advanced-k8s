@@ -103,7 +103,7 @@ shared:
 
     # S3 Configuration (AWS S3)
     S3_ENDPOINT: ""  # AWS S3 사용 시 비워둠
-    S3_PUBLIC_ENDPOINT: "https://wealist-app-resources.s3.ap-northeast-2.amazonaws.com"
+    S3_PUBLIC_ENDPOINT: "https://s3.ap-northeast-2.amazonaws.com"  # path-style URL (서비스가 bucket을 path에 추가함)
     S3_BUCKET: "wealist-app-resources"
     S3_REGION: "ap-northeast-2"
     S3_PATH_PREFIX: "dev"  # dev 환경은 /dev/ 폴더 사용
