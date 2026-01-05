@@ -401,9 +401,7 @@ grafana:
     allowSignUp: false
     rootUrl: "http://localhost:8080/api/monitoring/grafana"
     serveFromSubPath: "true"
-  # V3 Dashboards - OTEL Native (2025-2026 best practices)
-  dashboardsV3:
-    enabled: true
+  # Note: V4 role-based dashboards are now the default (V1/V2/V3 deprecated)
 
 # 모니터링 Ingress (nginx - 비활성화)
 # NodePort로 직접 접근: Grafana(30001), Prometheus(30090)
