@@ -84,7 +84,6 @@ shared:
     CHAT_SERVICE_URL: "http://chat-service:8001"
     NOTI_SERVICE_URL: "http://noti-service:8002"
     STORAGE_SERVICE_URL: "http://storage-service:8003"
-    VIDEO_SERVICE_URL: "http://video-service:8004"
     LIVEKIT_WS_URL: "wss://dev.wealist.co.kr/api/svc/livekit"
 
     # Infrastructure Ports
@@ -215,35 +214,21 @@ istio:
   enabled: true
   namespace: wealist-dev
 
-  # VirtualService 비활성화 (Gateway API HTTPRoute 사용)
+  # VirtualService 활성화 (Istio Gateway + VirtualService 방식)
+  # NOTE: hosts에 "*"와 specific host를 함께 사용하면 Istio validation error 발생
   virtualService:
-    enabled: false
-
-  gateway:
-    enabled: false
-    name: wealist-gateway
-    hosts:
-      - "dev.wealist.co.kr"
-      - "api.dev.wealist.co.kr"
-    tls:
-      enabled: false
-
-  httpRoute:
     enabled: true
-    gatewayRef:
-      name: istio-ingressgateway
-      namespace: istio-system
     hosts:
-      - "dev.wealist.co.kr"
-      - "api.dev.wealist.co.kr"
-      - "localhost"
-      # Note: "*" 와일드카드는 특정 호스트와 함께 사용 불가 (Istio validation error)
+      - "*"
+    # Frontend (S3/CloudFront에서 서빙하므로 비활성화)
     frontend:
       enabled: false
+    # MinIO 라우팅
     minio:
       enabled: true
       host: minio
       port: 9000
+    # 모니터링 라우팅
     monitoring:
       enabled: true
       grafana:
@@ -271,6 +256,25 @@ istio:
     # Ops Portal (dev에서는 비활성화)
     opsPortal:
       enabled: false
+
+  # Istio Gateway (networking.istio.io) 활성화
+  # NOTE: hosts에 "*"와 specific host를 함께 사용하면 Istio validation error 발생
+  gateway:
+    enabled: true
+    name: istio-ingressgateway
+    namespace: istio-system
+    hosts:
+      - "*"
+    tls:
+      enabled: false
+
+  # Kubernetes Gateway API - 비활성화 (VirtualService 사용)
+  k8sGateway:
+    enabled: false
+
+  # HTTPRoute 비활성화 (VirtualService 사용)
+  httpRoute:
+    enabled: false
 
   mtls:
     enabled: true
@@ -324,10 +328,11 @@ istio:
   jwtAuth:
     enabled: false
 
+  # Ambient 모드 비활성화 (Sidecar 모드 사용)
   ambient:
-    enabled: true
+    enabled: false
     waypoint:
-      enabled: true
+      enabled: false
       name: wealist-waypoint
 
   telemetry:
