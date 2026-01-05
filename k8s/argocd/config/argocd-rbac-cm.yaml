@@ -56,3 +56,8 @@ data:
     # 예시:
     # g, admin@wealist.co.kr, role:admin
     # g, devops@orangescloud.com, role:admin
+    g, ressk4149@gmail.com, role:admin
+    g, fbaudwo144@gmail.com, role:admin
+    g, 212clab@gmail.com, role:admin
+    g, chamchi0129@gmail.com, role:admin
+  scopes: '[email]'
