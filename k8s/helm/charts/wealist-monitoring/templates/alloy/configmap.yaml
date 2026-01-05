@@ -137,7 +137,8 @@ data:
 
     prometheus.remote_write "default" {
       endpoint {
-        url = "http://prometheus.{{ .Values.global.namespace }}.svc.cluster.local:9090/api/v1/write"
+        {{- $routePrefix := .Values.prometheus.config.routePrefix | default "" }}
+        url = "http://prometheus.{{ .Values.global.namespace }}.svc.cluster.local:9090{{ $routePrefix }}/api/v1/write"
       }
     }
 {{- end }}
