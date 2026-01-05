@@ -29,11 +29,11 @@ spec:
         - name: imagePullSecrets[0].name
           value: "ecr-secret"
         - name: shared.config.DB_HOST
-          value: "172.17.0.1"
+          value: "postgres"
         - name: shared.config.POSTGRES_HOST
-          value: "172.17.0.1"
+          value: "postgres"
         - name: shared.config.REDIS_HOST
-          value: "172.17.0.1"
+          value: "redis"
         - name: config.DB_NAME
           value: "wealist"
         - name: config.DB_USER
