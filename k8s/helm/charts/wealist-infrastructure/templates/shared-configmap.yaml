@@ -18,7 +18,9 @@ data:
   CHAT_SERVICE_URL: {{ .Values.shared.config.CHAT_SERVICE_URL | quote }}
   NOTI_SERVICE_URL: {{ .Values.shared.config.NOTI_SERVICE_URL | quote }}
   STORAGE_SERVICE_URL: {{ .Values.shared.config.STORAGE_SERVICE_URL | quote }}
+  {{- if .Values.shared.config.VIDEO_SERVICE_URL }}
   VIDEO_SERVICE_URL: {{ .Values.shared.config.VIDEO_SERVICE_URL | quote }}
+  {{- end }}
   LIVEKIT_WS_URL: {{ .Values.shared.config.LIVEKIT_WS_URL | quote }}
 
   # Infrastructure URLs
