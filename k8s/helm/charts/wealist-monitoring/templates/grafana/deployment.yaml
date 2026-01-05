@@ -127,22 +127,21 @@ spec:
               mountPath: /etc/grafana/provisioning/datasources
             - name: dashboards-provider
               mountPath: /etc/grafana/provisioning/dashboards
-            {{- if .Values.grafana.dashboardsV1.enabled }}
-            - name: dashboards-json
-              mountPath: /etc/grafana/provisioning/dashboards/json
-            {{- end }}
-            - name: dashboards-v2
-              mountPath: /etc/grafana/provisioning/dashboards/v2
-            {{- if .Values.grafana.dashboardsV3.enabled }}
-            - name: dashboards-v3-otel-native
-              mountPath: /etc/grafana/provisioning/dashboards/v3/otel-native
-            - name: dashboards-v3-application
-              mountPath: /etc/grafana/provisioning/dashboards/v3/application
-            - name: dashboards-v3-logs
-              mountPath: /etc/grafana/provisioning/dashboards/v3/logs
-            - name: dashboards-v3-slo
-              mountPath: /etc/grafana/provisioning/dashboards/v3/slo
-            {{- end }}
+            # V4 Dashboard Volumes (Role-based)
+            - name: dashboards-v4-landing
+              mountPath: /etc/grafana/provisioning/dashboards/v4/00-landing
+            - name: dashboards-v4-cicd
+              mountPath: /etc/grafana/provisioning/dashboards/v4/01-cicd
+            - name: dashboards-v4-loadtest
+              mountPath: /etc/grafana/provisioning/dashboards/v4/02-loadtest
+            - name: dashboards-v4-developer
+              mountPath: /etc/grafana/provisioning/dashboards/v4/03-developer
+            - name: dashboards-v4-pm
+              mountPath: /etc/grafana/provisioning/dashboards/v4/04-pm
+            - name: dashboards-v4-operations
+              mountPath: /etc/grafana/provisioning/dashboards/v4/05-operations
+            - name: dashboards-v4-advanced
+              mountPath: /etc/grafana/provisioning/dashboards/v4/06-advanced
             - name: data
               mountPath: /var/lib/grafana
       volumes:
@@ -152,28 +151,28 @@ spec:
         - name: dashboards-provider
           configMap:
             name: grafana-dashboards-provider
-        {{- if .Values.grafana.dashboardsV1.enabled }}
-        - name: dashboards-json
+        # V4 Dashboard ConfigMaps (Role-based)
+        - name: dashboards-v4-landing
           configMap:
-            name: grafana-dashboards-json
-        {{- end }}
-        - name: dashboards-v2
+            name: grafana-dashboards-v4-landing
+        - name: dashboards-v4-cicd
           configMap:
-            name: grafana-dashboards-v2
-        {{- if .Values.grafana.dashboardsV3.enabled }}
-        - name: dashboards-v3-otel-native
+            name: grafana-dashboards-v4-cicd
+        - name: dashboards-v4-loadtest
           configMap:
-            name: grafana-dashboards-v3-otel-native
-        - name: dashboards-v3-application
+            name: grafana-dashboards-v4-loadtest
+        - name: dashboards-v4-developer
           configMap:
-            name: grafana-dashboards-v3-application
-        - name: dashboards-v3-logs
+            name: grafana-dashboards-v4-developer
+        - name: dashboards-v4-pm
           configMap:
-            name: grafana-dashboards-v3-logs
-        - name: dashboards-v3-slo
+            name: grafana-dashboards-v4-pm
+        - name: dashboards-v4-operations
           configMap:
-            name: grafana-dashboards-v3-slo
-        {{- end }}
+            name: grafana-dashboards-v4-operations
+        - name: dashboards-v4-advanced
+          configMap:
+            name: grafana-dashboards-v4-advanced
         - name: data
           {{- if .Values.grafana.persistence.enabled }}
           persistentVolumeClaim:

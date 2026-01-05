@@ -274,13 +274,19 @@ grafana:
       # Production에서는 AWS OpenSearch 사용 가능
       # url: "https://search-xxx.ap-northeast-2.es.amazonaws.com"
 
-  # V1 Dashboards - Legacy (비활성화 권장, V2/V3 사용)
-  dashboardsV1:
-    enabled: false  # Legacy 대시보드 비활성화
-
-  # V3 Dashboards - OTEL Native (2025-2026 best practices)
-  dashboardsV3:
-    enabled: false  # Enable when OTEL Collector connectors are configured
+  # =============================================================================
+  # Dashboards V4 - Role-based Dashboard Structure (2026 Best Practice)
+  # =============================================================================
+  # Structure:
+  #   00-landing/    - System overview (entry point)
+  #   01-cicd/       - CI/CD (ArgoCD, GitHub Actions)
+  #   02-loadtest/   - Load testing (k6)
+  #   03-developer/  - Developer (API, traces, service graph)
+  #   04-pm/         - PM (business metrics, SLO)
+  #   05-operations/ - Operations (K8s, DB, incidents, canary)
+  #   06-advanced/   - Advanced (OTEL span metrics, traces)
+  # =============================================================================
+  # Note: V1/V2/V3 are deprecated and removed. V4 is the only supported version.
 
 # =============================================================================
 # Monitoring Ingress - External Access via domain/monitoring/*

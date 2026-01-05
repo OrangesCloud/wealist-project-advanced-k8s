@@ -510,9 +510,7 @@ grafana:
     allowSignUp: false
     rootUrl: "https://api.wealist.co.kr/api/monitoring/grafana"
     serveFromSubPath: "true"
-  # V3 Dashboards - OTEL Native Monitoring
-  dashboardsV3:
-    enabled: true
+  # Note: V4 role-based dashboards are now the default (V1/V2/V3 deprecated)
 
 # 모니터링 Ingress
 monitoringIngress:

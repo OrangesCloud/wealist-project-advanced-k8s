@@ -138,74 +138,94 @@ metadata:
 data:
   dashboards.yaml: |
     # =============================================================================
-    # Grafana Dashboard Provisioning Configuration
+    # Grafana Dashboard Provisioning Configuration (V4 - Role-based Folders)
+    # =============================================================================
+    # 2026 Best Practice: 역할별 폴더로 구분하여 탐색 용이성 향상
     # =============================================================================
     apiVersion: 1
 
     providers:
-      # Legacy dashboards (v1)
-      - name: 'wealist-dashboards'
+      # 00. Landing - 전체 시스템 진입점
+      - name: 'landing'
         orgId: 1
-        folder: 'weAlist (Legacy)'
-        folderUid: 'wealist'
+        folder: '🏠 Landing'
+        folderUid: 'landing'
         type: file
         disableDeletion: false
         updateIntervalSeconds: 30
         allowUiUpdates: true
         options:
-          path: /etc/grafana/provisioning/dashboards/json
-      # V2 dashboards - Production-grade (2025 best practices)
-      - name: 'wealist-dashboards-v2'
+          path: /etc/grafana/provisioning/dashboards/v4/00-landing
+
+      # 01. CI/CD - CI/CD 담당자용
+      - name: 'cicd'
         orgId: 1
-        folder: 'weAlist v2'
-        folderUid: 'wealist-v2'
+        folder: '🚀 CI/CD'
+        folderUid: 'cicd'
         type: file
         disableDeletion: false
         updateIntervalSeconds: 30
         allowUiUpdates: true
         options:
-          path: /etc/grafana/provisioning/dashboards/v2
-      # V3 dashboards - OTEL Native (2025-2026 best practices)
-      {{- if .Values.grafana.dashboardsV3.enabled }}
-      - name: 'wealist-otel-native'
+          path: /etc/grafana/provisioning/dashboards/v4/01-cicd
+
+      # 02. LoadTest - QA/성능 테스터용
+      - name: 'loadtest'
         orgId: 1
-        folder: 'OTEL Native'
-        folderUid: 'otel-native'
+        folder: '⚡ Load Test'
+        folderUid: 'loadtest'
         type: file
         disableDeletion: false
         updateIntervalSeconds: 30
         allowUiUpdates: true
         options:
-          path: /etc/grafana/provisioning/dashboards/v3/otel-native
-      - name: 'wealist-application'
+          path: /etc/grafana/provisioning/dashboards/v4/02-loadtest
+
+      # 03. Developer - 개발자용
+      - name: 'developer'
         orgId: 1
-        folder: 'Application'
-        folderUid: 'application'
+        folder: '💻 Developer'
+        folderUid: 'developer'
         type: file
         disableDeletion: false
         updateIntervalSeconds: 30
         allowUiUpdates: true
         options:
-          path: /etc/grafana/provisioning/dashboards/v3/application
-      - name: 'wealist-logs'
+          path: /etc/grafana/provisioning/dashboards/v4/03-developer
+
+      # 04. PM - PM/기획자용
+      - name: 'pm'
         orgId: 1
-        folder: 'Logs'
-        folderUid: 'logs'
+        folder: '📊 PM'
+        folderUid: 'pm'
         type: file
         disableDeletion: false
         updateIntervalSeconds: 30
         allowUiUpdates: true
         options:
-          path: /etc/grafana/provisioning/dashboards/v3/logs
-      - name: 'wealist-slo'
+          path: /etc/grafana/provisioning/dashboards/v4/04-pm
+
+      # 05. Operations - DevOps/SRE용
+      - name: 'operations'
         orgId: 1
-        folder: 'SLO'
-        folderUid: 'slo'
+        folder: '🔧 Operations'
+        folderUid: 'operations'
         type: file
         disableDeletion: false
         updateIntervalSeconds: 30
         allowUiUpdates: true
         options:
-          path: /etc/grafana/provisioning/dashboards/v3/slo
-      {{- end }}
+          path: /etc/grafana/provisioning/dashboards/v4/05-operations
+
+      # 06. Advanced - 고급 사용자용 (OTEL 상세)
+      - name: 'advanced'
+        orgId: 1
+        folder: '🔬 Advanced'
+        folderUid: 'advanced'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /etc/grafana/provisioning/dashboards/v4/06-advanced
 {{- end }}
