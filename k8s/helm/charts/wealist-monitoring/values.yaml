@@ -102,11 +102,6 @@ prometheus:
       host: storage-service
       port: 8003
       path: /metrics
-    videoService:
-      enabled: true
-      host: video-service
-      port: 8004
-      path: /metrics
     # Spring Boot Service
     authService:
       enabled: true
@@ -534,9 +529,6 @@ k6:
         healthPath: /health/live
       - name: storage
         path: /svc/storage
-        healthPath: /health/live
-      - name: video
-        path: /svc/video
         healthPath: /health/live
 
   # SLA 임계값 (Alert과 연동)

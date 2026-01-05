@@ -55,6 +55,8 @@ auth-service:
     limits:
       memory: "768Mi"   # Spring Boot 충분
       cpu: "500m"
+  # NOTE: Java OTEL config는 ArgoCD Application parameters에서 관리
+  # k8s/argocd/apps/prod/auth-service.yaml 참조
 
 # 핵심 서비스 - 2 replicas
 board-service:
@@ -71,9 +73,6 @@ noti-service:
   replicaCount: 1
 
 storage-service:
-  replicaCount: 1
-
-video-service:
   replicaCount: 1
 
 image:
@@ -238,51 +237,37 @@ istio:
   enabled: true
   namespace: wealist-prod
 
+  # EnvoyFilter for X-Forwarded-Proto header
+  # NLB terminates TLS and forwards HTTP to Istio
+  # This filter adds X-Forwarded-Proto: https so backend services know original was HTTPS
+  envoyFilter:
+    forwardedProto:
+      enabled: true
+
+  # Istio Gateway (VirtualService용)
+  # istio-ingressgateway ArgoCD Application에서 Deployment/Service 생성
+  # 이 Gateway 리소스는 VirtualService의 진입점으로 사용됨
   gateway:
-    enabled: false  # 기존 Istio Gateway API (사용 안 함)
-    name: wealist-gateway
+    enabled: true
+    name: istio-ingressgateway
+    namespace: istio-system  # Gateway 리소스 위치
+    selector:
+      istio: ingressgateway  # Ingress Gateway Pod selector
     hosts:
       - "wealist.co.kr"
       - "api.wealist.co.kr"
+      - "livekit.wealist.co.kr"
+      - "argocd.wealist.co.kr"
     tls:
-      enabled: false
+      enabled: false  # NLB에서 TLS termination
 
-  # Kubernetes Gateway API - Ingress Gateway
-  # Istio가 자동으로 Deployment/Service 생성
-  # infrastructure.annotations는 자동 생성되는 Service에 적용됨
+  # Kubernetes Gateway API - 비활성화 (Istio Gateway로 전환)
+  # K8s Gateway API와 VirtualService는 호환되지 않음
   k8sGateway:
-    enabled: true
+    enabled: false  # K8s Gateway API 비활성화
     name: istio-ingressgateway
     namespace: istio-system
     gatewayClassName: istio
-    # ExternalDNS annotation - Route53 자동 업데이트
-    # 주의: livekit.wealist.co.kr 추가 시 ACM 인증서에도 도메인 추가 필요
-    annotations:
-      external-dns.alpha.kubernetes.io/hostname: "api.wealist.co.kr,argocd.wealist.co.kr,livekit.wealist.co.kr"
-    # AWS NLB 설정 - 자동 생성되는 Service에 적용
-    infrastructure:
-      annotations:
-        service.beta.kubernetes.io/aws-load-balancer-type: "external"
-        service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
-        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
-        # Health check 설정 (Istio Gateway status port)
-        service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "15021"
-        service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/healthz/ready"
-        # TLS 설정 - ACM 인증서 사용
-        service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:ap-northeast-2:290008131187:certificate/4843a808-fd9a-478a-8419-3d3f06dfd761"
-        service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
-        service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
-    listeners:
-      http:
-        port: 80
-        allowedRoutes:
-          from: All
-      https:
-        enabled: true
-        port: 443
-        nlbTermination: true  # NLB에서 TLS termination, Gateway는 HTTP로 수신
-        allowedRoutes:
-          from: All
 
   # HTTPRoute 설정 (Kubernetes Gateway API) - Disabled for Sidecar mode
   httpRoute:
@@ -508,6 +493,9 @@ grafana:
     allowSignUp: false
     rootUrl: "https://api.wealist.co.kr/api/monitoring/grafana"
     serveFromSubPath: "true"
+  # V3 Dashboards - OTEL Native Monitoring
+  dashboardsV3:
+    enabled: true
 
 # 모니터링 Ingress
 monitoringIngress:

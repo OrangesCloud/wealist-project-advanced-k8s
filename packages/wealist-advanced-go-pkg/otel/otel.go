@@ -1,5 +1,10 @@
 // Package otel provides OpenTelemetry SDK initialization utilities for wealist services.
 // It sets up traces, logs, and metrics exporters with OTLP protocol support.
+//
+// Protocol: HTTP/protobuf (recommended by OpenTelemetry spec)
+// - Endpoint format: "http://otel-collector:4318" (with scheme)
+// - Compatible with all languages (Go, Java, Python, etc.)
+// - Firewall-friendly and easier to debug
 package otel
 
 import (
@@ -9,8 +14,8 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/log"
@@ -25,7 +30,7 @@ type Config struct {
 	ServiceName    string
 	ServiceVersion string
 	Environment    string
-	OTLPEndpoint   string  // e.g., "otel-collector:4317"
+	OTLPEndpoint   string  // e.g., "http://otel-collector:4318" (HTTP/protobuf)
 	SamplingRatio  float64 // 0.0 to 1.0, default 1.0
 	Enabled        bool
 }
@@ -34,7 +39,7 @@ type Config struct {
 func DefaultConfig(serviceName string) *Config {
 	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 	if endpoint == "" {
-		endpoint = "localhost:4317"
+		endpoint = "http://localhost:4318"
 	}
 
 	enabled := os.Getenv("OTEL_SDK_DISABLED") != "true"
@@ -132,13 +137,17 @@ func newPropagator() propagation.TextMapPropagator {
 	)
 }
 
-// newTraceProvider creates a new trace provider with OTLP exporter.
+// newTraceProvider creates a new trace provider with OTLP HTTP exporter.
+// Uses environment variables for endpoint configuration:
+// - OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318" (SDK parses scheme)
+// - OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
 func newTraceProvider(ctx context.Context, cfg *Config, res *resource.Resource) (*sdktrace.TracerProvider, error) {
-	// Create OTLP trace exporter
-	traceExporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithEndpoint(cfg.OTLPEndpoint),
-		otlptracegrpc.WithInsecure(),
-	)
+	// Let the SDK use OTEL_EXPORTER_OTLP_ENDPOINT environment variable directly.
+	// The SDK correctly parses the scheme (http:// vs https://) and sets insecure mode.
+	// Passing WithEndpoint() would override the env var and require manual scheme handling,
+	// which can cause "too many colons in address" errors.
+	// See: https://github.com/open-telemetry/opentelemetry-go/issues/5706
+	traceExporter, err := otlptracehttp.New(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -164,13 +173,12 @@ func newTraceProvider(ctx context.Context, cfg *Config, res *resource.Resource) 
 	return traceProvider, nil
 }
 
-// newLoggerProvider creates a new logger provider with OTLP exporter.
+// newLoggerProvider creates a new logger provider with OTLP HTTP exporter.
+// Uses environment variables for endpoint configuration (same as trace provider).
 func newLoggerProvider(ctx context.Context, cfg *Config, res *resource.Resource) (*log.LoggerProvider, error) {
-	// Create OTLP log exporter
-	logExporter, err := otlploggrpc.New(ctx,
-		otlploggrpc.WithEndpoint(cfg.OTLPEndpoint),
-		otlploggrpc.WithInsecure(),
-	)
+	// Let the SDK use OTEL_EXPORTER_OTLP_ENDPOINT environment variable directly.
+	// See newTraceProvider for details on why we don't use WithEndpoint().
+	logExporter, err := otlploghttp.New(ctx)
 	if err != nil {
 		return nil, err
 	}

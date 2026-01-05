@@ -20,7 +20,7 @@ spec:
     chart: aws-load-balancer-controller
     targetRevision: "1.17.0"
     helm:
-      skipCrds: true
+      skipCrds: false  # CRD 설치 필요 (IngressClassParams 등)
       valuesObject:
         clusterName: "wealist-prod-eks"
         region: "ap-northeast-2"

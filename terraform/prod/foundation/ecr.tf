@@ -14,7 +14,6 @@ module "ecr_prod" {
     "prod/chat-service",
     "prod/noti-service",
     "prod/storage-service",
-    "prod/video-service",
     "prod/frontend"
   ]
 

@@ -1,5 +1,0 @@
-{{/*
-Argo Rollout for progressive delivery (canary deployment)
-Only rendered when rollout.enabled is true
-*/}}
-{{- include "wealist-common.rollout" . }}

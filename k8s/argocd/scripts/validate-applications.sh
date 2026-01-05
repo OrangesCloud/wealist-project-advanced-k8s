@@ -48,7 +48,6 @@ HELM_APPS=(
   "chat-service"
   "noti-service"
   "storage-service"
-  "video-service"
   "frontend"
 )
 

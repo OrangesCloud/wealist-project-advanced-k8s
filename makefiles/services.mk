@@ -3,7 +3,7 @@
 # =============================================================================
 # Usage: make <service>-build, make <service>-load, make <service>-redeploy, make <service>-all
 # Services: auth-service, board-service, chat-service, frontend,
-#           noti-service, storage-service, user-service, video-service
+#           noti-service, storage-service, user-service
 
 ##@ Per-Service Commands
 
@@ -40,12 +40,6 @@ user-service-build: ## Build user-service image
 	docker build -t $(LOCAL_REGISTRY)/user-service:$(IMAGE_TAG) \
 		-f services/user-service/docker/Dockerfile .
 	@echo "Built $(LOCAL_REGISTRY)/user-service:$(IMAGE_TAG)"
-
-video-service-build: ## Build video-service image
-	@echo "Building video-service..."
-	docker build -t $(LOCAL_REGISTRY)/video-service:$(IMAGE_TAG) \
-		-f services/video-service/docker/Dockerfile .
-	@echo "Built $(LOCAL_REGISTRY)/video-service:$(IMAGE_TAG)"
 
 # -----------------------------------------------------------------------------
 # Build targets for LOCAL context services (self-contained)
@@ -101,10 +95,6 @@ user-service-load: user-service-build ## Build and push user-service
 	docker push $(LOCAL_REGISTRY)/user-service:$(IMAGE_TAG)
 	@echo "Pushed $(LOCAL_REGISTRY)/user-service:$(IMAGE_TAG)"
 
-video-service-load: video-service-build ## Build and push video-service
-	docker push $(LOCAL_REGISTRY)/video-service:$(IMAGE_TAG)
-	@echo "Pushed $(LOCAL_REGISTRY)/video-service:$(IMAGE_TAG)"
-
 # -----------------------------------------------------------------------------
 # Redeploy targets (rollout restart)
 # -----------------------------------------------------------------------------
@@ -137,10 +127,6 @@ user-service-redeploy: ## Rollout restart user-service
 	kubectl rollout restart deployment/user-service -n $(K8S_NAMESPACE)
 	@echo "Rollout restart triggered for user-service"
 
-video-service-redeploy: ## Rollout restart video-service
-	kubectl rollout restart deployment/video-service -n $(K8S_NAMESPACE)
-	@echo "Rollout restart triggered for video-service"
-
 # -----------------------------------------------------------------------------
 # All-in-one targets (build + load + redeploy)
 # -----------------------------------------------------------------------------
@@ -158,8 +144,6 @@ noti-service-all: noti-service-load noti-service-redeploy ## Build, push, and re
 storage-service-all: storage-service-load storage-service-redeploy ## Build, push, and redeploy storage-service
 
 user-service-all: user-service-load user-service-redeploy ## Build, push, and redeploy user-service
-
-video-service-all: video-service-load video-service-redeploy ## Build, push, and redeploy video-service
 
 ##@ Utility
 
@@ -227,7 +211,7 @@ ecr-push-all: ecr-login ## Build and push all backend services to ECR (Multi-arc
 	fi
 	@echo ""
 	@# Build and push Go services (root context) - Multi-arch
-	@for svc in user-service board-service chat-service noti-service storage-service video-service; do \
+	@for svc in user-service board-service chat-service noti-service storage-service; do \
 		echo "--- Building $$svc (amd64 + arm64) ---"; \
 		docker buildx build --platform linux/amd64,linux/arm64 \
 			-t $(ECR_REGISTRY)/$$svc:dev-latest \

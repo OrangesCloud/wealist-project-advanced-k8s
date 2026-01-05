@@ -81,13 +81,6 @@ data:
         metrics_path: '{{ .Values.prometheus.scrapeTargets.storageService.path }}'
       {{- end }}
 
-      {{- if .Values.prometheus.scrapeTargets.videoService.enabled }}
-      - job_name: 'video-service'
-        static_configs:
-          - targets: ['{{ .Values.prometheus.scrapeTargets.videoService.host }}:{{ .Values.prometheus.scrapeTargets.videoService.port }}']
-        metrics_path: '{{ .Values.prometheus.scrapeTargets.videoService.path }}'
-      {{- end }}
-
       # ==========================================================================
       # Spring Boot Service (auth-service)
       # ==========================================================================
@@ -185,7 +178,7 @@ data:
           # Exclude services that have dedicated static scrape jobs
           - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
             action: drop
-            regex: (auth-service|user-service|board-service|chat-service|noti-service|storage-service|video-service)
+            regex: (auth-service|user-service|board-service|chat-service|noti-service|storage-service)
           # prometheus.io/path 어노테이션으로 메트릭 경로 설정
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
             action: replace

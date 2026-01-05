@@ -50,7 +50,6 @@ validate-helm-services: ## Helm 서비스 차트 검증
 	@helm lint k8s/helm/charts/user-service
 	@helm lint k8s/helm/charts/noti-service
 	@helm lint k8s/helm/charts/storage-service
-	@helm lint k8s/helm/charts/video-service
 
 validate-helm-infra: ## Helm 인프라 차트 검증
 	@echo ""
@@ -75,8 +74,6 @@ validate-go: ## Go 서비스 빌드 검증
 	@cd services/noti-service && go build -o /dev/null ./cmd/api
 	@echo "--- storage-service ---"
 	@cd services/storage-service && go build -o /dev/null ./cmd/api
-	@echo "--- video-service ---"
-	@cd services/video-service && go build -o /dev/null ./cmd/api
 	@echo "✅ Go Services: All builds passed"
 
 # -----------------------------------------------------------------------------
@@ -89,5 +86,4 @@ validate-quick: ## 빠른 검증 (Go 빌드만)
 	@cd services/chat-service && go build -o /dev/null ./cmd/api
 	@cd services/noti-service && go build -o /dev/null ./cmd/api
 	@cd services/storage-service && go build -o /dev/null ./cmd/api
-	@cd services/video-service && go build -o /dev/null ./cmd/api
 	@echo "✅ Quick validation passed"

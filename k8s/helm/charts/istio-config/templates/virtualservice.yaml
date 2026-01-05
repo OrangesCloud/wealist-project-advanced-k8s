@@ -1,6 +1,7 @@
 {{- if and .Values.enabled .Values.istio.virtualService.enabled }}
 {{- $namespace := include "istio-config.namespace" . }}
 {{- $vs := .Values.istio.virtualService }}
+{{- $gw := .Values.istio.gateway }}
 apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
@@ -14,18 +15,40 @@ spec:
   - {{ . | quote }}
   {{- end }}
   gateways:
+  {{- if $gw.enabled }}
+  - {{ $gw.namespace | default "istio-system" }}/{{ $gw.name | default "istio-ingressgateway" }}
+  {{- else }}
   - istio-system/istio-ingressgateway
+  {{- end }}
   http:
   # ==========================================================================
   # OAuth2 Routes (must be first for auth flow)
   # ==========================================================================
+  # /oauth2/* and /login/oauth2/* - no rewrite needed
   - match:
     - uri:
         prefix: /oauth2
     - uri:
         prefix: /login/oauth2
+    route:
+    - destination:
+        host: auth-service
+        port:
+          number: 8080
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: "5xx,reset,connect-failure"
+
+  # /api/oauth2/* - rewrite to /oauth2/* (Spring Security expects /oauth2/callback/*)
+  - match:
     - uri:
         prefix: /api/oauth2
+    rewrite:
+      uriRegexRewrite:
+        match: "^/api/oauth2(.*)$"
+        rewrite: '/oauth2\1'
     route:
     - destination:
         host: auth-service
@@ -233,40 +256,6 @@ spec:
     retries:
       attempts: 2
       perTryTimeout: 60s
-      retryOn: "5xx,reset,connect-failure"
-
-  # Video Service
-  - match:
-    - uri:
-        prefix: /api/svc/video
-    rewrite:
-      uriRegexRewrite:
-        match: "^/api/svc/video(.*)$"
-        rewrite: '\1'
-    route:
-    {{- if and $vs.canary $vs.canary.enabled }}
-    - destination:
-        host: video-service
-        port:
-          number: 8004
-        subset: stable
-      weight: {{ $vs.canary.stableWeight | default 100 }}
-    - destination:
-        host: video-service
-        port:
-          number: 8004
-        subset: canary
-      weight: {{ $vs.canary.canaryWeight | default 0 }}
-    {{- else }}
-    - destination:
-        host: video-service
-        port:
-          number: 8004
-    {{- end }}
-    timeout: 30s
-    retries:
-      attempts: 3
-      perTryTimeout: 10s
       retryOn: "5xx,reset,connect-failure"
 
   # LiveKit WebSocket (if available)
