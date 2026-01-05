@@ -13,7 +13,7 @@ import { ChatPanel } from '../chat/ChatPanel';
 import { NotificationPanel } from '../notification/NotificationPanel';
 import { VideoCallPanel } from '../video/VideoCallPanel';
 import { VideoRoom } from '../video/VideoRoom';
-import { LogOut, UserIcon } from 'lucide-react';
+import { LogOut, UserIcon, GripVertical } from 'lucide-react';
 import { usePresence } from '../../hooks/usePresence';
 import { useNotifications } from '../../hooks/useNotifications';
 import type { Notification } from '../../types/notification';
@@ -74,7 +74,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const userMenuRef = useRef<HTMLDivElement>(null);
   const refreshUnreadCountRef = useRef<() => void>(() => {}); // 🔥 Ref for callback
   const sidebarWidthPx = '5rem'; // 80px - CSS value for margin (sm: size)
-  const chatPanelWidth = '20rem'; // 320px
+
+  // 채팅 패널 리사이즈 상태
+  const [chatPanelWidth, setChatPanelWidth] = useState(320); // 픽셀 단위
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   // 🔥 읽지 않은 메시지 수 확인
   const refreshUnreadCount = useCallback(async () => {
@@ -258,6 +262,37 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     };
   }, [showUserMenu]);
 
+  // 채팅 패널 리사이즈 핸들러
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    resizeRef.current = { startX: e.clientX, startWidth: chatPanelWidth };
+  }, [chatPanelWidth]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const deltaX = e.clientX - resizeRef.current.startX;
+      const newWidth = Math.max(280, Math.min(600, resizeRef.current.startWidth + deltaX)); // min 280px, max 600px
+      setChatPanelWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      resizeRef.current = null;
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   if (isLoadingProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -319,28 +354,41 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           <div className="absolute inset-0 bg-black/20" />
           {/* 패널 */}
           <div
-            className="absolute top-0 h-full bg-white shadow-2xl left-16 sm:left-20"
-            style={{ width: chatPanelWidth }}
+            className="absolute top-0 h-full bg-white shadow-2xl left-16 sm:left-20 flex"
+            style={{ width: `${chatPanelWidth}px` }}
             onClick={(e) => e.stopPropagation()}
           >
-            {activeChatId ? (
-              <ChatPanel
-                chatId={activeChatId}
-                onClose={() => {
-                  setActiveChatId(null);
-                  setIsChatOpen(false);
-                }}
-                onBack={() => setActiveChatId(null)}
-              />
-            ) : (
-              <ChatListPanel
-                key={chatListRefreshKey}
-                workspaceId={workspaceId}
-                onChatSelect={(chatId) => setActiveChatId(chatId)}
-                onClose={() => setIsChatOpen(false)}
-                onUnreadCountChange={(count) => setTotalUnreadCount(count)}
-              />
-            )}
+            {/* 채팅 콘텐츠 */}
+            <div className="flex-1 h-full overflow-hidden">
+              {activeChatId ? (
+                <ChatPanel
+                  chatId={activeChatId}
+                  onClose={() => {
+                    setActiveChatId(null);
+                    setIsChatOpen(false);
+                  }}
+                  onBack={() => setActiveChatId(null)}
+                />
+              ) : (
+                <ChatListPanel
+                  key={chatListRefreshKey}
+                  workspaceId={workspaceId}
+                  onChatSelect={(chatId) => setActiveChatId(chatId)}
+                  onClose={() => setIsChatOpen(false)}
+                  onUnreadCountChange={(count) => setTotalUnreadCount(count)}
+                />
+              )}
+            </div>
+            {/* 리사이즈 핸들 (오른쪽 가장자리) */}
+            <div
+              className={`w-2 h-full cursor-ew-resize flex items-center justify-center hover:bg-blue-100 transition-colors ${
+                isResizing ? 'bg-blue-200' : 'bg-gray-100'
+              }`}
+              onMouseDown={handleResizeStart}
+              title="드래그하여 크기 조절"
+            >
+              <GripVertical className="w-3 h-3 text-gray-400" />
+            </div>
           </div>
         </div>
       )}

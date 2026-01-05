@@ -1,10 +1,11 @@
 // src/components/chat/ChatPanel.tsx
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ChevronLeft, X } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { ChevronLeft, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { useChatWebSocket } from '../../hooks/useChatWebsocket';
 import { getMessages, updateLastRead, getChat } from '../../api/chatService';
 import { getWorkspaceMembers } from '../../api/userService';
+import { uploadFileToS3 } from '../../utils/uploadFileToS3';
 import type { Message } from '../../types/chat';
 import type { WorkspaceMemberResponse } from '../../types/user';
 
@@ -19,7 +20,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ chatId, onClose, onBack })
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<WorkspaceMemberResponse[]>([]);
+  const [workspaceId, setWorkspaceId] = useState<string>('');
+  const [pastedImage, setPastedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // 현재 사용자 ID
   const currentUserId = localStorage.getItem('userId');
@@ -36,6 +42,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ chatId, onClose, onBack })
   // WebSocket 연결
   const {
     sendMessage,
+    sendFileMessage,
     sendTyping,
     // isConnected
   } = useChatWebSocket({
@@ -110,6 +117,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ chatId, onClose, onBack })
 
         // 🔥 워크스페이스 멤버 정보 로드 (userName 조회용)
         if (chatInfo.workspaceId) {
+          setWorkspaceId(chatInfo.workspaceId);
           const workspaceMembers = await getWorkspaceMembers(chatInfo.workspaceId);
           setMembers(workspaceMembers);
         }
@@ -132,8 +140,89 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ chatId, onClose, onBack })
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // 이미지 붙여넣기 핸들러
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            setPastedImage(file);
+            setImagePreview(URL.createObjectURL(file));
+          }
+          break;
+        }
+      }
+    },
+    [],
+  );
+
+  // 이미지 미리보기 제거
+  const handleRemoveImage = useCallback(() => {
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setPastedImage(null);
+    setImagePreview(null);
+  }, [imagePreview]);
+
+  // 이미지 업로드 및 전송
+  const handleSendImage = useCallback(async () => {
+    if (!pastedImage || !workspaceId || isUploading) return;
+
+    setIsUploading(true);
+    try {
+      // S3에 업로드
+      const uploadResult = await uploadFileToS3(pastedImage, workspaceId, 'chat');
+      const fileUrl = `https://s3.ap-northeast-2.amazonaws.com/wealist-app-resources/${uploadResult.fileKey}`;
+
+      // WebSocket으로 이미지 메시지 전송
+      const success = sendFileMessage('', {
+        messageType: 'IMAGE',
+        fileUrl,
+        fileName: pastedImage.name,
+        fileSize: pastedImage.size,
+      });
+
+      if (success) {
+        // Optimistic UI
+        const optimisticMessage: Message = {
+          messageId: `temp-${Date.now()}`,
+          chatId,
+          userId: currentUserId || '',
+          userName: '',
+          content: '',
+          messageType: 'IMAGE',
+          fileUrl,
+          fileName: pastedImage.name,
+          fileSize: pastedImage.size,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isMine: true,
+        };
+        setMessages((prev) => [...prev, optimisticMessage]);
+      }
+
+      handleRemoveImage();
+    } catch (error) {
+      console.error('이미지 업로드 실패:', error);
+      alert('이미지 업로드에 실패했습니다.');
+    } finally {
+      setIsUploading(false);
+    }
+  }, [pastedImage, workspaceId, isUploading, sendFileMessage, chatId, currentUserId, handleRemoveImage]);
+
   // 메시지 전송
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
+    // 이미지가 있으면 이미지 먼저 전송
+    if (pastedImage) {
+      await handleSendImage();
+    }
+
     if (!inputMessage.trim()) return;
 
     const content = inputMessage.trim();
@@ -218,7 +307,20 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ chatId, onClose, onBack })
                       {msg.userName || userNameMap[msg.userId] || 'Unknown'}
                     </p>
                   )}
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  {/* 이미지 메시지 */}
+                  {msg.messageType === 'IMAGE' && msg.fileUrl && (
+                    <img
+                      src={msg.fileUrl}
+                      alt={msg.fileName || '이미지'}
+                      className="max-w-full rounded-lg mb-1 cursor-pointer hover:opacity-90"
+                      style={{ maxHeight: '200px' }}
+                      onClick={() => window.open(msg.fileUrl, '_blank')}
+                    />
+                  )}
+                  {/* 텍스트 메시지 */}
+                  {msg.content && (
+                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  )}
                   <p className={`text-xs mt-1 ${isMine ? 'text-blue-100' : 'text-gray-500'}`}>
                     {msg.createdAt
                       ? new Date(msg.createdAt).toLocaleTimeString('ko-KR', {
@@ -237,21 +339,52 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ chatId, onClose, onBack })
 
       {/* 입력 영역 */}
       <div className="p-4 border-t bg-gray-50">
+        {/* 이미지 미리보기 */}
+        {imagePreview && (
+          <div className="mb-3 relative inline-block">
+            <img
+              src={imagePreview}
+              alt="미리보기"
+              className="max-h-24 rounded-lg border border-gray-200"
+            />
+            <button
+              onClick={handleRemoveImage}
+              className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs"
+            >
+              ×
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={inputMessage}
             onChange={handleInputChange}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="메시지를 입력하세요..."
+            onKeyPress={(e) => e.key === 'Enter' && !isUploading && handleSendMessage()}
+            onPaste={handlePaste}
+            placeholder={imagePreview ? '메시지와 함께 전송 (선택)...' : '메시지를 입력하세요... (Ctrl+V로 이미지 붙여넣기)'}
             className="flex-1 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={isUploading}
           />
           <button
             onClick={handleSendMessage}
-            disabled={!inputMessage.trim()}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 transition"
+            disabled={(!inputMessage.trim() && !pastedImage) || isUploading}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 transition flex items-center gap-1"
           >
-            전송
+            {isUploading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>전송중</span>
+              </>
+            ) : pastedImage ? (
+              <>
+                <ImageIcon className="w-4 h-4" />
+                <span>전송</span>
+              </>
+            ) : (
+              '전송'
+            )}
           </button>
         </div>
       </div>
