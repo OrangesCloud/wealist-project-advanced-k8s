@@ -808,7 +808,7 @@
   ],
   "refresh": "1m",
   "schemaVersion": 38,
-  "tags": ["wealist", "slo", "sli", "v2", "ambient-compatible"],
+  "tags": ["wealist", "slo", "sli", "v2", "sidecar-compatible"],
   "templating": {
     "list": [
       {

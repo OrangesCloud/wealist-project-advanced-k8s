@@ -660,7 +660,7 @@
   ],
   "refresh": "30s",
   "schemaVersion": 38,
-  "tags": ["wealist", "latency", "performance", "v2", "ambient-compatible"],
+  "tags": ["wealist", "latency", "performance", "v2", "sidecar-compatible"],
   "templating": {
     "list": [
       {

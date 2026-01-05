@@ -1160,7 +1160,7 @@
   ],
   "refresh": "5s",
   "schemaVersion": 38,
-  "tags": ["k6", "performance", "load-testing"],
+  "tags": ["wealist", "k6", "loadtest", "performance", "v2"],
   "templating": {
     "list": [
       {
