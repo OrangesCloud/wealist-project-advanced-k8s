@@ -43,7 +43,7 @@ spec:
           virtualServices:
           - name: wealist-routes
             routes:
-            - primary
+            - {{ include "wealist-common.fullname" . }}-primary
           destinationRule:
             name: {{ include "wealist-common.fullname" . }}-dr
             stableSubsetName: stable

@@ -13,8 +13,13 @@ metadata:
     {{- include "wealist-common.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
+    {{- if and .Values.rollout .Values.rollout.enabled }}
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    {{- else }}
     apiVersion: apps/v1
     kind: Deployment
+    {{- end }}
     name: {{ include "wealist-common.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
