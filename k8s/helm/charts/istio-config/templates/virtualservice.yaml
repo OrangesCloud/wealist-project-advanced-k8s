@@ -342,6 +342,20 @@ spec:
   # ArgoCD UI Routes (if enabled)
   # ==========================================================================
   {{- if and $vs.argocd $vs.argocd.enabled }}
+  # ArgoCD host-based routing (argocd.wealist.co.kr → argocd-server)
+  {{- if $vs.argocd.host }}
+  - match:
+    - headers:
+        ":authority":
+          exact: {{ $vs.argocd.host | quote }}
+    route:
+    - destination:
+        host: argocd-server.argocd.svc.cluster.local
+        port:
+          number: 80
+    timeout: 30s
+  {{- end }}
+  # Path-based routing (/api/argo/* → argocd-server)
   - match:
     - uri:
         prefix: /api/argo
