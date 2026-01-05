@@ -109,6 +109,17 @@ data:
       {{- end }}
 
       # ==========================================================================
+      # Pushgateway (GitHub Actions CI/CD Metrics)
+      # ==========================================================================
+      {{- if .Values.pushgateway.enabled }}
+      - job_name: 'pushgateway'
+        honor_labels: true  # Push된 메트릭의 라벨 유지
+        static_configs:
+          - targets: ['pushgateway:{{ .Values.pushgateway.service.port }}']
+        metrics_path: '/metrics'
+      {{- end }}
+
+      # ==========================================================================
       # kube-state-metrics (Kubernetes Objects State)
       # ==========================================================================
       {{- if .Values.kubeStateMetrics.enabled }}

@@ -22,8 +22,8 @@ spec:
         app: prometheus
         app.kubernetes.io/name: prometheus
       annotations:
-        # Sidecar 모드 제외 - 모니터링 인프라는 mesh 외부에서 동작
-        sidecar.istio.io/inject: "false"
+        # Sidecar 활성화 - mTLS 서비스 스크레이핑을 위해 필요
+        sidecar.istio.io/inject: "true"
         # ConfigMap 변경 시 자동 Pod 재시작을 위한 checksum
         checksum/config: {{ include (print $.Template.BasePath "/prometheus/configmap.yaml") . | sha256sum }}
         {{- if .Values.prometheus.alerting.enabled }}

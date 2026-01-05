@@ -900,7 +900,7 @@
   ],
   "refresh": "10s",
   "schemaVersion": 38,
-  "tags": ["wealist", "oncall", "incident", "v2", "ambient-compatible"],
+  "tags": ["wealist", "oncall", "incident", "v2", "sidecar-compatible"],
   "templating": {
     "list": [
       {

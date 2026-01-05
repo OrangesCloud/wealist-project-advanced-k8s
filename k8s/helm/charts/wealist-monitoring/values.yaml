@@ -556,6 +556,35 @@ k6:
     availabilityPercent: 99.9
 
 # =============================================================================
+# Pushgateway - GitHub Actions 메트릭 수집용
+# =============================================================================
+# CI/CD 파이프라인 메트릭을 수집하기 위한 Pushgateway
+# GitHub Actions에서 빌드/배포 메트릭을 push하면 Prometheus가 scrape
+pushgateway:
+  enabled: false  # prod.yaml에서 활성화
+
+  image:
+    repository: prom/pushgateway
+    tag: "v1.11.0"  # 2025-12 최신 안정 버전
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 9091
+    type: ClusterIP
+
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "25m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+  # 메트릭 지속성 (기본: 비활성화 - 메트릭은 짧은 수명)
+  persistence:
+    enabled: false
+
+# =============================================================================
 # OpenTelemetry Collector - Trace Collection Gateway
 # =============================================================================
 # OTEL Collector를 Gateway 패턴으로 배포하여 서비스에서 전송된 trace를 수집

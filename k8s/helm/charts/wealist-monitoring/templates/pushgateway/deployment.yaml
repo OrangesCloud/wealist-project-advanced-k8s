@@ -1,0 +1,67 @@
+{{- if .Values.pushgateway.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pushgateway
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: pushgateway
+    app.kubernetes.io/name: pushgateway
+    app.kubernetes.io/component: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pushgateway
+  template:
+    metadata:
+      labels:
+        app: pushgateway
+        app.kubernetes.io/name: pushgateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.pushgateway.service.port }}"
+        prometheus.io/path: "/metrics"
+        # Istio sidecar 비활성화 (외부 접근 필요)
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: pushgateway
+          image: "{{ .Values.pushgateway.image.repository }}:{{ .Values.pushgateway.image.tag }}"
+          imagePullPolicy: {{ .Values.pushgateway.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.pushgateway.service.port }}
+              protocol: TCP
+          args:
+            - --web.listen-address=:{{ .Values.pushgateway.service.port }}
+            - --web.telemetry-path=/metrics
+            # 메트릭 지속성 (기본: 메모리만, 재시작 시 초기화)
+            {{- if not .Values.pushgateway.persistence.enabled }}
+            - --persistence.file=""
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.pushgateway.resources | nindent 12 }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      securityContext:
+        fsGroup: 65534
+{{- end }}
