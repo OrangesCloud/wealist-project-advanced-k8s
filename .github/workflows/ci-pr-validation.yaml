@@ -5,7 +5,7 @@ on:
   pull_request:
     branches:
       - service-deploy-dev
-      - service-deploy-prod
+      # - service-deploy-prod Prod는 올라가면 안됨 
     paths:
       - 'services/**'
       - 'packages/wealist-advanced-go-pkg/**'
