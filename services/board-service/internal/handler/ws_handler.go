@@ -12,7 +12,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
+)
+
+const (
+	// Redis key prefix for online users
+	onlineUsersKeyPrefix = "online:project:"
+	// TTL for online user entry (자동 정리용)
+	onlineUserTTL = 5 * time.Minute
 )
 
 // ============================================================================
@@ -139,8 +147,14 @@ func (h *WSHandler) HandleWebSocket(c *gin.Context) {
 	currentClientCount := len(clients[projectID])
 	clientsMu.Unlock()
 
+	// 🔥 Redis에 온라인 상태 등록
+	if err := RegisterOnlineUser(projectID, client.userID); err != nil {
+		log.Warn("Failed to register online user in Redis", zap.Error(err))
+	}
+
 	log.Info("WebSocket client registered",
 		zap.String("projectId", projectID),
+		zap.String("userId", client.userID),
 		zap.Int("totalClients", currentClientCount))
 
 	go h.writePump(client, log)
@@ -156,7 +170,14 @@ func (h *WSHandler) HandleWebSocket(c *gin.Context) {
 // ============================================================================
 func (h *WSHandler) readPump(client *Client, log *zap.Logger) {
 	defer func() {
-		log.Info("🔌 readPump: Client disconnected", zap.String("projectId", client.projectID))
+		log.Info("🔌 readPump: Client disconnected",
+			zap.String("projectId", client.projectID),
+			zap.String("userId", client.userID))
+
+		// 🔥 Redis에서 온라인 상태 제거
+		if err := UnregisterOnlineUser(client.projectID, client.userID); err != nil {
+			log.Warn("Failed to unregister online user from Redis", zap.Error(err))
+		}
 
 		clientsMu.Lock()
 		delete(clients[client.projectID], client)
@@ -173,8 +194,10 @@ func (h *WSHandler) readPump(client *Client, log *zap.Logger) {
 	client.conn.SetReadDeadline(time.Now().Add(pongWait))
 
 	client.conn.SetPongHandler(func(string) error {
-		log.Info("🏓 Pong received from client", zap.String("projectId", client.projectID))
+		log.Debug("🏓 Pong received from client", zap.String("projectId", client.projectID))
 		client.conn.SetReadDeadline(time.Now().Add(pongWait))
+		// 🔥 TTL 갱신 (heartbeat)
+		RefreshOnlineUserTTL(client.projectID)
 		return nil
 	})
 
@@ -302,9 +325,99 @@ func subscribeToRedis(projectID string, client *Client, log *zap.Logger) {
 	}
 }
 
+// ============================================================================
+// 🔥 Redis 기반 온라인 상태 관리
+// ============================================================================
+
+// getOnlineUsersKey returns the Redis key for a project's online users
+func getOnlineUsersKey(projectID string) string {
+	return onlineUsersKeyPrefix + projectID
+}
+
+// RegisterOnlineUser registers a user as online for a project in Redis
+func RegisterOnlineUser(projectID, userID string) error {
+	rdb := database.GetRedis()
+	if rdb == nil {
+		return nil // Redis 없으면 무시
+	}
+
+	ctx := context.Background()
+	key := getOnlineUsersKey(projectID)
+
+	// SADD로 사용자 추가
+	if err := rdb.SAdd(ctx, key, userID).Err(); err != nil {
+		return err
+	}
+
+	// TTL 갱신 (비정상 종료 시 자동 정리)
+	rdb.Expire(ctx, key, onlineUserTTL)
+
+	getWSLogger().Debug("User registered as online in Redis",
+		zap.String("projectId", projectID),
+		zap.String("userId", userID))
+
+	return nil
+}
+
+// UnregisterOnlineUser removes a user from online status in Redis
+func UnregisterOnlineUser(projectID, userID string) error {
+	rdb := database.GetRedis()
+	if rdb == nil {
+		return nil
+	}
+
+	ctx := context.Background()
+	key := getOnlineUsersKey(projectID)
+
+	if err := rdb.SRem(ctx, key, userID).Err(); err != nil {
+		return err
+	}
+
+	getWSLogger().Debug("User unregistered from online in Redis",
+		zap.String("projectId", projectID),
+		zap.String("userId", userID))
+
+	return nil
+}
+
+// RefreshOnlineUserTTL refreshes the TTL for online user (heartbeat)
+func RefreshOnlineUserTTL(projectID string) {
+	rdb := database.GetRedis()
+	if rdb == nil {
+		return
+	}
+
+	ctx := context.Background()
+	key := getOnlineUsersKey(projectID)
+	rdb.Expire(ctx, key, onlineUserTTL)
+}
+
 // GetOnlineUsersForProject returns all online user IDs for a given project
-// 🔥 프로젝트에 연결된 사용자 목록 반환
+// 🔥 Redis에서 프로젝트에 연결된 사용자 목록 반환
 func GetOnlineUsersForProject(projectID string) []string {
+	rdb := database.GetRedis()
+	if rdb == nil {
+		// Redis 없으면 in-memory fallback
+		return getOnlineUsersFromMemory(projectID)
+	}
+
+	ctx := context.Background()
+	key := getOnlineUsersKey(projectID)
+
+	users, err := rdb.SMembers(ctx, key).Result()
+	if err != nil {
+		if err != redis.Nil {
+			getWSLogger().Error("Failed to get online users from Redis", zap.Error(err))
+		}
+		// 에러 시 in-memory fallback
+		return getOnlineUsersFromMemory(projectID)
+	}
+
+	return users
+}
+
+// getOnlineUsersFromMemory is fallback when Redis is unavailable
+func getOnlineUsersFromMemory(projectID string) []string {
 	clientsMu.RLock()
 	defer clientsMu.RUnlock()
 
@@ -336,24 +449,13 @@ func (h *WSHandler) HandleGetOnlineUsers(c *gin.Context) {
 	projectID := c.Param("projectId")
 	log := getLogger(c)
 
-	// 🔥 디버그: 현재 연결된 모든 프로젝트 로깅
-	clientsMu.RLock()
-	allProjects := make([]string, 0, len(clients))
-	totalClients := 0
-	for pid, projectClients := range clients {
-		allProjects = append(allProjects, pid)
-		totalClients += len(projectClients)
-	}
-	clientsMu.RUnlock()
-
+	// Redis에서 온라인 사용자 조회
 	users := GetOnlineUsersForProject(projectID)
 
-	log.Info("🔍 Online users requested",
-		zap.String("requestedProjectId", projectID),
+	log.Info("🔍 Online users requested (Redis-based)",
+		zap.String("projectId", projectID),
 		zap.Int("onlineCount", len(users)),
-		zap.Strings("users", users),
-		zap.Strings("allConnectedProjects", allProjects),
-		zap.Int("totalClientsAcrossProjects", totalClients))
+		zap.Strings("users", users))
 
 	c.JSON(http.StatusOK, gin.H{
 		"onlineUsers": users,

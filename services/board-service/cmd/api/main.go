@@ -223,6 +223,23 @@ func main() {
 		zap.Duration("timeout", cfg.UserAPI.Timeout),
 	)
 
+	// Initialize Notification API client
+	var notiClient client.NotiClient
+	if cfg.NotiAPI.BaseURL != "" {
+		notiClient = client.NewNotiClient(
+			cfg.NotiAPI.BaseURL,
+			cfg.NotiAPI.InternalAPIKey,
+			cfg.NotiAPI.Timeout,
+			log.Logger,
+		)
+		log.Info("Notification API client initialized successfully",
+			zap.String("noti_base_url", cfg.NotiAPI.BaseURL),
+			zap.Duration("timeout", cfg.NotiAPI.Timeout),
+		)
+	} else {
+		log.Info("Notification API client not configured (NOTI_SERVICE_URL not set)")
+	}
+
 	// Initialize S3 client
 	s3Client, err := client.NewS3Client(&cfg.S3)
 	if err != nil {
@@ -273,6 +290,7 @@ func main() {
 		AuthServiceURL:  cfg.AuthAPI.BaseURL,
 		JWTIssuer:       cfg.AuthAPI.JWTIssuer,
 		UserClient:      userClient,
+		NotiClient:      notiClient,
 		BasePath:        cfg.Server.BasePath,
 		Metrics:         m,
 		S3Client:        s3Client,
