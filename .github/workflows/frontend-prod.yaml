@@ -5,6 +5,11 @@
 #   - frontend-v* 태그 push (예: frontend-v1.0.0, frontend-v1.0.3)
 #   - 수동 트리거
 #
+# # 1. 로컬에서 새로운 태그 생성
+# git tag frontend-v1.0.4
+# # 2. 태그를 GitHub 서버로 푸시 (이 순간 배포 트리거!)
+# git push origin frontend-v1.0.4
+#
 # 이 워크플로우가 하는 일:
 #   1. 소스 빌드 (pnpm build)
 #   2. S3에 배포 (버전별 폴더 + 루트)
