@@ -609,7 +609,7 @@ otelCollector:
     servicegraph:
       enabled: true
     prometheusRemoteWrite:
-      endpoint: "http://prometheus:9090/api/v1/write"
+      endpoint: "http://prometheus:9090/api/monitoring/prometheus/api/v1/write"
 
 # Tempo - 분산 추적 백엔드 (S3 저장)
 tempo:
