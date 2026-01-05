@@ -263,8 +263,8 @@ const WorkspacePage: React.FC<WorkspacePageProps> = ({ onLogout }) => {
       onProfileModalOpen={() => toggleUiState('showUserProfile', true)}
       onNotificationClick={handleNotificationClick}
     >
-      {/* 🔥 Render prop: handleStartChat을 받아서 ProjectHeader에 전달 */}
-      {(handleStartChat) => (
+      {/* 🔥 Render prop: handleStartChat, refreshProfile을 받아서 사용 */}
+      {(handleStartChat, refreshProfile) => (
         <>
           {/* 1. 헤더 영역 */}
           <ProjectHeader
@@ -316,7 +316,13 @@ const WorkspacePage: React.FC<WorkspacePageProps> = ({ onLogout }) => {
       {/* 3. 모달 영역 */}
       {/* UserProfile Modal */}
       {uiState?.showUserProfile && (
-        <UserProfileModal onClose={() => toggleUiState('showUserProfile', false)} />
+        <UserProfileModal
+          onClose={() => toggleUiState('showUserProfile', false)}
+          onProfileUpdated={async () => {
+            await refreshProfile();
+            await fetchWorkspaceMembers(); // 🔥 워크스페이스 멤버 정보도 새로고침
+          }}
+        />
       )}
 
       {/* 💡 [통합] Project Manage Modal (Create, Settings/Edit, Detail) */}

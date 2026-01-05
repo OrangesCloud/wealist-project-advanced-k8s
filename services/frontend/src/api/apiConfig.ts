@@ -41,7 +41,6 @@ const getIngressServicePrefix = (path: string): string => {
   if (path?.includes('/api/chats')) return '/api/svc/chat/api/chats'; // chat: 프론트가 /my만 호출 (basePath 필요)
   if (path?.includes('/api/notifications')) return '/api/svc/noti';   // noti: 프론트가 /api/notifications 포함
   if (path?.includes('/api/storage')) return '/api/svc/storage';      // storage: 프론트가 /api/storage 포함
-  if (path?.includes('/api/video')) return '/api/svc/video';          // video: 프론트가 /api/video 포함
   return ''; // 매칭 안 되면 prefix 없이
 };
 
@@ -126,7 +125,6 @@ const getApiBaseUrl = (path: string): string => {
       if (path?.includes('/api/chats')) return `${injectedApiBaseUrl}${path}`; // → nginx → chat-service
       if (path?.includes('/api/notifications')) return `${injectedApiBaseUrl}`; // → nginx → noti-service
       if (path?.includes('/api/storage')) return `${injectedApiBaseUrl}/api/storage/api`; // → nginx → storage-service
-      if (path?.includes('/api/video')) return `${injectedApiBaseUrl}`; // → nginx → video-service
     }
 
     return `${injectedApiBaseUrl}${path}`;
@@ -143,7 +141,6 @@ export const BOARD_SERVICE_API_URL = getApiBaseUrl('/api/boards/api');
 export const CHAT_SERVICE_API_URL = getApiBaseUrl('/api/chats');
 export const NOTI_SERVICE_API_URL = getApiBaseUrl('/api/notifications');
 export const STORAGE_SERVICE_API_URL = getApiBaseUrl('/api/storage'); // storage-service (Google Drive like)
-export const VIDEO_SERVICE_API_URL = getApiBaseUrl('/api/video'); // video-service
 
 // ============================================================================
 // Axios 인스턴스 생성
@@ -199,15 +196,6 @@ export const notiServiceClient = axios.create({
  */
 export const storageServiceClient = axios.create({
   baseURL: STORAGE_SERVICE_API_URL,
-  headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,
-});
-
-/**
- * Video Service API (Go)를 위한 Axios 인스턴스 - 화상통화
- */
-export const videoServiceClient = axios.create({
-  baseURL: VIDEO_SERVICE_API_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
@@ -369,7 +357,6 @@ setupRequestInterceptor(boardServiceClient);
 setupRequestInterceptor(chatServiceClient);
 setupRequestInterceptor(notiServiceClient);
 setupRequestInterceptor(storageServiceClient);
-setupRequestInterceptor(videoServiceClient);
 
 setupUnifiedResponseInterceptor(authServiceClient);
 setupUnifiedResponseInterceptor(userRepoClient);
@@ -377,7 +364,6 @@ setupUnifiedResponseInterceptor(boardServiceClient);
 setupUnifiedResponseInterceptor(chatServiceClient);
 setupUnifiedResponseInterceptor(notiServiceClient);
 setupUnifiedResponseInterceptor(storageServiceClient);
-setupUnifiedResponseInterceptor(videoServiceClient);
 
 export const getAuthHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,

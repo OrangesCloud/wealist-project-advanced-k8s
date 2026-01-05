@@ -288,7 +288,8 @@ export const AvatarStack: React.FC<AvatarStackProps> = ({ members, onChatClick, 
           <div className="px-3 py-2 border-t bg-gray-50 text-xs text-gray-500">
             <span className="inline-flex items-center gap-1">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-              온라인: {onlineUsers.size + (currentUserId ? 1 : 0)}명
+              {/* 🔥 현재 사용자가 onlineUsers에 이미 포함되어 있을 수 있으므로 중복 카운트 방지 */}
+              온라인: {currentUserId && !onlineUsers.has(currentUserId) ? onlineUsers.size + 1 : onlineUsers.size}명
             </span>
           </div>
         </div>

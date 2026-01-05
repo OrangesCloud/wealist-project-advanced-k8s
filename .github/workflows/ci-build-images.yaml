@@ -74,8 +74,68 @@ jobs:
             echo "❌ Event ${EVENT_NAME} - not allowed"
           fi
 
-  detect-changes:
+  # -------------------------------------------------------------------------
+  # 빌드 시작 Discord 알림
+  # -------------------------------------------------------------------------
+  notify-start:
     needs: validate-branch
+    if: needs.validate-branch.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord notification - Build Started
+        env:
+          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1455461844826325207/OdeRKNLVYzAMGoxH8mLggCc-BZ7ky5t8ScGE2gD388-bCkcTsnffNlhYG2gGmFpsfEY7"
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          COMMIT_MSG=$(echo '${{ github.event.head_commit.message }}' | head -n 1 | sed 's/"/\\"/g')
+          BRANCH="${GITHUB_REF#refs/heads/}"
+
+          # 환경 추출
+          case "${BRANCH}" in
+            "service-deploy-dev") ENV="dev" ;;
+            "service-deploy-prod") ENV="prod" ;;
+            *) ENV="manual" ;;
+          esac
+
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d '{
+                 "embeds": [{
+                   "title": "🚀 Service Build Started",
+                   "description": "Docker 이미지 빌드가 시작되었습니다",
+                   "color": 3447003,
+                   "fields": [
+                     {
+                       "name": "🌍 Environment",
+                       "value": "'"${ENV}"'",
+                       "inline": true
+                     },
+                     {
+                       "name": "🔗 Commit",
+                       "value": "[`'"${SHORT_SHA}"'`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
+                       "inline": true
+                     },
+                     {
+                       "name": "👤 Triggered by",
+                       "value": "${{ github.actor }}",
+                       "inline": true
+                     },
+                     {
+                       "name": "💬 Commit Message",
+                       "value": "'"${COMMIT_MSG}"'",
+                       "inline": false
+                     }
+                   ],
+                   "footer": {
+                     "text": "GitHub Actions • Build #${{ github.run_number }}"
+                   },
+                   "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
+                 }]
+               }' \
+               "$DISCORD_WEBHOOK"
+
+  detect-changes:
+    needs: [validate-branch, notify-start]
     if: needs.validate-branch.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     outputs:
@@ -339,7 +399,7 @@ jobs:
       - name: Send Discord notification on success
         if: needs.build-and-push.result == 'success'
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_BUILD }}
+          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1455461844826325207/OdeRKNLVYzAMGoxH8mLggCc-BZ7ky5t8ScGE2gD388-bCkcTsnffNlhYG2gGmFpsfEY7"
         run: |
           if [ -n "$DISCORD_WEBHOOK" ]; then
             SERVICES='${{ needs.detect-changes.outputs.services }}'
@@ -396,7 +456,7 @@ jobs:
       - name: Send Discord notification on failure
         if: needs.build-and-push.result == 'failure'
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_BUILD }}
+          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1455461844826325207/OdeRKNLVYzAMGoxH8mLggCc-BZ7ky5t8ScGE2gD388-bCkcTsnffNlhYG2gGmFpsfEY7"
         run: |
           if [ -n "$DISCORD_WEBHOOK" ]; then
             SERVICES='${{ needs.detect-changes.outputs.services }}'
