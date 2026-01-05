@@ -29,6 +29,10 @@ spec:
     metadata:
       labels:
         {{- include "wealist-common.selectorLabels" . | nindent 8 }}
+        {{/* Version label for DestinationRule subset matching */}}
+        version: stable
+        {{/* Required by Kyverno policy for prod namespace */}}
+        stage: {{ .Values.stage | default "prod" }}
       annotations:
         {{- if .Values.podAnnotations }}
         {{- toYaml .Values.podAnnotations | nindent 8 }}

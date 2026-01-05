@@ -1,0 +1,45 @@
+{{- if and .Values.enabled .Values.istio.envoyFilter.forwardedProto.enabled }}
+{{- $gw := .Values.istio.gateway }}
+# =============================================================================
+# EnvoyFilter: X-Forwarded-Proto Header
+# =============================================================================
+# NLB terminates TLS and forwards HTTP to Istio Ingress Gateway.
+# This filter adds X-Forwarded-Proto: https header so backend services
+# (like Spring Boot) know the original request was HTTPS.
+# =============================================================================
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: add-x-forwarded-proto
+  namespace: {{ $gw.namespace | default "istio-system" }}
+  labels:
+    {{- include "istio-config.labels" . | nindent 4 }}
+spec:
+  workloadSelector:
+    labels:
+      {{- if $gw.selector }}
+      {{- toYaml $gw.selector | nindent 6 }}
+      {{- else }}
+      istio: ingressgateway
+      {{- end }}
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          filterChain:
+            filter:
+              name: "envoy.filters.network.http_connection_manager"
+              subFilter:
+                name: "envoy.filters.http.router"
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.lua
+          typed_config:
+            "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+            inlineCode: |
+              function envoy_on_request(request_handle)
+                request_handle:headers():replace("x-forwarded-proto", "https")
+              end
+{{- end }}

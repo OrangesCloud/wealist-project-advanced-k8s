@@ -48,7 +48,10 @@ spec:
       minHealthPercent: {{ $.Values.istio.destinationRules.outlierDetection.minHealthPercent }}
       {{- end }}
   {{- /* Canary deployment subsets for VirtualService weight-based routing */}}
-  {{- if and $.Values.virtualService.enabled $.Values.virtualService.canary.enabled }}
+  {{- /* Support both root-level (values.yaml) and istio-scoped (env files) virtualService config */}}
+  {{- $vsEnabled := or (and $.Values.virtualService $.Values.virtualService.enabled) (and $.Values.istio.virtualService $.Values.istio.virtualService.enabled) }}
+  {{- $canaryEnabled := or (and $.Values.virtualService $.Values.virtualService.canary $.Values.virtualService.canary.enabled) (and $.Values.istio.virtualService $.Values.istio.virtualService.canary $.Values.istio.virtualService.canary.enabled) }}
+  {{- if and $vsEnabled $canaryEnabled }}
   subsets:
   - name: stable
     labels:

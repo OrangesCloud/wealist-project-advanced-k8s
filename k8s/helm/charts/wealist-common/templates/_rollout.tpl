@@ -43,9 +43,9 @@ spec:
           virtualServices:
           - name: wealist-routes
             routes:
-            - primary
+            - {{ include "wealist-common.fullname" . }}-primary
           destinationRule:
-            name: {{ include "wealist-common.fullname" . }}
+            name: {{ include "wealist-common.fullname" . }}-dr
             stableSubsetName: stable
             canarySubsetName: canary
       {{/* Canary Steps */}}
@@ -90,6 +90,8 @@ spec:
     metadata:
       labels:
         {{- include "wealist-common.selectorLabels" . | nindent 8 }}
+        {{/* Version label for DestinationRule subset matching - Rollouts manages this dynamically */}}
+        version: stable
       annotations:
         {{- if .Values.podAnnotations }}
         {{- toYaml .Values.podAnnotations | nindent 8 }}

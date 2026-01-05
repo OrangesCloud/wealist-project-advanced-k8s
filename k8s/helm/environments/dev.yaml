@@ -226,7 +226,7 @@ istio:
       enabled: false
 
   httpRoute:
-    enabled: false  # Disabled for Sidecar mode (using VirtualService instead)
+    enabled: true
     gatewayRef:
       name: istio-ingressgateway
       namespace: istio-system
@@ -234,18 +234,7 @@ istio:
       - "dev.wealist.co.kr"
       - "api.dev.wealist.co.kr"
       - "localhost"
-      - "*"  # Kind 로컬 접근용
-
-  # VirtualService 설정 (Sidecar mode에서 활성화)
-  virtualService:
-    enabled: true
-    hosts:
-      - "dev.wealist.co.kr"
-      - "api.dev.wealist.co.kr"
-      - "localhost"
-      - "*"
-    canary:
-      enabled: false
+      # Note: "*" 와일드카드는 특정 호스트와 함께 사용 불가 (Istio validation error)
     frontend:
       enabled: false
     minio:
@@ -332,16 +321,11 @@ istio:
   jwtAuth:
     enabled: false
 
-  # Sidecar Mode Configuration (2025 Best Practice)
-  sidecar:
+  ambient:
     enabled: true
-    resources:
-      requests:
-        cpu: 100m
-        memory: 128Mi
-      limits:
-        cpu: 500m
-        memory: 256Mi
+    waypoint:
+      enabled: true
+      name: wealist-waypoint
 
   telemetry:
     tracing:

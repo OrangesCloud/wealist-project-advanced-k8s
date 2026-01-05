@@ -88,7 +88,7 @@ variable "addon_versions" {
 variable "scheduled_scaling_enabled" {
   description = "Enable scheduled scaling for cost optimization (노드 자동 on/off)"
   type        = bool
-  default     = true
+  default     = true  # 비용 최적화 활성화 (평일 01:00-08:00, 주말 03:00-09:00 OFF)
 }
 
 # -----------------------------------------------------------------------------

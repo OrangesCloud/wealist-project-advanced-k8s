@@ -14,7 +14,6 @@ on:
           - noti-service
           - storage-service
           - user-service
-          - video-service
       image_tag:
         description: 'Image tag to deploy (e.g., 42-abc1234)'
         required: true

@@ -83,7 +83,6 @@ output "pod_identity_roles" {
     board_service      = module.pod_identity_board_service.role_arn
     user_service       = module.pod_identity_user_service.role_arn
     chat_service       = module.pod_identity_chat_service.role_arn
-    video_service      = module.pod_identity_video_service.role_arn
     cluster_autoscaler = module.pod_identity_cluster_autoscaler.role_arn
   }
 }

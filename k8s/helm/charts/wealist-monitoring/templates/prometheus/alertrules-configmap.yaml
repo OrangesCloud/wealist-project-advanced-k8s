@@ -294,7 +294,7 @@ data:
         rules:
           - alert: ServiceDown
             expr: |
-              up{job=~"user-service|board-service|chat-service|noti-service|storage-service|video-service|auth-service"} == 0
+              up{job=~"user-service|board-service|chat-service|noti-service|storage-service|auth-service"} == 0
             for: 2m
             labels:
               severity: critical
@@ -428,7 +428,6 @@ data:
               or sum(rate(chat_service_http_requests_total[5m])) by (job)
               or sum(rate(noti_service_http_requests_total[5m])) by (job)
               or sum(rate(storage_service_http_requests_total[5m])) by (job)
-              or sum(rate(video_service_http_requests_total[5m])) by (job)
 
           # Request Rate - Spring Boot (auth-service)
           - record: service:http_requests_spring:rate5m
@@ -444,7 +443,6 @@ data:
                 or sum(rate(chat_service_http_requests_total{status=~"5.."}[5m])) by (job)
                 or sum(rate(noti_service_http_requests_total{status=~"5.."}[5m])) by (job)
                 or sum(rate(storage_service_http_requests_total{status=~"5.."}[5m])) by (job)
-                or sum(rate(video_service_http_requests_total{status=~"5.."}[5m])) by (job)
               ) / service:http_requests:rate5m
 
           # Error Rate - Spring Boot
@@ -462,7 +460,6 @@ data:
                 or sum(rate(chat_service_http_request_duration_seconds_bucket[5m])) by (le, job)
                 or sum(rate(noti_service_http_request_duration_seconds_bucket[5m])) by (le, job)
                 or sum(rate(storage_service_http_request_duration_seconds_bucket[5m])) by (le, job)
-                or sum(rate(video_service_http_request_duration_seconds_bucket[5m])) by (le, job)
               )
 
           # Duration p95
@@ -474,7 +471,6 @@ data:
                 or sum(rate(chat_service_http_request_duration_seconds_bucket[5m])) by (le, job)
                 or sum(rate(noti_service_http_request_duration_seconds_bucket[5m])) by (le, job)
                 or sum(rate(storage_service_http_request_duration_seconds_bucket[5m])) by (le, job)
-                or sum(rate(video_service_http_request_duration_seconds_bucket[5m])) by (le, job)
               )
 
           # Duration p99
@@ -486,7 +482,6 @@ data:
                 or sum(rate(chat_service_http_request_duration_seconds_bucket[5m])) by (le, job)
                 or sum(rate(noti_service_http_request_duration_seconds_bucket[5m])) by (le, job)
                 or sum(rate(storage_service_http_request_duration_seconds_bucket[5m])) by (le, job)
-                or sum(rate(video_service_http_request_duration_seconds_bucket[5m])) by (le, job)
               )
 
           # Duration p95 - Spring Boot

@@ -100,6 +100,18 @@ module "eks" {
       source_cluster_security_group = true
     }
 
+    # Istio webhook (istiod sidecar injection)
+    # API Server → istiod:15017 for MutatingWebhook calls
+    # Port 443 (Service) → 15017 (Pod targetPort)
+    istio_webhook = {
+      description                   = "Istio sidecar injector webhook"
+      protocol                      = "tcp"
+      from_port                     = 15017
+      to_port                       = 15017
+      type                          = "ingress"
+      source_cluster_security_group = true
+    }
+
     # DNS (CoreDNS)
     dns_tcp = {
       description                   = "DNS TCP"

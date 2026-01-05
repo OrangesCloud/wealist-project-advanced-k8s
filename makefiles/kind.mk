@@ -930,7 +930,7 @@ kind-dev-setup-legacy: ## [Legacy] 개발 환경 (argo.mk의 kind-dev-setup 사�
 	echo "ECR Registry: $$ECR_REGISTRY"; \
 	echo ""; \
 	MISSING_IMAGES=""; \
-	for svc in auth-service user-service board-service chat-service noti-service storage-service video-service; do \
+	for svc in auth-service user-service board-service chat-service noti-service storage-service; do \
 		if aws ecr describe-images --repository-name $$svc --image-ids imageTag=dev-latest --region $$AWS_REGION >/dev/null 2>&1; then \
 			echo "✅ $$svc:dev-latest 존재"; \
 		else \
@@ -1162,7 +1162,7 @@ _setup-db-macos:
 	@# wealist 데이터베이스 생성
 	@echo "wealist 데이터베이스 생성 중..."
 	@psql -U postgres -c "SELECT 1" 2>/dev/null || createuser -s postgres 2>/dev/null || true
-	@for db in wealist wealist_auth wealist_user wealist_board wealist_chat wealist_noti wealist_storage wealist_video; do \
+	@for db in wealist wealist_auth wealist_user wealist_board wealist_chat wealist_noti wealist_storage; do \
 		psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = '$$db'" | grep -q 1 || \
 		psql -U postgres -c "CREATE DATABASE $$db" 2>/dev/null || true; \
 	done
@@ -1190,7 +1190,7 @@ _setup-db-debian:
 	@sudo systemctl restart postgresql
 	@# wealist 데이터베이스 생성
 	@echo "wealist 데이터베이스 생성 중..."
-	@for db in wealist wealist_auth wealist_user wealist_board wealist_chat wealist_noti wealist_storage wealist_video; do \
+	@for db in wealist wealist_auth wealist_user wealist_board wealist_chat wealist_noti wealist_storage; do \
 		sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '$$db'" | grep -q 1 || \
 		sudo -u postgres psql -c "CREATE DATABASE $$db" 2>/dev/null || true; \
 	done
@@ -1292,7 +1292,7 @@ kind-load-images-mono: ## Go 서비스를 모노레포 패턴으로 빌드 (더 
 	./docker/scripts/dev-mono.sh build
 	@echo ""
 	@echo "--- 로컬 레지스트리에 태그 및 푸시 중 ---"
-	@for svc in user-service board-service chat-service noti-service storage-service video-service; do \
+	@for svc in user-service board-service chat-service noti-service storage-service; do \
 		echo "$$svc 푸시 중..."; \
 		docker tag wealist/$$svc:latest $(LOCAL_REGISTRY)/$$svc:$(IMAGE_TAG); \
 		docker push $(LOCAL_REGISTRY)/$$svc:$(IMAGE_TAG); \

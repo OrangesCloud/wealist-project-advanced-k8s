@@ -69,7 +69,7 @@ HELM_SECRETS_FLAG = $(shell test -f $(HELM_SECRETS_VALUES) && echo "-f $(HELM_SE
 
 # Services list (all microservices)
 # Backend services only (frontend is deployed via CDN/S3 in cloud environments)
-BACKEND_SERVICES = auth-service user-service board-service chat-service noti-service storage-service video-service
+BACKEND_SERVICES = auth-service user-service board-service chat-service noti-service storage-service
 
 # Frontend (only deployed in local/docker-compose environments)
 FRONTEND_SERVICE = frontend
@@ -81,7 +81,7 @@ SERVICES = $(BACKEND_SERVICES) $(FRONTEND_SERVICE)
 K8S_SERVICES = $(BACKEND_SERVICES)
 
 # Services with project root build context (use shared package)
-ROOT_CONTEXT_SERVICES = chat-service noti-service storage-service user-service video-service
+ROOT_CONTEXT_SERVICES = chat-service noti-service storage-service user-service
 
 # Services with local build context
 LOCAL_CONTEXT_SERVICES = auth-service board-service frontend

@@ -98,6 +98,27 @@ istio:
         cpu: 500m
         memory: 256Mi
 
+  # EnvoyFilter for X-Forwarded-Proto header
+  # Required when NLB terminates TLS and forwards HTTP to Istio
+  envoyFilter:
+    forwardedProto:
+      enabled: false  # Enable in prod where NLB terminates TLS
+
+  # Istio Gateway (for VirtualService routing)
+  # Requires istio-ingressgateway Deployment/Service to be installed separately
+  gateway:
+    enabled: false
+    name: istio-ingressgateway
+    namespace: istio-system
+    selector:
+      istio: ingressgateway
+    hosts:
+      - "*"
+    tls:
+      enabled: false
+      mode: SIMPLE
+      credentialName: ""
+
   # Kubernetes Gateway API - Ingress Gateway
   # Istio automatically provisions Deployment and Service
   k8sGateway:
@@ -147,9 +168,7 @@ jwtAuth:
   issuer: ""
   jwksUri: ""
 
-# Old Istio Gateway API (disabled by default, use Kubernetes Gateway API)
-gateway:
-  enabled: false
+# Old root-level gateway config removed - now under istio.gateway
 
 # Authorization Policy (root level fallback)
 authorizationPolicy:

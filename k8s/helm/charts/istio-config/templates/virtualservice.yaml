@@ -1,6 +1,7 @@
 {{- if and .Values.enabled .Values.istio.virtualService.enabled }}
 {{- $namespace := include "istio-config.namespace" . }}
 {{- $vs := .Values.istio.virtualService }}
+{{- $gw := .Values.istio.gateway }}
 apiVersion: networking.istio.io/v1
 kind: VirtualService
 metadata:
@@ -14,18 +15,40 @@ spec:
   - {{ . | quote }}
   {{- end }}
   gateways:
+  {{- if $gw.enabled }}
+  - {{ $gw.namespace | default "istio-system" }}/{{ $gw.name | default "istio-ingressgateway" }}
+  {{- else }}
   - istio-system/istio-ingressgateway
+  {{- end }}
   http:
   # ==========================================================================
   # OAuth2 Routes (must be first for auth flow)
   # ==========================================================================
+  # /oauth2/* and /login/oauth2/* - no rewrite needed
   - match:
     - uri:
         prefix: /oauth2
     - uri:
         prefix: /login/oauth2
+    route:
+    - destination:
+        host: auth-service
+        port:
+          number: 8080
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: "5xx,reset,connect-failure"
+
+  # /api/oauth2/* - rewrite to /oauth2/* (Spring Security expects /oauth2/callback/*)
+  - match:
     - uri:
         prefix: /api/oauth2
+    rewrite:
+      uriRegexRewrite:
+        match: "^/api/oauth2(.*)$"
+        rewrite: '/oauth2\1'
     route:
     - destination:
         host: auth-service
@@ -44,7 +67,8 @@ spec:
   #       uriRegexRewrite로 prefix만 제거: /api/svc/auth/foo → /foo (정상)
   # ==========================================================================
   # Auth Service
-  - match:
+  - name: auth-service-primary
+    match:
     - uri:
         prefix: /api/svc/auth
     rewrite:
@@ -78,7 +102,8 @@ spec:
       retryOn: "5xx,reset,connect-failure"
 
   # User Service
-  - match:
+  - name: user-service-primary
+    match:
     - uri:
         prefix: /api/svc/user
     rewrite:
@@ -112,7 +137,8 @@ spec:
       retryOn: "5xx,reset,connect-failure"
 
   # Board Service (WebSocket support - no retries)
-  - match:
+  - name: board-service-primary
+    match:
     - uri:
         prefix: /api/svc/board
     rewrite:
@@ -142,7 +168,8 @@ spec:
     # WebSocket: disable timeout (Istio 1.28+ requires omitting timeout field)
 
   # Chat Service (WebSocket support - no retries)
-  - match:
+  - name: chat-service-primary
+    match:
     - uri:
         prefix: /api/svc/chat
     rewrite:
@@ -172,7 +199,8 @@ spec:
     # WebSocket: disable timeout (Istio 1.28+ requires omitting timeout field)
 
   # Noti Service (SSE support - long timeout)
-  - match:
+  - name: noti-service-primary
+    match:
     - uri:
         prefix: /api/svc/noti
     rewrite:
@@ -202,7 +230,8 @@ spec:
     # SSE: disable timeout (Istio 1.28+ requires omitting timeout field)
 
   # Storage Service
-  - match:
+  - name: storage-service-primary
+    match:
     - uri:
         prefix: /api/svc/storage
     rewrite:
@@ -235,40 +264,6 @@ spec:
       perTryTimeout: 60s
       retryOn: "5xx,reset,connect-failure"
 
-  # Video Service
-  - match:
-    - uri:
-        prefix: /api/svc/video
-    rewrite:
-      uriRegexRewrite:
-        match: "^/api/svc/video(.*)$"
-        rewrite: '\1'
-    route:
-    {{- if and $vs.canary $vs.canary.enabled }}
-    - destination:
-        host: video-service
-        port:
-          number: 8004
-        subset: stable
-      weight: {{ $vs.canary.stableWeight | default 100 }}
-    - destination:
-        host: video-service
-        port:
-          number: 8004
-        subset: canary
-      weight: {{ $vs.canary.canaryWeight | default 0 }}
-    {{- else }}
-    - destination:
-        host: video-service
-        port:
-          number: 8004
-    {{- end }}
-    timeout: 30s
-    retries:
-      attempts: 3
-      perTryTimeout: 10s
-      retryOn: "5xx,reset,connect-failure"
-
   # LiveKit WebSocket (if available)
   - match:
     - uri:
@@ -299,7 +294,30 @@ spec:
     - destination:
         host: ops-service
         port:
-          number: 8090
+          number: 8005
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: "5xx,reset,connect-failure"
+  {{- end }}
+
+  # ==========================================================================
+  # Ops Portal (if enabled) - Admin Dashboard Frontend
+  # ==========================================================================
+  {{- if and $vs.opsPortal $vs.opsPortal.enabled }}
+  - match:
+    - uri:
+        prefix: /api/ops-portal
+    rewrite:
+      uriRegexRewrite:
+        match: "^/api/ops-portal(.*)$"
+        rewrite: '\1'
+    route:
+    - destination:
+        host: ops-portal
+        port:
+          number: 80
     timeout: 30s
     retries:
       attempts: 3
@@ -330,6 +348,20 @@ spec:
   # ArgoCD UI Routes (if enabled)
   # ==========================================================================
   {{- if and $vs.argocd $vs.argocd.enabled }}
+  # ArgoCD host-based routing (argocd.wealist.co.kr → argocd-server)
+  {{- if $vs.argocd.host }}
+  - match:
+    - headers:
+        ":authority":
+          exact: {{ $vs.argocd.host | quote }}
+    route:
+    - destination:
+        host: argocd-server.argocd.svc.cluster.local
+        port:
+          number: 80
+    timeout: 30s
+  {{- end }}
+  # Path-based routing (/api/argo/* → argocd-server)
   - match:
     - uri:
         prefix: /api/argo

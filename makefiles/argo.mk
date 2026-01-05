@@ -579,7 +579,7 @@ check-images: ## 로컬 레지스트리 이미지 확인
 	@curl -s http://localhost:5001/v2/_catalog | jq -r '.repositories[]' || echo "No images found"
 	@echo ""
 	@echo "서비스 이미지 확인:"
-	@for svc in auth-service user-service board-service chat-service noti-service storage-service video-service; do \
+	@for svc in auth-service user-service board-service chat-service noti-service storage-service; do \
 		echo -n "  $$svc: "; \
 		if curl -sf "http://localhost:5001/v2/$$svc/tags/list" > /dev/null 2>&1; then \
 			echo -e "$(GREEN)✅$(NC)"; \

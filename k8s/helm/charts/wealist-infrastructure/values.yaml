@@ -68,8 +68,6 @@ postgres:
         user: noti_service
       - name: wealist_storage_service_db
         user: storage_service
-      - name: wealist_video_service_db
-        user: video_service
 
 # Redis configuration
 redis:

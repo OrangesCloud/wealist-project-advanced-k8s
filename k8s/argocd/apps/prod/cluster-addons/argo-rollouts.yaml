@@ -1,0 +1,63 @@
+# =============================================================================
+# Argo Rollouts (sync-wave: -2)
+# =============================================================================
+# Progressive Delivery Controller for Canary/Blue-Green deployments
+# Integrates with Istio VirtualService for traffic splitting
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: wealist-prod
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-rollouts
+    targetRevision: "2.40.5"
+    helm:
+      valuesObject:
+        # Controller configuration
+        controller:
+          replicas: 1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+        # Istio is a built-in provider - no trafficRouterPlugins needed
+        # providerRBAC.providers.istio is enabled by default
+
+        # Dashboard for visualization
+        dashboard:
+          enabled: true
+          readonly: false
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          service:
+            type: ClusterIP
+            port: 3100
+        # Enable notifications (optional)
+        notifications:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

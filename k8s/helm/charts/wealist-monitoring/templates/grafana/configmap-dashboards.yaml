@@ -138,5 +138,27 @@ data:
   {{ base $path }}: |
 {{ $files.Get $path | indent 4 }}
   {{- end }}
+---
+# =============================================================================
+# Dashboards V3 - Canary Deployment Monitoring
+# =============================================================================
+# Structure:
+#   canary/   - Canary deployment observability (rollout status, traffic split)
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-v3-canary
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: monitoring
+    grafana_dashboard: "1"
+data:
+  {{- range $path, $_ := .Files.Glob "dashboards-v3/canary/*.json" }}
+  {{ base $path }}: |
+{{ $files.Get $path | indent 4 }}
+  {{- end }}
 {{- end }}
 {{- end }}

@@ -1,5 +1,0 @@
-{{/*
-AnalysisTemplate for automated rollback based on Prometheus metrics
-Only rendered when rollout.enabled and rollout.analysis.enabled are true
-*/}}
-{{- include "wealist-common.analysisTemplate" . }}

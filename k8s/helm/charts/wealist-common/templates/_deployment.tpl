@@ -29,13 +29,11 @@ spec:
     metadata:
       labels:
         {{- include "wealist-common.selectorLabels" . | nindent 8 }}
-        {{/* Canary deployment version label */}}
-        {{- if .Values.canary }}
-        {{- if .Values.canary.enabled }}
+        {{/* Version label for DestinationRule subset matching - always required */}}
+        {{- if and .Values.canary .Values.canary.enabled }}
         version: {{ .Values.canary.version | default "stable" }}
         {{- else }}
         version: stable
-        {{- end }}
         {{- end }}
       annotations:
         {{- if .Values.podAnnotations }}
