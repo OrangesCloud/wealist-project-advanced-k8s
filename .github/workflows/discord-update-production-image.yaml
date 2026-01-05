@@ -63,13 +63,11 @@ jobs:
           echo "✅ Image verified"
 
   update-manifest:
-    needs: list-available-images
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
       issues: write
-      repository-projects: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -102,6 +100,7 @@ jobs:
         run: |
           SERVICE="${{ inputs.service }}"
           TAG="${{ inputs.image_tag }}"
+          IFS=',' read -ra SERVICES <<< "$SERVICES_LIST"
           
           UPDATED_SERVICES=()
           FAILED_SERVICES=()

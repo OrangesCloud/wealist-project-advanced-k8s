@@ -441,16 +441,6 @@ else
     echo "✅ ArgoCD 설치 완료 (비밀번호는 이미 변경됨)"
 fi
 
-# ArgoCD RBAC 설정 (Google OAuth 사용자 권한)
-echo "🔐 ArgoCD RBAC 설정 적용 중..."
-ARGOCD_RBAC="${SCRIPT_DIR}/../../../argocd/config/argocd-rbac-cm.yaml"
-if [ -f "${ARGOCD_RBAC}" ]; then
-    kubectl apply -f "${ARGOCD_RBAC}"
-    echo "✅ ArgoCD RBAC 설정 완료 (관리자 이메일 등록됨)"
-else
-    echo "⚠️  ArgoCD RBAC 파일을 찾을 수 없습니다: ${ARGOCD_RBAC}"
-fi
-
 # =============================================================================
 # 14-1. ArgoCD Google OAuth 설정
 # =============================================================================
@@ -537,6 +527,16 @@ EOF
     echo "   - Google 로그인: https://dev.wealist.co.kr/api/argo"
 else
     echo "⚠️  Google OAuth 설정 건너뜀 (admin 계정으로 로그인)"
+fi
+
+# ArgoCD RBAC 설정 (Google OAuth 사용자 권한) - OAuth 설정 후 적용해야 함
+echo "🔐 ArgoCD RBAC 설정 적용 중..."
+ARGOCD_RBAC="${SCRIPT_DIR}/../../../argocd/config/argocd-rbac-cm.yaml"
+if [ -f "${ARGOCD_RBAC}" ]; then
+    kubectl apply -f "${ARGOCD_RBAC}"
+    echo "✅ ArgoCD RBAC 설정 완료 (관리자 이메일 등록됨)"
+else
+    echo "⚠️  ArgoCD RBAC 파일을 찾을 수 없습니다: ${ARGOCD_RBAC}"
 fi
 
 # =============================================================================
@@ -712,10 +712,10 @@ data:
       - on-health-degraded
 DISCORD_CM_EOF
 
-    # Secret 생성 (webhook URL)
-    kubectl create secret generic argocd-notifications-secret \
-        --from-literal=discord-webhook-url="$DISCORD_WEBHOOK_URL" \
-        -n argocd --dry-run=client -o yaml | kubectl apply -f -
+    # Secret에 webhook URL 추가 (Helm이 관리하는 Secret이므로 patch 사용)
+    kubectl patch secret argocd-notifications-secret -n argocd \
+        --type merge \
+        -p "{\"stringData\":{\"discord-webhook-url\":\"$DISCORD_WEBHOOK_URL\"}}"
 
     # Notifications Controller 재시작
     kubectl rollout restart deployment/argocd-notifications-controller -n argocd 2>/dev/null || true
@@ -743,14 +743,14 @@ echo ""
 echo "📮 Redis: redis.${NAMESPACE}.svc (클러스터 내부)"
 echo "   - 데이터 저장: ${WEALIST_DATA_PATH}/db_data/redis"
 echo ""
-echo "🌐 Istio Gateway: http://localhost:9080"
+echo "🌐 Istio Gateway: https://dev.wealist.co.kr"
 echo "📦 Namespace: ${NAMESPACE}"
 echo "📁 Data Path: ${WEALIST_DATA_PATH}"
 echo ""
-echo "📊 모니터링 (배포 후):"
-echo "   - Grafana:    http://localhost:9080/api/monitoring/grafana"
-echo "   - Prometheus: http://localhost:9080/api/monitoring/prometheus"
-echo "   - Kiali:      http://localhost:9080/api/monitoring/kiali"
+echo "📊 모니터링 (ArgoCD에서 monitoring-dev Sync 후):"
+echo "   - Grafana:    https://dev.wealist.co.kr/api/monitoring/grafana"
+echo "   - Prometheus: https://dev.wealist.co.kr/api/monitoring/prometheus"
+echo "   - Kiali:      https://dev.wealist.co.kr/api/monitoring/kiali"
 echo ""
 echo "🔧 ArgoCD:"
 echo "   - URL: https://dev.wealist.co.kr/api/argo"
