@@ -247,6 +247,23 @@ grafana:
     rootUrl: "%(protocol)s://%(domain)s:%(http_port)s/monitoring/grafana"
     serveFromSubPath: "true"
 
+  # Google OAuth Configuration
+  # ArgoCD와 동일한 Google OAuth 앱 사용 가능
+  oauth:
+    google:
+      enabled: false  # dev.yaml/prod.yaml에서 true로 활성화
+      clientId: ""    # 환경별 설정에서 오버라이드
+      clientSecret: "" # 환경별 설정에서 오버라이드 (Secrets Manager 권장)
+      # 허용 도메인 (빈 문자열이면 모든 도메인 허용)
+      allowedDomains: ""
+      # 자동 로그인 (OAuth만 사용할 때)
+      autoLogin: false
+      # 역할 매핑 (Google 이메일 → Grafana 역할)
+      # Admin, Editor, Viewer
+      roleAttributePath: ""
+      # 관리자 이메일 목록 (쉼표 구분)
+      adminEmails: ""
+
   # Additional Datasources (확장용)
   additionalDatasources:
     # Elasticsearch (ELK 스택 연동용)
