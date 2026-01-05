@@ -6,6 +6,11 @@
 # Namespace: wealist-prod
 
 # -----------------------------------------------------------------------------
+# Chart Enable Flag (for istio-config templates)
+# -----------------------------------------------------------------------------
+enabled: true
+
+# -----------------------------------------------------------------------------
 # Global Settings
 # -----------------------------------------------------------------------------
 global:
@@ -287,6 +292,7 @@ istio:
       - "wealist.co.kr"
       - "api.wealist.co.kr"
       - "livekit.wealist.co.kr"
+      - "argocd.wealist.co.kr"
     canary:
       enabled: true  # Enable for Argo Rollouts canary deployment
       stableWeight: 100
