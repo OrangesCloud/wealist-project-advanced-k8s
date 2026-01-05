@@ -21,11 +21,11 @@ spec:
       parameters:
         - name: global.namespace
           value: wealist-dev
-        # External DB Host (WSL/Kind: 172.17.0.1 Docker bridge gateway)
+        # In-cluster DB (postgres/redis Service)
         - name: postgresExporter.config.host
-          value: "172.17.0.1"
+          value: "postgres"
         - name: redisExporter.config.host
-          value: "172.17.0.1"
+          value: "redis"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-dev

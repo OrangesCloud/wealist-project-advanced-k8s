@@ -390,6 +390,14 @@ grafana:
     allowSignUp: false
     rootUrl: "https://dev.wealist.co.kr/api/monitoring/grafana"
     serveFromSubPath: "true"
+  # Google OAuth - ArgoCD와 동일한 OAuth 앱 사용
+  oauth:
+    google:
+      enabled: true
+      autoLogin: false  # 기본 로그인 폼도 표시 (admin 계정 접근용)
+      # 관리자 이메일 → Admin 역할 자동 부여
+      # JMESPath 표현식: 이메일이 목록에 있으면 Admin, 아니면 Viewer
+      roleAttributePath: "contains(['chamchi0129@gmail.com','ressk4149@gmail.com','fbaudwo144@gmail.com','212clab@gmail.com'], email) && 'Admin' || 'Viewer'"
 
 monitoringIngress:
   enabled: false
