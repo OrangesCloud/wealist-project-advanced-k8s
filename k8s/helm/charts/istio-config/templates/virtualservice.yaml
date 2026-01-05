@@ -362,13 +362,11 @@ spec:
     timeout: 30s
   {{- end }}
   # Path-based routing (/api/argo/* → argocd-server)
+  # NOTE: ArgoCD는 rootpath=/api/argo로 설정되어 있으므로 경로를 rewrite하지 않음
+  #       ArgoCD가 /api/argo/* 경로를 그대로 받아야 함
   - match:
     - uri:
         prefix: /api/argo
-    rewrite:
-      uriRegexRewrite:
-        match: "^/api/argo(.*)$"
-        rewrite: '\1'
     route:
     - destination:
         host: argocd-server.argocd.svc.cluster.local
