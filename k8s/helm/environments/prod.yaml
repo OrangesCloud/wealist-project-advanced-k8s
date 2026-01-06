@@ -510,6 +510,18 @@ grafana:
     allowSignUp: false
     rootUrl: "https://api.wealist.co.kr/api/monitoring/grafana"
     serveFromSubPath: "true"
+  # Google OAuth 설정
+  oauth:
+    google:
+      enabled: true
+      # 허용 도메인 (특정 도메인만 허용하려면 설정)
+      allowedDomains: ""
+      autoLogin: false
+      # JMESPath로 Admin 권한 부여 (이메일 목록)
+      # 예: contains(['admin@gmail.com', 'dev@company.com'], email) && 'GrafanaAdmin' || 'Viewer'
+      roleAttributePath: "contains(['212clab@gmail.com'], email) && 'GrafanaAdmin' || 'Viewer'"
+      # 수동 역할 할당 유지 (한번 설정하면 OAuth에서 덮어쓰지 않음)
+      skipOrgRoleSync: false
   # Note: V4 role-based dashboards are now the default (V1/V2/V3 deprecated)
 
 # 모니터링 Ingress
