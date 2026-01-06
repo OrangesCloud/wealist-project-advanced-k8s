@@ -54,6 +54,29 @@ mkdir -p "${WEALIST_DATA_PATH}/loki"
 echo "✅ 데이터 디렉토리 생성 완료: ${WEALIST_DATA_PATH}"
 
 # =============================================================================
+# 1-0.5. Redis 세션 데이터 정리 옵션
+# =============================================================================
+# 이전 클러스터의 Redis 세션이 남아있으면 직렬화 오류 발생 가능
+if [ -d "${WEALIST_DATA_PATH}/db_data/redis" ] && [ "$(ls -A ${WEALIST_DATA_PATH}/db_data/redis 2>/dev/null)" ]; then
+    echo ""
+    echo "⚠️  기존 Redis 데이터가 발견되었습니다."
+    echo "   경로: ${WEALIST_DATA_PATH}/db_data/redis"
+    echo "   이전 세션 데이터가 남아있으면 직렬화 오류가 발생할 수 있습니다."
+    echo ""
+    read -p "Redis 데이터를 초기화할까요? (Y/n): " CLEAN_REDIS
+    CLEAN_REDIS=${CLEAN_REDIS:-Y}
+
+    if [[ "$CLEAN_REDIS" =~ ^[Yy]$ ]]; then
+        echo "🗑️  Redis 데이터 삭제 중..."
+        sudo rm -rf "${WEALIST_DATA_PATH}/db_data/redis"/*
+        echo "✅ Redis 데이터 초기화 완료"
+    else
+        echo "⚠️  Redis 데이터 유지. 세션 오류 발생 시 수동으로 삭제하세요:"
+        echo "   sudo rm -rf ${WEALIST_DATA_PATH}/db_data/redis/*"
+    fi
+fi
+
+# =============================================================================
 # 1-1. Prometheus/Grafana/Loki 권한 설정 (hostPath 사용 시 필수)
 # =============================================================================
 # Prometheus: UID 65534 (nobody), Grafana: UID 472, Loki: UID 10001
