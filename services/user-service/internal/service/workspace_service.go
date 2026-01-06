@@ -170,16 +170,20 @@ func (s *WorkspaceService) SearchPublicWorkspaces(name string) ([]domain.Workspa
 }
 
 // UpdateWorkspace는 워크스페이스를 업데이트합니다.
-// 소유자만 업데이트할 수 있습니다.
+// 소유자 또는 관리자만 업데이트할 수 있습니다.
 func (s *WorkspaceService) UpdateWorkspace(id uuid.UUID, userID uuid.UUID, req domain.UpdateWorkspaceRequest) (*domain.Workspace, error) {
 	workspace, err := s.workspaceRepo.FindByID(id)
 	if err != nil {
 		return nil, err
 	}
 
-	// 소유자 확인
+	// 소유자 또는 ADMIN 확인
 	if workspace.OwnerID != userID {
-		return nil, response.NewForbiddenError("Only owner can update workspace", "")
+		// ADMIN인지 확인
+		role, err := s.memberRepo.GetRole(id, userID)
+		if err != nil || role != domain.RoleAdmin {
+			return nil, response.NewForbiddenError("Only owner or admin can update workspace", "")
+		}
 	}
 
 	if req.WorkspaceName != nil {
@@ -207,16 +211,20 @@ func (s *WorkspaceService) UpdateWorkspace(id uuid.UUID, userID uuid.UUID, req d
 }
 
 // UpdateWorkspaceSettings는 워크스페이스 설정을 업데이트합니다.
-// 소유자만 설정을 변경할 수 있습니다.
+// 소유자 또는 관리자만 설정을 변경할 수 있습니다.
 func (s *WorkspaceService) UpdateWorkspaceSettings(id uuid.UUID, userID uuid.UUID, req domain.UpdateWorkspaceSettingsRequest) (*domain.Workspace, error) {
 	workspace, err := s.workspaceRepo.FindByID(id)
 	if err != nil {
 		return nil, err
 	}
 
-	// 소유자 확인
+	// 소유자 또는 ADMIN 확인
 	if workspace.OwnerID != userID {
-		return nil, response.NewForbiddenError("Only owner can update workspace settings", "")
+		// ADMIN인지 확인
+		role, err := s.memberRepo.GetRole(id, userID)
+		if err != nil || role != domain.RoleAdmin {
+			return nil, response.NewForbiddenError("Only owner or admin can update workspace settings", "")
+		}
 	}
 
 	if req.WorkspaceName != nil {
@@ -247,16 +255,20 @@ func (s *WorkspaceService) UpdateWorkspaceSettings(id uuid.UUID, userID uuid.UUI
 }
 
 // DeleteWorkspace는 워크스페이스를 소프트 삭제합니다.
-// 소유자만 삭제할 수 있습니다.
+// 소유자 또는 관리자만 삭제할 수 있습니다.
 func (s *WorkspaceService) DeleteWorkspace(id uuid.UUID, userID uuid.UUID) error {
 	workspace, err := s.workspaceRepo.FindByID(id)
 	if err != nil {
 		return err
 	}
 
-	// 소유자 확인
+	// 소유자 또는 ADMIN 확인
 	if workspace.OwnerID != userID {
-		return response.NewForbiddenError("Only owner can delete workspace", "")
+		// ADMIN인지 확인
+		role, err := s.memberRepo.GetRole(id, userID)
+		if err != nil || role != domain.RoleAdmin {
+			return response.NewForbiddenError("Only owner or admin can delete workspace", "")
+		}
 	}
 
 	if err := s.workspaceRepo.SoftDelete(id); err != nil {

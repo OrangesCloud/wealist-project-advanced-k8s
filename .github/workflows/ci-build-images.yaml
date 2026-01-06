@@ -179,11 +179,12 @@ jobs:
 
           echo "environment=${ENV}" >> $GITHUB_OUTPUT
           echo "ecr_registry=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com" >> $GITHUB_OUTPUT
-          echo "k8s_branch=k8s-deploy-dev" >> $GITHUB_OUTPUT
 
           if [ "${ENV}" = "develop" ]; then
+            echo "k8s_branch=k8s-deploy-dev" >> $GITHUB_OUTPUT
             echo "namespace=wealist-dev" >> $GITHUB_OUTPUT
           else
+            echo "k8s_branch=k8s-deploy-prod" >> $GITHUB_OUTPUT
             echo "namespace=wealist-prod" >> $GITHUB_OUTPUT
           fi
 

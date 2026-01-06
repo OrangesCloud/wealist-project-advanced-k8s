@@ -118,3 +118,12 @@ func (r *WorkspaceMemberRepository) GetRole(workspaceID, userID uuid.UUID) (doma
 	}
 	return member.RoleName, nil
 }
+
+// CountByRole counts members with a specific role in a workspace
+func (r *WorkspaceMemberRepository) CountByRole(workspaceID uuid.UUID, roleName domain.RoleName) (int64, error) {
+	var count int64
+	err := r.db.Model(&domain.WorkspaceMember{}).
+		Where("workspace_id = ? AND role_name = ? AND is_active = true", workspaceID, roleName).
+		Count(&count).Error
+	return count, err
+}
