@@ -19,6 +19,7 @@ import (
 	"project-board-api/internal/service"
 )
 
+//
 type BoardHandler struct {
 	boardService service.BoardService
 	notiClient   client.NotiClient
