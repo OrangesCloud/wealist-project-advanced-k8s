@@ -65,7 +65,6 @@ declare -a BACKEND_SERVICES=(
     "noti-service|services/noti-service|docker/Dockerfile"
     "storage-service|services/storage-service|docker/Dockerfile"
     "user-service|services/user-service|docker/Dockerfile"
-    "video-service|services/video-service|docker/Dockerfile"
 )
 
 # Frontend service (only for local development, not for CDN/S3 deployments)

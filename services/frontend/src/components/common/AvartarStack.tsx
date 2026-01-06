@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { WorkspaceMemberResponse } from '../../types/user';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getOnlineUsers } from '../../api/chatService';
+import { getProjectOnlineUsers } from '../../api/boardService';
 import { MessageCircle, X } from 'lucide-react';
 
 // =============================================================================
@@ -55,9 +55,11 @@ interface AvatarStackProps {
   onChatClick?: (member: WorkspaceMemberResponse) => void;
   /** false로 설정하면 button 대신 div로 렌더링 (부모가 button일 때 사용) */
   interactive?: boolean;
+  /** 🔥 프로젝트 ID (온라인 사용자 조회용 - board WebSocket 기반) */
+  projectId?: string;
 }
 
-export const AvatarStack: React.FC<AvatarStackProps> = ({ members, onChatClick, interactive = true }) => {
+export const AvatarStack: React.FC<AvatarStackProps> = ({ members, onChatClick, interactive = true, projectId }) => {
   const { theme } = useTheme();
   const [showDropdown, setShowDropdown] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
@@ -68,13 +70,19 @@ export const AvatarStack: React.FC<AvatarStackProps> = ({ members, onChatClick, 
   const displayMembers = members?.slice(0, displayCount);
   const remainingCount = members?.length - displayCount;
 
-  // 🔥 온라인 사용자 목록 로드
+  // 🔥 온라인 사용자 목록 로드 (board WebSocket 기반)
   useEffect(() => {
     const loadOnlineUsers = async () => {
+      // projectId가 없으면 온라인 사용자 조회 불가
+      if (!projectId) {
+        console.log('⚠️ [AvatarStack] projectId가 없어 온라인 사용자 조회 스킵');
+        return;
+      }
+
       setIsLoadingOnline(true);
       try {
-        console.log('🔵 [AvatarStack] 온라인 사용자 로딩 시작...');
-        const users = await getOnlineUsers();
+        console.log('🔵 [AvatarStack] 온라인 사용자 로딩 시작... projectId:', projectId);
+        const users = await getProjectOnlineUsers(projectId);
         console.log('✅ [AvatarStack] 온라인 사용자 목록:', users);
         setOnlineUsers(new Set(users));
       } catch (error) {
@@ -86,13 +94,13 @@ export const AvatarStack: React.FC<AvatarStackProps> = ({ members, onChatClick, 
     };
 
     // 드롭다운 열릴 때만 로드
-    if (showDropdown) {
+    if (showDropdown && projectId) {
       loadOnlineUsers();
       // 10초마다 갱신 (드롭다운 열려있을 때만)
       const interval = setInterval(loadOnlineUsers, 10000);
       return () => clearInterval(interval);
     }
-  }, [showDropdown]);
+  }, [showDropdown, projectId]);
 
   // 외부 클릭 감지
   useEffect(() => {
@@ -288,7 +296,8 @@ export const AvatarStack: React.FC<AvatarStackProps> = ({ members, onChatClick, 
           <div className="px-3 py-2 border-t bg-gray-50 text-xs text-gray-500">
             <span className="inline-flex items-center gap-1">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-              온라인: {onlineUsers.size + (currentUserId ? 1 : 0)}명
+              {/* 🔥 현재 사용자가 onlineUsers에 이미 포함되어 있을 수 있으므로 중복 카운트 방지 */}
+              온라인: {currentUserId && !onlineUsers.has(currentUserId) ? onlineUsers.size + 1 : onlineUsers.size}명
             </span>
           </div>
         </div>

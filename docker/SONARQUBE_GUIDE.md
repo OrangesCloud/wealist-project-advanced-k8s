@@ -239,7 +239,6 @@ curl -X POST -u admin:새로운-비밀번호 \
 - `wealist-chat-service` (Go)
 - `wealist-noti-service` (Go)
 - `wealist-storage-service` (Go)
-- `wealist-video-service` (Go)
 - `wealist-frontend` (React/TypeScript)
 
 ---

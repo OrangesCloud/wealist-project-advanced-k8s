@@ -34,11 +34,6 @@ BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'storage_service') THEN
         CREATE ROLE storage_service WITH LOGIN PASSWORD 'storage_service_password';
     END IF;
-
-    -- video-service
-    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'video_service') THEN
-        CREATE ROLE video_service WITH LOGIN PASSWORD 'video_service_password';
-    END IF;
 END
 $$;
 
@@ -62,9 +57,6 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'noti_db')\gexec
 SELECT 'CREATE DATABASE storage_db OWNER storage_service'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'storage_db')\gexec
 
-SELECT 'CREATE DATABASE video_db OWNER video_service'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'video_db')\gexec
-
 -- -----------------------------------------------------------------------------
 -- Grant Privileges
 -- -----------------------------------------------------------------------------
@@ -73,7 +65,6 @@ GRANT ALL PRIVILEGES ON DATABASE board_db TO board_service;
 GRANT ALL PRIVILEGES ON DATABASE chat_db TO chat_service;
 GRANT ALL PRIVILEGES ON DATABASE noti_db TO noti_service;
 GRANT ALL PRIVILEGES ON DATABASE storage_db TO storage_service;
-GRANT ALL PRIVILEGES ON DATABASE video_db TO video_service;
 
 -- -----------------------------------------------------------------------------
 -- Enable UUID Extension (required for all databases)
@@ -97,9 +88,5 @@ GRANT ALL ON SCHEMA public TO noti_service;
 \c storage_db
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 GRANT ALL ON SCHEMA public TO storage_service;
-
-\c video_db
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-GRANT ALL ON SCHEMA public TO video_service;
 
 \echo '✅ All databases and users created successfully!'

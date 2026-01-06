@@ -28,7 +28,6 @@ sudo ./setup-local-db.sh
 | chat_db | chat_service | chat_service_password | chat-service |
 | noti_db | noti_service | noti_service_password | noti-service |
 | storage_db | storage_service | storage_service_password | storage-service |
-| video_db | video_service | video_service_password | video-service |
 
 > Note: auth-service는 Redis만 사용 (DB 없음)
 

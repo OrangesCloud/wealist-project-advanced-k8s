@@ -15,6 +15,9 @@ import (
 )
 
 func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, req *dto.UpdateBoardRequest) (*dto.BoardResponse, error) {
+	// Extract user_id from context for notification actor
+	actorID, _ := ctx.Value("user_id").(uuid.UUID)
+
 	// Fetch existing board
 	board, err := s.boardRepo.FindByID(ctx, boardID)
 	if err != nil {
@@ -22,6 +25,13 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 			return nil, response.NewAppError(response.ErrCodeNotFound, "Board not found", "")
 		}
 		return nil, response.NewAppError(response.ErrCodeInternal, "Failed to fetch board", err.Error())
+	}
+
+	// Store original assignee for change detection
+	var originalAssigneeID *uuid.UUID
+	if board.AssigneeID != nil {
+		id := *board.AssigneeID
+		originalAssigneeID = &id
 	}
 
 	// Determine the effective start and due dates for validation
@@ -176,8 +186,14 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 		board.Attachments = toDomainAttachments(allAttachments)
 	}
 
+	// Send notification if assignee changed to a different user (not actor)
+	if s.isAssigneeChanged(originalAssigneeID, board.AssigneeID) &&
+		board.AssigneeID != nil && *board.AssigneeID != actorID {
+		s.sendAssigneeNotification(ctx, board, actorID)
+	}
+
 	// Convert to response DTO
-	return s.toBoardResponse(board), nil
+	return s.toBoardResponseWithWorkspace(ctx, board), nil
 }
 
 // DeleteBoard soft deletes a board and its associated attachments

@@ -159,7 +159,7 @@ func TestBoardHandler_GetBoardsByProject(t *testing.T) {
 			// Given
 			mockService := &MockBoardService{}
 			tt.mockService(mockService)
-			handler := NewBoardHandler(mockService)
+			handler := NewBoardHandler(mockService, nil)
 
 			router := setupTestRouter()
 			router.GET("/api/boards/project/:projectId", handler.GetBoardsByProject)
@@ -281,7 +281,7 @@ func TestBoardHandler_UpdateBoard(t *testing.T) {
 			// Given
 			mockService := &MockBoardService{}
 			tt.mockService(mockService)
-			handler := NewBoardHandler(mockService)
+			handler := NewBoardHandler(mockService, nil)
 
 			router := setupTestRouter()
 			router.PUT("/api/boards/:boardId", handler.UpdateBoard)

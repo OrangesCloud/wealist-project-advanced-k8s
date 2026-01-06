@@ -48,9 +48,12 @@ const CommentInput = ({ boardId, workspaceId, onCommentCreated }: CommentInputPr
         attachmentIds.push(uploaded.attachmentId);
       }
 
+      // 🔥 백엔드가 content를 필수로 요구하므로, 파일만 있고 내용이 없으면 기본 메시지 사용
+      const finalContent = content.trim() || (selectedFile ? `📎 ${selectedFile.name}` : '');
+
       await createComment({
         boardId: boardId,
-        content: content.trim(),
+        content: finalContent,
         attachmentIds: attachmentIds,
       });
 

@@ -12,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 
+	"project-board-api/internal/client"
 	"project-board-api/internal/database"
 	"project-board-api/internal/dto"
 	"project-board-api/internal/response"
@@ -20,11 +21,13 @@ import (
 
 type BoardHandler struct {
 	boardService service.BoardService
+	notiClient   client.NotiClient
 }
 
-func NewBoardHandler(boardService service.BoardService) *BoardHandler {
+func NewBoardHandler(boardService service.BoardService, notiClient client.NotiClient) *BoardHandler {
 	return &BoardHandler{
 		boardService: boardService,
+		notiClient:   notiClient,
 	}
 }
 
@@ -286,6 +289,13 @@ func (h *BoardHandler) UpdateBoard(c *gin.Context) {
 		return
 	}
 
+	// 🔥 알림 전송을 위해 기존 board 정보 가져오기
+	oldBoard, _ := h.boardService.GetBoard(c.Request.Context(), boardID)
+	var oldAssigneeID *uuid.UUID
+	if oldBoard != nil && oldBoard.AssigneeID != nil {
+		oldAssigneeID = oldBoard.AssigneeID
+	}
+
 	log.Debug("UpdateBoard started", zap.String("board.id", boardID.String()))
 
 	board, err := h.boardService.UpdateBoard(c.Request.Context(), boardID, &req)
@@ -307,6 +317,80 @@ func (h *BoardHandler) UpdateBoard(c *gin.Context) {
 		Payload: board,
 	}
 	BroadcastEvent(board.ProjectID.String(), event)
+
+	// 🔥 알림 전송 (비동기 - 실패해도 응답에 영향 없음)
+	var oldBoardResponse *dto.BoardResponse
+	if oldBoard != nil {
+		oldBoardResponse = &oldBoard.BoardResponse
+	}
+	go h.sendBoardNotifications(c.Request.Context(), log, oldBoardResponse, board, oldAssigneeID, req.AssigneeID)
+}
+
+// sendBoardNotifications sends notifications for board updates
+func (h *BoardHandler) sendBoardNotifications(ctx context.Context, log *zap.Logger, oldBoard, newBoard *dto.BoardResponse, oldAssigneeID, newAssigneeID *uuid.UUID) {
+	if h.notiClient == nil {
+		return
+	}
+
+	// Get actor ID from context (current user)
+	actorIDValue, exists := ctx.Value("user_id").(uuid.UUID)
+	if !exists {
+		// Try string format
+		if actorIDStr, ok := ctx.Value("user_id").(string); ok {
+			actorIDValue, _ = uuid.Parse(actorIDStr)
+		}
+	}
+
+	// 1. 작업자가 새로 할당된 경우 (TASK_ASSIGNED)
+	if newAssigneeID != nil && *newAssigneeID != uuid.Nil {
+		// 기존에 할당자가 없었거나, 다른 사람으로 변경된 경우
+		if oldAssigneeID == nil || *oldAssigneeID != *newAssigneeID {
+			// 자기 자신에게 할당한 경우는 알림 제외
+			if actorIDValue != *newAssigneeID {
+				notification := client.NewTaskAssignedNotification(
+					actorIDValue,
+					*newAssigneeID,
+					newBoard.WorkspaceID,
+					newBoard.ID,
+					newBoard.Title,
+				)
+				if err := h.notiClient.SendNotification(ctx, notification); err != nil {
+					log.Warn("Failed to send task assignment notification",
+						zap.String("board.id", newBoard.ID.String()),
+						zap.String("targetUserId", newAssigneeID.String()),
+						zap.Error(err))
+				} else {
+					log.Info("Task assignment notification sent",
+						zap.String("board.id", newBoard.ID.String()),
+						zap.String("targetUserId", newAssigneeID.String()))
+				}
+			}
+		}
+	}
+
+	// 2. 작업자가 있는 보드가 업데이트된 경우 (TASK_STATUS_CHANGED)
+	// 단, 작업자 변경이 아닌 다른 변경사항이 있을 때만
+	if oldBoard != nil && oldBoard.AssigneeID != nil && *oldBoard.AssigneeID != uuid.Nil {
+		// 작업자 변경이 아닌 경우에만 알림
+		if newAssigneeID == nil || (oldAssigneeID != nil && *oldAssigneeID == *newAssigneeID) {
+			// 자기 자신의 보드인 경우는 알림 제외
+			if actorIDValue != *oldBoard.AssigneeID {
+				notification := client.NewTaskUpdatedNotification(
+					actorIDValue,
+					*oldBoard.AssigneeID,
+					newBoard.WorkspaceID,
+					newBoard.ID,
+					newBoard.Title,
+					"updated",
+				)
+				if err := h.notiClient.SendNotification(ctx, notification); err != nil {
+					log.Warn("Failed to send task update notification",
+						zap.String("board.id", newBoard.ID.String()),
+						zap.Error(err))
+				}
+			}
+		}
+	}
 }
 
 // DeleteBoard godoc

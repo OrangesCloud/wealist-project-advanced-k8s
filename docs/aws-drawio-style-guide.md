@@ -371,7 +371,7 @@ strokeColor=#232F3E;
 - [ ] Region
 - [ ] Availability Zone
 
-### weAlist 서비스 (8개)
+### weAlist 서비스 (7개)
 | 서비스 | 포트 | 언어 |
 |--------|------|------|
 | auth-service | 8080 | Java/Spring |
@@ -380,7 +380,6 @@ strokeColor=#232F3E;
 | chat-service | 8001 | Go |
 | noti-service | 8002 | Go |
 | storage-service | 8003 | Go |
-| video-service | 8004 | Go |
 | frontend | 3000 | React |
 
 ---

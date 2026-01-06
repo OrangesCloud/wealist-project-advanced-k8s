@@ -184,12 +184,12 @@ func setupIntegrationRouter(db *gorm.DB) *gin.Engine {
 	s3Client, _ := client.NewS3Client(cfg)
 	m := metrics.NewTestMetrics()
 
-	boardService := service.NewBoardService(boardRepo, projectRepo, fieldOptionRepo, participantRepo, attachmentRepo, s3Client, fieldOptionConverter, m, logger)
+	boardService := service.NewBoardService(boardRepo, projectRepo, fieldOptionRepo, participantRepo, attachmentRepo, s3Client, fieldOptionConverter, nil, m, logger)
 
-	commentService := service.NewCommentService(commentRepo, boardRepo, attachmentRepo, s3Client, logger)
+	commentService := service.NewCommentService(commentRepo, boardRepo, projectRepo, attachmentRepo, s3Client, nil, logger)
 
 	// Initialize handlers
-	boardHandler := NewBoardHandler(boardService)
+	boardHandler := NewBoardHandler(boardService, nil)
 	participantHandler := NewParticipantHandler(participantService)
 	commentHandler := NewCommentHandler(commentService)
 
