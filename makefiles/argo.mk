@@ -542,6 +542,32 @@ argo-reset-apps: ## [Reset] ArgoCD 앱만 리셋 (클러스터 유지)
 	$(MAKE) argo-deploy-dev
 	@echo -e "$(GREEN)✅ ArgoCD 앱 리셋 완료$(NC)"
 
+argo-reset-images: ## [Reset] k8s-deploy-dev 브랜치 이미지 태그를 latest로 리셋
+	@echo -e "$(YELLOW)🔄 k8s-deploy-dev 이미지 태그 리셋 중...$(NC)"
+	@CURRENT_BRANCH=$$(git branch --show-current); \
+	git fetch origin k8s-deploy-dev; \
+	git checkout k8s-deploy-dev; \
+	echo ""; \
+	echo "서비스 이미지 태그를 latest로 변경 중..."; \
+	for file in k8s/argocd/apps/dev/*-service.yaml; do \
+		if [ -f "$$file" ]; then \
+			sed -i 's/value: "[0-9]*-[a-f0-9]*"/value: "latest"/' "$$file"; \
+			echo "  ✅ $$(basename $$file)"; \
+		fi; \
+	done; \
+	echo ""; \
+	if git diff --quiet; then \
+		echo "변경사항 없음 (이미 latest)"; \
+	else \
+		git add k8s/argocd/apps/dev/; \
+		git commit -m "🔄 Reset image tags to latest"; \
+		git push origin k8s-deploy-dev; \
+		echo -e "$(GREEN)✅ k8s-deploy-dev 브랜치 업데이트 완료$(NC)"; \
+	fi; \
+	git checkout $$CURRENT_BRANCH; \
+	echo ""; \
+	echo "ArgoCD가 자동으로 싱크합니다."
+
 # GitHub 토큰: 환경변수 또는 AWS Secrets Manager
 argo-add-repo-auto: ## Git 레포 자동 등록 (환경변수 GITHUB_TOKEN 또는 AWS Secrets Manager)
 	@GITHUB_USER=$${GITHUB_USER:-212clab}; \

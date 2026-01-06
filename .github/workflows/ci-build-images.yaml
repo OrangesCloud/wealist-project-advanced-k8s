@@ -20,9 +20,9 @@ on:
         required: true
         type: choice
         options:
-          - dev
+          - develop
           - prod
-        default: dev
+        default: develop
       skip_gitops:
         description: "Skip GitOps update trigger"
         required: false
@@ -165,7 +165,7 @@ jobs:
             # 브랜치명에서 환경 추출
             case "${BRANCH}" in
               "service-deploy-dev")
-                ENV="dev"
+                ENV="develop"
                 ;;
               "service-deploy-prod")
                 ENV="prod"
@@ -179,9 +179,9 @@ jobs:
 
           echo "environment=${ENV}" >> $GITHUB_OUTPUT
           echo "ecr_registry=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com" >> $GITHUB_OUTPUT
-          echo "k8s_branch=k8s-deploy-${ENV}" >> $GITHUB_OUTPUT
+          echo "k8s_branch=k8s-deploy-dev" >> $GITHUB_OUTPUT
 
-          if [ "${ENV}" = "dev" ]; then
+          if [ "${ENV}" = "develop" ]; then
             echo "namespace=wealist-dev" >> $GITHUB_OUTPUT
           else
             echo "namespace=wealist-prod" >> $GITHUB_OUTPUT
