@@ -469,3 +469,19 @@ storage-service:
 video-service:
   config:
     DB_NAME: "wealist"
+
+# -----------------------------------------------------------------------------
+# ECR Token Refresher (Kind 클러스터용)
+# -----------------------------------------------------------------------------
+# ECR 토큰은 12시간마다 만료됨. 이 CronJob이 6시간마다 갱신.
+# 사전 요구사항: aws-credentials Secret이 있어야 함
+# kubectl create secret generic aws-credentials \
+#   --from-literal=AWS_ACCESS_KEY_ID=<your-key> \
+#   --from-literal=AWS_SECRET_ACCESS_KEY=<your-secret> \
+#   -n wealist-dev
+ecrTokenRefresher:
+  enabled: true
+  awsSecretName: "aws-credentials"
+  secretName: "ecr-secret"
+  ecrRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
+  awsRegion: "ap-northeast-2"
