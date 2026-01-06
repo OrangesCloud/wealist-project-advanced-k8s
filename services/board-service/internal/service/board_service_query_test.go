@@ -75,7 +75,7 @@ func TestBoardService_GetBoard(t *testing.T) {
 
 			mockParticipantRepo := &MockParticipantRepository{}
 			logger, _ := zap.NewDevelopment()
-			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, logger)
+			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, nil, logger)
 
 			// When
 			got, err := service.GetBoard(context.Background(), tt.boardID)
@@ -263,7 +263,7 @@ func TestBoardService_GetBoardsByProject_CustomFieldsFilter(t *testing.T) {
 
 			mockParticipantRepo := &MockParticipantRepository{}
 			logger, _ := zap.NewDevelopment()
-			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, logger)
+			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, nil, logger)
 
 			// When
 			got, err := service.GetBoardsByProject(context.Background(), projectID, tt.filters)
@@ -347,7 +347,7 @@ func TestBoardService_DeleteBoard(t *testing.T) {
 
 			mockParticipantRepo := &MockParticipantRepository{}
 			logger, _ := zap.NewDevelopment()
-			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, logger)
+			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, nil, logger)
 
 			// When
 			err := service.DeleteBoard(context.Background(), tt.boardID)
@@ -491,7 +491,7 @@ func TestBoardService_GetBoardsByProject_WithParticipantIDs(t *testing.T) {
 
 			mockParticipantRepo := &MockParticipantRepository{}
 			logger, _ := zap.NewDevelopment()
-			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, logger)
+			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, nil, logger)
 
 			// When
 			got, err := service.GetBoardsByProject(context.Background(), projectID, nil)
