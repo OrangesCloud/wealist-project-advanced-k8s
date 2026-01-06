@@ -23,6 +23,7 @@ type Config struct {
 	Kubernetes KubernetesConfig `yaml:"kubernetes"`
 	RateLimit  RateLimitConfig  `yaml:"rate_limit"`
 	Prometheus PrometheusConfig `yaml:"prometheus"`
+	Loki       LokiConfig       `yaml:"loki"`
 }
 
 // PrometheusConfig holds Prometheus API configuration
@@ -30,6 +31,13 @@ type PrometheusConfig struct {
 	BaseURL   string        `yaml:"base_url"`
 	Timeout   time.Duration `yaml:"timeout"`
 	Namespace string        `yaml:"namespace"` // Namespace to query metrics for
+}
+
+// LokiConfig holds Loki API configuration
+type LokiConfig struct {
+	BaseURL   string        `yaml:"base_url"`
+	Timeout   time.Duration `yaml:"timeout"`
+	Namespace string        `yaml:"namespace"` // Namespace to query logs for
 }
 
 // ServerConfig holds server configuration
@@ -178,6 +186,11 @@ func getDefaultConfig() Config {
 			Timeout:   10 * time.Second,
 			Namespace: "wealist-prod",
 		},
+		Loki: LokiConfig{
+			BaseURL:   "http://loki:3100",
+			Timeout:   30 * time.Second,
+			Namespace: "wealist-prod",
+		},
 	}
 }
 
@@ -308,6 +321,14 @@ func (c *Config) overrideFromEnv() {
 	}
 	if prometheusNS := os.Getenv("PROMETHEUS_NAMESPACE"); prometheusNS != "" {
 		c.Prometheus.Namespace = prometheusNS
+	}
+
+	// Loki
+	if lokiURL := os.Getenv("LOKI_URL"); lokiURL != "" {
+		c.Loki.BaseURL = lokiURL
+	}
+	if lokiNS := os.Getenv("LOKI_NAMESPACE"); lokiNS != "" {
+		c.Loki.Namespace = lokiNS
 	}
 }
 

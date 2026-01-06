@@ -39,6 +39,8 @@ type Config struct {
 	ServiceName      string
 	PrometheusClient *client.PrometheusClient
 	PrometheusNS     string
+	LokiClient       *client.LokiClient
+	LokiNS           string
 }
 
 // Setup sets up the router with all routes
@@ -114,6 +116,9 @@ func Setup(cfg Config) *gin.Engine {
 	configHandler := handler.NewConfigHandler(configService)
 	argoCDHandler := handler.NewArgoCDHandler(argoCDService, cfg.Logger)
 	metricsHandler := handler.NewMetricsHandler(cfg.PrometheusClient, cfg.PrometheusNS, cfg.Logger)
+	errorTrackerHandler := handler.NewErrorTrackerHandler(cfg.PrometheusClient, cfg.PrometheusNS, cfg.Logger)
+	sloHandler := handler.NewSLOHandler(cfg.PrometheusClient, cfg.PrometheusNS, cfg.Logger)
+	logsHandler := handler.NewLogsHandler(cfg.LokiClient, cfg.LokiNS, cfg.Logger)
 
 	// API routes group
 	api := r.Group(cfg.BasePath)
@@ -225,6 +230,24 @@ func Setup(cfg Config) *gin.Engine {
 		monitoring.GET("/metrics/services", metricsHandler.GetServiceMetrics)
 		monitoring.GET("/metrics/services/:serviceName", metricsHandler.GetServiceDetail)
 		monitoring.GET("/metrics/cluster", metricsHandler.GetClusterMetrics)
+
+		// Error Tracker
+		monitoring.GET("/errors/overview", errorTrackerHandler.GetErrorOverview)
+		monitoring.GET("/errors/recent", errorTrackerHandler.GetRecentErrors)
+		monitoring.GET("/errors/trend", errorTrackerHandler.GetErrorTrend)
+		monitoring.GET("/errors/by-service", errorTrackerHandler.GetErrorsByService)
+
+		// SLO Dashboard
+		monitoring.GET("/slo/overview", sloHandler.GetSLOOverview)
+		monitoring.GET("/slo/burn-rates", sloHandler.GetBurnRates)
+
+		// Deployment History
+		monitoring.GET("/deployments/history", argoCDHandler.GetDeploymentHistory)
+		monitoring.GET("/deployments/:appName/history", argoCDHandler.GetApplicationDeploymentHistory)
+
+		// Logs Viewer
+		monitoring.GET("/logs", logsHandler.GetLogs)
+		monitoring.GET("/logs/services", logsHandler.GetServices)
 	}
 
 	// ============================================================
