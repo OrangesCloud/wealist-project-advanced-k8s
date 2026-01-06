@@ -442,12 +442,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       />
 
       {/* 빌드 버전 정보 (우측 하단) */}
-      <div
-        className="fixed bottom-2 right-3 text-xs text-gray-400 z-10 select-none"
-        title={`Build: ${window.__ENV__?.VERSION || __BUILD_NUMBER__}-${window.__ENV__?.BUILD_SHA || __BUILD_SHA__}\nTime: ${window.__ENV__?.BUILD_TIME || __BUILD_TIME__}`}
-      >
-        All rights reserved Oranges 2025-2026 • {window.__ENV__?.VERSION || `v${__BUILD_NUMBER__}`}-{(window.__ENV__?.BUILD_SHA || __BUILD_SHA__).slice(0, 7)}
-      </div>
+      {(() => {
+        const env = (window as { __ENV__?: { VERSION?: string; BUILD_SHA?: string; BUILD_TIME?: string } }).__ENV__;
+        const version = env?.VERSION || __BUILD_NUMBER__;
+        const sha = env?.BUILD_SHA || __BUILD_SHA__;
+        const time = env?.BUILD_TIME || __BUILD_TIME__;
+        return (
+          <div
+            className="fixed bottom-2 right-3 text-xs text-gray-400 z-10 select-none"
+            title={`Build: ${version}-${sha}\nTime: ${time}`}
+          >
+            All rights reserved Oranges 2025-2026 • {env?.VERSION || `v${__BUILD_NUMBER__}`}-{sha.slice(0, 7)}
+          </div>
+        );
+      })()}
     </div>
   );
 };
