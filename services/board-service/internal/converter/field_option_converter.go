@@ -24,6 +24,11 @@ type FieldOptionConverter interface {
 	// Output: {"importance": "high", "stage": "in_progress"}
 	ConvertIDsToValues(ctx context.Context, customFields map[string]interface{}) (map[string]interface{}, error)
 
+	// ConvertIDsToLabels converts customFields from UUIDs to display labels (Korean)
+	// Input: {"importance": "uuid-1", "stage": "uuid-2"}
+	// Output: {"importance": "높음", "stage": "진행중"}
+	ConvertIDsToLabels(ctx context.Context, customFields map[string]interface{}) (map[string]interface{}, error)
+
 	// ConvertIDsToValuesBatch converts customFields for multiple boards efficiently
 	ConvertIDsToValuesBatch(ctx context.Context, boards []*domain.Board) error
 }
@@ -134,6 +139,66 @@ func (c *fieldOptionConverterImpl) ConvertIDsToValues(
 			result[fieldType] = val
 		} else {
 			// Field option not found, return empty string
+			result[fieldType] = ""
+		}
+	}
+
+	return result, nil
+}
+
+// ConvertIDsToLabels converts customFields from UUIDs to display labels (Korean)
+func (c *fieldOptionConverterImpl) ConvertIDsToLabels(
+	ctx context.Context,
+	customFields map[string]interface{},
+) (map[string]interface{}, error) {
+	if customFields == nil || len(customFields) == 0 {
+		return customFields, nil
+	}
+
+	result := make(map[string]interface{})
+
+	// Collect all UUIDs
+	var ids []uuid.UUID
+	idToFieldType := make(map[string]string)
+
+	for fieldType, value := range customFields {
+		idStr, ok := value.(string)
+		if !ok {
+			result[fieldType] = value
+			continue
+		}
+
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			result[fieldType] = value
+			continue
+		}
+
+		ids = append(ids, id)
+		idToFieldType[id.String()] = fieldType
+	}
+
+	if len(ids) == 0 {
+		return customFields, nil
+	}
+
+	// Batch query: SELECT * FROM field_options WHERE id IN (...)
+	options, err := c.fieldOptionRepo.FindByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find field options by IDs: %w", err)
+	}
+
+	// Create ID → label mapping (use Label instead of Value)
+	idToLabel := make(map[string]string)
+	for _, option := range options {
+		idToLabel[option.ID.String()] = option.Label
+	}
+
+	// Convert
+	for idStr, fieldType := range idToFieldType {
+		if label, exists := idToLabel[idStr]; exists {
+			result[fieldType] = label
+		} else {
 			result[fieldType] = ""
 		}
 	}
