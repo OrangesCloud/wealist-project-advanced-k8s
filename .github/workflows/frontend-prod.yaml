@@ -218,3 +218,118 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ===========================================================================
+  # Job 3: Discord Notification
+  # ===========================================================================
+  notify-discord:
+    name: Notify Discord
+    runs-on: ubuntu-latest
+    needs: [deploy, create-release]
+    if: always()
+
+    steps:
+      - name: Prepare version info
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG_NAME#frontend-}"
+          else
+            VERSION="v${{ inputs.version }}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Send Discord notification - Success
+        if: needs.deploy.result == 'success'
+        env:
+          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1457744189000257671/5k1vpbTuJY9fOVYiRCiZ7E3hzAiD_VK-o8aXcurar2shAJsqmryfXSgTn4A61wY0k72v"
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          VERSION="${{ steps.version.outputs.version }}"
+
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d '{
+                 "embeds": [{
+                   "title": "🚀 Frontend Production 배포 완료",
+                   "description": "프로덕션 배포가 성공적으로 완료되었습니다",
+                   "color": 3066993,
+                   "fields": [
+                     {
+                       "name": "🌍 Environment",
+                       "value": "**Production**",
+                       "inline": true
+                     },
+                     {
+                       "name": "📦 Version",
+                       "value": "`'"${VERSION}"'`",
+                       "inline": true
+                     },
+                     {
+                       "name": "🔗 Commit",
+                       "value": "[`'"${SHORT_SHA}"'`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
+                       "inline": true
+                     },
+                     {
+                       "name": "🌐 URL",
+                       "value": "[wealist.co.kr](https://wealist.co.kr)",
+                       "inline": true
+                     },
+                     {
+                       "name": "👤 Triggered by",
+                       "value": "${{ github.actor }}",
+                       "inline": true
+                     }
+                   ],
+                   "footer": {
+                     "text": "GitHub Actions • Run #${{ github.run_number }}"
+                   },
+                   "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
+                 }]
+               }' \
+               "$DISCORD_WEBHOOK"
+
+      - name: Send Discord notification - Failure
+        if: needs.deploy.result == 'failure'
+        env:
+          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1457744189000257671/5k1vpbTuJY9fOVYiRCiZ7E3hzAiD_VK-o8aXcurar2shAJsqmryfXSgTn4A61wY0k72v"
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d '{
+                 "embeds": [{
+                   "title": "❌ Frontend Production 배포 실패",
+                   "description": "프로덕션 배포에서 오류가 발생했습니다",
+                   "color": 15158332,
+                   "fields": [
+                     {
+                       "name": "🌍 Environment",
+                       "value": "**Production**",
+                       "inline": true
+                     },
+                     {
+                       "name": "🔗 Commit",
+                       "value": "[`'"${SHORT_SHA}"'`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
+                       "inline": true
+                     },
+                     {
+                       "name": "👤 Triggered by",
+                       "value": "${{ github.actor }}",
+                       "inline": true
+                     },
+                     {
+                       "name": "🔍 Details",
+                       "value": "[View Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+                       "inline": false
+                     }
+                   ],
+                   "footer": {
+                     "text": "GitHub Actions • Run #${{ github.run_number }}"
+                   },
+                   "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
+                 }]
+               }' \
+               "$DISCORD_WEBHOOK"

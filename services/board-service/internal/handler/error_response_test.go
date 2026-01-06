@@ -95,7 +95,7 @@ func TestErrorResponseConsistency(t *testing.T) {
 			name: "Board: 잘못된 UUID",
 			setupHandler: func() (*gin.Engine, string, string, []byte) {
 				mockService := &MockBoardService{}
-				handler := NewBoardHandler(mockService)
+				handler := NewBoardHandler(mockService, nil)
 				router := setupTestRouter()
 				router.GET("/api/boards/:boardId", handler.GetBoard)
 				return router, http.MethodGet, "/api/boards/invalid-uuid", nil
@@ -110,7 +110,7 @@ func TestErrorResponseConsistency(t *testing.T) {
 				mockService.GetBoardFunc = func(ctx context.Context, boardID uuid.UUID) (*dto.BoardDetailResponse, error) {
 					return nil, response.NewAppError(response.ErrCodeNotFound, "Board not found", "")
 				}
-				handler := NewBoardHandler(mockService)
+				handler := NewBoardHandler(mockService, nil)
 				router := setupTestRouter()
 				router.GET("/api/boards/:boardId", handler.GetBoard)
 				return router, http.MethodGet, "/api/boards/" + uuid.New().String(), nil
@@ -122,7 +122,7 @@ func TestErrorResponseConsistency(t *testing.T) {
 			name: "Board: 잘못된 CustomFields JSON",
 			setupHandler: func() (*gin.Engine, string, string, []byte) {
 				mockService := &MockBoardService{}
-				handler := NewBoardHandler(mockService)
+				handler := NewBoardHandler(mockService, nil)
 				router := setupTestRouter()
 				router.GET("/api/boards/project/:projectId", handler.GetBoardsByProject)
 				return router, http.MethodGet, "/api/boards/project/" + uuid.New().String() + "?customFields=invalid-json", nil
@@ -137,7 +137,7 @@ func TestErrorResponseConsistency(t *testing.T) {
 				mockService.GetBoardsByProjectFunc = func(ctx context.Context, projectID uuid.UUID, filters *dto.BoardFilters) ([]*dto.BoardResponse, error) {
 					return nil, response.NewAppError(response.ErrCodeNotFound, "Project not found", "")
 				}
-				handler := NewBoardHandler(mockService)
+				handler := NewBoardHandler(mockService, nil)
 				router := setupTestRouter()
 				router.GET("/api/boards/project/:projectId", handler.GetBoardsByProject)
 				return router, http.MethodGet, "/api/boards/project/" + uuid.New().String(), nil
@@ -149,7 +149,7 @@ func TestErrorResponseConsistency(t *testing.T) {
 			name: "Board: 잘못된 요청 본문",
 			setupHandler: func() (*gin.Engine, string, string, []byte) {
 				mockService := &MockBoardService{}
-				handler := NewBoardHandler(mockService)
+				handler := NewBoardHandler(mockService, nil)
 				router := setupTestRouter()
 				router.POST("/api/boards", handler.CreateBoard)
 				return router, http.MethodPost, "/api/boards", []byte("invalid json")
@@ -300,7 +300,7 @@ func TestSuccessResponseConsistency(t *testing.T) {
 						CustomFields: req.CustomFields,
 					}, nil
 				}
-				handler := NewBoardHandler(mockService)
+				handler := NewBoardHandler(mockService, nil)
 				router := setupTestRouter()
 				router.POST("/api/boards", handler.CreateBoard)
 
@@ -332,7 +332,7 @@ func TestSuccessResponseConsistency(t *testing.T) {
 						},
 					}, nil
 				}
-				handler := NewBoardHandler(mockService)
+				handler := NewBoardHandler(mockService, nil)
 				router := setupTestRouter()
 				router.GET("/api/boards/project/:projectId", handler.GetBoardsByProject)
 				return router, http.MethodGet, "/api/boards/project/" + uuid.New().String(), nil

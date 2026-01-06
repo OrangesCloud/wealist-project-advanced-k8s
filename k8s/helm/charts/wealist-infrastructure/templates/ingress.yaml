@@ -93,14 +93,6 @@ spec:
                 port:
                   number: 8003
 
-          - path: /svc/video(/|$)(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: video-service
-                port:
-                  number: 8004
-
           # LiveKit WebRTC
           - path: /svc/livekit(/|$)(.*)
             pathType: ImplementationSpecific

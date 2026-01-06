@@ -26,7 +26,7 @@
 
 ## Highlights
 
-- **7개 백엔드 서비스** - 6 Go + 1 Spring Boot (auth)
+- **6개 백엔드 서비스** - 5 Go + 1 Spring Boot (auth)
 - **Frontend** - React + Vite (S3 + CloudFront 별도 배포)
 - **Kubernetes + Helm + ArgoCD** - GitOps 기반 배포 자동화
 - **Prometheus + Loki + Grafana** - 통합 모니터링/로깅
@@ -52,7 +52,6 @@
 | **chat-service**    | Go + Gin      | 8001 | 실시간 채팅 (WebSocket)  |
 | **noti-service**    | Go + Gin      | 8002 | 알림 (SSE)               |
 | **storage-service** | Go + Gin      | 8003 | 파일 스토리지 (S3)       |
-| **video-service**   | Go + Gin      | 8004 | 영상통화 (LiveKit)       |
 | **frontend**        | React + Vite  | -    | Web UI (S3 + CloudFront) |
 
 ---

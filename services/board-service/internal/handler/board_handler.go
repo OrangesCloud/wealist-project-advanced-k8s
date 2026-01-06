@@ -319,7 +319,11 @@ func (h *BoardHandler) UpdateBoard(c *gin.Context) {
 	BroadcastEvent(board.ProjectID.String(), event)
 
 	// 🔥 알림 전송 (비동기 - 실패해도 응답에 영향 없음)
-	go h.sendBoardNotifications(c.Request.Context(), log, oldBoard, board, oldAssigneeID, req.AssigneeID)
+	var oldBoardResponse *dto.BoardResponse
+	if oldBoard != nil {
+		oldBoardResponse = &oldBoard.BoardResponse
+	}
+	go h.sendBoardNotifications(c.Request.Context(), log, oldBoardResponse, board, oldAssigneeID, req.AssigneeID)
 }
 
 // sendBoardNotifications sends notifications for board updates

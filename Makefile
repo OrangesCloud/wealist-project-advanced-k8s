@@ -41,5 +41,5 @@ help: ## Display this help
 	@echo "  \033[36m<service>-all\033[0m             Build, push, and redeploy"
 	@echo ""
 	@echo "  Services: auth-service, board-service, chat-service, frontend,"
-	@echo "            noti-service, storage-service, user-service, video-service"
+	@echo "            noti-service, storage-service, user-service"
 	@echo ""

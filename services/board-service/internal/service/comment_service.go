@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	"project-board-api/internal/client"
 	"project-board-api/internal/domain"
 	"project-board-api/internal/dto"
 	"project-board-api/internal/repository"
@@ -26,18 +27,30 @@ type CommentService interface {
 type commentServiceImpl struct {
 	commentRepo    repository.CommentRepository
 	boardRepo      repository.BoardRepository
+	projectRepo    repository.ProjectRepository
 	attachmentRepo repository.AttachmentRepository
 	s3Client       S3Client
+	notiClient     client.NotiClient
 	logger         *zap.Logger
 }
 
 // NewCommentService creates a new instance of CommentService
-func NewCommentService(commentRepo repository.CommentRepository, boardRepo repository.BoardRepository, attachmentRepo repository.AttachmentRepository, s3Client S3Client, logger *zap.Logger) CommentService {
+func NewCommentService(
+	commentRepo repository.CommentRepository,
+	boardRepo repository.BoardRepository,
+	projectRepo repository.ProjectRepository,
+	attachmentRepo repository.AttachmentRepository,
+	s3Client S3Client,
+	notiClient client.NotiClient,
+	logger *zap.Logger,
+) CommentService {
 	return &commentServiceImpl{
 		commentRepo:    commentRepo,
 		boardRepo:      boardRepo,
+		projectRepo:    projectRepo,
 		attachmentRepo: attachmentRepo,
 		s3Client:       s3Client,
+		notiClient:     notiClient,
 		logger:         logger,
 	}
 }
@@ -47,8 +60,8 @@ func (s *commentServiceImpl) CreateComment(ctx context.Context, userID uuid.UUID
 	// Filter out zero/nil UUIDs from attachment IDs (handles frontend sending null values)
 	validAttachmentIDs := filterValidUUIDs(req.AttachmentIDs)
 
-	// Verify board exists
-	_, err := s.boardRepo.FindByID(ctx, req.BoardID)
+	// Verify board exists and get board info for notification
+	board, err := s.boardRepo.FindByID(ctx, req.BoardID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, response.NewAppError(response.ErrCodeNotFound, "Board not found", "")
@@ -114,6 +127,11 @@ func (s *commentServiceImpl) CreateComment(ctx context.Context, userID uuid.UUID
 
 	// 생성된 Attachments를 Comment 객체에 할당 (타입 변환 적용)
 	comment.Attachments = toDomainAttachments(createdAttachments)
+
+	// Send notification to assignee if they're not the comment author
+	if board.AssigneeID != nil && *board.AssigneeID != userID {
+		s.sendCommentNotification(ctx, board, comment, userID)
+	}
 
 	// Convert to response DTO
 	return s.toCommentResponse(comment), nil
@@ -362,4 +380,54 @@ func (s *commentServiceImpl) deleteAttachmentsWithS3(ctx context.Context, attach
 				zap.Error(err))
 		}
 	}
+}
+
+// sendCommentNotification sends a COMMENT_ADDED notification to the board assignee
+// This is called asynchronously (in a goroutine) so notification failures don't affect the main business logic
+func (s *commentServiceImpl) sendCommentNotification(ctx context.Context, board *domain.Board, comment *domain.Comment, actorID uuid.UUID) {
+	if s.notiClient == nil || board.AssigneeID == nil {
+		return
+	}
+
+	// Get project info for workspace ID
+	project, err := s.projectRepo.FindByID(ctx, board.ProjectID)
+	if err != nil {
+		s.logger.Warn("Failed to get project for comment notification",
+			zap.String("board.id", board.ID.String()),
+			zap.Error(err))
+		return
+	}
+
+	// Truncate comment content for notification preview (max 100 chars)
+	contentPreview := comment.Content
+	if len(contentPreview) > 100 {
+		contentPreview = contentPreview[:100] + "..."
+	}
+
+	event := &client.NotificationEvent{
+		Type:         client.NotificationTypeCommentAdded,
+		ActorID:      actorID,
+		TargetUserID: *board.AssigneeID,
+		WorkspaceID:  project.WorkspaceID,
+		ResourceType: client.ResourceTypeBoard,
+		ResourceID:   board.ID,
+		ResourceName: &board.Title,
+		Metadata: map[string]interface{}{
+			"projectId":      board.ProjectID.String(),
+			"projectName":    project.Name,
+			"commentId":      comment.ID.String(),
+			"commentPreview": contentPreview,
+		},
+	}
+
+	// Send notification asynchronously
+	go func() {
+		// Use background context to avoid cancellation when request completes
+		if err := s.notiClient.SendNotification(context.Background(), event); err != nil {
+			s.logger.Warn("Failed to send comment notification",
+				zap.String("board.id", board.ID.String()),
+				zap.String("comment.id", comment.ID.String()),
+				zap.Error(err))
+		}
+	}()
 }
