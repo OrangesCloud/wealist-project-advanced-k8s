@@ -283,10 +283,10 @@ export const getAllMyProfiles = async (): Promise<UserProfileResponse[]> => {
  * 내 프로필 정보 통합 업데이트 (닉네임/이메일 등)
  * [API] PUT /api/profiles/me
  * * Header: X-Workspace-Id required
- * * Response: { data: UserProfileResponse }
+ * * Response: UserProfileResponse
  */
 export const updateMyProfile = async (data: UpdateProfileRequest): Promise<UserProfileResponse> => {
-  const response: AxiosResponse<{ data: UserProfileResponse }> = await userRepoClient.put(
+  const response: AxiosResponse<UserProfileResponse> = await userRepoClient.put(
     '/api/profiles/me',
     data,
     {
@@ -295,7 +295,15 @@ export const updateMyProfile = async (data: UpdateProfileRequest): Promise<UserP
       },
     },
   );
-  return response.data.data; // data 필드 추출
+  return response.data;
+};
+
+/**
+ * 워크스페이스별 프로필 삭제 (기본 프로필 사용으로 전환)
+ * [API] DELETE /api/profiles/workspace/{workspaceId}
+ */
+export const deleteWorkspaceProfile = async (workspaceId: string): Promise<void> => {
+  await userRepoClient.delete(`/api/profiles/workspace/${workspaceId}`);
 };
 
 // ========================================
