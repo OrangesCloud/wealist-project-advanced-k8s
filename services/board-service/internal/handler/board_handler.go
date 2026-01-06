@@ -494,7 +494,9 @@ func (h *BoardHandler) MoveBoard(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
+	// 🔔 Create context with user_id for notifications
+	userID, _ := c.Get("user_id")
+	ctx := context.WithValue(c.Request.Context(), "user_id", userID)
 
 	// 🔥 [수정] req.ProjectID를 UUID로 파싱
 	projectID, err := uuid.Parse(req.ProjectID)
