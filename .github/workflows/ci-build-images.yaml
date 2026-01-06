@@ -367,6 +367,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
           # ECR과 buildx 간 인증 문제 방지 (attestation 비활성화)
           provenance: false
+          sbom: false
 
       - name: Output image info
         run: |
