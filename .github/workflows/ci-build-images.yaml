@@ -282,10 +282,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
+        id: login-ecr
         run: |
+          AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
             docker login --username AWS --password-stdin \
-            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+            ${AWS_ACCOUNT_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          echo "registry=${AWS_ACCOUNT_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com" >> $GITHUB_OUTPUT
 
       - name: Set ECR repository name
         id: ecr-repo
@@ -339,7 +342,7 @@ jobs:
           SHORT_SHA=${SHORT_SHA:0:7}
           ENV="${{ needs.detect-changes.outputs.environment }}"
           BUILD_NUMBER="${{ github.run_number }}"
-          ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
           REPO_NAME="${{ steps.ecr-repo.outputs.name }}"
           TAG="${BUILD_NUMBER}-${SHORT_SHA}"
 
