@@ -43,7 +43,7 @@ spec:
                 - name: K6_PROMETHEUS_RW_SERVER_URL
                   value: {{ .Values.k6.prometheus.remoteWriteUrl }}
                 - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
-                  value: "true"
+                  value: "false"
                 - name: BASE_URL
                   value: {{ .Values.k6.endpoints.baseUrl | default "http://istio-ingressgateway.istio-system.svc.cluster.local" }}
                 - name: SVC_PREFIX
@@ -100,7 +100,7 @@ spec:
                 - name: K6_PROMETHEUS_RW_SERVER_URL
                   value: {{ .Values.k6.prometheus.remoteWriteUrl }}
                 - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
-                  value: "true"
+                  value: "false"
                 - name: BASE_URL
                   value: {{ .Values.k6.endpoints.baseUrl | default "http://istio-ingressgateway.istio-system.svc.cluster.local" }}
                 - name: SVC_PREFIX
@@ -162,7 +162,7 @@ spec:
                 - name: K6_PROMETHEUS_RW_SERVER_URL
                   value: {{ .Values.k6.prometheus.remoteWriteUrl }}
                 - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
-                  value: "true"
+                  value: "false"
                 - name: BASE_URL
                   value: {{ .Values.k6.endpoints.baseUrl | default "http://istio-ingressgateway.istio-system.svc.cluster.local" }}
                 - name: SVC_PREFIX
