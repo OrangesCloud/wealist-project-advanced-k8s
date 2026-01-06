@@ -9,52 +9,48 @@ export interface Toast {
   visible: boolean;
 }
 
-interface UseToastOptions {
-  maxToasts?: number;
-  autoHideDelay?: number;
-}
-
 interface UseToastReturn {
   toasts: Toast[];
-  addToast: (notification: Notification) => void;
-  removeToast: (id: string) => void;
+  showToast: (notification: Notification) => void;
+  hideToast: (id: string) => void;
   clearAllToasts: () => void;
 }
 
-export const useToast = ({
-  maxToasts = 5,
-  autoHideDelay = 5000,
-}: UseToastOptions = {}): UseToastReturn => {
+const TOAST_DURATION = 5000; // 5초 후 자동 숨김
+
+export const useToast = (): UseToastReturn => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  const showToast = useCallback((notification: Notification) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // 새 토스트 추가 (visible: true)
+    setToasts((prev) => [...prev, { id, notification, visible: true }]);
+
+    // 5초 후 visible: false로 전환 (애니메이션 시작)
+    setTimeout(() => {
+      setToasts((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, visible: false } : t))
+      );
+    }, TOAST_DURATION);
+
+    // 애니메이션 완료 후 제거 (300ms)
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, TOAST_DURATION + 300);
   }, []);
 
-  const addToast = useCallback(
-    (notification: Notification) => {
-      const id = `toast-${notification.id}-${Date.now()}`;
+  const hideToast = useCallback((id: string) => {
+    // visible: false로 전환 (애니메이션 시작)
+    setToasts((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, visible: false } : t))
+    );
 
-      setToasts((prev) => {
-        // Remove oldest if we've reached max
-        const updated = prev.length >= maxToasts ? prev.slice(1) : prev;
-        return [...updated, { id, notification, visible: true }];
-      });
-
-      // Auto hide after delay
-      setTimeout(() => {
-        setToasts((prev) =>
-          prev.map((toast) => (toast.id === id ? { ...toast, visible: false } : toast)),
-        );
-
-        // Remove from DOM after animation
-        setTimeout(() => {
-          removeToast(id);
-        }, 300);
-      }, autoHideDelay);
-    },
-    [maxToasts, autoHideDelay, removeToast],
-  );
+    // 애니메이션 완료 후 제거
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 300);
+  }, []);
 
   const clearAllToasts = useCallback(() => {
     setToasts([]);
@@ -62,8 +58,8 @@ export const useToast = ({
 
   return {
     toasts,
-    addToast,
-    removeToast,
+    showToast,
+    hideToast,
     clearAllToasts,
   };
 };
