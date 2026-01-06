@@ -14,6 +14,7 @@ import (
 type MockFieldOptionConverter struct {
 	ConvertValuesToIDsFunc      func(ctx context.Context, projectID uuid.UUID, customFields map[string]interface{}) (map[string]interface{}, error)
 	ConvertIDsToValuesFunc      func(ctx context.Context, customFields map[string]interface{}) (map[string]interface{}, error)
+	ConvertIDsToLabelsFunc      func(ctx context.Context, customFields map[string]interface{}) (map[string]interface{}, error)
 	ConvertIDsToValuesBatchFunc func(ctx context.Context, boards []*domain.Board) error
 }
 
@@ -28,6 +29,14 @@ func (m *MockFieldOptionConverter) ConvertValuesToIDs(ctx context.Context, proje
 func (m *MockFieldOptionConverter) ConvertIDsToValues(ctx context.Context, customFields map[string]interface{}) (map[string]interface{}, error) {
 	if m.ConvertIDsToValuesFunc != nil {
 		return m.ConvertIDsToValuesFunc(ctx, customFields)
+	}
+	// Default: return as-is (no conversion)
+	return customFields, nil
+}
+
+func (m *MockFieldOptionConverter) ConvertIDsToLabels(ctx context.Context, customFields map[string]interface{}) (map[string]interface{}, error) {
+	if m.ConvertIDsToLabelsFunc != nil {
+		return m.ConvertIDsToLabelsFunc(ctx, customFields)
 	}
 	// Default: return as-is (no conversion)
 	return customFields, nil

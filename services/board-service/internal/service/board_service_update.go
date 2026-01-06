@@ -228,9 +228,9 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 			_ = json.Unmarshal(board.CustomFields, &newCustomFields)
 		}
 
-		// Convert UUIDs to human-readable values for notification display
-		originalReadable, _ := s.fieldOptionConverter.ConvertIDsToValues(ctx, originalCustomFields)
-		newReadable, _ := s.fieldOptionConverter.ConvertIDsToValues(ctx, newCustomFields)
+		// Convert UUIDs to human-readable labels (Korean) for notification display
+		originalReadable, _ := s.fieldOptionConverter.ConvertIDsToLabels(ctx, originalCustomFields)
+		newReadable, _ := s.fieldOptionConverter.ConvertIDsToLabels(ctx, newCustomFields)
 
 		for key, newVal := range newCustomFields {
 			oldVal, existed := originalCustomFields[key]
