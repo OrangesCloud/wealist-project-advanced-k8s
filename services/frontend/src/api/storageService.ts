@@ -213,7 +213,22 @@ export const getFolderContents = async (
     await storageServiceClient.get('/storage/folders/contents', {
       params: { workspaceId, folderId },
     });
-  return response.data.data;
+  // API 응답이 null/undefined인 경우 빈 children/files 배열을 가진 기본 객체 반환
+  return response.data.data ?? ({
+    id: '',
+    workspaceId,
+    name: '',
+    path: '/',
+    createdBy: '',
+    createdAt: '',
+    updatedAt: '',
+    isDeleted: false,
+    children: [],
+    files: [],
+    fileCount: 0,
+    folderCount: 0,
+    totalSize: 0,
+  } as FolderContentsResponse);
 };
 
 /**
@@ -236,7 +251,22 @@ export const getRootContents = async (workspaceId: string): Promise<FolderConten
     await storageServiceClient.get('/storage/folders/contents', {
       params: { workspaceId },
     });
-  return response.data.data;
+  // API 응답이 null/undefined인 경우 빈 children/files 배열을 가진 기본 객체 반환
+  return response.data.data ?? ({
+    id: '',
+    workspaceId,
+    name: '',
+    path: '/',
+    createdBy: '',
+    createdAt: '',
+    updatedAt: '',
+    isDeleted: false,
+    children: [],
+    files: [],
+    fileCount: 0,
+    folderCount: 0,
+    totalSize: 0,
+  } as FolderContentsResponse);
 };
 
 /**
