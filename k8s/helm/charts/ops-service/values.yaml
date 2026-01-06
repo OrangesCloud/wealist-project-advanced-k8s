@@ -55,6 +55,10 @@ config:
   # ARGOCD_SERVER_URL: "https://argocd.wealist.co.kr"
   # ARGOCD_TOKEN is set via secret
 
+  # Prometheus API (for metrics dashboard)
+  PROMETHEUS_URL: ""
+  PROMETHEUS_NAMESPACE: "wealist-prod"
+
 # -----------------------------------------------------------------------------
 # Secrets (DO NOT COMMIT ACTUAL VALUES)
 # -----------------------------------------------------------------------------
