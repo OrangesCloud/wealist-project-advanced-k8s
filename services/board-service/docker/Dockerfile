@@ -40,7 +40,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GOWORK=off go build -ldflags="-w -s" -o board-api ./cmd/api
 
 # Runtime stage
-FROM alpine:3.20
+FROM debian:oldstable-20251229-slim
 
 # Install runtime dependencies
 RUN apk --no-cache add ca-certificates tzdata wget
