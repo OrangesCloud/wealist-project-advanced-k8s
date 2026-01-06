@@ -231,9 +231,11 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
   const handleCreateFolder = useCallback(
     async (name: string, color?: string) => {
       try {
+        // 현재는 보드 프로젝트 ID를 스토리지 서비스에서 인식하지 못하므로
+        // projectId 없이 개인 드라이브에 폴더 생성
         await createFolder({
           workspaceId: currentWorkspaceId,
-          projectId: currentProject?.projectId,
+          // projectId: currentProject?.projectId, // 추후 스토리지-보드 프로젝트 연동 시 활성화
           parentId: currentFolderId || undefined,
           name,
           color,
@@ -244,7 +246,7 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
         setError('폴더 생성에 실패했습니다.');
       }
     },
-    [currentWorkspaceId, currentProject, currentFolderId, loadContents],
+    [currentWorkspaceId, currentFolderId, loadContents],
   );
 
   // 프로젝트 선택 (보드 서비스 프로젝트와 1:1 매핑)
