@@ -57,3 +57,4 @@ data:
     g, ressk4149@gmail.com, role:admin
     g, fbaudwo144@gmail.com, role:admin
     g, 212clab@gmail.com, role:admin
+  scopes: '[email]'

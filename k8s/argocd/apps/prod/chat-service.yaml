@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/chat-service"
         - name: image.tag
-          value: "93-5e92cda"
+          value: "121-2647a99"
         - name: externalSecrets.enabled
           value: "true"
         # Service-specific config (managed here, not in prod.yaml)
