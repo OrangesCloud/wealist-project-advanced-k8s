@@ -35,6 +35,10 @@ spec:
         {{- else }}
         version: stable
         {{- end }}
+        {{/* Additional pod labels (e.g., stage: prod for Kyverno policy) */}}
+        {{- if .Values.podLabels }}
+        {{- toYaml .Values.podLabels | nindent 8 }}
+        {{- end }}
       annotations:
         {{- if .Values.podAnnotations }}
         {{- toYaml .Values.podAnnotations | nindent 8 }}
