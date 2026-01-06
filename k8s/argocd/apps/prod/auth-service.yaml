@@ -36,6 +36,10 @@ spec:
         # 고가용성: 핵심 인증 서비스는 minReplicas: 3 유지
         - name: autoscaling.minReplicas
           value: "3"
+        # [임시] 부하 테스트용 토큰 발급 엔드포인트 활성화
+        # TODO: 테스트 완료 후 반드시 제거할 것!
+        - name: config.ENABLE_TEST_AUTH
+          value: "true"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-prod
