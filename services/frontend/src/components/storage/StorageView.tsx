@@ -288,13 +288,70 @@ export const StorageView: React.FC<StorageViewProps> = ({
     const emptyState = emptyMessages[activeSection] || emptyMessages['my-drive'];
 
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white">
+      <div
+        className="flex-1 flex flex-col items-center justify-center p-8 bg-white"
+        onContextMenu={handleBackgroundContextMenu}
+      >
         {emptyState.icon}
         <h3 className="text-base text-[#3c4043] text-center max-w-md">{emptyState.title}</h3>
         {emptyState.description && (
           <p className="mt-2 text-sm text-[#5f6368] text-center max-w-md">
             {emptyState.description}
           </p>
+        )}
+
+        {/* 빈 상태에서 파일/폴더 추가 버튼 (휴지통 제외) */}
+        {!isTrash && canEdit && activeSection === 'my-drive' && (
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={onNewFolder}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:shadow-sm transition-all text-sm font-medium text-gray-700"
+            >
+              <FolderPlus className="w-5 h-5 text-blue-500" />
+              새 폴더
+            </button>
+            <button
+              onClick={onUpload}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 hover:shadow-sm transition-all text-sm font-medium"
+            >
+              <ImagePlus className="w-5 h-5" />
+              파일 추가
+            </button>
+          </div>
+        )}
+
+        {/* 컨텍스트 메뉴 */}
+        {contextMenu && (
+          <div
+            ref={contextMenuRef}
+            className="fixed bg-white rounded-lg shadow-2xl border border-[#dadce0] py-2 z-50 min-w-[200px]"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            {!isTrash && canEdit && (
+              <>
+                <button
+                  onClick={() => {
+                    onNewFolder();
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
+                >
+                  <FolderPlus className="w-5 h-5 text-[#5f6368]" />
+                  새 폴더
+                </button>
+                <button
+                  onClick={() => {
+                    onUpload();
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
+                >
+                  <ImagePlus className="w-5 h-5 text-[#5f6368]" />
+                  파일 추가
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
     );

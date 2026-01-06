@@ -689,10 +689,17 @@ export const getRecentFiles = async (
   workspaceId: string,
   limit: number = 20,
 ): Promise<StorageFile[]> => {
-  const response: AxiosResponse<SuccessResponse<StorageFile[]>> = await storageServiceClient.get(
+  const response: AxiosResponse<SuccessResponse<StorageFile[] | { files?: StorageFile[] }>> = await storageServiceClient.get(
     `/storage/workspaces/${workspaceId}/files`,
   );
-  const files = response.data.data || [];
+  // 응답 형식에 따라 파일 배열 추출
+  let files: StorageFile[] = [];
+  const data = response.data.data;
+  if (Array.isArray(data)) {
+    files = data;
+  } else if (data && Array.isArray(data.files)) {
+    files = data.files;
+  }
   // 최근 수정된 순으로 정렬 후 limit만큼 반환
   return files
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())

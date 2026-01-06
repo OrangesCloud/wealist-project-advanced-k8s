@@ -252,6 +252,8 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
     setCurrentProject(project);
     setCurrentProjectPermission(permission);
     setCurrentFolderId(null);
+    // 스토리지 선택 시 메인 드라이브 뷰로 이동
+    setActiveSection('my-drive');
     setBreadcrumbs([{ id: null, name: project ? project.name : '내 드라이브', path: '/' }]);
   }, []);
 
