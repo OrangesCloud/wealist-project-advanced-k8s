@@ -546,6 +546,7 @@ k6:
   # Production 환경 라우트: /api/svc/{service} (Kind는 /svc/{service})
   endpoints:
     baseUrl: "http://istio-ingressgateway.istio-system.svc.cluster.local"
+    svcPrefix: "/api/svc"
     services:
       - name: board
         path: /api/svc/board
