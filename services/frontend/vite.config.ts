@@ -1,11 +1,18 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-
 const devHost = process.env.VITE_HOST || '127.0.0.1';
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+
+  // 빌드 정보 환경변수 주입
+  define: {
+    __BUILD_NUMBER__: JSON.stringify(process.env.BUILD_NUMBER || 'local'),
+    __BUILD_SHA__: JSON.stringify(process.env.BUILD_SHA || 'dev'),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
 
   // 💡 HMR 연결 주소와 포트를 설정 (선택 사항이지만 안전합니다)
   server: {
