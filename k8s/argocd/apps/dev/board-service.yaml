@@ -21,11 +21,11 @@ spec:
         - ../../environments/dev.yaml
       parameters:
         - name: global.imageRegistry
-          value: "AKIAUHBOU4ZZ62UGBPOF.dkr.ecr.ap-northeast-2.amazonaws.com"
+          value: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
         - name: image.repository
           value: "board-service"
         - name: image.tag
-          value: "164-6b8acf7"
+          value: "166-6b8acf7"
         - name: imagePullSecrets[0].name
           value: "ecr-secret"
         - name: shared.config.DB_HOST
