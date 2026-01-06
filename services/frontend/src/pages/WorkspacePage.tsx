@@ -76,6 +76,7 @@ const WorkspacePage: React.FC<WorkspacePageProps> = ({ onLogout }) => {
   const [uiState, setUiState] = useState<UIState>({});
   const [editBoardData, setEditBoardData] = useState<any>(null);
   const [editFieldData, setEditFieldData] = useState<any>(null);
+  const [notificationBoardId, setNotificationBoardId] = useState<string | null>(null); // 🔔 알림 클릭 시 열 보드
 
   // 💡 [추가] 초기 옵션 데이터를 저장할 상태 (ProjectContent로 전달)
   const [fieldOptionsLookup, setFieldOptionsLookup] = useState<FieldOptionsLookup>({
@@ -235,7 +236,7 @@ const WorkspacePage: React.FC<WorkspacePageProps> = ({ onLogout }) => {
     [toggleUiState],
   );
 
-  // 알림 클릭 시 해당 프로젝트/보드로 이동
+  // 🔔 알림 클릭 시 해당 프로젝트/보드로 이동
   const handleNotificationClick = useCallback(
     (notification: Notification) => {
       const projectId = notification.metadata?.projectId as string;
@@ -245,15 +246,28 @@ const WorkspacePage: React.FC<WorkspacePageProps> = ({ onLogout }) => {
         // 프로젝트 선택
         const targetProject = projects.find((p) => p.projectId === projectId);
         if (targetProject) {
-          setSelectedProject(targetProject);
+          // 같은 프로젝트면 바로 보드 열기
+          if (selectedProject?.projectId === projectId) {
+            setNotificationBoardId(boardId);
+          } else {
+            // 다른 프로젝트면 프로젝트 선택 후 보드 열기
+            setSelectedProject(targetProject);
+            // localStorage fallback (프로젝트 변경 시 useEffect로 처리됨)
+            localStorage.setItem('pendingBoardId', boardId);
+          }
+        } else {
+          // 프로젝트를 못 찾은 경우 localStorage 사용
+          localStorage.setItem('pendingBoardId', boardId);
         }
-
-        // 보드 ID를 localStorage에 저장 (ProjectContent에서 처리)
-        localStorage.setItem('pendingBoardId', boardId);
       }
     },
-    [projects],
+    [projects, selectedProject],
   );
+
+  // 🔔 알림 보드 처리 완료 핸들러
+  const handleNotificationBoardHandled = useCallback(() => {
+    setNotificationBoardId(null);
+  }, []);
 
   return (
     <MainLayout
@@ -301,6 +315,8 @@ const WorkspacePage: React.FC<WorkspacePageProps> = ({ onLogout }) => {
             showCreateBoard={uiState?.showCreateBoard || false}
             setShowCreateBoard={(show) => toggleUiState('showCreateBoard', show)}
             fieldOptionsLookup={fieldOptionsLookup}
+            notificationBoardId={notificationBoardId}
+            onNotificationBoardHandled={handleNotificationBoardHandled}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">

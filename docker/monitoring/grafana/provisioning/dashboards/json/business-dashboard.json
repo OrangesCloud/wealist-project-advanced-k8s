@@ -20,9 +20,9 @@
       "gridPos": {"h": 5, "w": 4, "x": 0, "y": 1},
       "id": 1,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "users_active_total or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "현재 동시 접속자",
-      "description": "실시간 활성 세션",
+      "targets": [{"expr": "user_service_online_users_total or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Active Users",
+      "description": "Currently active users",
       "type": "stat"
     },
     {
@@ -33,9 +33,9 @@
       "gridPos": {"h": 5, "w": 4, "x": 4, "y": 1},
       "id": 2,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(increase(user_logins_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "DAU (추정)",
-      "description": "일일 로그인 기준 추정치",
+      "targets": [{"expr": "sum(increase(user_service_user_login_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "DAU (Est.)",
+      "description": "Daily Active Users based on logins",
       "type": "stat"
     },
     {
@@ -46,9 +46,9 @@
       "gridPos": {"h": 5, "w": 4, "x": 8, "y": 1},
       "id": 3,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(increase(user_logins_total[30d])) or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "MAU (추정)",
-      "description": "월간 로그인 기준 추정치",
+      "targets": [{"expr": "sum(increase(user_service_user_login_total[30d])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "MAU (Est.)",
+      "description": "Monthly Active Users based on logins",
       "type": "stat"
     },
     {
@@ -59,8 +59,8 @@
       "gridPos": {"h": 5, "w": 4, "x": 12, "y": 1},
       "id": 4,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "users_registered_total or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "전체 회원 수",
+      "targets": [{"expr": "user_service_users_total or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Total Users",
       "type": "stat"
     },
     {
@@ -71,8 +71,8 @@
       "gridPos": {"h": 5, "w": 4, "x": 16, "y": 1},
       "id": 5,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(increase(user_registrations_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "오늘 신규 가입",
+      "targets": [{"expr": "sum(increase(user_service_user_created_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "New Users Today",
       "type": "stat"
     },
     {
@@ -83,8 +83,8 @@
       "gridPos": {"h": 5, "w": 4, "x": 20, "y": 1},
       "id": 6,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "workspaces_total or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "전체 워크스페이스",
+      "targets": [{"expr": "user_service_workspaces_total or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Total Workspaces",
       "type": "stat"
     },
     {
@@ -106,9 +106,9 @@
       "id": 7,
       "options": {"legend": {"calcs": ["sum"], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "sum(increase(user_registrations_total[1d])) or vector(0)", "legendFormat": "신규 가입", "refId": "A"}
+        {"expr": "sum(increase(user_service_user_created_total[1d])) or vector(0)", "legendFormat": "New Users", "refId": "A"}
       ],
-      "title": "일별 신규 회원",
+      "title": "Daily New Users",
       "type": "timeseries"
     },
     {
@@ -124,9 +124,9 @@
       "id": 8,
       "options": {"legend": {"calcs": ["sum"], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "sum(increase(user_registrations_total[7d])) or vector(0)", "legendFormat": "신규 가입", "refId": "A"}
+        {"expr": "sum(increase(user_service_user_created_total[7d])) or vector(0)", "legendFormat": "New Users", "refId": "A"}
       ],
-      "title": "주별 신규 회원",
+      "title": "Weekly New Users",
       "type": "timeseries"
     },
     {
@@ -142,9 +142,9 @@
       "id": 9,
       "options": {"legend": {"calcs": ["sum"], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
       "targets": [
-        {"expr": "sum(increase(user_registrations_total[30d])) or vector(0)", "legendFormat": "신규 가입", "refId": "A"}
+        {"expr": "sum(increase(user_service_user_created_total[30d])) or vector(0)", "legendFormat": "New Users", "refId": "A"}
       ],
-      "title": "월별 신규 회원",
+      "title": "Monthly New Users",
       "type": "timeseries"
     },
     {
@@ -162,7 +162,7 @@
       "id": 10,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [{"expr": "board_service_projects_total or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "전체 프로젝트",
+      "title": "Total Projects",
       "type": "stat"
     },
     {
@@ -174,7 +174,7 @@
       "id": 11,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [{"expr": "board_service_boards_total or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "전체 보드",
+      "title": "Total Boards",
       "type": "stat"
     },
     {
@@ -186,7 +186,7 @@
       "id": 12,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [{"expr": "sum(increase(board_service_project_created_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "오늘 프로젝트 생성",
+      "title": "Projects Today",
       "type": "stat"
     },
     {
@@ -198,7 +198,7 @@
       "id": 13,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [{"expr": "sum(increase(board_service_board_created_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "오늘 보드 생성",
+      "title": "Boards Today",
       "type": "stat"
     },
     {
@@ -214,16 +214,16 @@
       "id": 14,
       "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "sum(increase(board_service_project_created_total[1h])) or vector(0)", "legendFormat": "프로젝트 생성", "refId": "A"},
-        {"expr": "sum(increase(board_service_board_created_total[1h])) or vector(0)", "legendFormat": "보드 생성", "refId": "B"}
+        {"expr": "sum(increase(board_service_project_created_total[1h])) or vector(0)", "legendFormat": "Projects", "refId": "A"},
+        {"expr": "sum(increase(board_service_board_created_total[1h])) or vector(0)", "legendFormat": "Boards", "refId": "B"}
       ],
-      "title": "프로젝트/보드 생성 추이",
+      "title": "Project/Board Creation Trend",
       "type": "timeseries"
     },
     {
       "gridPos": {"h": 1, "w": 24, "x": 0, "y": 29},
       "id": 103,
-      "title": "Chat & Video 서비스",
+      "title": "Chat 서비스",
       "type": "row"
     },
     {
@@ -234,9 +234,9 @@
       "gridPos": {"h": 5, "w": 4, "x": 0, "y": 30},
       "id": 15,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "chat_daily_active_users or websocket_active_connections or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "채팅 사용자",
-      "description": "현재 채팅 접속자",
+      "targets": [{"expr": "chat_service_online_users_total or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Online Users",
+      "description": "Currently connected chat users",
       "type": "stat"
     },
     {
@@ -247,8 +247,8 @@
       "gridPos": {"h": 5, "w": 4, "x": 4, "y": 30},
       "id": 16,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "chat_rooms_active or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "활성 채팅방",
+      "targets": [{"expr": "chat_service_chats_total or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Total Chat Rooms",
       "type": "stat"
     },
     {
@@ -259,8 +259,8 @@
       "gridPos": {"h": 5, "w": 4, "x": 8, "y": 30},
       "id": 17,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(increase(chat_messages_sent_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "오늘 채팅 메시지",
+      "targets": [{"expr": "chat_service_messages_total or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Total Messages",
       "type": "stat"
     },
     {
@@ -271,9 +271,8 @@
       "gridPos": {"h": 5, "w": 4, "x": 12, "y": 30},
       "id": 18,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "video_daily_active_users or video_participants_active or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "비디오 사용자",
-      "description": "현재 화상회의 참가자",
+      "targets": [{"expr": "sum(increase(chat_service_messages_sent_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Messages Today",
       "type": "stat"
     },
     {
@@ -284,8 +283,59 @@
       "gridPos": {"h": 5, "w": 4, "x": 16, "y": 30},
       "id": 19,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "video_rooms_active or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "진행 중 회의",
+      "targets": [{"expr": "chat_service_websocket_connections_active or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "WebSocket Conns",
+      "description": "Active WebSocket connections",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "semi-dark-green", "value": null}]}, "unit": "short"}
+      },
+      "gridPos": {"h": 5, "w": 4, "x": 20, "y": 30},
+      "id": 20,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "sum(increase(chat_service_messages_read_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Messages Read Today",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "unit": "short"
+        }
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 35},
+      "id": 21,
+      "options": {"legend": {"calcs": ["sum", "mean"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"expr": "chat_service_websocket_connections_active or vector(0)", "legendFormat": "WebSocket Connections", "refId": "A"},
+        {"expr": "sum(increase(chat_service_messages_sent_total[5m])) or vector(0)", "legendFormat": "Messages (5min)", "refId": "B"},
+        {"expr": "chat_service_online_users_total or vector(0)", "legendFormat": "Online Users", "refId": "C"}
+      ],
+      "title": "Chat Activity Trend",
+      "type": "timeseries"
+    },
+    {
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 43},
+      "id": 104,
+      "title": "Storage 서비스",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}, "unit": "short"}
+      },
+      "gridPos": {"h": 5, "w": 4, "x": 0, "y": 44},
+      "id": 30,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "storage_service_files_total or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Total Files",
       "type": "stat"
     },
     {
@@ -293,11 +343,59 @@
       "fieldConfig": {
         "defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}
       },
-      "gridPos": {"h": 5, "w": 4, "x": 20, "y": 30},
-      "id": 20,
+      "gridPos": {"h": 5, "w": 4, "x": 4, "y": 44},
+      "id": 31,
       "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"expr": "sum(increase(video_calls_started_total[24h])) or sum(increase(video_participants_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
-      "title": "오늘 회의 참가",
+      "targets": [{"expr": "storage_service_folders_total or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Total Folders",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "purple", "value": null}]}, "unit": "short"}
+      },
+      "gridPos": {"h": 5, "w": 4, "x": 8, "y": 44},
+      "id": 32,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "storage_service_shares_total or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Active Shares",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "orange", "value": null}]}, "unit": "short"}
+      },
+      "gridPos": {"h": 5, "w": 4, "x": 12, "y": 44},
+      "id": 33,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "sum(increase(storage_service_file_upload_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Uploads Today",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "yellow", "value": null}]}, "unit": "short"}
+      },
+      "gridPos": {"h": 5, "w": 4, "x": 16, "y": 44},
+      "id": 34,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "sum(increase(storage_service_file_download_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Downloads Today",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "semi-dark-blue", "value": null}]}, "unit": "bytes"}
+      },
+      "gridPos": {"h": 5, "w": 4, "x": 20, "y": 44},
+      "id": 35,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "storage_service_storage_bytes_total or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Total Storage",
       "type": "stat"
     },
     {
@@ -309,15 +407,71 @@
           "unit": "short"
         }
       },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 35},
-      "id": 21,
-      "options": {"legend": {"calcs": ["sum", "mean"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 49},
+      "id": 36,
+      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "websocket_active_connections or vector(0)", "legendFormat": "채팅 접속자", "refId": "A"},
-        {"expr": "sum(increase(chat_messages_sent_total[5m])) or vector(0)", "legendFormat": "메시지 (5분)", "refId": "B"}
+        {"expr": "sum(increase(storage_service_file_upload_total[1h])) or vector(0)", "legendFormat": "Uploads", "refId": "A"},
+        {"expr": "sum(increase(storage_service_file_download_total[1h])) or vector(0)", "legendFormat": "Downloads", "refId": "B"},
+        {"expr": "sum(increase(storage_service_file_delete_total[1h])) or vector(0)", "legendFormat": "Deletes", "refId": "C"}
       ],
-      "title": "채팅 활동 추이",
+      "title": "Storage Activity Trend",
       "type": "timeseries"
+    },
+    {
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 57},
+      "id": 105,
+      "title": "알림 서비스",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 58},
+      "id": 40,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "noti_service_sse_connections_active_total or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "SSE Connections",
+      "description": "Active real-time notification connections",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}, "unit": "short"}
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 58},
+      "id": 41,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "sum(increase(noti_service_notifications_created_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Notifications Today",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "purple", "value": null}]}, "unit": "short"}
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 58},
+      "id": 42,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "sum(increase(noti_service_notifications_delivered_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Delivered Today",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "orange", "value": null}]}, "unit": "short"}
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 58},
+      "id": 43,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "sum(increase(noti_service_notifications_read_total[24h])) or vector(0)", "legendFormat": "", "refId": "A"}],
+      "title": "Read Today",
+      "type": "stat"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
@@ -328,19 +482,20 @@
           "unit": "short"
         }
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 35},
-      "id": 22,
-      "options": {"legend": {"calcs": ["sum", "mean"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 63},
+      "id": 44,
+      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "video_rooms_active or vector(0)", "legendFormat": "활성 회의", "refId": "A"},
-        {"expr": "video_participants_active or vector(0)", "legendFormat": "회의 참가자", "refId": "B"}
+        {"expr": "noti_service_sse_connections_active_total or vector(0)", "legendFormat": "SSE Connections", "refId": "A"},
+        {"expr": "sum(increase(noti_service_notifications_created_total[5m])) or vector(0)", "legendFormat": "Created (5min)", "refId": "B"},
+        {"expr": "sum(increase(noti_service_notifications_delivered_total[5m])) or vector(0)", "legendFormat": "Delivered (5min)", "refId": "C"}
       ],
-      "title": "화상회의 활동 추이",
+      "title": "Notification Activity Trend",
       "type": "timeseries"
     },
     {
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 43},
-      "id": 104,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 71},
+      "id": 106,
       "title": "워크스페이스 현황",
       "type": "row"
     },
@@ -353,13 +508,13 @@
           "unit": "short"
         }
       },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 44},
-      "id": 23,
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 72},
+      "id": 50,
       "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "sum(increase(workspaces_created_total[1d])) or vector(0)", "legendFormat": "워크스페이스 생성", "refId": "A"}
+        {"expr": "sum(increase(user_service_workspace_created_total[1d])) or vector(0)", "legendFormat": "Workspace Created", "refId": "A"}
       ],
-      "title": "워크스페이스 생성 추이",
+      "title": "Workspace Creation Trend",
       "type": "timeseries"
     },
     {
@@ -371,18 +526,18 @@
           "unit": "short"
         }
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 44},
-      "id": 24,
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 72},
+      "id": 51,
       "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [
-        {"expr": "workspaces_total or vector(0)", "legendFormat": "전체 워크스페이스", "refId": "A"}
+        {"expr": "user_service_workspaces_total or vector(0)", "legendFormat": "Total Workspaces", "refId": "A"}
       ],
-      "title": "전체 워크스페이스 수 추이",
+      "title": "Total Workspaces Trend",
       "type": "timeseries"
     },
     {
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 52},
-      "id": 105,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 80},
+      "id": 107,
       "title": "서비스 안정성 (참고용)",
       "type": "row",
       "collapsed": true,
@@ -392,15 +547,15 @@
           "fieldConfig": {
             "defaults": {
               "color": {"mode": "thresholds"},
-              "mappings": [{"options": {"0": {"color": "red", "index": 1, "text": "장애"}}, "type": "value"}, {"options": {"1": {"color": "green", "index": 0, "text": "정상"}}, "type": "value"}],
+              "mappings": [{"options": {"0": {"color": "red", "index": 1, "text": "Down"}}, "type": "value"}, {"options": {"1": {"color": "green", "index": 0, "text": "Up"}}, "type": "value"}],
               "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
             }
           },
-          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 53},
-          "id": 25,
+          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 81},
+          "id": 60,
           "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
           "targets": [{"expr": "up", "legendFormat": "{{job}}", "refId": "A"}],
-          "title": "서비스 상태",
+          "title": "Service Status",
           "type": "stat"
         }
       ]
@@ -408,12 +563,12 @@
   ],
   "refresh": "30s",
   "schemaVersion": 38,
-  "tags": ["wealist", "business", "기획자", "DAU", "MAU"],
+  "tags": ["wealist", "business", "pm", "dev", "DAU", "MAU"],
   "templating": {"list": []},
   "time": {"from": "now-24h", "to": "now"},
   "timepicker": {},
   "timezone": "browser",
-  "title": "기획자 대시보드 - DAU/MAU & 비즈니스",
-  "uid": "business-dashboard",
-  "version": 2
+  "title": "PM 대시보드 - 서비스 현황",
+  "uid": "pm-business-dashboard",
+  "version": 1
 }

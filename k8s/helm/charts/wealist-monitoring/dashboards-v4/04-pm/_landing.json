@@ -528,81 +528,6 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "현재 서비스 가용 상태",
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "color": "red",
-                  "index": 1,
-                  "text": "🔴 장애"
-                },
-                "1": {
-                  "color": "green",
-                  "index": 0,
-                  "text": "🟢 정상"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 3,
-        "x": 18,
-        "y": 1
-      },
-      "id": 7,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value"
-      },
-      "pluginVersion": "10.2.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "up{job=\"video-service\"}",
-          "refId": "A"
-        }
-      ],
-      "title": "화상회의",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
       "description": "전체 서비스 중 정상 작동 비율",
       "fieldConfig": {
         "defaults": {
@@ -661,7 +586,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * count(up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service|video-service\"} == 1) / count(up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service|video-service\"})",
+          "expr": "100 * count(up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service\"} == 1) / count(up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service\"})",
           "refId": "A"
         }
       ],
@@ -1276,15 +1201,6 @@
           "expr": "sum(increase(noti_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[24h])) or vector(0)",
           "legendFormat": "알림",
           "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(increase(video_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[24h])) or vector(0)",
-          "legendFormat": "화상회의",
-          "refId": "F"
         }
       ],
       "title": "📊 기능별 사용 비율 (오늘)",
@@ -1411,15 +1327,6 @@
           "expr": "sum(rate(noti_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[5m])) * 60",
           "legendFormat": "알림",
           "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(rate(video_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[5m])) * 60",
-          "legendFormat": "화상회의",
-          "refId": "F"
         }
       ],
       "title": "📈 시간대별 기능 사용 추이",
