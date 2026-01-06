@@ -52,6 +52,7 @@ func TestIntegrationMultipleAttachmentsFlow(t *testing.T) {
 		attachmentRepo,
 		s3Client,
 		fieldOptionConverter,
+		nil, // notiClient
 		m,
 		logger,
 	)
@@ -165,6 +166,7 @@ func TestIntegrationAttachmentValidationErrors(t *testing.T) {
 		attachmentRepo,
 		s3Client,
 		fieldOptionConverter,
+		nil, // notiClient
 		m,
 		logger,
 	)

@@ -71,6 +71,7 @@ func TestCreateBoardWithAttachments(t *testing.T) {
 			mockAttachmentRepo,
 			mockS3Client,
 			mockFieldOptionConverter,
+			nil, // notiClient
 			nil, // metrics
 			logger,
 		)
@@ -123,6 +124,7 @@ func TestCreateBoardWithAttachments(t *testing.T) {
 			mockAttachmentRepo,
 			mockS3Client,
 			mockFieldOptionConverter,
+			nil, // notiClient
 			nil, // metrics
 			logger,
 		)
@@ -185,6 +187,7 @@ func TestCreateBoardWithAttachments(t *testing.T) {
 			mockAttachmentRepo,
 			mockS3Client,
 			mockFieldOptionConverter,
+			nil, // notiClient
 			nil, // metrics
 			logger,
 		)
@@ -248,6 +251,7 @@ func TestCreateBoardWithAttachments(t *testing.T) {
 			mockAttachmentRepo,
 			mockS3Client,
 			mockFieldOptionConverter,
+			nil, // notiClient
 			nil, // metrics
 			logger,
 		)
@@ -316,7 +320,8 @@ func TestCreateCommentWithAttachments(t *testing.T) {
 		}
 
 		mockS3Client := &MockS3Client{}
-		service := NewCommentService(mockCommentRepo, mockBoardRepo, mockAttachmentRepo, mockS3Client, logger)
+		mockProjectRepo := &MockProjectRepository{}
+		service := NewCommentService(mockCommentRepo, mockBoardRepo, mockProjectRepo, mockAttachmentRepo, mockS3Client, nil, logger)
 
 		req := &dto.CreateCommentRequest{
 			BoardID:       boardID,
@@ -353,7 +358,8 @@ func TestCreateCommentWithAttachments(t *testing.T) {
 		}
 
 		mockS3Client := &MockS3Client{}
-		service := NewCommentService(mockCommentRepo, mockBoardRepo, mockAttachmentRepo, mockS3Client, logger)
+		mockProjectRepo := &MockProjectRepository{}
+		service := NewCommentService(mockCommentRepo, mockBoardRepo, mockProjectRepo, mockAttachmentRepo, mockS3Client, nil, logger)
 
 		req := &dto.CreateCommentRequest{
 			BoardID:       boardID,

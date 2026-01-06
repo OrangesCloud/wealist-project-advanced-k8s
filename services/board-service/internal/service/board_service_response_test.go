@@ -64,7 +64,7 @@ func TestBoardService_toBoardResponse_ParticipantIDs(t *testing.T) {
 
 			mockParticipantRepo := &MockParticipantRepository{}
 			logger, _ := zap.NewDevelopment()
-			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, logger).(*boardServiceImpl)
+			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, nil, logger).(*boardServiceImpl)
 
 			// When
 			response := service.toBoardResponse(tt.board)
@@ -100,7 +100,7 @@ func TestBoardService_toBoardResponse_Attachments(t *testing.T) {
 
 	mockParticipantRepo := &MockParticipantRepository{}
 	logger, _ := zap.NewDevelopment()
-	service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, &MockS3Client{}, mockConverter, nil, logger)
+	service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, &MockS3Client{}, mockConverter, nil, nil, logger)
 	boardService := service.(*boardServiceImpl)
 
 	tests := []struct {
@@ -259,7 +259,7 @@ func TestCreateBoard_DateValidation(t *testing.T) {
 
 	mockParticipantRepo := &MockParticipantRepository{}
 	logger, _ := zap.NewDevelopment()
-	service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, logger)
+	service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, nil, logger)
 
 	ctx := context.WithValue(context.Background(), "user_id", userID)
 
@@ -326,7 +326,7 @@ func TestCreateBoard_ValidDateRange(t *testing.T) {
 
 	mockParticipantRepo := &MockParticipantRepository{}
 	logger, _ := zap.NewDevelopment()
-	service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, logger)
+	service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, nil, logger)
 
 	ctx := context.WithValue(context.Background(), "user_id", userID)
 
