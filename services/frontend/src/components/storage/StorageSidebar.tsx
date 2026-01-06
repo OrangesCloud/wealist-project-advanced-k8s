@@ -173,10 +173,10 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
           onClick={onOpenProjectModal}
           className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
         >
-          <FolderKanban className={`w-5 h-5 ${currentProject ? 'text-blue-500' : 'text-gray-500'}`} />
+          <HardDrive className={`w-5 h-5 ${currentProject ? 'text-blue-500' : 'text-blue-500'}`} />
           <div className="flex-1 text-left min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">
-              {currentProject ? currentProject.name : '전체 스토리지'}
+              {currentProject ? currentProject.name : '내 드라이브'}
             </p>
             {currentProjectPermission && (
               <p className="text-xs text-gray-500">
@@ -192,17 +192,17 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
         </button>
       </div>
 
-      {/* 접힌 상태에서 프로젝트 아이콘 */}
+      {/* 접힌 상태에서 스토리지 아이콘 */}
       {isCollapsed && (
         <div className="px-3 py-2">
           <button
             onClick={onOpenProjectModal}
             className={`w-full flex justify-center p-3 rounded-xl transition-all ${
-              currentProject ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'
+              currentProject ? 'bg-blue-50 text-blue-600' : 'bg-blue-50 text-blue-600'
             }`}
-            title={currentProject ? currentProject.name : '프로젝트 선택'}
+            title={currentProject ? currentProject.name : '내 드라이브'}
           >
-            <FolderKanban className="w-5 h-5" />
+            <HardDrive className="w-5 h-5" />
           </button>
         </div>
       )}
