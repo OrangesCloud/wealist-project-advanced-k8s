@@ -46,6 +46,7 @@ type boardServiceImpl struct {
 type FieldOptionConverter interface {
 	ConvertValuesToIDs(ctx context.Context, projectID uuid.UUID, customFields map[string]interface{}) (map[string]interface{}, error)
 	ConvertIDsToValues(ctx context.Context, customFields map[string]interface{}) (map[string]interface{}, error)
+	ConvertIDsToLabels(ctx context.Context, customFields map[string]interface{}) (map[string]interface{}, error)
 	ConvertIDsToValuesBatch(ctx context.Context, boards []*domain.Board) error
 }
 
