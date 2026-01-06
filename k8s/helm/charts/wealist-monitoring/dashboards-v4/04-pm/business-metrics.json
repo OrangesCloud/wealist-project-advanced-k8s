@@ -513,18 +513,9 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(increase(video_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[7d])) or vector(0)",
-          "legendFormat": "화상회의",
-          "refId": "F"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
           "expr": "sum(increase(auth_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[7d])) or vector(0)",
           "legendFormat": "로그인/인증",
-          "refId": "G"
+          "refId": "F"
         }
       ],
       "title": "🥧 기능별 사용 비율 (주간)",
@@ -651,15 +642,6 @@
           "expr": "sum(rate(noti_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[1h])) * 3600",
           "legendFormat": "알림",
           "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(rate(video_service_http_requests_total{endpoint!~\"/metrics|/health.*\"}[1h])) * 3600",
-          "legendFormat": "화상회의",
-          "refId": "F"
         }
       ],
       "title": "📈 기능별 시간당 사용량 추이",
@@ -1316,15 +1298,6 @@
           "expr": "sum(increase(noti_service_http_requests_total{status=~\"5..\"}[7d])) or vector(0)",
           "legendFormat": "알림",
           "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(increase(video_service_http_requests_total{status=~\"5..\"}[7d])) or vector(0)",
-          "legendFormat": "화상회의",
-          "refId": "F"
         }
       ],
       "title": "🔴 서비스별 에러 분포",
