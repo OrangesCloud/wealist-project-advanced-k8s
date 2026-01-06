@@ -332,8 +332,14 @@ func (h *BoardHandler) UpdateBoard(c *gin.Context) {
 // sendBoardNotifications sends notifications for board updates
 func (h *BoardHandler) sendBoardNotifications(ctx context.Context, log *zap.Logger, oldBoard, newBoard *dto.BoardResponse, oldAssigneeID, newAssigneeID *uuid.UUID) {
 	if h.notiClient == nil {
+		log.Debug("NotiClient is nil, skipping notification")
 		return
 	}
+
+	// 🔥 Create a new context for async notification (request context may be canceled after response)
+	// Copy user_id from original context
+	notifyCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	// Get actor ID from context (current user)
 	actorIDValue, exists := ctx.Value("user_id").(uuid.UUID)
@@ -343,6 +349,11 @@ func (h *BoardHandler) sendBoardNotifications(ctx context.Context, log *zap.Logg
 			actorIDValue, _ = uuid.Parse(actorIDStr)
 		}
 	}
+
+	log.Debug("sendBoardNotifications called",
+		zap.String("actorId", actorIDValue.String()),
+		zap.Bool("hasNewAssignee", newAssigneeID != nil),
+		zap.Bool("hasOldAssignee", oldAssigneeID != nil))
 
 	// 1. 작업자가 새로 할당된 경우 (TASK_ASSIGNED)
 	if newAssigneeID != nil && *newAssigneeID != uuid.Nil {
@@ -357,7 +368,7 @@ func (h *BoardHandler) sendBoardNotifications(ctx context.Context, log *zap.Logg
 					newBoard.ID,
 					newBoard.Title,
 				)
-				if err := h.notiClient.SendNotification(ctx, notification); err != nil {
+				if err := h.notiClient.SendNotification(notifyCtx, notification); err != nil {
 					log.Warn("Failed to send task assignment notification",
 						zap.String("board.id", newBoard.ID.String()),
 						zap.String("targetUserId", newAssigneeID.String()),
@@ -367,6 +378,10 @@ func (h *BoardHandler) sendBoardNotifications(ctx context.Context, log *zap.Logg
 						zap.String("board.id", newBoard.ID.String()),
 						zap.String("targetUserId", newAssigneeID.String()))
 				}
+			} else {
+				log.Debug("Skipping notification: self-assignment",
+					zap.String("actorId", actorIDValue.String()),
+					zap.String("assigneeId", newAssigneeID.String()))
 			}
 		}
 	}
@@ -386,7 +401,7 @@ func (h *BoardHandler) sendBoardNotifications(ctx context.Context, log *zap.Logg
 					newBoard.Title,
 					"updated",
 				)
-				if err := h.notiClient.SendNotification(ctx, notification); err != nil {
+				if err := h.notiClient.SendNotification(notifyCtx, notification); err != nil {
 					log.Warn("Failed to send task update notification",
 						zap.String("board.id", newBoard.ID.String()),
 						zap.Error(err))
