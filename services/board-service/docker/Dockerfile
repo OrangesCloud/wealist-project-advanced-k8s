@@ -1,72 +1,40 @@
 # syntax=docker/dockerfile:1.4
-# Builder stage - optimized layer caching (2025-12-18)
-FROM golang:1.16-alpine AS builder
+# 1. Builder Stage
+FROM golang:1.16 AS builder
 
-# Multi-platform support
 ARG TARGETARCH
 
-# Install build dependencies (cached layer)
+# 데비안용 설치 명령어 (apt-get)
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
 
-# Set working directory to project root
 WORKDIR /workspace
-
-# Copy shared package first (for replace directive)
 COPY packages/wealist-advanced-go-pkg/ ./packages/wealist-advanced-go-pkg/
-
-# Copy service files
 WORKDIR /workspace/services/board-service
-
-# OPTIMIZATION: Copy only go.mod/go.sum first for dependency caching
 COPY services/board-service/go.mod services/board-service/go.sum ./
-
-# Add replace directive for local package
 RUN echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packages/wealist-advanced-go-pkg' >> go.mod
-    
-# Download dependencies (cached if go.mod/go.sum unchanged)
-RUN --mount=type=cache,target=/go/pkg/mod \
-    GOWORK=off go mod download -x
-        
-# Copy source code (changes here don't invalidate dependency cache)
+RUN --mount=type=cache,target=/go/pkg/mod GOWORK=off go mod download -x
 COPY services/board-service/ ./
-
-# Re-add replace directive (COPY overwrites go.mod)
 RUN echo 'replace github.com/OrangesCloud/wealist-advanced-go-pkg => ../../packages/wealist-advanced-go-pkg' >> go.mod
-
-# Verify dependencies and build
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    GOWORK=off go mod tidy && \
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build GOWORK=off go mod tidy && \
     CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GOWORK=off go build -ldflags="-w -s" -o board-api ./cmd/api
 
-# Runtime stage
-FROM debian:oldstable-20251229-slim
+# 2. Runtime Stage
+FROM debian:buster-slim
 
-# Install runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata wget
+# [수정됨] 여기가 핵심입니다. 데비안이니까 apt-get을 씁니다.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates tzdata wget && \
+    rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN addgroup -g 1000 appuser && \
-    adduser -D -u 1000 -G appuser appuser
+# 사용자 생성 (데비안 문법)
+RUN groupadd -g 1000 appuser && \
+    useradd -u 1000 -g appuser -m -s /bin/bash appuser
 
-# Set working directory
 WORKDIR /home/appuser
-
-# Copy binary from builder
 COPY --from=builder --chown=appuser:appuser /workspace/services/board-service/board-api .
-
-# Copy configuration files (if exists)
 COPY --from=builder --chown=appuser:appuser /workspace/services/board-service/configs ./configs
 
-# Switch to non-root user
 USER appuser
-
-# Expose port
 EXPOSE 8000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8000/health/live || exit 1
-
-# Run the application
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:8000/health/live || exit 1
 CMD ["./board-api"]
