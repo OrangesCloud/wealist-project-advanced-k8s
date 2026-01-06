@@ -14,6 +14,7 @@ import {
 interface UseNotificationsOptions {
   workspaceId: string;
   enabled?: boolean;
+  onNewNotification?: (notification: Notification) => void; // 🔥 새 알림 콜백 (토스트용)
 }
 
 interface UseNotificationsReturn {
@@ -33,6 +34,7 @@ interface UseNotificationsReturn {
 export const useNotifications = ({
   workspaceId,
   enabled = true,
+  onNewNotification,
 }: UseNotificationsOptions): UseNotificationsReturn => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -122,6 +124,9 @@ export const useNotifications = ({
         // 새 알림을 목록 맨 앞에 추가
         setNotifications((prev) => [notification, ...prev]);
         setUnreadCount((prev) => prev + 1);
+
+        // 🔥 토스트 표시 콜백 호출
+        onNewNotification?.(notification);
       } catch (err) {
         console.error('[Notifications SSE] 알림 파싱 실패:', err);
       }
@@ -148,7 +153,7 @@ export const useNotifications = ({
         }, delay);
       }
     };
-  }, [enabled]);
+  }, [enabled, onNewNotification]);
 
   // SSE 연결 해제
   const disconnectSSE = useCallback(() => {

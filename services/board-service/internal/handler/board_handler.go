@@ -19,6 +19,7 @@ import (
 	"project-board-api/internal/service"
 )
 
+//
 type BoardHandler struct {
 	boardService service.BoardService
 	notiClient   client.NotiClient
@@ -95,6 +96,9 @@ func (h *BoardHandler) CreateBoard(c *gin.Context) {
 		Payload: board,
 	}
 	BroadcastEvent(req.ProjectID.String(), event)
+
+	// 🔥 알림 전송: 보드 생성 시 담당자가 지정된 경우
+	go h.sendBoardNotifications(ctx, log, nil, board, nil, board.AssigneeID)
 }
 
 // GetBoard godoc
@@ -329,8 +333,14 @@ func (h *BoardHandler) UpdateBoard(c *gin.Context) {
 // sendBoardNotifications sends notifications for board updates
 func (h *BoardHandler) sendBoardNotifications(ctx context.Context, log *zap.Logger, oldBoard, newBoard *dto.BoardResponse, oldAssigneeID, newAssigneeID *uuid.UUID) {
 	if h.notiClient == nil {
+		log.Debug("NotiClient is nil, skipping notification")
 		return
 	}
+
+	// 🔥 Create a new context for async notification (request context may be canceled after response)
+	// Copy user_id from original context
+	notifyCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	// Get actor ID from context (current user)
 	actorIDValue, exists := ctx.Value("user_id").(uuid.UUID)
@@ -341,53 +351,60 @@ func (h *BoardHandler) sendBoardNotifications(ctx context.Context, log *zap.Logg
 		}
 	}
 
+	log.Debug("sendBoardNotifications called",
+		zap.String("actorId", actorIDValue.String()),
+		zap.Bool("hasNewAssignee", newAssigneeID != nil),
+		zap.Bool("hasOldAssignee", oldAssigneeID != nil))
+
 	// 1. 작업자가 새로 할당된 경우 (TASK_ASSIGNED)
+	// 자기 자신에게 할당한 경우에도 알림 발송 (사용자 요청)
 	if newAssigneeID != nil && *newAssigneeID != uuid.Nil {
 		// 기존에 할당자가 없었거나, 다른 사람으로 변경된 경우
 		if oldAssigneeID == nil || *oldAssigneeID != *newAssigneeID {
-			// 자기 자신에게 할당한 경우는 알림 제외
-			if actorIDValue != *newAssigneeID {
-				notification := client.NewTaskAssignedNotification(
-					actorIDValue,
-					*newAssigneeID,
-					newBoard.WorkspaceID,
-					newBoard.ID,
-					newBoard.Title,
-				)
-				if err := h.notiClient.SendNotification(ctx, notification); err != nil {
-					log.Warn("Failed to send task assignment notification",
-						zap.String("board.id", newBoard.ID.String()),
-						zap.String("targetUserId", newAssigneeID.String()),
-						zap.Error(err))
-				} else {
-					log.Info("Task assignment notification sent",
-						zap.String("board.id", newBoard.ID.String()),
-						zap.String("targetUserId", newAssigneeID.String()))
-				}
+			notification := client.NewTaskAssignedNotification(
+				actorIDValue,
+				*newAssigneeID,
+				newBoard.WorkspaceID,
+				newBoard.ID,
+				newBoard.Title,
+			)
+			if err := h.notiClient.SendNotification(notifyCtx, notification); err != nil {
+				log.Warn("Failed to send task assignment notification",
+					zap.String("board.id", newBoard.ID.String()),
+					zap.String("targetUserId", newAssigneeID.String()),
+					zap.Error(err))
+			} else {
+				log.Info("Task assignment notification sent",
+					zap.String("board.id", newBoard.ID.String()),
+					zap.String("targetUserId", newAssigneeID.String()),
+					zap.Bool("selfAssignment", actorIDValue == *newAssigneeID))
 			}
 		}
 	}
 
 	// 2. 작업자가 있는 보드가 업데이트된 경우 (TASK_STATUS_CHANGED)
 	// 단, 작업자 변경이 아닌 다른 변경사항이 있을 때만
+	// 자기 자신의 보드인 경우에도 알림 발송 (사용자 요청)
 	if oldBoard != nil && oldBoard.AssigneeID != nil && *oldBoard.AssigneeID != uuid.Nil {
 		// 작업자 변경이 아닌 경우에만 알림
 		if newAssigneeID == nil || (oldAssigneeID != nil && *oldAssigneeID == *newAssigneeID) {
-			// 자기 자신의 보드인 경우는 알림 제외
-			if actorIDValue != *oldBoard.AssigneeID {
-				notification := client.NewTaskUpdatedNotification(
-					actorIDValue,
-					*oldBoard.AssigneeID,
-					newBoard.WorkspaceID,
-					newBoard.ID,
-					newBoard.Title,
-					"updated",
-				)
-				if err := h.notiClient.SendNotification(ctx, notification); err != nil {
-					log.Warn("Failed to send task update notification",
-						zap.String("board.id", newBoard.ID.String()),
-						zap.Error(err))
-				}
+			notification := client.NewTaskUpdatedNotification(
+				actorIDValue,
+				*oldBoard.AssigneeID,
+				newBoard.WorkspaceID,
+				newBoard.ID,
+				newBoard.Title,
+				"updated",
+			)
+			if err := h.notiClient.SendNotification(notifyCtx, notification); err != nil {
+				log.Warn("Failed to send task update notification",
+					zap.String("board.id", newBoard.ID.String()),
+					zap.Error(err))
+			} else {
+				log.Info("Task update notification sent",
+					zap.String("board.id", newBoard.ID.String()),
+					zap.String("targetUserId", oldBoard.AssigneeID.String()),
+					zap.Bool("selfUpdate", actorIDValue == *oldBoard.AssigneeID))
 			}
 		}
 	}

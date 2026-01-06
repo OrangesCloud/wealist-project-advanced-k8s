@@ -210,11 +210,12 @@ const MyDashboardPage: React.FC = () => {
       const stage = task.customFields?.stage?.toLowerCase() || '';
       switch (activeTab) {
         case 'pending':
-          return stage === 'backlog' || stage === 'todo' || stage === '';
+          // 'pending', 'backlog', 'todo', 빈 값 모두 대기 상태로 처리
+          return stage === 'pending' || stage === 'backlog' || stage === 'todo' || stage === '' || stage === 'review';
         case 'inprogress':
           return stage === 'in_progress' || stage === 'in progress';
         case 'completed':
-          return stage === 'done' || stage === 'completed';
+          return stage === 'done' || stage === 'completed' || stage === 'approved';
         default:
           return true;
       }
@@ -233,8 +234,11 @@ const MyDashboardPage: React.FC = () => {
         projectGroup.tasks.forEach((task) => {
           total++;
           const stage = task.customFields?.stage?.toLowerCase() || '';
-          if (stage === 'done' || stage === 'completed') completed++;
+          // 완료 상태: done, completed, approved
+          if (stage === 'done' || stage === 'completed' || stage === 'approved') completed++;
+          // 진행중 상태: in_progress
           else if (stage === 'in_progress' || stage === 'in progress') inprogress++;
+          // 대기 상태: pending, backlog, todo, review, 빈 값
           else pending++;
         });
       });
@@ -245,6 +249,15 @@ const MyDashboardPage: React.FC = () => {
 
   const taskCounts = countTasks();
   const pendingWorkspaces = allWorkspaces.filter((ws) => ws.role === 'PENDING');
+
+  // 💡 [추가] 내 워크스페이스 목록 필터링 (검색어로 필터)
+  const filteredWorkspaces = searchQuery.trim()
+    ? workspaces.filter(
+        (ws) =>
+          ws.workspaceName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          ws.workspaceDescription?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : workspaces;
 
   // Get stage badge color and Korean label
   const getStageInfo = (stage?: string): { className: string; label: string } => {
@@ -457,13 +470,15 @@ const MyDashboardPage: React.FC = () => {
 
                   {/* Workspace List */}
                   <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                    {workspaces.length === 0 ? (
+                    {filteredWorkspaces.length === 0 ? (
                       <div className="text-center py-6">
                         <Briefcase className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">소속된 워크스페이스가 없습니다.</p>
+                        <p className="text-sm text-gray-500">
+                          {searchQuery.trim() ? '검색 결과가 없습니다.' : '소속된 워크스페이스가 없습니다.'}
+                        </p>
                       </div>
                     ) : (
-                      workspaces.map((workspace) => (
+                      filteredWorkspaces.map((workspace) => (
                         <div
                           key={workspace.workspaceId}
                           className="p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition border border-transparent hover:border-gray-200 group"

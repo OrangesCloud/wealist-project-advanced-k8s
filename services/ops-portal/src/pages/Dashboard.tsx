@@ -1,8 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../contexts/AuthContext'
-import { getApplications } from '../api/monitoring'
+import { getApplications, getSystemOverview, getClusterMetrics } from '../api/monitoring'
 import { getAllUsers } from '../api/users'
-import { Activity, Users, Settings, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import {
+  Activity,
+  Users,
+  Settings,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Cpu,
+  HardDrive,
+  Server,
+  Clock,
+  TrendingUp,
+  Zap
+} from 'lucide-react'
 
 export default function Dashboard() {
   const { user, hasRole } = useAuth()
@@ -18,10 +31,33 @@ export default function Dashboard() {
     enabled: hasRole(['admin']),
   })
 
+  const { data: systemOverview, isLoading: overviewLoading } = useQuery({
+    queryKey: ['systemOverview'],
+    queryFn: getSystemOverview,
+    refetchInterval: 60000, // Refresh every minute
+  })
+
+  const { data: clusterMetrics, isLoading: clusterLoading } = useQuery({
+    queryKey: ['clusterMetrics'],
+    queryFn: getClusterMetrics,
+    refetchInterval: 60000, // Refresh every minute
+  })
+
   const healthyApps = applications.filter(app => app.health === 'Healthy').length
   const unhealthyApps = applications.filter(app => app.health !== 'Healthy').length
   const syncedApps = applications.filter(app => app.sync === 'Synced').length
   const outOfSyncApps = applications.filter(app => app.sync !== 'Synced').length
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
+    return num.toFixed(0)
+  }
+
+  const formatLatency = (ms: number) => {
+    if (ms >= 1000) return (ms / 1000).toFixed(2) + 's'
+    return ms.toFixed(0) + 'ms'
+  }
 
   return (
     <div>
@@ -30,7 +66,8 @@ export default function Dashboard() {
         <p className="text-gray-600 mt-1">Welcome back, {user?.name || user?.email}</p>
       </div>
 
-      {/* Stats Grid */}
+      {/* ArgoCD Application Stats */}
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">ArgoCD Applications</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="card">
           <div className="flex items-center">
@@ -89,7 +126,157 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Quick Stats */}
+      {/* System Overview Metrics */}
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">System Overview (Last Hour)</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-indigo-100 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-indigo-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Total Requests</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {overviewLoading ? '-' : formatNumber(systemOverview?.totalRequests || 0)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <Clock className="w-6 h-6 text-purple-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Avg Response Time</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {overviewLoading ? '-' : formatLatency(systemOverview?.avgResponseTime || 0)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-red-100 rounded-lg">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Error Rate</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {overviewLoading ? '-' : `${(systemOverview?.errorPercentage || 0).toFixed(2)}%`}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-green-100 rounded-lg">
+              <Zap className="w-6 h-6 text-green-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Active Services</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {overviewLoading ? '-' : systemOverview?.activeServices || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Cluster Metrics */}
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">Cluster Resources</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-cyan-100 rounded-lg">
+              <Server className="w-6 h-6 text-cyan-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Nodes</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {clusterLoading ? '-' : clusterMetrics?.nodeCount || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center">
+            <div className="p-3 bg-teal-100 rounded-lg">
+              <HardDrive className="w-6 h-6 text-teal-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm text-gray-600">Running Pods</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {clusterLoading ? '-' : clusterMetrics?.healthyPods || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="p-3 bg-orange-100 rounded-lg">
+                <Cpu className="w-6 h-6 text-orange-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">CPU Usage</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {clusterLoading ? '-' : `${(clusterMetrics?.cpuUsage || 0).toFixed(1)}%`}
+                </p>
+              </div>
+            </div>
+          </div>
+          {!clusterLoading && clusterMetrics && (
+            <div className="mt-3">
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full ${
+                    (clusterMetrics.cpuUsage || 0) > 80 ? 'bg-red-500' :
+                    (clusterMetrics.cpuUsage || 0) > 60 ? 'bg-yellow-500' : 'bg-green-500'
+                  }`}
+                  style={{ width: `${Math.min(clusterMetrics.cpuUsage || 0, 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="p-3 bg-pink-100 rounded-lg">
+                <HardDrive className="w-6 h-6 text-pink-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Memory Usage</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {clusterLoading ? '-' : `${(clusterMetrics?.memoryUsage || 0).toFixed(1)}%`}
+                </p>
+              </div>
+            </div>
+          </div>
+          {!clusterLoading && clusterMetrics && (
+            <div className="mt-3">
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full ${
+                    (clusterMetrics.memoryUsage || 0) > 80 ? 'bg-red-500' :
+                    (clusterMetrics.memoryUsage || 0) > 60 ? 'bg-yellow-500' : 'bg-green-500'
+                  }`}
+                  style={{ width: `${Math.min(clusterMetrics.memoryUsage || 0, 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Stats for Admin */}
       {hasRole(['admin']) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="card">

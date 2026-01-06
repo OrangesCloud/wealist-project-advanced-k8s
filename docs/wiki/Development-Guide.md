@@ -15,7 +15,6 @@ wealist-project-advanced-k8s/
 │   ├── chat-service/          # Go
 │   ├── noti-service/          # Go
 │   ├── storage-service/       # Go
-│   ├── video-service/         # Go
 │   └── frontend/              # React
 │
 ├── packages/                  # 공유 패키지

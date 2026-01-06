@@ -94,7 +94,7 @@ func TestCommentService_CreateComment(t *testing.T) {
 			tt.mockComment(mockCommentRepo)
 
 			logger, _ := zap.NewDevelopment()
-			service := NewCommentService(mockCommentRepo, mockBoardRepo, &MockAttachmentRepository{}, nil, logger)
+			service := NewCommentService(mockCommentRepo, mockBoardRepo, &MockProjectRepository{}, &MockAttachmentRepository{}, nil, nil, logger)
 
 			// When
 			userID := uuid.New()
@@ -208,7 +208,7 @@ func TestCommentService_GetComments(t *testing.T) {
 			tt.mockComment(mockCommentRepo)
 
 			logger, _ := zap.NewDevelopment()
-			service := NewCommentService(mockCommentRepo, mockBoardRepo, &MockAttachmentRepository{}, nil, logger)
+			service := NewCommentService(mockCommentRepo, mockBoardRepo, &MockProjectRepository{}, &MockAttachmentRepository{}, nil, nil, logger)
 
 			// When
 			got, err := service.GetComments(context.Background(), tt.boardID)

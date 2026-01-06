@@ -153,7 +153,7 @@ func TestBoardService_CreateBoard(t *testing.T) {
 
 			mockParticipantRepo := &MockParticipantRepository{}
 			logger, _ := zap.NewDevelopment()
-			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, logger)
+			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, nil, logger)
 
 			// When
 			got, err := service.CreateBoard(tt.ctx, tt.req)
@@ -253,7 +253,7 @@ func TestBoardService_CreateBoard_CustomFields(t *testing.T) {
 			mockConverter := &MockFieldOptionConverter{}
 			mockParticipantRepo := &MockParticipantRepository{}
 			logger, _ := zap.NewDevelopment()
-			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, logger)
+			service := NewBoardService(mockBoardRepo, mockProjectRepo, mockFieldOptionRepo, mockParticipantRepo, &MockAttachmentRepository{}, nil, mockConverter, nil, nil, logger)
 
 			req := &dto.CreateBoardRequest{
 				ProjectID:    projectID,

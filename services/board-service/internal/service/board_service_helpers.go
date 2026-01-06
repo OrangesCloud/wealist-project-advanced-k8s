@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	"project-board-api/internal/client"
 	"project-board-api/internal/domain"
 	"project-board-api/internal/dto"
 	"project-board-api/internal/response"
@@ -270,4 +271,60 @@ func (s *boardServiceImpl) deleteAttachmentsWithS3(ctx context.Context, attachme
 				zap.Error(err))
 		}
 	}
+}
+
+// isAssigneeChanged checks if the assignee was changed
+func (s *boardServiceImpl) isAssigneeChanged(original, current *uuid.UUID) bool {
+	// Both nil - no change
+	if original == nil && current == nil {
+		return false
+	}
+	// One nil, one not - changed
+	if original == nil || current == nil {
+		return true
+	}
+	// Both non-nil - compare values
+	return *original != *current
+}
+
+// sendAssigneeNotification sends a TASK_ASSIGNED notification to the assignee
+// This is called asynchronously (in a goroutine) so notification failures don't affect the main business logic
+func (s *boardServiceImpl) sendAssigneeNotification(ctx context.Context, board *domain.Board, actorID uuid.UUID) {
+	if s.notiClient == nil || board.AssigneeID == nil {
+		return
+	}
+
+	// Get project info for workspace ID
+	project, err := s.projectRepo.FindByID(ctx, board.ProjectID)
+	if err != nil {
+		s.logger.Warn("Failed to get project for notification",
+			zap.String("board.id", board.ID.String()),
+			zap.Error(err))
+		return
+	}
+
+	event := &client.NotificationEvent{
+		Type:         client.NotificationTypeTaskAssigned,
+		ActorID:      actorID,
+		TargetUserID: *board.AssigneeID,
+		WorkspaceID:  project.WorkspaceID,
+		ResourceType: client.ResourceTypeBoard,
+		ResourceID:   board.ID,
+		ResourceName: &board.Title,
+		Metadata: map[string]interface{}{
+			"projectId":   board.ProjectID.String(),
+			"projectName": project.Name,
+		},
+	}
+
+	// Send notification asynchronously
+	go func() {
+		// Use background context to avoid cancellation when request completes
+		if err := s.notiClient.SendNotification(context.Background(), event); err != nil {
+			s.logger.Warn("Failed to send task assigned notification",
+				zap.String("board.id", board.ID.String()),
+				zap.String("assignee.id", board.AssigneeID.String()),
+				zap.Error(err))
+		}
+	}()
 }

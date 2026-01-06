@@ -9,9 +9,11 @@ import { Sidebar } from './Sidebar';
 import { ChatListPanel } from '../chat/ChatListPanel';
 import { ChatPanel } from '../chat/ChatPanel';
 import { NotificationPanel } from '../notification/NotificationPanel';
+import { NotificationToast } from '../notification/NotificationToast';
 import { LogOut, UserIcon, GripVertical } from 'lucide-react';
 import { usePresence } from '../../hooks/usePresence';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useToast } from '../../hooks/useToast';
 import type { Notification } from '../../types/notification';
 
 // 🔥 Render prop 타입: handleStartChat, refreshProfile을 children에 전달
@@ -48,6 +50,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const [chatListRefreshKey, setChatListRefreshKey] = useState(0); // 🔥 채팅 목록 갱신용
   const [totalUnreadCount, setTotalUnreadCount] = useState(0); // 🔥 총 읽지 않은 메시지 수
 
+  // 🔥 토스트 훅
+  const { toasts, showToast, hideToast } = useToast();
+
   // 알림 훅
   const {
     notifications,
@@ -58,7 +63,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     markNotificationAsRead,
     markAllNotificationsAsRead,
     removeNotification,
-  } = useNotifications({ workspaceId, enabled: true });
+  } = useNotifications({
+    workspaceId,
+    enabled: true,
+    onNewNotification: showToast, // 🔥 새 알림 시 토스트 표시
+  });
 
   // Ref
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -421,6 +430,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           </div>
         </div>
       )}
+
+      {/* 🔥 알림 토스트 */}
+      <NotificationToast
+        toasts={toasts}
+        onClose={hideToast}
+        onClick={(notification) => {
+          onNotificationClick?.(notification);
+          hideToast(`toast-${notification.id}`);
+        }}
+      />
     </div>
   );
 };

@@ -223,23 +223,6 @@ func main() {
 		zap.Duration("timeout", cfg.UserAPI.Timeout),
 	)
 
-	// Initialize Notification API client
-	var notiClient client.NotiClient
-	if cfg.NotiAPI.BaseURL != "" {
-		notiClient = client.NewNotiClient(
-			cfg.NotiAPI.BaseURL,
-			cfg.NotiAPI.InternalAPIKey,
-			cfg.NotiAPI.Timeout,
-			log.Logger,
-		)
-		log.Info("Notification API client initialized successfully",
-			zap.String("noti_base_url", cfg.NotiAPI.BaseURL),
-			zap.Duration("timeout", cfg.NotiAPI.Timeout),
-		)
-	} else {
-		log.Info("Notification API client not configured (NOTI_SERVICE_URL not set)")
-	}
-
 	// Initialize S3 client
 	s3Client, err := client.NewS3Client(&cfg.S3)
 	if err != nil {
@@ -251,6 +234,24 @@ func main() {
 		zap.String("region", cfg.S3.Region),
 		zap.String("endpoint", cfg.S3.Endpoint),
 	)
+
+	// Initialize Noti API client (optional - for sending notifications)
+	var notiClient client.NotiClient
+	if cfg.NotiAPI.BaseURL != "" {
+		notiClient = client.NewNotiClient(
+			cfg.NotiAPI.BaseURL,
+			cfg.NotiAPI.InternalAPIKey,
+			cfg.NotiAPI.Timeout,
+			log.Logger,
+			m,
+		)
+		log.Info("Noti API client initialized successfully",
+			zap.String("base_url", cfg.NotiAPI.BaseURL),
+			zap.Duration("timeout", cfg.NotiAPI.Timeout),
+		)
+	} else {
+		log.Warn("Noti API client not initialized - NOTI_SERVICE_URL not configured")
+	}
 
 	// Initialize attachment repository for cleanup job
 	attachmentRepo := repository.NewAttachmentRepository(db)

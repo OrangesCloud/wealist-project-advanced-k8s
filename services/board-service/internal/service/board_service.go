@@ -11,6 +11,7 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
+	"project-board-api/internal/client"
 	"project-board-api/internal/domain"
 	"project-board-api/internal/dto"
 	"project-board-api/internal/metrics"
@@ -36,6 +37,7 @@ type boardServiceImpl struct {
 	attachmentRepo       repository.AttachmentRepository
 	s3Client             S3Client
 	fieldOptionConverter FieldOptionConverter
+	notiClient           client.NotiClient // for sending notifications
 	metrics              *metrics.Metrics
 	logger               *zap.Logger
 }
@@ -56,6 +58,7 @@ func NewBoardService(
 	attachmentRepo repository.AttachmentRepository,
 	s3Client S3Client,
 	fieldOptionConverter FieldOptionConverter,
+	notiClient client.NotiClient,
 	m *metrics.Metrics,
 	logger *zap.Logger,
 ) BoardService {
@@ -67,6 +70,7 @@ func NewBoardService(
 		attachmentRepo:       attachmentRepo,
 		s3Client:             s3Client,
 		fieldOptionConverter: fieldOptionConverter,
+		notiClient:           notiClient,
 		metrics:              m,
 		logger:               logger,
 	}
@@ -220,6 +224,11 @@ func (s *boardServiceImpl) CreateBoard(ctx context.Context, req *dto.CreateBoard
 
 	// 생성된 Attachments를 Board 객체에 할당 (타입 변환 적용)
 	board.Attachments = toDomainAttachments(createdAttachments)
+
+	// Send notification if assignee is different from author
+	if board.AssigneeID != nil && *board.AssigneeID != authorID {
+		s.sendAssigneeNotification(ctx, board, authorID)
+	}
 
 	// Convert to response DTO
 	return s.toBoardResponseWithWorkspace(ctx, board), nil

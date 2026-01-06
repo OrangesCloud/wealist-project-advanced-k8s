@@ -508,6 +508,7 @@ export interface ViewState {
   filterOption?: string;
   currentLayout?: TLayout;
   showCompleted?: boolean;
+  showDeleted?: boolean;
   sortColumn?: 'title' | 'stage' | 'role' | 'importance' | 'assignee' | 'dueDate' | null;
   sortDirection?: 'asc' | 'desc';
 }

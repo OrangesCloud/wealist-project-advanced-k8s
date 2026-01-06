@@ -333,7 +333,6 @@ istio:
       host: "argocd.wealist.co.kr"  # 별도 HTTPRoute에서 사용
     # LiveKit WebRTC SFU Server
     # - Frontend에서 wss://livekit.wealist.co.kr로 WebSocket 연결
-    # - video-service에서 http://livekit-livekit-server:7880으로 API 호출
     livekit:
       enabled: true
       hostname: "livekit.wealist.co.kr"

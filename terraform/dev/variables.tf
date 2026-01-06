@@ -1,5 +1,5 @@
 # =============================================================================
-# Dev Foundation Configuration - Variables
+# Dev Environment Configuration - Variables
 # =============================================================================
 
 variable "aws_region" {
@@ -162,3 +162,9 @@ variable "internal_api_key" {
   type        = string
   sensitive   = true
 }
+
+# -----------------------------------------------------------------------------
+# NOTE: Discord Webhook, GitHub Token, ArgoCD Admin Emails 등
+# setup 스크립트용 시크릿은 AWS Secrets Manager에서 수동 관리
+# (secrets.tf 주석 참조)
+# -----------------------------------------------------------------------------

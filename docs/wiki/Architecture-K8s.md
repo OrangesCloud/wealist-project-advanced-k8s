@@ -69,7 +69,6 @@ weAlist의 Kubernetes 플랫폼 아키텍처입니다.
 | chat-service    | 8001 | 8001        | ClusterIP |
 | noti-service    | 8002 | 8002        | ClusterIP |
 | storage-service | 8003 | 8003        | ClusterIP |
-| video-service   | 8004 | 8004        | ClusterIP |
 | frontend        | 80   | 80          | ClusterIP |
 
 ---
@@ -95,7 +94,6 @@ helm/
     ├── chat-service/
     ├── noti-service/
     ├── storage-service/
-    ├── video-service/
     └── frontend/
 ```
 
@@ -123,7 +121,6 @@ base.yaml (공통 설정 덮어씀)
 | chat-service    | 50m         | 200m      | 64Mi           | 256Mi        |
 | noti-service    | 50m         | 200m      | 64Mi           | 256Mi        |
 | storage-service | 50m         | 200m      | 64Mi           | 256Mi        |
-| video-service   | 100m        | 500m      | 128Mi          | 512Mi        |
 | frontend        | 50m         | 200m      | 64Mi           | 256Mi        |
 
 ### Autoscaling (HPA)

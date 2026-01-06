@@ -9,14 +9,14 @@ weAlist 프로젝트의 주요 아키텍처 결정 기록입니다.
 **상황**: 협업 플랫폼의 여러 도메인을 어떻게 구성할 것인가?
 
 **결정**: 도메인별 마이크로서비스 분리
-- auth-service, user-service, board-service, chat-service, noti-service, storage-service, video-service
+- auth-service, user-service, board-service, chat-service, noti-service, storage-service
 
 **이유**:
 - 각 도메인의 독립적인 배포 및 확장 가능
 - 팀별 독립적인 개발 가능
 - 장애 격리 (한 서비스 장애가 전체에 영향 X)
 
-**결과**: 8개 독립 서비스로 구성
+**결과**: 7개 독립 서비스로 구성
 
 ---
 
@@ -24,14 +24,14 @@ weAlist 프로젝트의 주요 아키텍처 결정 기록입니다.
 
 **상황**: 마이크로서비스들이 데이터베이스를 공유할 것인가?
 
-**결정**: 서비스별 독립 데이터베이스 사용 (6개 DB)
+**결정**: 서비스별 독립 데이터베이스 사용 (5개 DB)
 
 **이유**:
 - 서비스 간 데이터 결합도 최소화
 - 독립적인 스키마 변경 가능
 - 서비스별 최적화된 DB 선택 가능
 
-**결과**: PostgreSQL 7개 DB (서비스 6개 + SonarQube 1개)
+**결과**: PostgreSQL 6개 DB (서비스 5개 + SonarQube 1개)
 
 ---
 

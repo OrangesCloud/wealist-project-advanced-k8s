@@ -75,3 +75,9 @@ livekit_api_secret = "devsecretkey1234567890abcdefghijk"
 # Internal API Key (서비스 간 통신)
 # -----------------------------------------------------------------------------
 internal_api_key = "internal-api-key-change-this-in-production"
+
+# -----------------------------------------------------------------------------
+# NOTE: Discord Webhook, GitHub Token, ArgoCD Admin Emails 등
+# setup 스크립트용 시크릿은 AWS Secrets Manager에서 수동 관리
+# secrets.tf 주석 참조
+# -----------------------------------------------------------------------------

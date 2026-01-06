@@ -25,18 +25,20 @@ import (
 
 // Config holds router configuration
 type Config struct {
-	DB              *gorm.DB
-	Logger          *zap.Logger
-	JWTSecret       string
-	BasePath        string
-	TokenValidator  middleware.TokenValidator
-	ArgoCDClient    *client.ArgoCDClient
-	K8sClient       *client.K8sClient
-	ArgoCDNamespace string
-	Metrics         *metrics.Metrics
-	RedisClient     *redis.Client
-	RateLimitConfig config.RateLimitConfig
-	ServiceName     string
+	DB               *gorm.DB
+	Logger           *zap.Logger
+	JWTSecret        string
+	BasePath         string
+	TokenValidator   middleware.TokenValidator
+	ArgoCDClient     *client.ArgoCDClient
+	K8sClient        *client.K8sClient
+	ArgoCDNamespace  string
+	Metrics          *metrics.Metrics
+	RedisClient      *redis.Client
+	RateLimitConfig  config.RateLimitConfig
+	ServiceName      string
+	PrometheusClient *client.PrometheusClient
+	PrometheusNS     string
 }
 
 // Setup sets up the router with all routes
@@ -111,6 +113,7 @@ func Setup(cfg Config) *gin.Engine {
 	auditHandler := handler.NewAuditHandler(auditService)
 	configHandler := handler.NewConfigHandler(configService)
 	argoCDHandler := handler.NewArgoCDHandler(argoCDService, cfg.Logger)
+	metricsHandler := handler.NewMetricsHandler(cfg.PrometheusClient, cfg.PrometheusNS, cfg.Logger)
 
 	// API routes group
 	api := r.Group(cfg.BasePath)
@@ -216,6 +219,12 @@ func Setup(cfg Config) *gin.Engine {
 	{
 		// ArgoCD applications
 		monitoring.GET("/applications", argoCDHandler.GetApplications)
+
+		// Prometheus metrics
+		monitoring.GET("/metrics/overview", metricsHandler.GetSystemOverview)
+		monitoring.GET("/metrics/services", metricsHandler.GetServiceMetrics)
+		monitoring.GET("/metrics/services/:serviceName", metricsHandler.GetServiceDetail)
+		monitoring.GET("/metrics/cluster", metricsHandler.GetClusterMetrics)
 	}
 
 	// ============================================================
