@@ -25,7 +25,7 @@ spec:
         - name: image.repository
           value: "noti-service"
         - name: image.tag
-          value: "157-b3ce51b"
+          value: "164-6b8acf7"
         - name: imagePullSecrets[0].name
           value: "ecr-secret"
         - name: shared.config.DB_HOST
