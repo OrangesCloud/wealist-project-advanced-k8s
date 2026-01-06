@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/ops-service"
         - name: image.tag
-          value: "122-5134e91"
+          value: "130-cbccbd1"
         - name: externalSecrets.enabled
           value: "true"
         - name: config.DB_NAME
