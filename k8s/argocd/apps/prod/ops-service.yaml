@@ -40,6 +40,9 @@ spec:
           value: "http://prometheus.wealist-prod.svc.cluster.local:9090"
         - name: config.PROMETHEUS_NAMESPACE
           value: "wealist-prod"
+        # Database auto-migration (내부 관리 도구이므로 활성화)
+        - name: config.DB_AUTO_MIGRATE
+          value: "true"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-prod
