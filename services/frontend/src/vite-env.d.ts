@@ -6,20 +6,20 @@ declare const __BUILD_SHA__: string;
 declare const __BUILD_TIME__: string;
 
 // 런타임 설정 (config.js에서 주입)
-interface RuntimeEnv {
-  API_BASE_URL?: string;
-  API_DOMAIN?: string;
-  VERSION?: string;
-  BUILD_SHA?: string;
-  BUILD_TIME?: string;
-  ENVIRONMENT?: string;
-}
-
 declare global {
   interface Window {
-    __ENV__?: RuntimeEnv;
+    __ENV__?: {
+      API_BASE_URL?: string;
+      API_DOMAIN?: string;
+      VERSION?: string;
+      BUILD_SHA?: string;
+      BUILD_TIME?: string;
+      ENVIRONMENT?: string;
+    };
   }
 }
+
+export {};
 
 interface ImportMetaEnv {
   // Vite가 기본적으로 제공하는 환경 변수 (예: 개발/운영 모드)
