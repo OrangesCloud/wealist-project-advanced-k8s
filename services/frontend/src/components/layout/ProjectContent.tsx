@@ -64,6 +64,7 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
     filterOption: 'all',
     currentLayout: 'board',
     showCompleted: true, // 🔥 기본값 true로 변경
+    showDeleted: true, // 🔥 삭제된 항목 보기 (기본값 true)
     sortColumn: null,
     sortDirection: 'asc',
   });
@@ -232,7 +233,7 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
 
   // 6. Table/Board View 공통 데이터 필터링/정렬 로직 (useMemo)
   const allProcessedBoards = useMemo(() => {
-    const { searchQuery, sortColumn, showCompleted } = viewState;
+    const { searchQuery, sortColumn, showCompleted, showDeleted } = viewState;
 
     const boardsToProcess = columns.flatMap((column) =>
       column.boards.map((board) => {
@@ -267,6 +268,18 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
         (board) => !completedStageIds?.includes(board.stageId),
       );
     }
+
+    // 2-1. 💡 [추가] '삭제된 항목' 필터링 로직
+    if (!showDeleted) {
+      const deletedStageIds = stageOptions
+        ?.filter((s) => s.optionLabel === '삭제')
+        .map((s) => s.optionValue);
+
+      filteredBoardsByCompletion = filteredBoardsByCompletion.filter(
+        (board) => !deletedStageIds?.includes(board.stageId),
+      );
+    }
+
     // 2. 💡 [추가] '나의 일감' 필터링 로직
     if (viewState?.filterOption === 'my_tasks' && userId) {
       filteredBoardsByCompletion = filteredBoardsByCompletion.filter(
@@ -401,9 +414,21 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
         return orderA - orderB;
       });
 
-      if (!viewState.showCompleted && viewState?.currentView === 'stage')
-        return result.filter((ele) => ele.stageId !== 'approved');
-      return result;
+      // 완료/삭제 컬럼 필터링
+      let filteredResult = result;
+      if (!viewState.showCompleted && viewState?.currentView === 'stage') {
+        const completedStageIds = stages
+          .filter((s) => s.optionLabel === '완료')
+          .map((s) => s.optionValue);
+        filteredResult = filteredResult.filter((col) => !completedStageIds.includes(col.stageId));
+      }
+      if (!viewState.showDeleted && viewState?.currentView === 'stage') {
+        const deletedStageIds = stages
+          .filter((s) => s.optionLabel === '삭제')
+          .map((s) => s.optionValue);
+        filteredResult = filteredResult.filter((col) => !deletedStageIds.includes(col.stageId));
+      }
+      return filteredResult;
     }
 
     // role이나 importance일 때만 재그룹화 (기존 로직 유지, filteredBoards 사용)
@@ -543,8 +568,10 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
         currentView={viewState.currentView}
         onLayoutChange={(layout) => setViewField('currentLayout', layout)}
         onShowCompletedChange={(show) => setViewField('showCompleted', show)}
+        onShowDeletedChange={(show) => setViewField('showDeleted', show)}
         currentLayout={viewState.currentLayout}
         showCompleted={viewState.showCompleted}
+        showDeleted={viewState.showDeleted}
         stageOptions={fieldOptionsLookup?.stages || []}
         roleOptions={fieldOptionsLookup?.roles || []}
         importanceOptions={fieldOptionsLookup?.importances || []}
