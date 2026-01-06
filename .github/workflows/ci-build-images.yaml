@@ -1,18 +1,17 @@
-# .github/workflows/ci-build-images.yaml
 name: Build and Push Images to ECR
 
 on:
   push:
     branches:
-      - service-deploy-dev # dev 환경 배포
-      - service-deploy-prod # prod 환경 배포
+      - service-deploy-dev
+      - service-deploy-prod
     paths:
       - "services/**"
-      - "packages/wealist-advanced-go-pkg/**" # 공통 모듈 변경 감지
+      - "packages/wealist-advanced-go-pkg/**"
   workflow_dispatch:
     inputs:
       services:
-        description: "Services to build (comma-separated, e.g., user-service,board-service). Leave empty for all services."
+        description: "Services to build (comma-separated)"
         required: false
         type: string
       environment:
@@ -23,17 +22,11 @@ on:
           - develop
           - prod
         default: develop
-      skip_gitops:
-        description: "Skip GitOps update trigger"
-        required: false
-        type: boolean
-        default: false
 
 env:
   AWS_REGION: ap-northeast-2
 
 jobs:
-  # 브랜치 검증 job 추가
   validate-branch:
     runs-on: ubuntu-latest
     outputs:
@@ -43,244 +36,83 @@ jobs:
         id: check
         run: |
           BRANCH="${GITHUB_REF#refs/heads/}"
-          EVENT_NAME="${{ github.event_name }}"
-          
-          echo "Event: ${EVENT_NAME}"
-          echo "Branch: ${BRANCH}"
-          echo "GitHub Event Name: ${{ github.event_name }}"
-          
-          # workflow_dispatch는 항상 허용
-          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${BRANCH}" = "service-deploy-dev" ] || [ "${BRANCH}" = "service-deploy-prod" ]; then
             echo "should_run=true" >> $GITHUB_OUTPUT
-            echo "✅ Manual trigger - allowed"
-            exit 0
-          fi
-          
-          # push 이벤트에서만 특정 브랜치 허용
-          if [ "${EVENT_NAME}" = "push" ]; then
-            case "${BRANCH}" in
-              "service-deploy-dev"|"service-deploy-prod")
-                echo "should_run=true" >> $GITHUB_OUTPUT
-                echo "✅ Push to ${BRANCH} - allowed"
-                ;;
-              *)
-                echo "should_run=false" >> $GITHUB_OUTPUT
-                echo "❌ Push to ${BRANCH} - not allowed"
-                ;;
-            esac
           else
-            # PR이나 다른 이벤트는 차단
             echo "should_run=false" >> $GITHUB_OUTPUT
-            echo "❌ Event ${EVENT_NAME} - not allowed"
           fi
-
-  # -------------------------------------------------------------------------
-  # 빌드 시작 Discord 알림
-  # -------------------------------------------------------------------------
-  notify-start:
-    needs: validate-branch
-    if: needs.validate-branch.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send Discord notification - Build Started
-        env:
-          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1455461844826325207/OdeRKNLVYzAMGoxH8mLggCc-BZ7ky5t8ScGE2gD388-bCkcTsnffNlhYG2gGmFpsfEY7"
-        run: |
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          COMMIT_MSG=$(echo '${{ github.event.head_commit.message }}' | head -n 1 | sed 's/"/\\"/g')
-          BRANCH="${GITHUB_REF#refs/heads/}"
-
-          # 환경 추출
-          case "${BRANCH}" in
-            "service-deploy-dev") ENV="develop" ;;
-            "service-deploy-prod") ENV="prod" ;;
-            *) ENV="manual" ;;
-          esac
-
-          curl -H "Content-Type: application/json" \
-               -X POST \
-               -d '{
-                 "embeds": [{
-                   "title": "🚀 Service Build Started",
-                   "description": "Docker 이미지 빌드가 시작되었습니다",
-                   "color": 3447003,
-                   "fields": [
-                     {
-                       "name": "🌍 Environment",
-                       "value": "'"${ENV}"'",
-                       "inline": true
-                     },
-                     {
-                       "name": "🔗 Commit",
-                       "value": "[`'"${SHORT_SHA}"'`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
-                       "inline": true
-                     },
-                     {
-                       "name": "👤 Triggered by",
-                       "value": "${{ github.actor }}",
-                       "inline": true
-                     },
-                     {
-                       "name": "💬 Commit Message",
-                       "value": "'"${COMMIT_MSG}"'",
-                       "inline": false
-                     }
-                   ],
-                   "footer": {
-                     "text": "GitHub Actions • Build #${{ github.run_number }}"
-                   },
-                   "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
-                 }]
-               }' \
-               "$DISCORD_WEBHOOK"
 
   detect-changes:
-    needs: [validate-branch, notify-start]
+    needs: validate-branch
     if: needs.validate-branch.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     outputs:
       services: ${{ steps.set-services.outputs.services }}
-      branch: ${{ steps.branch.outputs.name }}
       environment: ${{ steps.env-config.outputs.environment }}
       ecr_registry: ${{ steps.env-config.outputs.ecr_registry }}
       k8s_branch: ${{ steps.env-config.outputs.k8s_branch }}
       namespace: ${{ steps.env-config.outputs.namespace }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Get branch name
-        id: branch
-        run: echo "name=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
-
-      # 환경별 설정
       - name: Set environment config
         id: env-config
         run: |
-          BRANCH="${GITHUB_REF#refs/heads/}"
-
-          # workflow_dispatch인 경우 입력값 사용
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             ENV="${{ github.event.inputs.environment }}"
           else
-            # 브랜치명에서 환경 추출
-            case "${BRANCH}" in
-              "service-deploy-dev")
-                ENV="develop"
-                ;;
-              "service-deploy-prod")
-                ENV="prod"
-                ;;
-              *)
-                echo "Error: Unknown branch ${BRANCH}"
-                exit 1
-                ;;
-            esac
+            [[ "${GITHUB_REF#refs/heads/}" == "service-deploy-prod" ]] && ENV="prod" || ENV="develop"
           fi
-
           echo "environment=${ENV}" >> $GITHUB_OUTPUT
           echo "ecr_registry=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com" >> $GITHUB_OUTPUT
+          [ "${ENV}" = "prod" ] && echo "k8s_branch=k8s-deploy-prod" >> $GITHUB_OUTPUT || echo "k8s_branch=k8s-deploy-dev" >> $GITHUB_OUTPUT
+          [ "${ENV}" = "prod" ] && echo "namespace=wealist-prod" >> $GITHUB_OUTPUT || echo "namespace=wealist-dev" >> $GITHUB_OUTPUT
 
-          if [ "${ENV}" = "develop" ]; then
-            echo "k8s_branch=k8s-deploy-dev" >> $GITHUB_OUTPUT
-            echo "namespace=wealist-dev" >> $GITHUB_OUTPUT
-          else
-            echo "k8s_branch=k8s-deploy-prod" >> $GITHUB_OUTPUT
-            echo "namespace=wealist-prod" >> $GITHUB_OUTPUT
-          fi
-
-          echo "=== Environment Config ==="
-          echo "Environment: ${ENV}"
-          echo "K8s Branch: k8s-deploy-${ENV}"
-
-      # Push 이벤트: 자동 감지 (push된 커밋의 변경사항 비교)
       - uses: dorny/paths-filter@v2
-        if: github.event_name == 'push'
         id: filter
         with:
-          # push 이벤트에서는 before...after 커밋 비교 (merge 시에도 변경사항 감지)
-          base: ${{ github.event.before }}
-          ref: ${{ github.sha }}
           filters: |
-            common-package:
-              - 'packages/wealist-advanced-go-pkg/**'
-            auth-service:
-              - 'services/auth-service/**'
-            board-service:
-              - 'services/board-service/**'
-            chat-service:
-              - 'services/chat-service/**'
-            noti-service:
-              - 'services/noti-service/**'
-            storage-service:
-              - 'services/storage-service/**'
-            user-service:
-              - 'services/user-service/**'
-            ops-service:
-              - 'services/ops-service/**'
-            ops-portal:
-              - 'services/ops-portal/**'
+            common-package: ['packages/wealist-advanced-go-pkg/**']
+            auth-service: ['services/auth-service/**']
+            board-service: ['services/board-service/**']
+            chat-service: ['services/chat-service/**']
+            noti-service: ['services/noti-service/**']
+            storage-service: ['services/storage-service/**']
+            user-service: ['services/user-service/**']
+            ops-service: ['services/ops-service/**']
+            ops-portal: ['services/ops-portal/**']
 
-      # 수동 실행 또는 자동 감지 결과 설정
       - name: Set services to build
         id: set-services
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            if [ -n "${{ github.event.inputs.services }}" ]; then
-              # frontend 제외 (S3/CloudFront로 별도 배포)
-              SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -cR 'split(",") | map(gsub("^\\s+|\\s+$";"")) | map(select(. != "frontend"))')
-              echo "Manual trigger with services: ${SERVICES}"
-            else
-              SERVICES='["auth-service","board-service","chat-service","noti-service","storage-service","user-service","ops-service","ops-portal"]'
-              echo "Manual trigger: building all services"
-            fi
-          # 공통 패키지 변경 시 모든 Go 서비스 빌드
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.services }}" ]; then
+            SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -cR 'split(",") | map(gsub("^\\s+|\\s+$";""))')
           elif [ "${{ steps.filter.outputs.common-package }}" = "true" ]; then
-            # 공통 패키지만 변경된 경우 모든 Go 서비스 (ops-service 포함)
-            GO_SERVICES='["board-service","chat-service","noti-service","storage-service","user-service","ops-service"]'
-            # 다른 서비스도 변경되었으면 병합
-            OTHER_CHANGES='${{ steps.filter.outputs.changes }}'
-            if [ "${OTHER_CHANGES}" != "[]" ] && [ -n "${OTHER_CHANGES}" ]; then
-              # common-package 제외하고 병합
-              SERVICES=$(echo "${GO_SERVICES}" "${OTHER_CHANGES}" | jq -sc 'add | unique | map(select(. != "common-package"))')
-            else
-              SERVICES="${GO_SERVICES}"
-            fi
-            echo "Common package changed - building Go services: ${SERVICES}"
+            SERVICES='["board-service","chat-service","noti-service","storage-service","user-service","ops-service"]'
           else
-            # common-package 제외
-            SERVICES=$(echo '${{ steps.filter.outputs.changes }}' | jq -c 'map(select(. != "common-package"))')
-            echo "Auto-detected services: ${SERVICES}"
+            SERVICES='${{ steps.filter.outputs.changes }}'
           fi
-
           echo "services=${SERVICES}" >> $GITHUB_OUTPUT
 
-  # -------------------------------------------------------------------------
-  # 이미지 빌드 및 ECR 푸시 (amd64 only)
-  # -------------------------------------------------------------------------
   build-and-push:
     needs: [validate-branch, detect-changes]
-    if: ${{ needs.validate-branch.outputs.should_run == 'true' && needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != '' }}
+    if: needs.detect-changes.outputs.services != '[]'
     runs-on: ubuntu-latest
+    # environment를 명시하여 해당 환경의 secrets를 우선 참조하게 함
     environment: ${{ needs.detect-changes.outputs.environment }}
-
     strategy:
       matrix:
         service: ${{ fromJSON(needs.detect-changes.outputs.services) }}
       fail-fast: false
-
     permissions:
       id-token: write
       contents: read
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
+          # Repository Secrets로 옮긴 ARN 사용
           role-to-assume: ${{ secrets.AWS_ROLE_ARN_BACKEND }}
           aws-region: ${{ env.AWS_REGION }}
 
@@ -288,447 +120,20 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set ECR repository name
-        id: ecr-repo
-        run: |
-          ENV="${{ needs.detect-changes.outputs.environment }}"
-          SERVICE="${{ matrix.service }}"
-          if [ "${ENV}" = "prod" ]; then
-            REPO_NAME="prod/${SERVICE}"
-          else
-            REPO_NAME="${SERVICE}"
-          fi
-          echo "name=${REPO_NAME}" >> $GITHUB_OUTPUT
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Create ECR repository if not exists
-        run: |
-          aws ecr describe-repositories --repository-names ${{ steps.ecr-repo.outputs.name }} 2>/dev/null || \
-          aws ecr create-repository \
-            --repository-name ${{ steps.ecr-repo.outputs.name }} \
-            --image-scanning-configuration scanOnPush=true \
-            --encryption-configuration encryptionType=AES256
-
-      - name: Set build configuration
-        id: build-config
-        run: |
-          SERVICE="${{ matrix.service }}"
-          case "${SERVICE}" in
-            "auth-service")
-              DOCKERFILE="services/${SERVICE}/Dockerfile"
-              CONTEXT="services/${SERVICE}"
-              ;;
-            "board-service"|"chat-service"|"noti-service"|"storage-service"|"user-service"|"ops-service")
-              DOCKERFILE="services/${SERVICE}/docker/Dockerfile"
-              CONTEXT="."
-              ;;
-            "ops-portal")
-              DOCKERFILE="services/${SERVICE}/docker/Dockerfile"
-              CONTEXT="services/${SERVICE}"
-              ;;
-            *)
-              echo "Error: Unknown service ${SERVICE}"
-              exit 1
-              ;;
-          esac
-          echo "dockerfile=${DOCKERFILE}" >> $GITHUB_OUTPUT
-          echo "context=${CONTEXT}" >> $GITHUB_OUTPUT
-
-      - name: Generate image tags
-        id: tags
-        run: |
-          SHORT_SHA="${{ github.sha }}"
-          SHORT_SHA=${SHORT_SHA:0:7}
-          ENV="${{ needs.detect-changes.outputs.environment }}"
-          BUILD_NUMBER="${{ github.run_number }}"
-          ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
-          REPO_NAME="${{ steps.ecr-repo.outputs.name }}"
-          TAG="${BUILD_NUMBER}-${SHORT_SHA}"
-
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "image_uri=${ECR_REGISTRY}/${REPO_NAME}" >> $GITHUB_OUTPUT
-
-          # prod는 IMMUTABLE이므로 latest 태그 불가
-          if [ "${ENV}" = "prod" ]; then
-            TAGS="${ECR_REGISTRY}/${REPO_NAME}:${TAG}"
-          else
-            TAGS="${ECR_REGISTRY}/${REPO_NAME}:${TAG},${ECR_REGISTRY}/${REPO_NAME}:latest"
-          fi
-          echo "all_tags=${TAGS}" >> $GITHUB_OUTPUT
-
-      # ECR 인증 정보를 buildx에 전달
-      - name: Set up Docker auth for ECR
-        run: |
-          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-
-      - name: Build and push ${{ matrix.service }}
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ${{ steps.build-config.outputs.context }}
-          file: ${{ steps.build-config.outputs.dockerfile }}
-          platforms: linux/amd64
+          context: ${{ matrix.service == 'auth-service' && format('services/{0}', matrix.service) || (matrix.service == 'ops-portal' && format('services/{0}', matrix.service) || '.') }}
+          file: ${{ matrix.service == 'auth-service' && format('services/{0}/Dockerfile', matrix.service) || format('services/{0}/docker/Dockerfile', matrix.service) }}
           push: true
-          tags: ${{ steps.tags.outputs.all_tags }}
-          cache-from: type=gha,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
-          # ECR과 buildx 간 인증 문제 방지 (attestation 비활성화)
+          # matrix 기반 태그 생성
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ needs.detect-changes.outputs.environment == 'prod' && 'prod/' || '' }}${{ matrix.service }}:${{ github.run_number }}-${{ github.sha }}
+            ${{ needs.detect-changes.outputs.environment != 'prod' && format('{0}/{1}:latest', steps.login-ecr.outputs.registry, matrix.service) || '' }}
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           provenance: false
-          sbom: false
-          # buildx에 docker 설정 사용하도록
-          outputs: type=registry
-
-      - name: Output image info
-        run: |
-          echo "### 🚀 Image Published to ECR" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Service:** ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** ${{ needs.detect-changes.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          echo "**ECR Repository:** ${{ steps.ecr-repo.outputs.name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Image URI:** ${{ steps.tags.outputs.image_uri }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Tag:** ${{ steps.tags.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Platform:** linux/amd64" >> $GITHUB_STEP_SUMMARY
-
-  # -------------------------------------------------------------------------
-  # 빌드 완료 Discord 알림
-  # -------------------------------------------------------------------------
-  notify-build-complete:
-    needs: [detect-changes, build-and-push]
-    if: always() && needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != ''
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Set notification variables
-        id: vars
-        run: |
-          SHORT_SHA="${{ github.sha }}"
-          SHORT_SHA=${SHORT_SHA:0:7}
-          BUILD_NUMBER="${{ github.run_number }}"
-          TAG="${BUILD_NUMBER}-${SHORT_SHA}"
-
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
-
-      - name: Send Discord notification on success
-        if: needs.build-and-push.result == 'success'
-        env:
-          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1455461844826325207/OdeRKNLVYzAMGoxH8mLggCc-BZ7ky5t8ScGE2gD388-bCkcTsnffNlhYG2gGmFpsfEY7"
-        run: |
-          if [ -n "$DISCORD_WEBHOOK" ]; then
-            SERVICES='${{ needs.detect-changes.outputs.services }}'
-            SERVICES_LIST=$(echo "$SERVICES" | jq -r 'join(", ")')
-
-            curl -H "Content-Type: application/json" \
-                 -X POST \
-                 -d '{
-                   "embeds": [{
-                     "title": "✅ Image Build Complete",
-                     "description": "Docker images built and pushed to ECR",
-                     "color": 3066993,
-                     "fields": [
-                       {
-                         "name": "🔧 Services",
-                         "value": "'"${SERVICES_LIST}"'",
-                         "inline": false
-                       },
-                       {
-                         "name": "🏷️ Image Tag",
-                         "value": "`${{ steps.vars.outputs.tag }}`",
-                         "inline": true
-                       },
-                       {
-                         "name": "🌍 Environment",
-                         "value": "'"${{ needs.detect-changes.outputs.environment }}"'",
-                         "inline": true
-                       },
-                       {
-                         "name": "📦 Registry",
-                         "value": "ECR",
-                         "inline": true
-                       },
-                       {
-                         "name": "🔗 Commit",
-                         "value": "[`${{ steps.vars.outputs.short_sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
-                         "inline": true
-                       },
-                       {
-                         "name": "👤 Triggered by",
-                         "value": "'"${{ github.actor }}"'",
-                         "inline": true
-                       }
-                     ],
-                     "footer": {
-                       "text": "GitHub Actions • Build #${{ github.run_number }}"
-                     },
-                     "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
-                   }]
-                 }' \
-                 "$DISCORD_WEBHOOK"
-          fi
-
-      - name: Send Discord notification on failure
-        if: needs.build-and-push.result == 'failure'
-        env:
-          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1455461844826325207/OdeRKNLVYzAMGoxH8mLggCc-BZ7ky5t8ScGE2gD388-bCkcTsnffNlhYG2gGmFpsfEY7"
-        run: |
-          if [ -n "$DISCORD_WEBHOOK" ]; then
-            SERVICES='${{ needs.detect-changes.outputs.services }}'
-            SERVICES_LIST=$(echo "$SERVICES" | jq -r 'join(", ")')
-
-            curl -H "Content-Type: application/json" \
-                 -X POST \
-                 -d '{
-                   "embeds": [{
-                     "title": "❌ Image Build Failed",
-                     "description": "Docker image build failed!",
-                     "color": 15158332,
-                     "fields": [
-                       {
-                         "name": "🔧 Services",
-                         "value": "'"${SERVICES_LIST}"'",
-                         "inline": false
-                       },
-                       {
-                         "name": "🌍 Environment",
-                         "value": "'"${{ needs.detect-changes.outputs.environment }}"'",
-                         "inline": true
-                       },
-                       {
-                         "name": "🔗 Workflow",
-                         "value": "[View Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
-                         "inline": true
-                       },
-                       {
-                         "name": "👤 Triggered by",
-                         "value": "'"${{ github.actor }}"'",
-                         "inline": true
-                       }
-                     ],
-                     "footer": {
-                       "text": "GitHub Actions • Build #${{ github.run_number }}"
-                     },
-                     "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
-                   }]
-                 }' \
-                 "$DISCORD_WEBHOOK"
-          fi
-
-  update-gitops-manifests:
-    needs: [validate-branch, detect-changes, build-and-push]
-    # TODO: prod 매니페스트 업데이트 임시 활성화 - 원복 시 아래 주석 해제
-    # needs.detect-changes.outputs.branch != 'service-deploy-prod' &&
-    if: |
-      needs.validate-branch.outputs.should_run == 'true' &&
-      needs.detect-changes.outputs.services != '[]' &&
-      needs.detect-changes.outputs.services != '' &&
-      success() &&
-      github.event.inputs.skip_gitops != 'true'
-    runs-on: ubuntu-latest
-    environment: ${{ needs.detect-changes.outputs.environment }}
-
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITOPS_PAT || github.token }}
-          fetch-depth: 0
-
-      - name: Set environment variables
-        run: |
-          SHORT_SHA="${{ github.sha }}"
-          SHORT_SHA=${SHORT_SHA:0:7}
-          ENV="${{ needs.detect-changes.outputs.environment }}"
-          BUILD_NUMBER="${{ github.run_number }}"
-          # 태그 형식: Build Number + SHA (예: 42-abc1234)
-          NEW_TAG="${BUILD_NUMBER}-${SHORT_SHA}"
-          K8S_BRANCH="${{ needs.detect-changes.outputs.k8s_branch }}"
-          # ECR registry를 직접 구성 (outputs으로 전달 시 secret 마스킹 문제 회피)
-          ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
-
-          echo "SHORT_SHA=${SHORT_SHA}" >> $GITHUB_ENV
-          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> $GITHUB_ENV
-          echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
-          echo "K8S_BRANCH=${K8S_BRANCH}" >> $GITHUB_ENV
-          echo "ECR_REGISTRY=${ECR_REGISTRY}" >> $GITHUB_ENV
-          echo "NAMESPACE=${{ needs.detect-changes.outputs.namespace }}" >> $GITHUB_ENV
-          echo "ENV=${ENV}" >> $GITHUB_ENV
-
-          echo "=== GitOps Config ==="
-          echo "Environment: ${ENV}"
-          echo "Build Number: ${BUILD_NUMBER}"
-          echo "New Tag: ${NEW_TAG}"
-          echo "K8s Branch: ${K8S_BRANCH}"
-          echo "ECR Registry: ${ECR_REGISTRY}"
-
-      - name: Configure Git
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action Bot"
-
-      - name: Checkout or create k8s branch
-        run: |
-          if git ls-remote --heads origin ${K8S_BRANCH} | grep -q ${K8S_BRANCH}; then
-            echo "Branch ${K8S_BRANCH} exists"
-            git fetch origin ${K8S_BRANCH}
-            git checkout ${K8S_BRANCH}
-          else
-            echo "Branch ${K8S_BRANCH} does not exist. Creating it..."
-            git checkout -b ${K8S_BRANCH}
-            git push origin ${K8S_BRANCH}
-          fi
-
-      - name: Update manifest files
-        run: |
-          SERVICES='${{ needs.detect-changes.outputs.services }}'
-
-          echo "Updating image tags to: ${NEW_TAG}"
-          echo "ECR Registry: ${ECR_REGISTRY}"
-          echo "Environment: ${ENV}"
-          echo "Services to update: ${SERVICES}"
-
-          for service in $(echo $SERVICES | jq -r '.[]'); do
-            # 환경별 경로 사용 (dev/ 또는 prod/)
-            # develop 환경은 dev 폴더 사용
-            if [ "${ENV}" = "develop" ]; then
-              MANIFEST_DIR="dev"
-            else
-              MANIFEST_DIR="${ENV}"
-            fi
-            MANIFEST_FILE="k8s/argocd/apps/${MANIFEST_DIR}/${service}.yaml"
-
-            if [ -f "$MANIFEST_FILE" ]; then
-              echo "Updating ${MANIFEST_FILE}"
-
-              # image.repository 업데이트 (prod는 prod/ prefix 추가)
-              if [ "${ENV}" = "prod" ]; then
-                REPO_NAME="prod/${service}"
-              else
-                REPO_NAME="${service}"
-              fi
-
-              sed -i.bak '/- name: image\.repository/{
-                n
-                s|value: ".*"|value: "'"${REPO_NAME}"'"|
-              }' "$MANIFEST_FILE"
-
-              # image.tag 업데이트
-              sed -i.bak '/- name: image\.tag/{
-                n
-                s|value: ".*"|value: "'"${NEW_TAG}"'"|
-              }' "$MANIFEST_FILE"
-
-              # global.imageRegistry 업데이트 (ECR 레지스트리)
-              sed -i.bak '/- name: global\.imageRegistry/{
-                n
-                s|value: ".*"|value: "'"${ECR_REGISTRY}"'"|
-              }' "$MANIFEST_FILE"
-
-              rm -f "${MANIFEST_FILE}.bak"
-
-              echo "Updated ${service}:"
-              echo "  - Repository: ${REPO_NAME}"
-              echo "  - Tag: ${NEW_TAG}"
-              echo "=== Changes in ${MANIFEST_FILE} ==="
-              git diff "$MANIFEST_FILE" || true
-              echo "=================================="
-            else
-              echo "Warning: Manifest file not found: ${MANIFEST_FILE}"
-            fi
-          done
-
-      - name: Commit and push changes
-        run: |
-          if git diff --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
-
-          echo "Changed files:"
-          git diff --name-only
-
-          git add .
-
-          # 멀티라인 커밋 메시지
-          COMMIT_MSG="🚀 [${NAMESPACE}] Update image tags (Build #${BUILD_NUMBER})"
-          COMMIT_MSG="${COMMIT_MSG}"$'\n\n'"Services: ${{ needs.detect-changes.outputs.services }}"
-          COMMIT_MSG="${COMMIT_MSG}"$'\n'"Environment: ${{ needs.detect-changes.outputs.environment }}"
-          COMMIT_MSG="${COMMIT_MSG}"$'\n'"Build: #${BUILD_NUMBER}"
-          COMMIT_MSG="${COMMIT_MSG}"$'\n'"Tag: ${NEW_TAG}"
-          COMMIT_MSG="${COMMIT_MSG}"$'\n'"Commit: ${{ github.sha }}"
-          COMMIT_MSG="${COMMIT_MSG}"$'\n\n'"Updated by: ${{ github.actor }}"
-          COMMIT_MSG="${COMMIT_MSG}"$'\n'"Triggered by: ${{ github.event_name }}"
-
-          git commit -m "${COMMIT_MSG}"
-
-          git push origin ${K8S_BRANCH}
-
-          echo "✅ Successfully updated manifests in ${K8S_BRANCH} branch"
-
-      - name: Create deployment summary
-        run: |
-          echo "## 🚀 GitOps Manifest Update (ECR)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** ${{ needs.detect-changes.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Updated Services:** ${{ needs.detect-changes.outputs.services }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Target Branch:** ${K8S_BRANCH}" >> $GITHUB_STEP_SUMMARY
-          echo "**Namespace:** ${NAMESPACE}" >> $GITHUB_STEP_SUMMARY
-          echo "**Build:** #${BUILD_NUMBER}" >> $GITHUB_STEP_SUMMARY
-          echo "**Image Tag:** ${NEW_TAG}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**ArgoCD will automatically sync these changes.**" >> $GITHUB_STEP_SUMMARY
-
-      - name: Send Discord notification for GitOps update
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_DEPLOY }}
-        run: |
-          if [ -n "$DISCORD_WEBHOOK" ]; then
-            SERVICES='${{ needs.detect-changes.outputs.services }}'
-            SERVICES_LIST=$(echo "$SERVICES" | jq -r 'join(", ")')
-
-            curl -H "Content-Type: application/json" \
-                 -X POST \
-                 -d '{
-                   "embeds": [{
-                     "title": "🚀 GitOps Manifest Updated",
-                     "description": "ArgoCD will auto-sync the deployment",
-                     "color": 3447003,
-                     "fields": [
-                       {
-                         "name": "🔧 Services",
-                         "value": "'"${SERVICES_LIST}"'",
-                         "inline": false
-                       },
-                       {
-                         "name": "🏷️ Image Tag",
-                         "value": "`'"${NEW_TAG}"'`",
-                         "inline": true
-                       },
-                       {
-                         "name": "🌍 Environment",
-                         "value": "'"${{ needs.detect-changes.outputs.environment }}"'",
-                         "inline": true
-                       },
-                       {
-                         "name": "📋 Namespace",
-                         "value": "`'"${NAMESPACE}"'`",
-                         "inline": true
-                       },
-                       {
-                         "name": "🔀 Target Branch",
-                         "value": "`'"${K8S_BRANCH}"'`",
-                         "inline": true
-                       },
-                       {
-                         "name": "👤 Triggered by",
-                         "value": "'"${{ github.actor }}"'",
-                         "inline": true
-                       }
-                     ],
-                     "footer": {
-                       "text": "GitHub Actions • Build #'"${BUILD_NUMBER}"'"
-                     },
-                     "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
-                   }]
-                 }' \
-                 "$DISCORD_WEBHOOK"
-          fi
