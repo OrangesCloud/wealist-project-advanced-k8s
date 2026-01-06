@@ -46,6 +46,37 @@ export interface ArgoCDApplication {
   health: string
 }
 
+// Metrics types
+export interface ServiceMetrics {
+  serviceName: string
+  requestRate: number      // requests per second
+  errorRate: number        // percentage
+  avgLatency: number       // milliseconds
+  p95Latency: number       // milliseconds
+  p99Latency: number       // milliseconds
+  successRate: number      // percentage
+  activeRequests: number   // concurrent requests
+}
+
+export interface ClusterMetrics {
+  nodeCount: number
+  podCount: number
+  cpuUsage: number         // percentage
+  memoryUsage: number      // percentage
+  totalCpuCores: number
+  totalMemoryGb: number
+  healthyPods: number
+  unhealthyPods: number
+}
+
+export interface SystemOverview {
+  totalRequests: number    // requests in last hour
+  avgResponseTime: number  // milliseconds
+  errorPercentage: number  // percentage
+  activeServices: number
+  totalEndpoints: number
+}
+
 // API Response types
 export interface ApiResponse<T> {
   success: boolean

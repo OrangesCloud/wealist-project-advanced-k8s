@@ -22,6 +22,14 @@ type Config struct {
 	ArgoCD     ArgoCDConfig     `yaml:"argocd"`
 	Kubernetes KubernetesConfig `yaml:"kubernetes"`
 	RateLimit  RateLimitConfig  `yaml:"rate_limit"`
+	Prometheus PrometheusConfig `yaml:"prometheus"`
+}
+
+// PrometheusConfig holds Prometheus API configuration
+type PrometheusConfig struct {
+	BaseURL   string        `yaml:"base_url"`
+	Timeout   time.Duration `yaml:"timeout"`
+	Namespace string        `yaml:"namespace"` // Namespace to query metrics for
 }
 
 // ServerConfig holds server configuration
@@ -165,6 +173,11 @@ func getDefaultConfig() Config {
 			RequestsPerMinute: 60,
 			BurstSize:         10,
 		},
+		Prometheus: PrometheusConfig{
+			BaseURL:   "http://prometheus:9090",
+			Timeout:   10 * time.Second,
+			Namespace: "wealist-prod",
+		},
 	}
 }
 
@@ -287,6 +300,14 @@ func (c *Config) overrideFromEnv() {
 	}
 	if c.RateLimit.RequestsPerMinute == 0 {
 		c.RateLimit.RequestsPerMinute = 60
+	}
+
+	// Prometheus
+	if prometheusURL := os.Getenv("PROMETHEUS_URL"); prometheusURL != "" {
+		c.Prometheus.BaseURL = prometheusURL
+	}
+	if prometheusNS := os.Getenv("PROMETHEUS_NAMESPACE"); prometheusNS != "" {
+		c.Prometheus.Namespace = prometheusNS
 	}
 }
 

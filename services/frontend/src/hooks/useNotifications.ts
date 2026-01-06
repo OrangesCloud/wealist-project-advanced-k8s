@@ -14,7 +14,7 @@ import {
 interface UseNotificationsOptions {
   workspaceId: string;
   enabled?: boolean;
-  onNewNotification?: (notification: Notification) => void;
+  onNewNotification?: (notification: Notification) => void; // 🔥 새 알림 콜백 (토스트용)
 }
 
 interface UseNotificationsReturn {
@@ -125,7 +125,7 @@ export const useNotifications = ({
         setNotifications((prev) => [notification, ...prev]);
         setUnreadCount((prev) => prev + 1);
 
-        // Trigger callback for browser notification / toast
+        // 🔥 토스트 표시 콜백 호출
         onNewNotification?.(notification);
       } catch (err) {
         console.error('[Notifications SSE] 알림 파싱 실패:', err);

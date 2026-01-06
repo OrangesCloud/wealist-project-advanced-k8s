@@ -234,7 +234,8 @@ INSERT INTO field_options (field_type, value, label, color, display_order, is_sy
 VALUES ('stage', 'pending', '대기', '#F59E0B', 1, true),
        ('stage', 'in_progress', '진행중', '#3B82F6', 2, true),
        ('stage', 'review', '검토', '#8B5CF6', 3, true),
-       ('stage', 'approved', '완료', '#10B981', 4, true);
+       ('stage', 'approved', '완료', '#10B981', 4, true),
+       ('stage', 'deleted', '삭제', '#EF4444', 5, true);
 
 -- Insert seed data for Role options (system defaults - project_id is NULL)
 INSERT INTO field_options (field_type, value, label, color, display_order, is_system_default)

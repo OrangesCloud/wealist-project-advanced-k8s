@@ -13,9 +13,7 @@ import { NotificationToast } from '../notification/NotificationToast';
 import { LogOut, UserIcon, GripVertical } from 'lucide-react';
 import { usePresence } from '../../hooks/usePresence';
 import { useNotifications } from '../../hooks/useNotifications';
-import { useBrowserNotification } from '../../hooks/useBrowserNotification';
 import { useToast } from '../../hooks/useToast';
-import { getNotificationMessage } from '../../api/notificationService';
 import type { Notification } from '../../types/notification';
 
 // 🔥 Render prop 타입: handleStartChat, refreshProfile을 children에 전달
@@ -41,39 +39,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const { theme } = useTheme();
 
-  // Browser notification hook
-  const { permission, isSupported, requestPermission, showNotification } = useBrowserNotification();
-
-  // Toast hook
-  const { toasts, addToast, removeToast } = useToast();
-
-  // Request notification permission on mount
-  useEffect(() => {
-    if (isSupported && permission === 'default') {
-      // Delay permission request to avoid blocking page load
-      const timer = setTimeout(() => {
-        requestPermission();
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [isSupported, permission, requestPermission]);
-
-  // Handle new notification - show browser notification and toast
-  const handleNewNotification = useCallback(
-    (notification: Notification) => {
-      // Add toast notification
-      addToast(notification);
-
-      // Show browser notification
-      const message = getNotificationMessage(notification);
-      showNotification(notification.resourceName || 'New Notification', {
-        body: message,
-        tag: notification.id,
-      });
-    },
-    [addToast, showNotification],
-  );
-
   // States
   const [userProfile, setUserProfile] = useState<UserProfileResponse | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -84,6 +49,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [chatListRefreshKey, setChatListRefreshKey] = useState(0); // 🔥 채팅 목록 갱신용
   const [totalUnreadCount, setTotalUnreadCount] = useState(0); // 🔥 총 읽지 않은 메시지 수
+
+  // 🔥 토스트 훅
+  const { toasts, showToast, hideToast } = useToast();
 
   // 알림 훅
   const {
@@ -98,7 +66,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   } = useNotifications({
     workspaceId,
     enabled: true,
-    onNewNotification: handleNewNotification,
+    onNewNotification: showToast, // 🔥 새 알림 시 토스트 표시
   });
 
   // Ref
@@ -463,11 +431,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         </div>
       )}
 
-      {/* 🔔 알림 토스트 */}
+      {/* 🔥 알림 토스트 */}
       <NotificationToast
         toasts={toasts}
-        onClose={removeToast}
-        onClick={onNotificationClick}
+        onClose={hideToast}
+        onClick={(notification) => {
+          onNotificationClick?.(notification);
+          hideToast(`toast-${notification.id}`);
+        }}
       />
     </div>
   );
