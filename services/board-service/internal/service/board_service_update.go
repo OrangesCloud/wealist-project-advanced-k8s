@@ -27,7 +27,7 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 		return nil, response.NewAppError(response.ErrCodeInternal, "Failed to fetch board", err.Error())
 	}
 
-	// Store original assignee for change detection
+	// Store original values for change detection
 	var originalAssigneeID *uuid.UUID
 	if board.AssigneeID != nil {
 		id := *board.AssigneeID
@@ -39,6 +39,16 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 	for _, p := range board.Participants {
 		originalParticipantIDs[p.UserID] = true
 	}
+
+	// 🔔 Store original values for change tracking
+	originalTitle := board.Title
+	originalContent := board.Content
+	var originalCustomFields map[string]interface{}
+	if len(board.CustomFields) > 0 {
+		_ = json.Unmarshal(board.CustomFields, &originalCustomFields)
+	}
+	originalStartDate := board.StartDate
+	originalDueDate := board.DueDate
 
 	// Determine the effective start and due dates for validation
 	effectiveStartDate := board.StartDate
@@ -192,6 +202,43 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 		board.Attachments = toDomainAttachments(allAttachments)
 	}
 
+	// 🔔 Build list of changes for notification
+	changes := make([]BoardChange, 0)
+
+	if req.Title != nil && originalTitle != board.Title {
+		changes = append(changes, BoardChange{Field: "title", OldValue: originalTitle, NewValue: board.Title})
+	}
+	if req.Content != nil && originalContent != board.Content {
+		changes = append(changes, BoardChange{Field: "content", OldValue: "(내용 변경)", NewValue: "(내용 변경)"})
+	}
+	if req.StartDate != nil && !datesEqual(originalStartDate, board.StartDate) {
+		changes = append(changes, BoardChange{Field: "startDate", OldValue: formatDatePtr(originalStartDate), NewValue: formatDatePtr(board.StartDate)})
+	}
+	if req.DueDate != nil && !datesEqual(originalDueDate, board.DueDate) {
+		changes = append(changes, BoardChange{Field: "dueDate", OldValue: formatDatePtr(originalDueDate), NewValue: formatDatePtr(board.DueDate)})
+	}
+	if s.isAssigneeChanged(originalAssigneeID, board.AssigneeID) {
+		changes = append(changes, BoardChange{Field: "assignee", OldValue: formatUUIDPtr(originalAssigneeID), NewValue: formatUUIDPtr(board.AssigneeID)})
+	}
+
+	// Check customFields changes (stage, role, importance, etc.)
+	if req.CustomFields != nil {
+		var newCustomFields map[string]interface{}
+		if len(board.CustomFields) > 0 {
+			_ = json.Unmarshal(board.CustomFields, &newCustomFields)
+		}
+		for key, newVal := range newCustomFields {
+			oldVal, existed := originalCustomFields[key]
+			if !existed || oldVal != newVal {
+				changes = append(changes, BoardChange{
+					Field:    key,
+					OldValue: formatInterface(oldVal),
+					NewValue: formatInterface(newVal),
+				})
+			}
+		}
+	}
+
 	// Send notifications for board update
 
 	// 1. Notify new assignee if assignee changed
@@ -212,8 +259,10 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 		}
 	}
 
-	// 3. Notify all assignee + participants about the update (excluding actor)
-	s.sendBoardUpdateNotifications(ctx, board, actorID)
+	// 3. Notify all assignee + participants about the update (excluding actor) with changes
+	if len(changes) > 0 {
+		s.sendBoardUpdateNotifications(ctx, board, actorID, changes)
+	}
 
 	// Convert to response DTO
 	return s.toBoardResponseWithWorkspace(ctx, board), nil
