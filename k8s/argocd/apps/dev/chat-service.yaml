@@ -25,7 +25,7 @@ spec:
         - name: image.repository
           value: "chat-service"
         - name: image.tag
-          value: "106-8647882"
+          value: "118-e25e2a6"
         - name: imagePullSecrets[0].name
           value: "ecr-secret"
         - name: shared.config.DB_HOST
