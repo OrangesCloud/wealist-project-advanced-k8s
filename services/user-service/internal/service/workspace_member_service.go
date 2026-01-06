@@ -105,16 +105,7 @@ func (s *WorkspaceService) InviteMember(workspaceID, inviterID uuid.UUID, req do
 		return nil, response.NewNotFoundError("Workspace not found", workspaceID.String())
 	}
 
-	// 초대 권한 확인
-	if workspace.OnlyOwnerCanInvite && workspace.OwnerID != inviterID {
-		// 소유자만 초대 가능 설정인 경우
-		s.logger.Warn("초대 권한 없음 - 소유자만 초대 가능",
-			zap.String("workspace_id", workspaceID.String()),
-			zap.String("inviter_id", inviterID.String()))
-		return nil, response.NewForbiddenError("Only owner can invite members to this workspace", "")
-	}
-
-	// 초대자의 역할 확인 (MEMBER는 초대 불가)
+	// 초대자의 역할 확인
 	inviterRole, err := s.memberRepo.GetRole(workspaceID, inviterID)
 	if err != nil {
 		s.logger.Error("초대자 역할 조회 실패",
@@ -123,8 +114,24 @@ func (s *WorkspaceService) InviteMember(workspaceID, inviterID uuid.UUID, req do
 			zap.Error(err))
 		return nil, response.NewInternalError("Failed to verify invite permission", err.Error())
 	}
-	if inviterRole == domain.RoleMember {
-		return nil, response.NewForbiddenError("Members cannot invite others", "")
+
+	// 초대 권한 확인
+	// OnlyOwnerCanInvite=true일 때: OWNER와 ADMIN만 초대 가능
+	// OnlyOwnerCanInvite=false일 때: OWNER, ADMIN 초대 가능 (MEMBER는 불가)
+	if workspace.OnlyOwnerCanInvite {
+		// OWNER 또는 ADMIN만 초대 가능
+		if workspace.OwnerID != inviterID && inviterRole != domain.RoleAdmin {
+			s.logger.Warn("초대 권한 없음 - 소유자 또는 관리자만 초대 가능",
+				zap.String("workspace_id", workspaceID.String()),
+				zap.String("inviter_id", inviterID.String()),
+				zap.String("inviter_role", string(inviterRole)))
+			return nil, response.NewForbiddenError("Only owner and admins can invite members to this workspace", "")
+		}
+	} else {
+		// MEMBER는 초대 불가
+		if inviterRole == domain.RoleMember {
+			return nil, response.NewForbiddenError("Members cannot invite others", "")
+		}
 	}
 
 	// 이메일로 사용자 조회
