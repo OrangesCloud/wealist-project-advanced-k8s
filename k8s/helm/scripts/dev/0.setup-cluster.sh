@@ -357,19 +357,12 @@ if [ -z "$AWS_ACCESS_KEY" ] || [ -z "$AWS_SECRET_KEY" ]; then
     AWS_SECRET_KEY=$(aws configure get aws_secret_access_key 2>/dev/null || echo "")
 fi
 
+# CLI 입력 제거 - 환경변수 또는 aws configure에서만 가져옴
 if [ -z "$AWS_ACCESS_KEY" ] || [ -z "$AWS_SECRET_KEY" ]; then
     echo ""
-    echo "  AWS 자격증명이 필요합니다. (ESO가 AWS Secrets Manager 접근용)"
-    read -p "  AWS Access Key ID: " AWS_ACCESS_KEY
-    if [ -n "$AWS_ACCESS_KEY" ]; then
-        read -sp "  AWS Secret Access Key: " AWS_SECRET_KEY
-        echo ""
-    fi
-fi
-
-if [ -z "$AWS_ACCESS_KEY" ] || [ -z "$AWS_SECRET_KEY" ]; then
-    echo ""
-    echo "⚠️  AWS 자격증명이 설정되지 않았습니다."
+    echo "⚠️  AWS 자격증명을 찾을 수 없습니다."
+    echo "   환경변수(AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY) 또는"
+    echo "   aws configure로 설정하세요."
     echo "   ESO 없이 진행합니다. 나중에 make eso-setup-aws로 설정할 수 있습니다."
 else
     kubectl delete secret aws-credentials -n external-secrets 2>/dev/null || true
