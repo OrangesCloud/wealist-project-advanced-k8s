@@ -25,7 +25,7 @@ spec:
         - name: image.repository
           value: "board-service"
         - name: image.tag
-          value: "120-7efd3a0"
+          value: "123-076053c"
         - name: imagePullSecrets[0].name
           value: "ecr-secret"
         - name: shared.config.DB_HOST
