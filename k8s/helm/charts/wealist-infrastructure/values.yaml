@@ -175,4 +175,11 @@ ingress:
   # Default: no TLS (override in environment files)
   tls: []
 
-
+# ECR Token Refresher CronJob (for kind/dev environments)
+# Automatically refreshes ECR token every 6 hours (token expires in 12 hours)
+ecrTokenRefresher:
+  enabled: false  # Enable in dev.yaml
+  awsSecretName: "aws-credentials"  # Secret containing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+  secretName: "ecr-secret"  # Name of docker-registry secret to create/update
+  ecrRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
+  awsRegion: "ap-northeast-2"

@@ -219,3 +219,50 @@ func (h *ArgoCDHandler) SyncApplication(c *gin.Context) {
 		"application": req.Name,
 	})
 }
+
+// GetDeploymentHistory returns deployment history for all applications
+// @Summary Get deployment history
+// @Description Returns deployment history for all ArgoCD applications
+// @Tags ArgoCD
+// @Produce json
+// @Success 200 {array} client.ApplicationHistoryEntry
+// @Failure 500 {object} response.ErrorResponse
+// @Router /api/monitoring/deployments/history [get]
+func (h *ArgoCDHandler) GetDeploymentHistory(c *gin.Context) {
+	history, err := h.argoCDService.GetDeploymentHistory(c.Request.Context())
+	if err != nil {
+		h.logger.Error("Failed to get deployment history", zap.Error(err))
+		response.InternalError(c, "Failed to get deployment history")
+		return
+	}
+
+	response.Success(c, history)
+}
+
+// GetApplicationDeploymentHistory returns deployment history for a specific application
+// @Summary Get application deployment history
+// @Description Returns deployment history for a specific ArgoCD application
+// @Tags ArgoCD
+// @Produce json
+// @Param appName path string true "Application name"
+// @Success 200 {array} client.ApplicationHistoryEntry
+// @Failure 500 {object} response.ErrorResponse
+// @Router /api/monitoring/deployments/{appName}/history [get]
+func (h *ArgoCDHandler) GetApplicationDeploymentHistory(c *gin.Context) {
+	appName := c.Param("appName")
+	if appName == "" {
+		response.BadRequest(c, "Application name is required")
+		return
+	}
+
+	history, err := h.argoCDService.GetApplicationDeploymentHistory(c.Request.Context(), appName)
+	if err != nil {
+		h.logger.Error("Failed to get application deployment history",
+			zap.String("app", appName),
+			zap.Error(err))
+		response.InternalError(c, "Failed to get application deployment history")
+		return
+	}
+
+	response.Success(c, history)
+}

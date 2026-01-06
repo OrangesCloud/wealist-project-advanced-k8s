@@ -77,6 +77,95 @@ export interface SystemOverview {
   totalEndpoints: number
 }
 
+// Error Tracker types
+export interface RecentError {
+  serviceName: string
+  requestPath: string
+  responseCode: string
+  errorCount: number
+  timestamp: number
+}
+
+export interface ErrorTrendPoint {
+  timestamp: number
+  errorRate: number
+  errorCount: number
+}
+
+export interface ServiceErrorSummary {
+  serviceName: string
+  totalErrors: number
+  errorRate: number
+  error5xxCount: number
+  error4xxCount: number
+}
+
+export interface ErrorOverview {
+  totalErrors: number
+  errorRate: number
+  mostErrorService: string
+  mostErrorCount: number
+}
+
+// SLO Dashboard types
+export interface ServiceSLO {
+  serviceName: string
+  availability: number
+  availabilityTarget: number
+  availabilityMet: boolean
+  latencyP50: number
+  latencyP99: number
+  latencyTarget: number
+  latencyMet: boolean
+  errorBudgetRemaining: number
+  errorBudgetConsumed: number
+}
+
+export interface SLOOverview {
+  services: ServiceSLO[]
+  overallHealth: 'healthy' | 'degraded' | 'critical'
+  servicesAtRisk: number
+  totalServices: number
+}
+
+export interface BurnRate {
+  serviceName: string
+  rate1h: number
+  rate6h: number
+  rate24h: number
+  alerting: boolean
+}
+
+// Deployment History types
+export interface DeploymentHistoryEntry {
+  appName: string
+  revision: string
+  deployedAt: string
+  syncStatus: string
+  healthStatus: string
+  commitMessage?: string
+}
+
+// Logs Viewer types
+export interface LogEntry {
+  timestamp: string
+  service: string
+  level: string
+  message: string
+  traceId?: string
+  spanId?: string
+  labels?: Record<string, string>
+}
+
+export interface LogQueryResult {
+  entries: LogEntry[]
+  totalCount: number
+}
+
+export interface ServiceInfo {
+  name: string
+}
+
 // API Response types
 export interface ApiResponse<T> {
   success: boolean

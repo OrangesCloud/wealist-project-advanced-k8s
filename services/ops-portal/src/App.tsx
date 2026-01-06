@@ -6,6 +6,10 @@ import Login from './pages/Login'
 import Users from './pages/Users'
 import AuditLogs from './pages/AuditLogs'
 import Monitoring from './pages/Monitoring'
+import ErrorTracker from './pages/ErrorTracker'
+import SLODashboard from './pages/SLODashboard'
+import DeploymentHistory from './pages/DeploymentHistory'
+import LogsViewer from './pages/LogsViewer'
 import AppConfig from './pages/AppConfig'
 import ArgoCDRBAC from './pages/ArgoCDRBAC'
 import type { Role } from './types'
@@ -70,6 +74,38 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Monitoring />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/errors"
+        element={
+          <ProtectedRoute>
+            <ErrorTracker />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/slo"
+        element={
+          <ProtectedRoute>
+            <SLODashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/deployments"
+        element={
+          <ProtectedRoute>
+            <DeploymentHistory />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/logs"
+        element={
+          <ProtectedRoute>
+            <LogsViewer />
           </ProtectedRoute>
         }
       />

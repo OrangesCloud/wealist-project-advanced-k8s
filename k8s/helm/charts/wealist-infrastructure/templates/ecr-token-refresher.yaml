@@ -1,0 +1,111 @@
+{{- if .Values.ecrTokenRefresher.enabled }}
+# =============================================================================
+# ECR Token Refresher CronJob
+# =============================================================================
+# ECR 토큰은 12시간마다 만료됨. 이 CronJob이 6시간마다 갱신.
+# AWS credentials가 있는 환경에서만 동작 (kind 클러스터 dev 환경용)
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ecr-token-refresher
+  namespace: {{ .Values.namespace | default "wealist-dev" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ecr-token-refresher
+  namespace: {{ .Values.namespace | default "wealist-dev" }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ecr-token-refresher
+  namespace: {{ .Values.namespace | default "wealist-dev" }}
+subjects:
+  - kind: ServiceAccount
+    name: ecr-token-refresher
+    namespace: {{ .Values.namespace | default "wealist-dev" }}
+roleRef:
+  kind: Role
+  name: ecr-token-refresher
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ecr-token-refresher
+  namespace: {{ .Values.namespace | default "wealist-dev" }}
+spec:
+  schedule: "0 */6 * * *"  # 6시간마다 실행
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      template:
+        spec:
+          serviceAccountName: ecr-token-refresher
+          restartPolicy: OnFailure
+          containers:
+            - name: ecr-token-refresher
+              image: amazon/aws-cli:latest
+              env:
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.ecrTokenRefresher.awsSecretName | default "aws-credentials" }}
+                      key: AWS_ACCESS_KEY_ID
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.ecrTokenRefresher.awsSecretName | default "aws-credentials" }}
+                      key: AWS_SECRET_ACCESS_KEY
+                - name: AWS_REGION
+                  value: {{ .Values.ecrTokenRefresher.awsRegion | default "ap-northeast-2" }}
+                - name: ECR_REGISTRY
+                  value: {{ .Values.ecrTokenRefresher.ecrRegistry | default "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com" }}
+                - name: TARGET_NAMESPACE
+                  value: {{ .Values.namespace | default "wealist-dev" }}
+                - name: SECRET_NAME
+                  value: {{ .Values.ecrTokenRefresher.secretName | default "ecr-secret" }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  echo "🔄 Refreshing ECR token..."
+
+                  # Get ECR token
+                  ECR_TOKEN=$(aws ecr get-login-password --region $AWS_REGION)
+
+                  if [ -z "$ECR_TOKEN" ]; then
+                    echo "❌ Failed to get ECR token"
+                    exit 1
+                  fi
+
+                  echo "✅ Got ECR token, updating secret..."
+
+                  # Install kubectl
+                  curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                  chmod +x kubectl
+                  mv kubectl /usr/local/bin/
+
+                  # Delete existing secret if exists
+                  kubectl delete secret $SECRET_NAME -n $TARGET_NAMESPACE --ignore-not-found
+
+                  # Create new secret
+                  kubectl create secret docker-registry $SECRET_NAME \
+                    --docker-server=$ECR_REGISTRY \
+                    --docker-username=AWS \
+                    --docker-password="$ECR_TOKEN" \
+                    -n $TARGET_NAMESPACE
+
+                  echo "✅ ECR secret refreshed successfully!"
+                  echo "📅 Token valid for 12 hours, next refresh in 6 hours"
+{{- end }}

@@ -14,7 +14,7 @@ weAlist의 전체 시스템 아키텍처입니다.
 
 ## Microservices Architecture
 
-![Microservices](../images/wealist_microservices.png)
+![Microservices](../images/wealist_microservices_old2.png)
 
 ### 서비스 구성
 

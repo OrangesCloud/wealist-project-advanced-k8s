@@ -160,6 +160,141 @@ func (c *ArgoCDClient) GetRBACConfigMap() (map[string]string, error) {
 	return nil, fmt.Errorf("RBAC ConfigMap access requires Kubernetes API")
 }
 
+// =============================================================================
+// Deployment History Types and Methods
+// =============================================================================
+
+// RevisionHistory represents a single deployment revision
+type RevisionHistory struct {
+	Revision   string    `json:"revision"`
+	DeployedAt time.Time `json:"deployedAt"`
+	ID         int64     `json:"id"`
+	Source     struct {
+		RepoURL        string `json:"repoURL"`
+		Path           string `json:"path"`
+		TargetRevision string `json:"targetRevision"`
+	} `json:"source"`
+}
+
+// ApplicationHistoryEntry represents a deployment in the history
+type ApplicationHistoryEntry struct {
+	AppName       string    `json:"appName"`
+	Revision      string    `json:"revision"`
+	DeployedAt    time.Time `json:"deployedAt"`
+	SyncStatus    string    `json:"syncStatus"`
+	HealthStatus  string    `json:"healthStatus"`
+	CommitMessage string    `json:"commitMessage,omitempty"`
+}
+
+// ApplicationDetailedStatus holds detailed application info
+type ApplicationDetailedStatus struct {
+	Metadata struct {
+		Name      string `json:"name"`
+		Namespace string `json:"namespace"`
+	} `json:"metadata"`
+	Spec struct {
+		Project string `json:"project"`
+		Source  struct {
+			RepoURL        string `json:"repoURL"`
+			Path           string `json:"path"`
+			TargetRevision string `json:"targetRevision"`
+		} `json:"source"`
+	} `json:"spec"`
+	Status struct {
+		Sync struct {
+			Status   string `json:"status"`
+			Revision string `json:"revision"`
+		} `json:"sync"`
+		Health struct {
+			Status string `json:"status"`
+		} `json:"health"`
+		History []struct {
+			Revision   string `json:"revision"`
+			DeployedAt string `json:"deployedAt"`
+			ID         int64  `json:"id"`
+			Source     struct {
+				RepoURL        string `json:"repoURL"`
+				Path           string `json:"path"`
+				TargetRevision string `json:"targetRevision"`
+			} `json:"source"`
+		} `json:"history"`
+	} `json:"status"`
+}
+
+// GetApplicationHistory gets the deployment history for a specific application
+func (c *ArgoCDClient) GetApplicationHistory(name string) ([]ApplicationHistoryEntry, error) {
+	resp, err := c.doRequest("GET", "/api/v1/applications/"+name, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to get application: %s", string(body))
+	}
+
+	var app ApplicationDetailedStatus
+	if err := json.NewDecoder(resp.Body).Decode(&app); err != nil {
+		return nil, fmt.Errorf("failed to decode application: %w", err)
+	}
+
+	var history []ApplicationHistoryEntry
+	for _, h := range app.Status.History {
+		deployedAt, _ := time.Parse(time.RFC3339, h.DeployedAt)
+		history = append(history, ApplicationHistoryEntry{
+			AppName:      name,
+			Revision:     h.Revision,
+			DeployedAt:   deployedAt,
+			SyncStatus:   app.Status.Sync.Status,
+			HealthStatus: app.Status.Health.Status,
+		})
+	}
+
+	// Reverse to show most recent first
+	for i, j := 0, len(history)-1; i < j; i, j = i+1, j-1 {
+		history[i], history[j] = history[j], history[i]
+	}
+
+	return history, nil
+}
+
+// GetAllDeploymentHistory gets deployment history for all applications
+func (c *ArgoCDClient) GetAllDeploymentHistory() ([]ApplicationHistoryEntry, error) {
+	apps, err := c.GetApplications()
+	if err != nil {
+		return nil, err
+	}
+
+	var allHistory []ApplicationHistoryEntry
+	for _, app := range apps {
+		history, err := c.GetApplicationHistory(app.Metadata.Name)
+		if err != nil {
+			c.logger.Warn("Failed to get history for app",
+				zap.String("app", app.Metadata.Name),
+				zap.Error(err))
+			continue
+		}
+		allHistory = append(allHistory, history...)
+	}
+
+	// Sort by deployed time (most recent first)
+	for i := 0; i < len(allHistory)-1; i++ {
+		for j := i + 1; j < len(allHistory); j++ {
+			if allHistory[j].DeployedAt.After(allHistory[i].DeployedAt) {
+				allHistory[i], allHistory[j] = allHistory[j], allHistory[i]
+			}
+		}
+	}
+
+	// Limit to 100 most recent
+	if len(allHistory) > 100 {
+		allHistory = allHistory[:100]
+	}
+
+	return allHistory, nil
+}
+
 func (c *ArgoCDClient) doRequest(method, path string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequest(method, c.serverURL+path, body)
 	if err != nil {
