@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 # Builder stage - optimized layer caching (2025-12-18)
-FROM public.ecr.aws/docker/library/golang:1.16-bookworm AS builder
+FROM golang:1.16-alpine AS builder
 
 # Multi-platform support
 ARG TARGETARCH
@@ -40,7 +40,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GOWORK=off go build -ldflags="-w -s" -o board-api ./cmd/api
 
 # Runtime stage
-FROM public.ecr.aws/docker/library/alpine:3.11
+FROM alpine:3.20
 
 # Install runtime dependencies
 RUN apk --no-cache add ca-certificates tzdata wget
