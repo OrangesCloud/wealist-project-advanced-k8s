@@ -1,12 +1,13 @@
 /// <reference types="vite/client" />
 
-// 빌드 정보 전역 변수 (vite.config.ts의 define에서 주입)
-declare const __BUILD_NUMBER__: string;
-declare const __BUILD_SHA__: string;
-declare const __BUILD_TIME__: string;
-
-// 런타임 설정 (config.js에서 주입)
+// 런타임 설정 및 빌드 변수 (global scope)
 declare global {
+  // 빌드 정보 전역 변수 (vite.config.ts의 define에서 주입)
+  const __BUILD_NUMBER__: string;
+  const __BUILD_SHA__: string;
+  const __BUILD_TIME__: string;
+
+  // 런타임 설정 (config.js에서 주입)
   interface Window {
     __ENV__?: {
       API_BASE_URL?: string;
