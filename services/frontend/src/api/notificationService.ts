@@ -67,6 +67,43 @@ export const getSSEStreamUrl = (): string => {
   return getNotificationSSEUrl();
 };
 
+// 필드 이름을 한글로 변환
+const fieldNameMap: Record<string, string> = {
+  title: '제목',
+  content: '내용',
+  stage: '상태',
+  role: '역할',
+  importance: '중요도',
+  assignee: '담당자',
+  startDate: '시작일',
+  dueDate: '마감일',
+};
+
+// 변경 내역 포맷
+interface BoardChangeData {
+  field: string;
+  oldValue: string;
+  newValue: string;
+}
+
+const formatChanges = (changes: BoardChangeData[]): string => {
+  if (!changes || changes.length === 0) return '';
+
+  const formatted = changes
+    .map((change) => {
+      const fieldName = fieldNameMap[change.field] || change.field;
+      if (change.oldValue && change.newValue) {
+        return `${fieldName}: ${change.oldValue} → ${change.newValue}`;
+      } else if (change.newValue) {
+        return `${fieldName}: ${change.newValue}`;
+      }
+      return fieldName;
+    })
+    .slice(0, 3); // 최대 3개까지만 표시
+
+  return formatted.join(', ');
+};
+
 /**
  * 알림 타입에 따른 메시지 생성
  */
@@ -113,8 +150,14 @@ export const getNotificationMessage = (notification: Notification): string => {
       return `${projectPrefix}"${resourceName}" 카드 담당이 해제되었습니다.`;
     case 'BOARD_PARTICIPANT_ADDED':
       return `${projectPrefix}"${resourceName}" 카드에 참여자로 추가되었습니다.`;
-    case 'BOARD_UPDATED':
+    case 'BOARD_UPDATED': {
+      const changes = notification.metadata?.changes as BoardChangeData[] | undefined;
+      const changesText = formatChanges(changes || []);
+      if (changesText) {
+        return `${projectPrefix}"${resourceName}" 카드 수정: ${changesText}`;
+      }
       return `${projectPrefix}"${resourceName}" 카드가 수정되었습니다.`;
+    }
     case 'BOARD_STATUS_CHANGED':
       return `${projectPrefix}"${resourceName}" 카드 상태가 변경되었습니다.`;
     case 'BOARD_COMMENT_ADDED':

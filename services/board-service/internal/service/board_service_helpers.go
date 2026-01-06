@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -15,6 +17,48 @@ import (
 	"project-board-api/internal/dto"
 	"project-board-api/internal/response"
 )
+
+// BoardChange represents a single field change in a board update
+type BoardChange struct {
+	Field    string `json:"field"`
+	OldValue string `json:"oldValue"`
+	NewValue string `json:"newValue"`
+}
+
+// datesEqual compares two time pointers for equality
+func datesEqual(a, b *time.Time) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return a.Equal(*b)
+}
+
+// formatDatePtr formats a time pointer to string
+func formatDatePtr(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return t.Format("2006-01-02")
+}
+
+// formatUUIDPtr formats a UUID pointer to string
+func formatUUIDPtr(u *uuid.UUID) string {
+	if u == nil {
+		return ""
+	}
+	return u.String()
+}
+
+// formatInterface formats an interface value to string
+func formatInterface(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", v)
+}
 
 func (s *boardServiceImpl) convertBoardCustomFieldsToValues(ctx context.Context, board *domain.Board) error {
 	if board.CustomFields == nil || len(board.CustomFields) == 0 {
@@ -373,7 +417,8 @@ func (s *boardServiceImpl) sendParticipantAddedNotifications(ctx context.Context
 
 // sendBoardUpdateNotifications sends BOARD_UPDATED notifications to assignee and all participants
 // Excludes the actor (the person who made the update)
-func (s *boardServiceImpl) sendBoardUpdateNotifications(ctx context.Context, board *domain.Board, actorID uuid.UUID) {
+// Includes the list of changes made to the board
+func (s *boardServiceImpl) sendBoardUpdateNotifications(ctx context.Context, board *domain.Board, actorID uuid.UUID, changes []BoardChange) {
 	if s.notiClient == nil {
 		return
 	}
@@ -406,6 +451,16 @@ func (s *boardServiceImpl) sendBoardUpdateNotifications(ctx context.Context, boa
 		return
 	}
 
+	// Convert changes to []interface{} for JSON serialization
+	changesData := make([]interface{}, len(changes))
+	for i, c := range changes {
+		changesData[i] = map[string]interface{}{
+			"field":    c.Field,
+			"oldValue": c.OldValue,
+			"newValue": c.NewValue,
+		}
+	}
+
 	// Send notifications asynchronously
 	go func() {
 		for userID := range notifyUserIDs {
@@ -420,6 +475,7 @@ func (s *boardServiceImpl) sendBoardUpdateNotifications(ctx context.Context, boa
 				Metadata: map[string]interface{}{
 					"projectId":   board.ProjectID.String(),
 					"projectName": project.Name,
+					"changes":     changesData,
 				},
 			}
 
