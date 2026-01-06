@@ -35,9 +35,9 @@ spec:
         # ops-service는 Istio RequestAuthentication이 없으므로 직접 JWT 검증
         - name: config.ISTIO_JWT_MODE
           value: "false"
-        # Prometheus metrics configuration
+        # Prometheus metrics configuration (route prefix 포함 필수)
         - name: config.PROMETHEUS_URL
-          value: "http://prometheus.wealist-prod.svc.cluster.local:9090"
+          value: "http://prometheus.wealist-prod.svc.cluster.local:9090/api/monitoring/prometheus"
         - name: config.PROMETHEUS_NAMESPACE
           value: "wealist-prod"
         # Database auto-migration (내부 관리 도구이므로 활성화)
