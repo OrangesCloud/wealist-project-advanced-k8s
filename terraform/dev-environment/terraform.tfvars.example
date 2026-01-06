@@ -75,3 +75,8 @@ livekit_api_secret = "devsecretkey1234567890abcdefghijk"
 # Internal API Key (서비스 간 통신)
 # -----------------------------------------------------------------------------
 internal_api_key = "internal-api-key-change-this-in-production"
+
+# -----------------------------------------------------------------------------
+# Discord Webhook (ArgoCD 배포 알림 - k8s-deploy-dev 채널)
+# -----------------------------------------------------------------------------
+discord_webhook_url = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"

@@ -120,3 +120,32 @@ module "parameters" {
     Project     = "wealist"
   }
 }
+
+# =============================================================================
+# AWS Secrets Manager - Dev Environment Secrets
+# =============================================================================
+# Kind 클러스터 setup 스크립트에서 참조하는 시크릿들
+# SSM Parameter Store와 별도로 Secrets Manager 사용 (setup 스크립트 호환)
+#
+# NOTE: wealist/dev/oauth/argocd는 이미 AWS Console에서 수동 생성됨 (Terraform 관리 외)
+
+# -----------------------------------------------------------------------------
+# Discord Webhook (kind-dev-setup에서 ArgoCD 알림용)
+# -----------------------------------------------------------------------------
+resource "aws_secretsmanager_secret" "discord_webhook" {
+  name        = "wealist/dev/discord/webhook"
+  description = "Discord webhook URL for ArgoCD deployment notifications"
+
+  tags = {
+    Environment = "dev"
+    Project     = "wealist"
+    Purpose     = "ArgoCD Notifications"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "discord_webhook" {
+  secret_id = aws_secretsmanager_secret.discord_webhook.id
+  secret_string = jsonencode({
+    webhook_url = var.discord_webhook_url
+  })
+}

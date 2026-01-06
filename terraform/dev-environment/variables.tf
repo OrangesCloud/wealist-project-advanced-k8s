@@ -162,3 +162,13 @@ variable "internal_api_key" {
   type        = string
   sensitive   = true
 }
+
+# -----------------------------------------------------------------------------
+# Discord Webhook (ArgoCD Notifications)
+# -----------------------------------------------------------------------------
+variable "discord_webhook_url" {
+  description = "Discord webhook URL for ArgoCD deployment notifications (k8s-deploy-dev channel)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

@@ -475,16 +475,11 @@ if [ -z "$OAUTH_CLIENT_ID" ] || [ -z "$OAUTH_CLIENT_SECRET" ]; then
     fi
 fi
 
-# 여전히 없으면 CLI 입력
+# CLI 입력 제거 - 환경변수 또는 AWS Secrets Manager에서만 가져옴
 if [ -z "$OAUTH_CLIENT_ID" ] || [ -z "$OAUTH_CLIENT_SECRET" ]; then
-    echo ""
-    echo "  Google OAuth 설정이 필요합니다."
-    echo "  (Google Cloud Console → API 및 서비스 → 사용자 인증 정보)"
-    echo ""
-    read -p "  Google OAuth Client ID (Enter 건너뛰기): " OAUTH_CLIENT_ID
-    if [ -n "$OAUTH_CLIENT_ID" ]; then
-        read -p "  Google OAuth Client Secret: " OAUTH_CLIENT_SECRET
-    fi
+    echo "  ⚠️  Google OAuth 자격증명을 찾을 수 없습니다."
+    echo "     환경변수(GOOGLE_OAUTH_CLIENT_ID/SECRET) 또는"
+    echo "     AWS Secrets Manager(wealist/dev/oauth/argocd)에 설정하세요."
 fi
 
 # OAuth 설정 적용
@@ -603,12 +598,11 @@ if [ -z "$DISCORD_WEBHOOK_URL" ]; then
     fi
 fi
 
-# 여전히 없으면 CLI 입력
+# CLI 입력 제거 - 환경변수 또는 AWS Secrets Manager에서만 가져옴
 if [ -z "$DISCORD_WEBHOOK_URL" ]; then
-    echo "  Discord Webhook URL을 입력하세요."
-    echo "  (Discord 서버 설정 > 연동 > 웹후크에서 생성)"
-    echo ""
-    read -p "  Discord Webhook URL (Enter 건너뛰기): " DISCORD_WEBHOOK_URL
+    echo "  ⚠️  Discord Webhook URL을 찾을 수 없습니다."
+    echo "     환경변수(DISCORD_WEBHOOK_URL) 또는"
+    echo "     AWS Secrets Manager(wealist/dev/discord/webhook)에 설정하세요."
 fi
 
 # Discord 알림 설정 적용
