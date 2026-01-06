@@ -211,6 +211,7 @@ func TestIntegrationCompleteAttachmentFlow(t *testing.T) {
 		attachmentRepo,
 		s3Client,
 		fieldOptionConverter,
+		nil,
 		m,
 		logger,
 	)
@@ -445,4 +446,3 @@ func TestIntegrationCompleteAttachmentFlow(t *testing.T) {
 		assert.Error(t, err, "Attachment should be deleted when board is deleted")
 	})
 }
-
