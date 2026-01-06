@@ -127,10 +127,10 @@ securityContext:
 # Features (Production)
 # -----------------------------------------------------------------------------
 # 기본 HPA 설정 (모든 서비스 공통)
-# auth-service, user-service는 ArgoCD parameters에서 minReplicas: 2로 오버라이드
+# 핵심 서비스(auth, board, user)는 ArgoCD parameters에서 minReplicas: 3으로 오버라이드
 autoscaling:
   enabled: true
-  minReplicas: 1  # 기본값 1, 핵심 서비스만 2로 오버라이드
+  minReplicas: 2  # 기본값 2 (보조 서비스), 핵심 서비스는 3으로 오버라이드
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 90
