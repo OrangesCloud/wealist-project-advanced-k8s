@@ -40,19 +40,19 @@ variable "spot_instance_types" {
 variable "spot_min_size" {
   description = "Minimum number of Spot nodes"
   type        = number
-  default     = 2  # 3→2 for cost optimization (2026-01-03)
+  default     = 1  # 2→1 for aggressive cost optimization (2026-01-07)
 }
 
 variable "spot_max_size" {
   description = "Maximum number of Spot nodes"
   type        = number
-  default     = 6
+  default     = 4  # 6→4 (CA가 필요시 스케일업)
 }
 
 variable "spot_desired_size" {
-  description = "Desired number of Spot nodes (t3.large 8GB × 2 = 16GB, 70 pods capacity)"
+  description = "Desired number of Spot nodes (t3.xlarge 16GB × 2 = 32GB, 충분한 capacity)"
   type        = number
-  default     = 2  # 3→2 for cost optimization (2026-01-03)
+  default     = 2  # CA가 필요시 조절, 기본 2대로 HA 유지
 }
 
 variable "node_disk_size" {

@@ -19,22 +19,22 @@ spec:
             - "[*/*,kube-system,*]"
             - "[*/*,kyverno,*]"
         admissionController:
-          replicas: 3 # 운영 환경 권장 (HA)
+          replicas: 1 # 비용 최적화 (3→1, 2026-01-07)
           resources:
             limits:
-              memory: 512Mi
-            requests:
-              cpu: 100m
               memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
 
         backgroundController:
-          replicas: 2 # 부하에 따라 조정
+          replicas: 1 # 비용 최적화 (2→1)
 
         cleanupController:
-          replicas: 2
+          replicas: 1 # 비용 최적화 (2→1)
 
         reportsController:
-          replicas: 2
+          replicas: 1 # 비용 최적화 (2→1)
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno
