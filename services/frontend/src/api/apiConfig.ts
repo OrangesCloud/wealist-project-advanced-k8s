@@ -40,7 +40,7 @@ const getIngressServicePrefix = (path: string): string => {
   if (path?.includes('/api/boards')) return '/api/svc/board/api';      // board: 프론트가 /projects 호출
   if (path?.includes('/api/chats')) return '/api/svc/chat/api/chats'; // chat: 프론트가 /my만 호출 (basePath 필요)
   if (path?.includes('/api/notifications')) return '/api/svc/noti';   // noti: 프론트가 /api/notifications 포함
-  if (path?.includes('/api/storage')) return '/api/svc/storage';      // storage: 프론트가 /api/storage 포함
+  if (path?.includes('/api/storage')) return '/api/svc/storage/api';   // storage: 프론트가 /storage/* 호출, 백엔드는 /api/storage/*
   return ''; // 매칭 안 되면 prefix 없이
 };
 
@@ -68,7 +68,7 @@ const getApiBaseUrl = (path: string): string => {
       if (path?.includes('/api/boards')) return `${prodBaseUrl}/api/svc/board/api`;
       if (path?.includes('/api/chats')) return `${prodBaseUrl}/api/svc/chat/api/chats`;
       if (path?.includes('/api/notifications')) return `${prodBaseUrl}/api/svc/noti`;
-      if (path?.includes('/api/storage')) return `${prodBaseUrl}/api/svc/storage`;
+      if (path?.includes('/api/storage')) return `${prodBaseUrl}/api/svc/storage/api`;
       return prodBaseUrl;
     }
 
@@ -83,7 +83,7 @@ const getApiBaseUrl = (path: string): string => {
       if (path?.includes('/api/boards')) return `${devBaseUrl}/api/svc/board/api`;
       if (path?.includes('/api/chats')) return `${devBaseUrl}/api/svc/chat/api/chats`;
       if (path?.includes('/api/notifications')) return `${devBaseUrl}/api/svc/noti`;
-      if (path?.includes('/api/storage')) return `${devBaseUrl}/api/svc/storage`;
+      if (path?.includes('/api/storage')) return `${devBaseUrl}/api/svc/storage/api`;
       return devBaseUrl;
     }
 
@@ -103,7 +103,7 @@ const getApiBaseUrl = (path: string): string => {
       if (path?.includes('/api/boards')) return `${localBaseUrl}/api/svc/board/api`;  // board: 프론트가 /projects 호출, 백엔드는 /api/projects
       if (path?.includes('/api/chats')) return `${localBaseUrl}/api/svc/chat/api/chats`; // chat: 프론트가 /my만 호출 (basePath 필요)
       if (path?.includes('/api/notifications')) return `${localBaseUrl}/api/svc/noti`;  // noti: 프론트가 /api/notifications 포함
-      if (path?.includes('/api/storage')) return `${localBaseUrl}/api/svc/storage`;     // storage: 프론트가 /api/storage 포함
+      if (path?.includes('/api/storage')) return `${localBaseUrl}/api/svc/storage/api`;  // storage: 프론트가 /storage/* 호출, 백엔드는 /api/storage/*
       return localBaseUrl;
     }
     return getIngressServicePrefix(path);

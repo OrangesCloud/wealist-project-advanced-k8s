@@ -148,7 +148,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service|video-service\"} == 1)",
+          "expr": "count(up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service\"} == 1)",
           "legendFormat": "UP",
           "refId": "A"
         }
@@ -219,7 +219,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service|video-service\"} == 0) or vector(0)",
+          "expr": "count(up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service\"} == 0) or vector(0)",
           "legendFormat": "DOWN",
           "refId": "A"
         }
@@ -1246,7 +1246,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service|video-service\"}",
+          "expr": "up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service\"}",
           "format": "table",
           "instant": true,
           "legendFormat": "",

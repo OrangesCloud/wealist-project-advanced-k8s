@@ -1,9 +1,9 @@
 // src/components/storage/modals/RenameModal.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, Folder, FileText } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
-import type { SelectedItem } from '../../../types/storage';
+import type { SelectedItem, StorageFile } from '../../../types/storage';
 
 interface RenameModalProps {
   item: SelectedItem;
@@ -13,7 +13,24 @@ interface RenameModalProps {
 
 export const RenameModal: React.FC<RenameModalProps> = ({ item, onClose, onRename }) => {
   const { theme } = useTheme();
-  const [newName, setNewName] = useState(item.name);
+
+  // 파일인 경우 확장자 분리
+  const { basename, extension } = useMemo(() => {
+    if (item.type === 'file') {
+      const file = item.data as StorageFile;
+      const ext = file.extension || '';
+      // 확장자가 있으면 파일명에서 제거
+      if (ext && item.name.toLowerCase().endsWith(ext.toLowerCase())) {
+        return {
+          basename: item.name.slice(0, -ext.length),
+          extension: ext,
+        };
+      }
+    }
+    return { basename: item.name, extension: '' };
+  }, [item]);
+
+  const [newName, setNewName] = useState(basename);
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -29,12 +46,15 @@ export const RenameModal: React.FC<RenameModalProps> = ({ item, onClose, onRenam
       return;
     }
 
-    if (newName.trim() === item.name) {
+    // 파일인 경우 확장자 붙여서 전송
+    const finalName = extension ? `${newName.trim()}${extension}` : newName.trim();
+
+    if (finalName === item.name) {
       onClose();
       return;
     }
 
-    onRename(newName.trim());
+    onRename(finalName);
   };
 
   return (
@@ -68,17 +88,26 @@ export const RenameModal: React.FC<RenameModalProps> = ({ item, onClose, onRenam
             <label className="block text-sm font-medium text-gray-700 mb-1">
               새 이름
             </label>
-            <input
-              type="text"
-              value={newName}
-              onChange={(e) => {
-                setNewName(e.target.value);
-                setError('');
-              }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              placeholder="새 이름 입력"
-              autoFocus
-            />
+            <div className="flex items-center">
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => {
+                  setNewName(e.target.value);
+                  setError('');
+                }}
+                className={`flex-1 px-4 py-2 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
+                  extension ? 'rounded-l-lg border-r-0' : 'rounded-lg'
+                }`}
+                placeholder="새 이름 입력"
+                autoFocus
+              />
+              {extension && (
+                <span className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-r-lg text-gray-600 text-sm">
+                  {extension}
+                </span>
+              )}
+            </div>
             {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
           </div>
 

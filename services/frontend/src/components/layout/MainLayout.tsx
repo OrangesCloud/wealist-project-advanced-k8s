@@ -369,7 +369,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       {showUserMenu && (
         <div
           ref={userMenuRef}
-          className={`absolute bottom-16 left-12 sm:left-16 w-64 ${theme.colors.card} ${theme.effects.cardBorderWidth} ${theme.colors.border} z-50 ${theme.effects.borderRadius} shadow-2xl`}
+          className={`fixed bottom-20 left-[72px] w-64 ${theme.colors.card} ${theme.effects.cardBorderWidth} ${theme.colors.border} z-[9999] ${theme.effects.borderRadius} shadow-2xl`}
           onMouseDown={(e) => e.stopPropagation()} // 💡 [수정] 메뉴 내부 클릭 시 닫히는 현상 방지
         >
           <div className="p-3 pb-3 mb-2 border-b border-gray-200">
@@ -446,7 +446,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         className="fixed bottom-2 right-3 text-xs text-gray-400 z-10 select-none"
         title={`Build: ${__BUILD_NUMBER__}-${__BUILD_SHA__}\nTime: ${__BUILD_TIME__}`}
       >
-        © Oranges • v{__BUILD_NUMBER__}-{__BUILD_SHA__.slice(0, 7)}
+        All rights reserved Oranges 2025-2026 • v{__BUILD_NUMBER__}-{__BUILD_SHA__.slice(0, 7)}
       </div>
     </div>
   );

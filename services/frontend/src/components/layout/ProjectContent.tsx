@@ -34,6 +34,10 @@ interface ProjectContentProps {
 
   showCreateBoard: boolean;
   setShowCreateBoard: (show: boolean) => void;
+
+  // 🔔 알림 클릭 시 보드 열기
+  notificationBoardId?: string | null;
+  onNotificationBoardHandled?: () => void;
 }
 export const ProjectContent: React.FC<ProjectContentProps> = ({
   selectedProject,
@@ -43,6 +47,8 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
   onManageModalOpen,
   onEditBoard,
   setShowCreateBoard,
+  notificationBoardId,
+  onNotificationBoardHandled,
 }) => {
   const { theme } = useTheme();
   const { userId } = useAuth(); // useAuth 훅 사용 가정
@@ -72,7 +78,15 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
   // 💡 [UI States]
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
 
-  // 알림에서 클릭한 보드 열기
+  // 🔔 알림에서 클릭한 보드 열기 (props를 통해 전달됨)
+  useEffect(() => {
+    if (notificationBoardId) {
+      setSelectedBoardId(notificationBoardId);
+      onNotificationBoardHandled?.();
+    }
+  }, [notificationBoardId, onNotificationBoardHandled]);
+
+  // 💡 localStorage fallback (이전 방식 호환)
   useEffect(() => {
     const pendingBoardId = localStorage.getItem('pendingBoardId');
     if (pendingBoardId) {
