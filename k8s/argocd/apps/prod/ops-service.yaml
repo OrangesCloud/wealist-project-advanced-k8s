@@ -40,6 +40,11 @@ spec:
           value: "http://prometheus.wealist-prod.svc.cluster.local:9090/api/monitoring/prometheus"
         - name: config.PROMETHEUS_NAMESPACE
           value: "wealist-prod"
+        # Loki logs configuration
+        - name: config.LOKI_URL
+          value: "http://loki.wealist-prod.svc.cluster.local:3100"
+        - name: config.LOKI_NAMESPACE
+          value: "wealist-prod"
         # Database auto-migration (내부 관리 도구이므로 활성화)
         - name: config.DB_AUTO_MIGRATE
           value: "true"
