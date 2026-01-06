@@ -49,10 +49,13 @@ data:
 
   stress-test.js: |
     import http from 'k6/http';
-    import { check, sleep } from 'k6';
-    import { Rate } from 'k6/metrics';
+    import { check, sleep, group } from 'k6';
+    import { Rate, Counter, Trend } from 'k6/metrics';
 
+    // Custom metrics
     const errorRate = new Rate('errors');
+    const authErrors = new Counter('auth_errors');
+    const apiLatency = new Trend('api_latency', true);
 
     export const options = {
       scenarios: {
@@ -75,25 +78,132 @@ data:
       thresholds: {
         http_req_duration: ['p(95)<2000'],
         http_req_failed: ['rate<0.1'],
+        errors: ['rate<0.15'],
       },
     };
 
     const BASE_URL = '{{ .Values.k6.endpoints.baseUrl }}';
     const HOST_HEADER = '{{ .Values.k6.endpoints.hostHeader | default "api.wealist.co.kr" }}';
 
-    export default function () {
-      const responses = http.batch([
-        {{- range $i, $svc := .Values.k6.endpoints.services }}
-        {{- if $i }},{{ end }}
-        ['GET', `${BASE_URL}{{ $svc.path }}{{ $svc.healthPath }}`, null, { headers: { 'Host': HOST_HEADER }, tags: { name: '{{ $svc.name }}-health' } }]
-        {{- end }}
-      ]);
+    // Setup: 테스트 토큰 발급
+    export function setup() {
+      console.log('=== Stress Test Setup: Getting test token ===');
 
-      responses.forEach((res) => {
-        errorRate.add(res.status !== 200);
+      const tokenRes = http.post(
+        `${BASE_URL}/api/svc/auth/api/test/token`,
+        JSON.stringify({ userId: '00000000-0000-0000-0000-000000000001' }),
+        {
+          headers: {
+            'Host': HOST_HEADER,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (tokenRes.status !== 200) {
+        console.error(`Failed to get test token: ${tokenRes.status} - ${tokenRes.body}`);
+        console.error('Make sure ENABLE_TEST_AUTH=true is set in auth-service');
+        return { token: null };
+      }
+
+      const data = tokenRes.json();
+      console.log(`Test token acquired for user: ${data.userId}`);
+      return { token: data.accessToken };
+    }
+
+    export default function (data) {
+      const token = data.token;
+
+      // 토큰 없으면 health check만
+      if (!token) {
+        const healthRes = http.get(`${BASE_URL}/api/svc/board/health/live`, {
+          headers: { 'Host': HOST_HEADER },
+        });
+        errorRate.add(healthRes.status !== 200);
+        sleep(0.3);
+        return;
+      }
+
+      const authHeaders = {
+        'Host': HOST_HEADER,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
+
+      // 1. Board Service - 실제 API 호출
+      group('board-service', function () {
+        const boardsRes = http.get(`${BASE_URL}/api/svc/board/api/boards`, {
+          headers: authHeaders,
+          tags: { name: 'get-boards' },
+        });
+        apiLatency.add(boardsRes.timings.duration);
+
+        const success = boardsRes.status === 200 || boardsRes.status === 401;
+        check(boardsRes, { 'boards API ok': (r) => r.status === 200 });
+        errorRate.add(!success);
+        if (boardsRes.status === 401) authErrors.add(1);
+      });
+
+      // 2. User Service - 현재 사용자 정보
+      group('user-service', function () {
+        const userRes = http.get(`${BASE_URL}/api/svc/user/api/users/me`, {
+          headers: authHeaders,
+          tags: { name: 'get-user-me' },
+        });
+        apiLatency.add(userRes.timings.duration);
+
+        const success = userRes.status === 200 || userRes.status === 401 || userRes.status === 404;
+        check(userRes, { 'user API ok': (r) => r.status === 200 || r.status === 404 });
+        errorRate.add(userRes.status >= 500);
+        if (userRes.status === 401) authErrors.add(1);
+      });
+
+      // 3. Chat Service - 채팅 목록
+      group('chat-service', function () {
+        const chatRes = http.get(`${BASE_URL}/api/svc/chat/api/chats`, {
+          headers: authHeaders,
+          tags: { name: 'get-chats' },
+        });
+        apiLatency.add(chatRes.timings.duration);
+
+        const success = chatRes.status === 200 || chatRes.status === 401;
+        check(chatRes, { 'chat API ok': (r) => r.status === 200 });
+        errorRate.add(chatRes.status >= 500);
+        if (chatRes.status === 401) authErrors.add(1);
+      });
+
+      // 4. Noti Service - 알림 목록
+      group('noti-service', function () {
+        const notiRes = http.get(`${BASE_URL}/api/svc/noti/api/notifications`, {
+          headers: authHeaders,
+          tags: { name: 'get-notifications' },
+        });
+        apiLatency.add(notiRes.timings.duration);
+
+        const success = notiRes.status === 200 || notiRes.status === 401;
+        check(notiRes, { 'noti API ok': (r) => r.status === 200 });
+        errorRate.add(notiRes.status >= 500);
+        if (notiRes.status === 401) authErrors.add(1);
+      });
+
+      // 5. Storage Service - Health (인증 불필요)
+      group('storage-service', function () {
+        const storageRes = http.get(`${BASE_URL}/api/svc/storage/health/live`, {
+          headers: { 'Host': HOST_HEADER },
+          tags: { name: 'storage-health' },
+        });
+        check(storageRes, { 'storage health ok': (r) => r.status === 200 });
+        errorRate.add(storageRes.status !== 200);
       });
 
       sleep(0.3);
+    }
+
+    export function teardown(data) {
+      console.log('=== Stress Test Completed ===');
+      if (!data.token) {
+        console.warn('Test ran without authentication - only health checks were performed');
+      }
     }
 
   spike-test.js: |
