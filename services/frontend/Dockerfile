@@ -34,7 +34,11 @@ WORKDIR /app
 
 # Build-time environment variable (fallback, can be overridden by runtime config)
 ARG VITE_API_BASE_URL=http://localhost
+ARG BUILD_NUMBER=local
+ARG BUILD_SHA=dev
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV BUILD_NUMBER=${BUILD_NUMBER}
+ENV BUILD_SHA=${BUILD_SHA}
 
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
