@@ -74,7 +74,7 @@ jobs:
                      "fields": [
                        {
                          "name": "🌍 Environment",
-                         "value": "Development",
+                         "value": "develop",
                          "inline": true
                        },
                        {
@@ -498,7 +498,7 @@ jobs:
                    "fields": [
                      {
                        "name": "🌍 Environment",
-                       "value": "Development",
+                       "value": "develop",
                        "inline": true
                      },
                      {
@@ -547,7 +547,7 @@ jobs:
                    "fields": [
                      {
                        "name": "🌍 Environment",
-                       "value": "Development",
+                       "value": "develop",
                        "inline": true
                      },
                      {
