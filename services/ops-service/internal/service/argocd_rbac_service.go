@@ -177,3 +177,37 @@ func (s *ArgoCDRBACService) SyncApplication(ctx context.Context, name string, pe
 
 	return nil
 }
+
+// GetDeploymentHistory returns deployment history for all applications
+func (s *ArgoCDRBACService) GetDeploymentHistory(ctx context.Context) ([]client.ApplicationHistoryEntry, error) {
+	if s.argoCDClient == nil {
+		s.logger.Warn("ArgoCD client not configured")
+		return nil, nil
+	}
+
+	history, err := s.argoCDClient.GetAllDeploymentHistory()
+	if err != nil {
+		s.logger.Error("Failed to get deployment history", zap.Error(err))
+		return nil, err
+	}
+
+	return history, nil
+}
+
+// GetApplicationDeploymentHistory returns deployment history for a specific application
+func (s *ArgoCDRBACService) GetApplicationDeploymentHistory(ctx context.Context, appName string) ([]client.ApplicationHistoryEntry, error) {
+	if s.argoCDClient == nil {
+		s.logger.Warn("ArgoCD client not configured")
+		return nil, nil
+	}
+
+	history, err := s.argoCDClient.GetApplicationHistory(appName)
+	if err != nil {
+		s.logger.Error("Failed to get application deployment history",
+			zap.String("app", appName),
+			zap.Error(err))
+		return nil, err
+	}
+
+	return history, nil
+}

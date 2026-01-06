@@ -357,19 +357,12 @@ if [ -z "$AWS_ACCESS_KEY" ] || [ -z "$AWS_SECRET_KEY" ]; then
     AWS_SECRET_KEY=$(aws configure get aws_secret_access_key 2>/dev/null || echo "")
 fi
 
+# CLI 입력 제거 - 환경변수 또는 aws configure에서만 가져옴
 if [ -z "$AWS_ACCESS_KEY" ] || [ -z "$AWS_SECRET_KEY" ]; then
     echo ""
-    echo "  AWS 자격증명이 필요합니다. (ESO가 AWS Secrets Manager 접근용)"
-    read -p "  AWS Access Key ID: " AWS_ACCESS_KEY
-    if [ -n "$AWS_ACCESS_KEY" ]; then
-        read -sp "  AWS Secret Access Key: " AWS_SECRET_KEY
-        echo ""
-    fi
-fi
-
-if [ -z "$AWS_ACCESS_KEY" ] || [ -z "$AWS_SECRET_KEY" ]; then
-    echo ""
-    echo "⚠️  AWS 자격증명이 설정되지 않았습니다."
+    echo "⚠️  AWS 자격증명을 찾을 수 없습니다."
+    echo "   환경변수(AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY) 또는"
+    echo "   aws configure로 설정하세요."
     echo "   ESO 없이 진행합니다. 나중에 make eso-setup-aws로 설정할 수 있습니다."
 else
     kubectl delete secret aws-credentials -n external-secrets 2>/dev/null || true
@@ -475,16 +468,11 @@ if [ -z "$OAUTH_CLIENT_ID" ] || [ -z "$OAUTH_CLIENT_SECRET" ]; then
     fi
 fi
 
-# 여전히 없으면 CLI 입력
+# CLI 입력 제거 - 환경변수 또는 AWS Secrets Manager에서만 가져옴
 if [ -z "$OAUTH_CLIENT_ID" ] || [ -z "$OAUTH_CLIENT_SECRET" ]; then
-    echo ""
-    echo "  Google OAuth 설정이 필요합니다."
-    echo "  (Google Cloud Console → API 및 서비스 → 사용자 인증 정보)"
-    echo ""
-    read -p "  Google OAuth Client ID (Enter 건너뛰기): " OAUTH_CLIENT_ID
-    if [ -n "$OAUTH_CLIENT_ID" ]; then
-        read -p "  Google OAuth Client Secret: " OAUTH_CLIENT_SECRET
-    fi
+    echo "  ⚠️  Google OAuth 자격증명을 찾을 수 없습니다."
+    echo "     환경변수(GOOGLE_OAUTH_CLIENT_ID/SECRET) 또는"
+    echo "     AWS Secrets Manager(wealist/dev/oauth/argocd)에 설정하세요."
 fi
 
 # OAuth 설정 적용
@@ -531,12 +519,68 @@ fi
 
 # ArgoCD RBAC 설정 (Google OAuth 사용자 권한) - OAuth 설정 후 적용해야 함
 echo "🔐 ArgoCD RBAC 설정 적용 중..."
-ARGOCD_RBAC="${SCRIPT_DIR}/../../../argocd/config/argocd-rbac-cm.yaml"
-if [ -f "${ARGOCD_RBAC}" ]; then
-    kubectl apply -f "${ARGOCD_RBAC}"
-    echo "✅ ArgoCD RBAC 설정 완료 (관리자 이메일 등록됨)"
+
+# AWS Secrets Manager에서 관리자 이메일 로드 시도
+ADMIN_EMAILS_SECRET=$(aws secretsmanager get-secret-value \
+    --secret-id "wealist/dev/argocd/admins" \
+    --region ${AWS_REGION} \
+    --query SecretString \
+    --output text 2>/dev/null || echo "")
+
+if [ -n "$ADMIN_EMAILS_SECRET" ]; then
+    echo "  ✅ AWS Secrets Manager에서 관리자 이메일 로드 완료"
+
+    # JSON 배열에서 이메일 추출하여 policy.csv 형식으로 변환
+    ADMIN_POLICY_LINES=$(echo "$ADMIN_EMAILS_SECRET" | jq -r '.emails[]' 2>/dev/null | \
+        while read email; do
+            echo "    g, $email, role:admin"
+        done)
+
+    # 동적으로 RBAC ConfigMap 생성
+    kubectl apply -f - <<RBAC_EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  policy.default: role:readonly
+  policy.csv: |
+    # 읽기 전용 역할 (기본)
+    p, role:readonly, applications, get, */*, allow
+    p, role:readonly, applications, list, */*, allow
+    p, role:readonly, clusters, get, *, allow
+    p, role:readonly, repositories, get, *, allow
+    p, role:readonly, projects, get, *, allow
+    p, role:readonly, logs, get, */*, allow
+
+    # 관리자 역할
+    p, role:admin, applications, *, */*, allow
+    p, role:admin, clusters, *, *, allow
+    p, role:admin, repositories, *, *, allow
+    p, role:admin, projects, *, *, allow
+    p, role:admin, accounts, *, *, allow
+    p, role:admin, gpgkeys, *, *, allow
+
+    # 관리자 이메일 (AWS Secrets Manager에서 로드)
+${ADMIN_POLICY_LINES}
+RBAC_EOF
+
+    echo "✅ ArgoCD RBAC 설정 완료 (AWS Secrets Manager 기반)"
 else
-    echo "⚠️  ArgoCD RBAC 파일을 찾을 수 없습니다: ${ARGOCD_RBAC}"
+    # Secrets Manager에 없으면 정적 파일 사용
+    echo "  ⚠️  AWS Secrets Manager에서 관리자 이메일을 찾을 수 없습니다."
+    echo "     정적 파일로 폴백합니다."
+    ARGOCD_RBAC="${SCRIPT_DIR}/../../../argocd/config/argocd-rbac-cm.yaml"
+    if [ -f "${ARGOCD_RBAC}" ]; then
+        kubectl apply -f "${ARGOCD_RBAC}"
+        echo "✅ ArgoCD RBAC 설정 완료 (정적 파일 기반)"
+    else
+        echo "⚠️  ArgoCD RBAC 파일을 찾을 수 없습니다: ${ARGOCD_RBAC}"
+    fi
 fi
 
 # =============================================================================
@@ -603,12 +647,11 @@ if [ -z "$DISCORD_WEBHOOK_URL" ]; then
     fi
 fi
 
-# 여전히 없으면 CLI 입력
+# CLI 입력 제거 - 환경변수 또는 AWS Secrets Manager에서만 가져옴
 if [ -z "$DISCORD_WEBHOOK_URL" ]; then
-    echo "  Discord Webhook URL을 입력하세요."
-    echo "  (Discord 서버 설정 > 연동 > 웹후크에서 생성)"
-    echo ""
-    read -p "  Discord Webhook URL (Enter 건너뛰기): " DISCORD_WEBHOOK_URL
+    echo "  ⚠️  Discord Webhook URL을 찾을 수 없습니다."
+    echo "     환경변수(DISCORD_WEBHOOK_URL) 또는"
+    echo "     AWS Secrets Manager(wealist/dev/discord/webhook)에 설정하세요."
 fi
 
 # Discord 알림 설정 적용

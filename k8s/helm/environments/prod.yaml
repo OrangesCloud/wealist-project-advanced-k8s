@@ -53,7 +53,7 @@ externalSecrets:
 
 # 핵심 서비스 - Spring Boot (Java)
 auth-service:
-  replicaCount: 2
+  replicaCount: 3
   # Spring Boot용 리소스 (javaResources 키 사용 - Go 서비스의 resources와 분리)
   javaResources:
     requests:
@@ -65,22 +65,22 @@ auth-service:
   # NOTE: Java OTEL config는 ArgoCD Application parameters에서 관리
   # k8s/argocd/apps/prod/auth-service.yaml 참조
 
-# 핵심 서비스 - 2 replicas
+# 핵심 서비스 - 3 replicas
 board-service:
-  replicaCount: 2
+  replicaCount: 3
 
 user-service:
+  replicaCount: 3
+
+# 보조 서비스 - 2 replicas
+chat-service:
   replicaCount: 2
 
-# 보조 서비스 - 1 replica (비용 절감, 필요시 HPA로 확장)
-chat-service:
-  replicaCount: 1
-
 noti-service:
-  replicaCount: 1
+  replicaCount: 2
 
 storage-service:
-  replicaCount: 1
+  replicaCount: 2
 
 image:
   pullPolicy: Always

@@ -282,12 +282,18 @@ export const getAllMyProfiles = async (): Promise<UserProfileResponse[]> => {
 /**
  * 내 프로필 정보 통합 업데이트 (닉네임/이메일 등)
  * [API] PUT /api/profiles/me
+ * * Header: X-Workspace-Id required
  * * Response: { data: UserProfileResponse }
  */
 export const updateMyProfile = async (data: UpdateProfileRequest): Promise<UserProfileResponse> => {
   const response: AxiosResponse<{ data: UserProfileResponse }> = await userRepoClient.put(
     '/api/profiles/me',
     data,
+    {
+      headers: {
+        'X-Workspace-Id': data.workspaceId,
+      },
+    },
   );
   return response.data.data; // data 필드 추출
 };

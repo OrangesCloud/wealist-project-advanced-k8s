@@ -188,6 +188,23 @@ func main() {
 		logger.Warn("Prometheus URL not configured, metrics endpoints will be disabled")
 	}
 
+	// Initialize Loki client
+	var lokiClient *client.LokiClient
+	if cfg.Loki.BaseURL != "" {
+		lokiClient = client.NewLokiClient(
+			cfg.Loki.BaseURL,
+			cfg.Loki.Namespace,
+			cfg.Loki.Timeout,
+			logger,
+		)
+		logger.Info("Loki client initialized",
+			zap.String("baseURL", cfg.Loki.BaseURL),
+			zap.String("namespace", cfg.Loki.Namespace),
+		)
+	} else {
+		logger.Warn("Loki URL not configured, logs endpoints will return empty results")
+	}
+
 	// Initialize Auth validator (SmartValidator for RS256 JWKS support)
 	var tokenValidator middleware.TokenValidator
 	if cfg.AuthAPI.BaseURL != "" {
@@ -216,6 +233,8 @@ func main() {
 		TokenValidator:   tokenValidator,
 		PrometheusClient: prometheusClient,
 		PrometheusNS:     cfg.Prometheus.Namespace,
+		LokiClient:       lokiClient,
+		LokiNS:           cfg.Loki.Namespace,
 	})
 
 	// Create HTTP server

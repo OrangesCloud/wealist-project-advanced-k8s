@@ -13,17 +13,17 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { createProject, updateProject, getBoardsByProject, deleteProject } from '../../../api/boardService';
+import { createProject, updateProject, getBoardsByProject, deleteProject, getProjectMembers } from '../../../api/boardService';
 import {
   ProjectResponse,
   BoardResponse,
   CreateProjectRequest,
   UpdateProjectRequest,
   AttachmentResponse,
+  ProjectMemberResponse,
 } from '../../../types/board';
 import { IROLES } from '../../../types/common';
 import Portal from '../../common/Portal';
-import { WorkspaceMemberResponse } from '../../../types/user';
 
 import { useFileUpload } from '../../../hooks/useFileUpload';
 import { FileUploader } from '../../common/FileUploader';
@@ -41,7 +41,6 @@ interface ProjectManageModalProps {
   onProjectCreated?: (createObj: ProjectResponse) => void;
   userRole: IROLES;
   initialMode: ProjectModalMode;
-  members?: WorkspaceMemberResponse[] | undefined;
 }
 
 // 파일 다운로드 핸들러 (Detail 모드용)
@@ -77,7 +76,6 @@ export const ProjectManageModal: React.FC<ProjectManageModalProps> = ({
   onProjectCreated,
   userRole,
   initialMode = 'create',
-  members = [],
 }) => {
   const { theme } = useTheme();
   const isExistingProject = !!project;
@@ -102,7 +100,8 @@ export const ProjectManageModal: React.FC<ProjectManageModalProps> = ({
   // Board & Member state
   const [boards, setBoards] = useState<BoardResponse[]>([]);
   const [isBoardsLoading, setIsBoardsLoading] = useState(false);
-  const [projectMembers, setProjectMembers] = useState<WorkspaceMemberResponse[]>(members);
+  const [projectMembers, setProjectMembers] = useState<ProjectMemberResponse[]>([]);
+  const [isMembersLoading, setIsMembersLoading] = useState(false);
 
   // Attachment state (for UI display and hook initialization)
   const [firstAttachmentState, setFirstAttachmentState] = useState<AttachmentResponse | undefined>(
@@ -133,18 +132,28 @@ export const ProjectManageModal: React.FC<ProjectManageModalProps> = ({
     );
   }, [isExistingProject, userRole]);
 
-  // [오류 해결] members prop이 변경될 때 projectMembers 상태를 갱신합니다.
-  // 참고: 배열 내용 비교로 불필요한 업데이트 방지하여 무한 루프 방지
-  useEffect(() => {
-    // 배열 내용이 동일하면 업데이트하지 않음
-    const isSame =
-      projectMembers.length === members.length &&
-      projectMembers.every((m, i) => m.userId === members[i]?.userId);
-
-    if (!isSame) {
-      setProjectMembers(members);
+  // 프로젝트 멤버 API 조회
+  const fetchProjectMembers = useCallback(async () => {
+    const projectToFetch = currentProject || project;
+    if (!projectToFetch?.projectId) {
+      setProjectMembers([]);
+      return;
     }
-  }, [members, projectMembers]);
+    setIsMembersLoading(true);
+    try {
+      const membersData = await getProjectMembers(projectToFetch.projectId);
+      setProjectMembers(membersData || []);
+    } catch (err) {
+      console.error('❌ Failed to fetch project members:', err);
+      setProjectMembers([]);
+    } finally {
+      setIsMembersLoading(false);
+    }
+  }, [currentProject, project]);
+
+  useEffect(() => {
+    fetchProjectMembers();
+  }, [fetchProjectMembers]);
 
   // 프로젝트 데이터 로드 및 파일 상태 초기화 (메인 useEffect)
   useEffect(() => {
@@ -542,25 +551,34 @@ export const ProjectManageModal: React.FC<ProjectManageModalProps> = ({
               소속 멤버 ({projectMembers?.length}명)
             </h3>
             <div className="max-h-56 overflow-y-auto space-y-2">
-              {projectMembers?.map((member) => (
-                <div
-                  key={member?.userId}
-                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 transition"
-                >
-                  <span className="text-sm">{member?.nickName || member?.userEmail || 'Unknown'}</span>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${
-                      member?.roleName === 'OWNER'
-                        ? 'bg-red-100 text-red-600'
-                        : member?.roleName === 'MEMBER'
-                        ? 'bg-blue-100 text-blue-600'
-                        : 'bg-gray-100 text-gray-500'
-                    }`}
-                  >
-                    {member?.roleName}
-                  </span>
+              {isMembersLoading ? (
+                <div className="flex justify-center items-center py-4 text-gray-500">
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  멤버 로딩 중...
                 </div>
-              ))}
+              ) : projectMembers?.length === 0 ? (
+                <p className="text-sm text-gray-500 py-2">소속 멤버가 없습니다.</p>
+              ) : (
+                projectMembers?.map((member) => (
+                  <div
+                    key={member?.memberId || member?.userId}
+                    className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 transition"
+                  >
+                    <span className="text-sm">{member?.userName || member?.userEmail || 'Unknown'}</span>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${
+                        member?.roleName === 'OWNER'
+                          ? 'bg-red-100 text-red-600'
+                          : member?.roleName === 'MEMBER'
+                          ? 'bg-blue-100 text-blue-600'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}
+                    >
+                      {member?.roleName}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

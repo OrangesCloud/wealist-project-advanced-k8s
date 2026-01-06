@@ -152,6 +152,20 @@ func (s *WorkspaceService) InviteMember(workspaceID, inviterID uuid.UUID, req do
 		return nil, response.NewForbiddenError("Cannot assign owner role through invitation", "")
 	}
 
+	// ADMIN 역할인 경우 최대 4명 제한 확인
+	if roleName == domain.RoleAdmin {
+		adminCount, err := s.memberRepo.CountByRole(workspaceID, domain.RoleAdmin)
+		if err != nil {
+			s.logger.Error("ADMIN 수 조회 실패",
+				zap.String("workspace_id", workspaceID.String()),
+				zap.Error(err))
+			return nil, response.NewInternalError("Failed to verify admin count", err.Error())
+		}
+		if adminCount >= 4 {
+			return nil, response.NewForbiddenError("Maximum number of admins (4) reached", "")
+		}
+	}
+
 	// 멤버 생성
 	member := &domain.WorkspaceMember{
 		ID:          uuid.New(),
@@ -239,9 +253,20 @@ func (s *WorkspaceService) UpdateMemberRole(workspaceID, memberID, updaterID uui
 		return nil, response.NewForbiddenError("Cannot assign owner role", "")
 	}
 
-	// ADMIN이 다른 ADMIN의 역할을 변경하려 하면 거부
-	if updaterRole == domain.RoleAdmin && member.RoleName == domain.RoleAdmin {
-		return nil, response.NewForbiddenError("Admins cannot change other admins' roles", "")
+	// ADMIN도 OWNER와 동일한 권한으로 다른 ADMIN의 역할 변경 가능
+
+	// ADMIN으로 변경하는 경우 최대 4명 제한 확인 (현재 ADMIN이 아닌 경우에만)
+	if req.RoleName == domain.RoleAdmin && member.RoleName != domain.RoleAdmin {
+		adminCount, err := s.memberRepo.CountByRole(workspaceID, domain.RoleAdmin)
+		if err != nil {
+			s.logger.Error("ADMIN 수 조회 실패",
+				zap.String("workspace_id", workspaceID.String()),
+				zap.Error(err))
+			return nil, response.NewInternalError("Failed to verify admin count", err.Error())
+		}
+		if adminCount >= 4 {
+			return nil, response.NewForbiddenError("Maximum number of admins (4) reached", "")
+		}
 	}
 
 	// 역할 업데이트
@@ -290,10 +315,7 @@ func (s *WorkspaceService) RemoveMember(workspaceID, memberID, removerID uuid.UU
 		if removerRole == domain.RoleMember {
 			return response.NewForbiddenError("Members cannot remove others", "")
 		}
-		// ADMIN이 다른 ADMIN 제거 시도 시 거부
-		if removerRole == domain.RoleAdmin && member.RoleName == domain.RoleAdmin {
-			return response.NewForbiddenError("Admins cannot remove other admins", "")
-		}
+		// ADMIN도 OWNER와 동일한 권한으로 다른 ADMIN 제거 가능
 	}
 
 	// 소유자는 제거 불가
