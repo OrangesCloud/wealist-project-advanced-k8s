@@ -33,6 +33,9 @@ spec:
         # Service-specific config (managed here, not in prod.yaml)
         - name: config.DB_NAME
           value: "board_db"
+        # 고가용성: 핵심 보드 서비스는 minReplicas: 3 유지
+        - name: autoscaling.minReplicas
+          value: "3"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-prod

@@ -342,9 +342,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
               {/* 프로필 이미지 */}
               <div className="flex flex-col items-center mb-4">
                 <div className="relative">
-                  {avatarPreviewUrl ? (
+                  {(avatarPreviewUrl || currentProfile?.profileImageUrl) ? (
                     <img
-                      src={selectedFile ? avatarPreviewUrl : currentProfile?.profileImageUrl || ''}
+                      src={avatarPreviewUrl || currentProfile?.profileImageUrl || ''}
                       alt="프로필 미리보기"
                       className="w-24 h-24 object-cover border-2 border-gray-300 rounded-full"
                     />
