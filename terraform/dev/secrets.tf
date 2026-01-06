@@ -122,30 +122,30 @@ module "parameters" {
 }
 
 # =============================================================================
-# AWS Secrets Manager - Dev Environment Secrets
+# AWS Secrets Manager - Dev Environment Secrets (수동 관리)
 # =============================================================================
 # Kind 클러스터 setup 스크립트에서 참조하는 시크릿들
-# SSM Parameter Store와 별도로 Secrets Manager 사용 (setup 스크립트 호환)
+# Terraform이 아닌 AWS Console에서 수동 관리 (setup 스크립트 호환)
 #
-# NOTE: wealist/dev/oauth/argocd는 이미 AWS Console에서 수동 생성됨 (Terraform 관리 외)
-
+# 필요한 시크릿 목록 (AWS Console에서 생성):
 # -----------------------------------------------------------------------------
-# Discord Webhook (kind-dev-setup에서 ArgoCD 알림용)
+# | Secret Name                      | 용도                    | 형식 (JSON)
 # -----------------------------------------------------------------------------
-resource "aws_secretsmanager_secret" "discord_webhook" {
-  name        = "wealist/dev/discord/webhook"
-  description = "Discord webhook URL for ArgoCD deployment notifications"
-
-  tags = {
-    Environment = "dev"
-    Project     = "wealist"
-    Purpose     = "ArgoCD Notifications"
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "discord_webhook" {
-  secret_id = aws_secretsmanager_secret.discord_webhook.id
-  secret_string = jsonencode({
-    webhook_url = var.discord_webhook_url
-  })
-}
+# | wealist/dev/oauth/argocd         | ArgoCD Google OAuth     | {"client_id":"...", "client_secret":"..."}
+# | wealist/dev/discord/webhook      | ArgoCD 배포 알림        | {"webhook_url":"https://discord.com/..."}
+# | wealist/dev/argocd/admins        | ArgoCD 관리자 이메일    | {"emails":["email1@...", "email2@..."]}
+# | wealist/dev/github/token         | ArgoCD Git 레포 접근    | {"token":"ghp_..."}
+# -----------------------------------------------------------------------------
+#
+# ESO (External Secrets Operator)용 시크릿:
+# -----------------------------------------------------------------------------
+# | wealist/dev/oauth/google         | Google OAuth (앱용)
+# | wealist/dev/app/jwt-secret       | JWT 시크릿
+# | wealist/dev/database/endpoint    | DB 연결 정보
+# | wealist/dev/redis/endpoint       | Redis 연결 정보
+# | wealist/dev/redis/auth-token     | Redis 인증 토큰
+# | wealist/dev/minio/credentials    | MinIO 자격증명
+# | wealist/dev/livekit/credentials  | LiveKit API 자격증명
+# | wealist/dev/app/internal-api-key | 내부 API 키
+# | wealist/dev/monitoring/grafana   | Grafana 관리자 비밀번호
+# -----------------------------------------------------------------------------

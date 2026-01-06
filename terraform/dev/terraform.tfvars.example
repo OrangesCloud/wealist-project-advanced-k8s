@@ -77,6 +77,7 @@ livekit_api_secret = "devsecretkey1234567890abcdefghijk"
 internal_api_key = "internal-api-key-change-this-in-production"
 
 # -----------------------------------------------------------------------------
-# Discord Webhook (ArgoCD 배포 알림 - k8s-deploy-dev 채널)
+# NOTE: Discord Webhook, GitHub Token, ArgoCD Admin Emails 등
+# setup 스크립트용 시크릿은 AWS Secrets Manager에서 수동 관리
+# secrets.tf 주석 참조
 # -----------------------------------------------------------------------------
-discord_webhook_url = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
