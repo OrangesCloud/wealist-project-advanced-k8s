@@ -227,13 +227,21 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 		if len(board.CustomFields) > 0 {
 			_ = json.Unmarshal(board.CustomFields, &newCustomFields)
 		}
+
+		// Convert UUIDs to human-readable values for notification display
+		originalReadable, _ := s.fieldOptionConverter.ConvertIDsToValues(ctx, originalCustomFields)
+		newReadable, _ := s.fieldOptionConverter.ConvertIDsToValues(ctx, newCustomFields)
+
 		for key, newVal := range newCustomFields {
 			oldVal, existed := originalCustomFields[key]
 			if !existed || oldVal != newVal {
+				// Use readable values for display
+				oldReadableVal := formatInterface(originalReadable[key])
+				newReadableVal := formatInterface(newReadable[key])
 				changes = append(changes, BoardChange{
 					Field:    key,
-					OldValue: formatInterface(oldVal),
-					NewValue: formatInterface(newVal),
+					OldValue: oldReadableVal,
+					NewValue: newReadableVal,
 				})
 			}
 		}
