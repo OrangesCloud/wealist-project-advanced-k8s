@@ -74,7 +74,7 @@ jobs:
                      "fields": [
                        {
                          "name": "🌍 Environment",
-                         "value": "Development",
+                         "value": "develop",
                          "inline": true
                        },
                        {
@@ -213,6 +213,8 @@ jobs:
         run: pnpm build
         env:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || '' }}
+          BUILD_NUMBER: ${{ github.run_number }}
+          BUILD_SHA: ${{ github.sha }}
 
       - name: Extract version info
         id: version
@@ -331,6 +333,8 @@ jobs:
         run: pnpm build
         env:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || '' }}
+          BUILD_NUMBER: ${{ github.run_number }}
+          BUILD_SHA: ${{ needs.build-and-test.outputs.short_sha }}
 
       - name: Inject runtime config
         env:
@@ -498,7 +502,7 @@ jobs:
                    "fields": [
                      {
                        "name": "🌍 Environment",
-                       "value": "Development",
+                       "value": "develop",
                        "inline": true
                      },
                      {
@@ -547,7 +551,7 @@ jobs:
                    "fields": [
                      {
                        "name": "🌍 Environment",
-                       "value": "Development",
+                       "value": "develop",
                        "inline": true
                      },
                      {

@@ -54,7 +54,7 @@ func (r *WorkspaceMemberRepository) FindByUser(userID uuid.UUID) ([]domain.Works
 	var members []domain.WorkspaceMember
 	err := r.db.
 		Joins("JOIN workspaces ON workspaces.id = workspace_members.workspace_id AND workspaces.deleted_at IS NULL").
-		Preload("Workspace").
+		Preload("Workspace", "deleted_at IS NULL").
 		Where("workspace_members.user_id = ? AND workspace_members.is_active = true", userID).
 		Find(&members).Error
 	return members, err
@@ -65,7 +65,7 @@ func (r *WorkspaceMemberRepository) FindDefaultWorkspace(userID uuid.UUID) (*dom
 	var member domain.WorkspaceMember
 	err := r.db.
 		Joins("JOIN workspaces ON workspaces.id = workspace_members.workspace_id AND workspaces.deleted_at IS NULL").
-		Preload("Workspace").
+		Preload("Workspace", "deleted_at IS NULL").
 		Where("workspace_members.user_id = ? AND workspace_members.is_default = true AND workspace_members.is_active = true", userID).
 		First(&member).Error
 	if err != nil {
@@ -117,4 +117,13 @@ func (r *WorkspaceMemberRepository) GetRole(workspaceID, userID uuid.UUID) (doma
 		return "", err
 	}
 	return member.RoleName, nil
+}
+
+// CountByRole counts members with a specific role in a workspace
+func (r *WorkspaceMemberRepository) CountByRole(workspaceID uuid.UUID, roleName domain.RoleName) (int64, error) {
+	var count int64
+	err := r.db.Model(&domain.WorkspaceMember{}).
+		Where("workspace_id = ? AND role_name = ? AND is_active = true", workspaceID, roleName).
+		Count(&count).Error
+	return count, err
 }

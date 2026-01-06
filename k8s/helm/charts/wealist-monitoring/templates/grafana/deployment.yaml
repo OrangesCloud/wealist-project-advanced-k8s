@@ -107,6 +107,12 @@ spec:
             - name: GF_AUTH_GOOGLE_ROLE_ATTRIBUTE_PATH
               value: {{ .Values.grafana.oauth.google.roleAttributePath | quote }}
             {{- end }}
+            # Admin 권한을 OAuth로 할당 가능하게
+            - name: GF_AUTH_GOOGLE_ALLOW_ASSIGN_GRAFANA_ADMIN
+              value: "true"
+            # 수동 할당된 역할 유지 (OAuth에서 덮어쓰지 않음)
+            - name: GF_AUTH_GOOGLE_SKIP_ORG_ROLE_SYNC
+              value: {{ .Values.grafana.oauth.google.skipOrgRoleSync | default "false" | quote }}
             {{- end }}
           livenessProbe:
             httpGet:

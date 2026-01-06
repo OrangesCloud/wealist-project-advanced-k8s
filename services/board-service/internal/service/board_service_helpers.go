@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -15,6 +17,48 @@ import (
 	"project-board-api/internal/dto"
 	"project-board-api/internal/response"
 )
+
+// BoardChange represents a single field change in a board update
+type BoardChange struct {
+	Field    string `json:"field"`
+	OldValue string `json:"oldValue"`
+	NewValue string `json:"newValue"`
+}
+
+// datesEqual compares two time pointers for equality
+func datesEqual(a, b *time.Time) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return a.Equal(*b)
+}
+
+// formatDatePtr formats a time pointer to string
+func formatDatePtr(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return t.Format("2006-01-02")
+}
+
+// formatUUIDPtr formats a UUID pointer to string
+func formatUUIDPtr(u *uuid.UUID) string {
+	if u == nil {
+		return ""
+	}
+	return u.String()
+}
+
+// formatInterface formats an interface value to string
+func formatInterface(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", v)
+}
 
 func (s *boardServiceImpl) convertBoardCustomFieldsToValues(ctx context.Context, board *domain.Board) error {
 	if board.CustomFields == nil || len(board.CustomFields) == 0 {
@@ -287,7 +331,7 @@ func (s *boardServiceImpl) isAssigneeChanged(original, current *uuid.UUID) bool 
 	return *original != *current
 }
 
-// sendAssigneeNotification sends a TASK_ASSIGNED notification to the assignee
+// sendAssigneeNotification sends a BOARD_ASSIGNED notification to the assignee
 // This is called asynchronously (in a goroutine) so notification failures don't affect the main business logic
 func (s *boardServiceImpl) sendAssigneeNotification(ctx context.Context, board *domain.Board, actorID uuid.UUID) {
 	if s.notiClient == nil || board.AssigneeID == nil {
@@ -304,7 +348,7 @@ func (s *boardServiceImpl) sendAssigneeNotification(ctx context.Context, board *
 	}
 
 	event := &client.NotificationEvent{
-		Type:         client.NotificationTypeTaskAssigned,
+		Type:         client.NotificationTypeBoardAssigned,
 		ActorID:      actorID,
 		TargetUserID: *board.AssigneeID,
 		WorkspaceID:  project.WorkspaceID,
@@ -321,10 +365,195 @@ func (s *boardServiceImpl) sendAssigneeNotification(ctx context.Context, board *
 	go func() {
 		// Use background context to avoid cancellation when request completes
 		if err := s.notiClient.SendNotification(context.Background(), event); err != nil {
-			s.logger.Warn("Failed to send task assigned notification",
+			s.logger.Warn("Failed to send board assigned notification",
 				zap.String("board.id", board.ID.String()),
 				zap.String("assignee.id", board.AssigneeID.String()),
 				zap.Error(err))
+		}
+	}()
+}
+
+// sendParticipantAddedNotifications sends BOARD_PARTICIPANT_ADDED notifications to new participants
+func (s *boardServiceImpl) sendParticipantAddedNotifications(ctx context.Context, board *domain.Board, participantIDs []uuid.UUID, actorID uuid.UUID) {
+	if s.notiClient == nil || len(participantIDs) == 0 {
+		return
+	}
+
+	// Get project info for workspace ID
+	project, err := s.projectRepo.FindByID(ctx, board.ProjectID)
+	if err != nil {
+		s.logger.Warn("Failed to get project for participant notification",
+			zap.String("board.id", board.ID.String()),
+			zap.Error(err))
+		return
+	}
+
+	// Send notification to each participant asynchronously
+	go func() {
+		for _, participantID := range participantIDs {
+			event := &client.NotificationEvent{
+				Type:         client.NotificationTypeBoardParticipantAdded,
+				ActorID:      actorID,
+				TargetUserID: participantID,
+				WorkspaceID:  project.WorkspaceID,
+				ResourceType: client.ResourceTypeBoard,
+				ResourceID:   board.ID,
+				ResourceName: &board.Title,
+				Metadata: map[string]interface{}{
+					"projectId":   board.ProjectID.String(),
+					"projectName": project.Name,
+				},
+			}
+
+			if err := s.notiClient.SendNotification(context.Background(), event); err != nil {
+				s.logger.Warn("Failed to send participant added notification",
+					zap.String("board.id", board.ID.String()),
+					zap.String("participant.id", participantID.String()),
+					zap.Error(err))
+			}
+		}
+	}()
+}
+
+// sendBoardUpdateNotifications sends BOARD_UPDATED notifications to assignee and all participants
+// Excludes the actor (the person who made the update)
+// Includes the list of changes made to the board
+func (s *boardServiceImpl) sendBoardUpdateNotifications(ctx context.Context, board *domain.Board, actorID uuid.UUID, changes []BoardChange) {
+	if s.notiClient == nil {
+		return
+	}
+
+	// Get project info for workspace ID
+	project, err := s.projectRepo.FindByID(ctx, board.ProjectID)
+	if err != nil {
+		s.logger.Warn("Failed to get project for update notification",
+			zap.String("board.id", board.ID.String()),
+			zap.Error(err))
+		return
+	}
+
+	// Collect all users to notify (assignee + participants), excluding actor
+	notifyUserIDs := make(map[uuid.UUID]bool)
+
+	// Add assignee if exists and not the actor
+	if board.AssigneeID != nil && *board.AssigneeID != actorID {
+		notifyUserIDs[*board.AssigneeID] = true
+	}
+
+	// Add participants if not the actor
+	for _, p := range board.Participants {
+		if p.UserID != actorID {
+			notifyUserIDs[p.UserID] = true
+		}
+	}
+
+	if len(notifyUserIDs) == 0 {
+		return
+	}
+
+	// Convert changes to []interface{} for JSON serialization
+	changesData := make([]interface{}, len(changes))
+	for i, c := range changes {
+		changesData[i] = map[string]interface{}{
+			"field":    c.Field,
+			"oldValue": c.OldValue,
+			"newValue": c.NewValue,
+		}
+	}
+
+	// Send notifications asynchronously
+	go func() {
+		for userID := range notifyUserIDs {
+			event := &client.NotificationEvent{
+				Type:         client.NotificationTypeBoardUpdated,
+				ActorID:      actorID,
+				TargetUserID: userID,
+				WorkspaceID:  project.WorkspaceID,
+				ResourceType: client.ResourceTypeBoard,
+				ResourceID:   board.ID,
+				ResourceName: &board.Title,
+				Metadata: map[string]interface{}{
+					"projectId":   board.ProjectID.String(),
+					"projectName": project.Name,
+					"changes":     changesData,
+				},
+			}
+
+			if err := s.notiClient.SendNotification(context.Background(), event); err != nil {
+				s.logger.Warn("Failed to send board update notification",
+					zap.String("board.id", board.ID.String()),
+					zap.String("target.user.id", userID.String()),
+					zap.Error(err))
+			}
+		}
+	}()
+}
+
+// sendCommentAddedNotifications sends BOARD_COMMENT_ADDED notifications to assignee and all participants
+// Excludes the actor (the person who added the comment)
+func (s *boardServiceImpl) sendCommentAddedNotifications(ctx context.Context, board *domain.Board, commentID uuid.UUID, commentPreview string, actorID uuid.UUID) {
+	if s.notiClient == nil {
+		return
+	}
+
+	// Get project info for workspace ID
+	project, err := s.projectRepo.FindByID(ctx, board.ProjectID)
+	if err != nil {
+		s.logger.Warn("Failed to get project for comment notification",
+			zap.String("board.id", board.ID.String()),
+			zap.Error(err))
+		return
+	}
+
+	// Collect all users to notify (assignee + participants), excluding actor
+	notifyUserIDs := make(map[uuid.UUID]bool)
+
+	// Add assignee if exists and not the actor
+	if board.AssigneeID != nil && *board.AssigneeID != actorID {
+		notifyUserIDs[*board.AssigneeID] = true
+	}
+
+	// Add participants if not the actor
+	for _, p := range board.Participants {
+		if p.UserID != actorID {
+			notifyUserIDs[p.UserID] = true
+		}
+	}
+
+	if len(notifyUserIDs) == 0 {
+		return
+	}
+
+	// Truncate comment content for notification preview (max 100 chars)
+	if len(commentPreview) > 100 {
+		commentPreview = commentPreview[:100] + "..."
+	}
+
+	// Send notifications asynchronously
+	go func() {
+		for userID := range notifyUserIDs {
+			event := &client.NotificationEvent{
+				Type:         client.NotificationTypeBoardCommentAdded,
+				ActorID:      actorID,
+				TargetUserID: userID,
+				WorkspaceID:  project.WorkspaceID,
+				ResourceType: client.ResourceTypeBoard,
+				ResourceID:   board.ID,
+				ResourceName: &board.Title,
+				Metadata: map[string]interface{}{
+					"projectId":      board.ProjectID.String(),
+					"projectName":    project.Name,
+					"commentId":      commentID.String(),
+					"commentPreview": commentPreview,
+				},
+			}
+
+			if err := s.notiClient.SendNotification(context.Background(), event); err != nil {
+				s.logger.Warn("Failed to send comment notification",
+					zap.String("board.id", board.ID.String()),
+					zap.String("target.user.id", userID.String()),
+					zap.Error(err))
+			}
 		}
 	}()
 }

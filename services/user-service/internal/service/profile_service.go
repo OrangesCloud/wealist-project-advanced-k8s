@@ -84,8 +84,23 @@ func (s *ProfileService) CreateProfile(userID uuid.UUID, req domain.CreateProfil
 }
 
 // GetMyProfile gets user's profile for a workspace
+// If no profile exists for the specific workspace, falls back to the default workspace profile
 func (s *ProfileService) GetMyProfile(userID, workspaceID uuid.UUID) (*domain.UserProfile, error) {
-	return s.profileRepo.FindByUserAndWorkspace(userID, workspaceID)
+	profile, err := s.profileRepo.FindByUserAndWorkspace(userID, workspaceID)
+	if err == nil {
+		return profile, nil
+	}
+
+	// Fallback to default workspace profile if not found
+	defaultWorkspaceID := uuid.MustParse("00000000-0000-0000-0000-000000000000")
+	if workspaceID != defaultWorkspaceID {
+		s.logger.Debug("Workspace profile not found, falling back to default profile",
+			zap.String("user_id", userID.String()),
+			zap.String("workspace_id", workspaceID.String()))
+		return s.profileRepo.FindByUserAndWorkspace(userID, defaultWorkspaceID)
+	}
+
+	return nil, err
 }
 
 // GetAllMyProfiles gets all profiles for a user
@@ -107,11 +122,51 @@ func (s *ProfileService) GetUserProfile(viewerID, targetUserID, workspaceID uuid
 	return s.profileRepo.FindByUserAndWorkspace(targetUserID, workspaceID)
 }
 
-// UpdateProfile updates a user profile
+// UpdateProfile updates a user profile (creates if not exists)
 func (s *ProfileService) UpdateProfile(userID, workspaceID uuid.UUID, req domain.UpdateProfileRequest) (*domain.UserProfile, error) {
 	profile, err := s.profileRepo.FindByUserAndWorkspace(userID, workspaceID)
 	if err != nil {
-		return nil, err
+		// 프로필이 없으면 새로 생성
+		s.logger.Info("Profile not found, creating new one for update",
+			zap.String("userId", userID.String()),
+			zap.String("workspaceId", workspaceID.String()))
+
+		// Get user's email from user table
+		user, userErr := s.userRepo.FindByID(userID)
+		if userErr != nil {
+			s.logger.Error("Failed to find user", zap.Error(userErr))
+			return nil, userErr
+		}
+
+		// 닉네임 설정 (요청에 있으면 사용, 없으면 기존 프로필에서 가져오거나 기본값)
+		nickName := user.Name
+		if req.NickName != nil {
+			nickName = *req.NickName
+		}
+
+		profile = &domain.UserProfile{
+			ID:              uuid.New(),
+			UserID:          userID,
+			WorkspaceID:     workspaceID,
+			NickName:        nickName,
+			Email:           user.Email,
+			ProfileImageURL: req.ProfileImageURL,
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		}
+
+		if createErr := s.profileRepo.Create(profile); createErr != nil {
+			s.logger.Error("Failed to create profile", zap.Error(createErr))
+			return nil, createErr
+		}
+
+		// 메트릭 기록: 프로필 생성 성공
+		if s.metrics != nil {
+			s.metrics.RecordProfileCreated()
+		}
+
+		s.logger.Info("Profile created during update", zap.String("profileId", profile.ID.String()))
+		return profile, nil
 	}
 
 	if req.NickName != nil {
@@ -161,31 +216,11 @@ func (s *ProfileService) UpdateProfileImage(userID, workspaceID uuid.UUID, image
 }
 
 // GetOrCreateProfile gets or creates a user profile for a workspace
+// Note: workspaceID = 00000000-0000-0000-0000-000000000000 is a valid ID for the "default profile"
+// which is used as a fallback for all workspaces that don't have a specific profile
 func (s *ProfileService) GetOrCreateProfile(userID, workspaceID uuid.UUID, defaultNickName string) (*domain.UserProfile, error) {
-	// Handle default/nil workspace ID - find user's actual workspace
-	nilUUID := uuid.UUID{}
-	if workspaceID == nilUUID {
-		s.logger.Info("Default workspace ID detected, finding user's actual workspace",
-			zap.String("userId", userID.String()))
-
-		// Try to find user's default workspace first
-		defaultMember, err := s.memberRepo.FindDefaultWorkspace(userID)
-		if err == nil && defaultMember != nil {
-			workspaceID = defaultMember.WorkspaceID
-			s.logger.Info("Using user's default workspace",
-				zap.String("workspaceId", workspaceID.String()))
-		} else {
-			// Fallback: get any workspace the user belongs to
-			members, err := s.memberRepo.FindByUser(userID)
-			if err != nil || len(members) == 0 {
-				s.logger.Error("User has no workspaces", zap.String("userId", userID.String()))
-				return nil, response.NewNotFoundError("User has no workspaces", userID.String())
-			}
-			workspaceID = members[0].WorkspaceID
-			s.logger.Info("Using first available workspace",
-				zap.String("workspaceId", workspaceID.String()))
-		}
-	}
+	// The default workspace ID (00000000-0000-0000-0000-000000000000) is valid for storing
+	// the user's default profile, so we don't redirect it to an actual workspace
 
 	// Try to find existing profile
 	profile, err := s.profileRepo.FindByUserAndWorkspace(userID, workspaceID)

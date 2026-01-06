@@ -33,6 +33,8 @@ spec:
         # Service-specific config (managed here, not in prod.yaml)
         - name: config.DB_NAME
           value: "board_db"
+        - name: autoscaling.minReplicas
+          value: "1"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-prod

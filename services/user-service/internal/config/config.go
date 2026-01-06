@@ -11,7 +11,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//
 // Config holds all configuration for the application
 type Config struct {
 	Server    ServerConfig    `yaml:"server"`

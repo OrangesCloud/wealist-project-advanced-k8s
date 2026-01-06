@@ -213,7 +213,22 @@ export const getFolderContents = async (
     await storageServiceClient.get('/storage/folders/contents', {
       params: { workspaceId, folderId },
     });
-  return response.data.data;
+  // API 응답이 null/undefined인 경우 빈 children/files 배열을 가진 기본 객체 반환
+  return response.data.data ?? ({
+    id: '',
+    workspaceId,
+    name: '',
+    path: '/',
+    createdBy: '',
+    createdAt: '',
+    updatedAt: '',
+    isDeleted: false,
+    children: [],
+    files: [],
+    fileCount: 0,
+    folderCount: 0,
+    totalSize: 0,
+  } as FolderContentsResponse);
 };
 
 /**
@@ -236,7 +251,22 @@ export const getRootContents = async (workspaceId: string): Promise<FolderConten
     await storageServiceClient.get('/storage/folders/contents', {
       params: { workspaceId },
     });
-  return response.data.data;
+  // API 응답이 null/undefined인 경우 빈 children/files 배열을 가진 기본 객체 반환
+  return response.data.data ?? ({
+    id: '',
+    workspaceId,
+    name: '',
+    path: '/',
+    createdBy: '',
+    createdAt: '',
+    updatedAt: '',
+    isDeleted: false,
+    children: [],
+    files: [],
+    fileCount: 0,
+    folderCount: 0,
+    totalSize: 0,
+  } as FolderContentsResponse);
 };
 
 /**
@@ -659,10 +689,17 @@ export const getRecentFiles = async (
   workspaceId: string,
   limit: number = 20,
 ): Promise<StorageFile[]> => {
-  const response: AxiosResponse<SuccessResponse<StorageFile[]>> = await storageServiceClient.get(
+  const response: AxiosResponse<SuccessResponse<StorageFile[] | { files?: StorageFile[] }>> = await storageServiceClient.get(
     `/storage/workspaces/${workspaceId}/files`,
   );
-  const files = response.data.data || [];
+  // 응답 형식에 따라 파일 배열 추출
+  let files: StorageFile[] = [];
+  const data = response.data.data;
+  if (Array.isArray(data)) {
+    files = data;
+  } else if (data && Array.isArray(data.files)) {
+    files = data.files;
+  }
   // 최근 수정된 순으로 정렬 후 limit만큼 반환
   return files
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())

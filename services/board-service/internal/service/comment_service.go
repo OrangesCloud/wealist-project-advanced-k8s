@@ -128,10 +128,8 @@ func (s *commentServiceImpl) CreateComment(ctx context.Context, userID uuid.UUID
 	// 생성된 Attachments를 Comment 객체에 할당 (타입 변환 적용)
 	comment.Attachments = toDomainAttachments(createdAttachments)
 
-	// Send notification to assignee if they're not the comment author
-	if board.AssigneeID != nil && *board.AssigneeID != userID {
-		s.sendCommentNotification(ctx, board, comment, userID)
-	}
+	// Send notification to assignee and all participants (excluding comment author)
+	s.sendCommentNotification(ctx, board, comment, userID)
 
 	// Convert to response DTO
 	return s.toCommentResponse(comment), nil
@@ -382,10 +380,11 @@ func (s *commentServiceImpl) deleteAttachmentsWithS3(ctx context.Context, attach
 	}
 }
 
-// sendCommentNotification sends a COMMENT_ADDED notification to the board assignee
+// sendCommentNotification sends a COMMENT_ADDED notification to the board assignee and all participants
+// Excludes the actor (the person who added the comment)
 // This is called asynchronously (in a goroutine) so notification failures don't affect the main business logic
 func (s *commentServiceImpl) sendCommentNotification(ctx context.Context, board *domain.Board, comment *domain.Comment, actorID uuid.UUID) {
-	if s.notiClient == nil || board.AssigneeID == nil {
+	if s.notiClient == nil {
 		return
 	}
 
@@ -398,36 +397,58 @@ func (s *commentServiceImpl) sendCommentNotification(ctx context.Context, board 
 		return
 	}
 
+	// Collect all users to notify (assignee + participants), excluding actor
+	notifyUserIDs := make(map[uuid.UUID]bool)
+
+	// Add assignee if exists and not the actor
+	if board.AssigneeID != nil && *board.AssigneeID != actorID {
+		notifyUserIDs[*board.AssigneeID] = true
+	}
+
+	// Add participants if not the actor
+	for _, p := range board.Participants {
+		if p.UserID != actorID {
+			notifyUserIDs[p.UserID] = true
+		}
+	}
+
+	if len(notifyUserIDs) == 0 {
+		return
+	}
+
 	// Truncate comment content for notification preview (max 100 chars)
 	contentPreview := comment.Content
 	if len(contentPreview) > 100 {
 		contentPreview = contentPreview[:100] + "..."
 	}
 
-	event := &client.NotificationEvent{
-		Type:         client.NotificationTypeCommentAdded,
-		ActorID:      actorID,
-		TargetUserID: *board.AssigneeID,
-		WorkspaceID:  project.WorkspaceID,
-		ResourceType: client.ResourceTypeBoard,
-		ResourceID:   board.ID,
-		ResourceName: &board.Title,
-		Metadata: map[string]interface{}{
-			"projectId":      board.ProjectID.String(),
-			"projectName":    project.Name,
-			"commentId":      comment.ID.String(),
-			"commentPreview": contentPreview,
-		},
-	}
-
-	// Send notification asynchronously
+	// Send notifications asynchronously
 	go func() {
-		// Use background context to avoid cancellation when request completes
-		if err := s.notiClient.SendNotification(context.Background(), event); err != nil {
-			s.logger.Warn("Failed to send comment notification",
-				zap.String("board.id", board.ID.String()),
-				zap.String("comment.id", comment.ID.String()),
-				zap.Error(err))
+		for userID := range notifyUserIDs {
+			event := &client.NotificationEvent{
+				Type:         client.NotificationTypeBoardCommentAdded,
+				ActorID:      actorID,
+				TargetUserID: userID,
+				WorkspaceID:  project.WorkspaceID,
+				ResourceType: client.ResourceTypeBoard,
+				ResourceID:   board.ID,
+				ResourceName: &board.Title,
+				Metadata: map[string]interface{}{
+					"projectId":      board.ProjectID.String(),
+					"projectName":    project.Name,
+					"commentId":      comment.ID.String(),
+					"commentPreview": contentPreview,
+				},
+			}
+
+			// Use background context to avoid cancellation when request completes
+			if err := s.notiClient.SendNotification(context.Background(), event); err != nil {
+				s.logger.Warn("Failed to send comment notification",
+					zap.String("board.id", board.ID.String()),
+					zap.String("comment.id", comment.ID.String()),
+					zap.String("target.user.id", userID.String()),
+					zap.Error(err))
+			}
 		}
 	}()
 }

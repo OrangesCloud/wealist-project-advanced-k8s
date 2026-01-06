@@ -105,16 +105,7 @@ func (s *WorkspaceService) InviteMember(workspaceID, inviterID uuid.UUID, req do
 		return nil, response.NewNotFoundError("Workspace not found", workspaceID.String())
 	}
 
-	// 초대 권한 확인
-	if workspace.OnlyOwnerCanInvite && workspace.OwnerID != inviterID {
-		// 소유자만 초대 가능 설정인 경우
-		s.logger.Warn("초대 권한 없음 - 소유자만 초대 가능",
-			zap.String("workspace_id", workspaceID.String()),
-			zap.String("inviter_id", inviterID.String()))
-		return nil, response.NewForbiddenError("Only owner can invite members to this workspace", "")
-	}
-
-	// 초대자의 역할 확인 (MEMBER는 초대 불가)
+	// 초대자의 역할 확인
 	inviterRole, err := s.memberRepo.GetRole(workspaceID, inviterID)
 	if err != nil {
 		s.logger.Error("초대자 역할 조회 실패",
@@ -123,8 +114,24 @@ func (s *WorkspaceService) InviteMember(workspaceID, inviterID uuid.UUID, req do
 			zap.Error(err))
 		return nil, response.NewInternalError("Failed to verify invite permission", err.Error())
 	}
-	if inviterRole == domain.RoleMember {
-		return nil, response.NewForbiddenError("Members cannot invite others", "")
+
+	// 초대 권한 확인
+	// OnlyOwnerCanInvite=true일 때: OWNER와 ADMIN만 초대 가능
+	// OnlyOwnerCanInvite=false일 때: OWNER, ADMIN 초대 가능 (MEMBER는 불가)
+	if workspace.OnlyOwnerCanInvite {
+		// OWNER 또는 ADMIN만 초대 가능
+		if workspace.OwnerID != inviterID && inviterRole != domain.RoleAdmin {
+			s.logger.Warn("초대 권한 없음 - 소유자 또는 관리자만 초대 가능",
+				zap.String("workspace_id", workspaceID.String()),
+				zap.String("inviter_id", inviterID.String()),
+				zap.String("inviter_role", string(inviterRole)))
+			return nil, response.NewForbiddenError("Only owner and admins can invite members to this workspace", "")
+		}
+	} else {
+		// MEMBER는 초대 불가
+		if inviterRole == domain.RoleMember {
+			return nil, response.NewForbiddenError("Members cannot invite others", "")
+		}
 	}
 
 	// 이메일로 사용자 조회
@@ -150,6 +157,20 @@ func (s *WorkspaceService) InviteMember(workspaceID, inviterID uuid.UUID, req do
 	// OWNER 역할은 부여 불가
 	if roleName == domain.RoleOwner {
 		return nil, response.NewForbiddenError("Cannot assign owner role through invitation", "")
+	}
+
+	// ADMIN 역할인 경우 최대 4명 제한 확인
+	if roleName == domain.RoleAdmin {
+		adminCount, err := s.memberRepo.CountByRole(workspaceID, domain.RoleAdmin)
+		if err != nil {
+			s.logger.Error("ADMIN 수 조회 실패",
+				zap.String("workspace_id", workspaceID.String()),
+				zap.Error(err))
+			return nil, response.NewInternalError("Failed to verify admin count", err.Error())
+		}
+		if adminCount >= 4 {
+			return nil, response.NewForbiddenError("Maximum number of admins (4) reached", "")
+		}
 	}
 
 	// 멤버 생성
@@ -239,9 +260,20 @@ func (s *WorkspaceService) UpdateMemberRole(workspaceID, memberID, updaterID uui
 		return nil, response.NewForbiddenError("Cannot assign owner role", "")
 	}
 
-	// ADMIN이 다른 ADMIN의 역할을 변경하려 하면 거부
-	if updaterRole == domain.RoleAdmin && member.RoleName == domain.RoleAdmin {
-		return nil, response.NewForbiddenError("Admins cannot change other admins' roles", "")
+	// ADMIN도 OWNER와 동일한 권한으로 다른 ADMIN의 역할 변경 가능
+
+	// ADMIN으로 변경하는 경우 최대 4명 제한 확인 (현재 ADMIN이 아닌 경우에만)
+	if req.RoleName == domain.RoleAdmin && member.RoleName != domain.RoleAdmin {
+		adminCount, err := s.memberRepo.CountByRole(workspaceID, domain.RoleAdmin)
+		if err != nil {
+			s.logger.Error("ADMIN 수 조회 실패",
+				zap.String("workspace_id", workspaceID.String()),
+				zap.Error(err))
+			return nil, response.NewInternalError("Failed to verify admin count", err.Error())
+		}
+		if adminCount >= 4 {
+			return nil, response.NewForbiddenError("Maximum number of admins (4) reached", "")
+		}
 	}
 
 	// 역할 업데이트
@@ -290,10 +322,7 @@ func (s *WorkspaceService) RemoveMember(workspaceID, memberID, removerID uuid.UU
 		if removerRole == domain.RoleMember {
 			return response.NewForbiddenError("Members cannot remove others", "")
 		}
-		// ADMIN이 다른 ADMIN 제거 시도 시 거부
-		if removerRole == domain.RoleAdmin && member.RoleName == domain.RoleAdmin {
-			return response.NewForbiddenError("Admins cannot remove other admins", "")
-		}
+		// ADMIN도 OWNER와 동일한 권한으로 다른 ADMIN 제거 가능
 	}
 
 	// 소유자는 제거 불가

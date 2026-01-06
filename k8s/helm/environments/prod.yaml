@@ -53,7 +53,7 @@ externalSecrets:
 
 # 핵심 서비스 - Spring Boot (Java)
 auth-service:
-  replicaCount: 2
+  replicaCount: 3
   # Spring Boot용 리소스 (javaResources 키 사용 - Go 서비스의 resources와 분리)
   javaResources:
     requests:
@@ -65,22 +65,22 @@ auth-service:
   # NOTE: Java OTEL config는 ArgoCD Application parameters에서 관리
   # k8s/argocd/apps/prod/auth-service.yaml 참조
 
-# 핵심 서비스 - 2 replicas
+# 핵심 서비스 - 3 replicas
 board-service:
-  replicaCount: 2
+  replicaCount: 3
 
 user-service:
+  replicaCount: 3
+
+# 보조 서비스 - 2 replicas
+chat-service:
   replicaCount: 2
 
-# 보조 서비스 - 1 replica (비용 절감, 필요시 HPA로 확장)
-chat-service:
-  replicaCount: 1
-
 noti-service:
-  replicaCount: 1
+  replicaCount: 2
 
 storage-service:
-  replicaCount: 1
+  replicaCount: 2
 
 image:
   pullPolicy: Always
@@ -127,10 +127,9 @@ securityContext:
 # Features (Production)
 # -----------------------------------------------------------------------------
 # 기본 HPA 설정 (모든 서비스 공통)
-# auth-service, user-service는 ArgoCD parameters에서 minReplicas: 2로 오버라이드
 autoscaling:
   enabled: true
-  minReplicas: 1  # 기본값 1, 핵심 서비스만 2로 오버라이드
+  minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 90
@@ -184,10 +183,11 @@ shared:
     # Redis (hosts from ExternalSecret)
     REDIS_PORT: "6379"
     CORS_ORIGINS: "https://wealist.co.kr,https://api.wealist.co.kr"
-    # Rate Limiting (Application Level - Redis 기반)
-    RATE_LIMIT_ENABLED: "true"
-    RATE_LIMIT_PER_MINUTE: "60"
-    RATE_LIMIT_BURST: "10"
+    # Rate Limiting (Application Level - 비활성화, Istio에서 관리 예정)
+    # k6 스트레스 테스트 및 Istio 전환을 위해 비활성화
+    RATE_LIMIT_ENABLED: "false"
+    RATE_LIMIT_PER_MINUTE: "1000"
+    RATE_LIMIT_BURST: "100"
     # Istio JWT Mode (Istio가 JWT 검증, Go 서비스는 파싱만)
     ISTIO_JWT_MODE: "true"
     # S3 Configuration (AWS S3 - Terraform: wealist-prod-storage)
@@ -438,14 +438,14 @@ prometheus:
     enabled: true
     alertmanager:
       enabled: false  # Alertmanager 별도 구축 시 true로 변경
-  # 프로덕션 리소스 (WAL replay 메모리 필요)
+  # 프로덕션 리소스 (WAL replay + span metrics + remote write 고려)
   resources:
     requests:
-      memory: "512Mi"
-      cpu: "100m"
+      memory: "1Gi"
+      cpu: "200m"
     limits:
-      memory: "1Gi"  # 기본 512Mi → 1Gi (WAL replay OOMKilled 방지)
-      cpu: "500m"
+      memory: "2Gi"  # 1Gi → 2Gi (OOMKilled 방지)
+      cpu: "1000m"
   # V3: Tempo Metrics Generator → Prometheus 연동
   remoteWriteReceiver:
     enabled: true  # --web.enable-remote-write-receiver
@@ -509,6 +509,18 @@ grafana:
     allowSignUp: false
     rootUrl: "https://api.wealist.co.kr/api/monitoring/grafana"
     serveFromSubPath: "true"
+  # Google OAuth 설정
+  oauth:
+    google:
+      enabled: true
+      # 허용 도메인 (특정 도메인만 허용하려면 설정)
+      allowedDomains: ""
+      autoLogin: false
+      # JMESPath로 Admin 권한 부여 (이메일 목록)
+      # 예: contains(['admin@gmail.com', 'dev@company.com'], email) && 'GrafanaAdmin' || 'Viewer'
+      roleAttributePath: "contains(['chamchi0129@gmail.com','ressk4149@gmail.com','fbaudwo144@gmail.com','212clab@gmail.com'], email) && 'GrafanaAdmin' || 'Viewer'"
+      # 수동 역할 할당 유지 (한번 설정하면 OAuth에서 덮어쓰지 않음)
+      skipOrgRoleSync: false
   # Note: V4 role-based dashboards are now the default (V1/V2/V3 deprecated)
 
 # 모니터링 Ingress
@@ -538,10 +550,33 @@ argocd:
 
 # k6 부하테스트 (테스트 시에만 수동 활성화)
 k6:
-  enabled: false  # 수동으로 테스트할 때만 true로 변경
+  enabled: true  # CronJob 생성 (suspend: true라 자동 실행 안 됨)
   prometheus:
     # routePrefix 포함 필수 (/api/monitoring/prometheus)
     remoteWriteUrl: "http://prometheus:9090/api/monitoring/prometheus/api/v1/write"
+  # Production 환경 라우트: /api/svc/{service} (Kind는 /svc/{service})
+  endpoints:
+    baseUrl: "http://istio-ingressgateway.istio-system.svc.cluster.local"
+    svcPrefix: "/api/svc"
+    services:
+      - name: board
+        path: /api/svc/board
+        healthPath: /health/live
+      - name: user
+        path: /api/svc/user
+        healthPath: /health/live
+      - name: chat
+        path: /api/svc/chat
+        healthPath: /health/live
+      - name: noti
+        path: /api/svc/noti
+        healthPath: /health/live
+      - name: storage
+        path: /api/svc/storage
+        healthPath: /health/live
+      - name: auth
+        path: /api/svc/auth
+        healthPath: /actuator/health
 
 # Pushgateway (GitHub Actions CI/CD 메트릭 수집용)
 pushgateway:

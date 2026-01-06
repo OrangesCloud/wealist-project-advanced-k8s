@@ -92,7 +92,7 @@ jobs:
 
           # 환경 추출
           case "${BRANCH}" in
-            "service-deploy-dev") ENV="dev" ;;
+            "service-deploy-dev") ENV="develop" ;;
             "service-deploy-prod") ENV="prod" ;;
             *) ENV="manual" ;;
           esac
@@ -179,11 +179,12 @@ jobs:
 
           echo "environment=${ENV}" >> $GITHUB_OUTPUT
           echo "ecr_registry=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com" >> $GITHUB_OUTPUT
-          echo "k8s_branch=k8s-deploy-dev" >> $GITHUB_OUTPUT
 
           if [ "${ENV}" = "develop" ]; then
+            echo "k8s_branch=k8s-deploy-dev" >> $GITHUB_OUTPUT
             echo "namespace=wealist-dev" >> $GITHUB_OUTPUT
           else
+            echo "k8s_branch=k8s-deploy-prod" >> $GITHUB_OUTPUT
             echo "namespace=wealist-prod" >> $GITHUB_OUTPUT
           fi
 
@@ -274,9 +275,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -285,7 +283,12 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        run: |
+          AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
+            docker login --username AWS --password-stdin \
+            ${AWS_ACCOUNT_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          echo "registry=${AWS_ACCOUNT_ID}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com" >> $GITHUB_OUTPUT
 
       - name: Set ECR repository name
         id: ecr-repo
@@ -339,7 +342,7 @@ jobs:
           SHORT_SHA=${SHORT_SHA:0:7}
           ENV="${{ needs.detect-changes.outputs.environment }}"
           BUILD_NUMBER="${{ github.run_number }}"
-          ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
           REPO_NAME="${{ steps.ecr-repo.outputs.name }}"
           TAG="${BUILD_NUMBER}-${SHORT_SHA}"
 
@@ -355,15 +358,21 @@ jobs:
           echo "all_tags=${TAGS}" >> $GITHUB_OUTPUT
 
       - name: Build and push ${{ matrix.service }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ steps.build-config.outputs.context }}
-          file: ${{ steps.build-config.outputs.dockerfile }}
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.tags.outputs.all_tags }}
-          cache-from: type=gha,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}-${{ needs.detect-changes.outputs.environment }}
+        run: |
+          # Build image
+          docker build \
+            -f ${{ steps.build-config.outputs.dockerfile }} \
+            -t ${{ steps.tags.outputs.image_uri }}:${{ steps.tags.outputs.tag }} \
+            ${{ steps.build-config.outputs.context }}
+
+          # Tag and push
+          docker push ${{ steps.tags.outputs.image_uri }}:${{ steps.tags.outputs.tag }}
+
+          # Push latest tag for non-prod
+          if [ "${{ needs.detect-changes.outputs.environment }}" != "prod" ]; then
+            docker tag ${{ steps.tags.outputs.image_uri }}:${{ steps.tags.outputs.tag }} ${{ steps.tags.outputs.image_uri }}:latest
+            docker push ${{ steps.tags.outputs.image_uri }}:latest
+          fi
 
       - name: Output image info
         run: |
@@ -577,7 +586,13 @@ jobs:
 
           for service in $(echo $SERVICES | jq -r '.[]'); do
             # 환경별 경로 사용 (dev/ 또는 prod/)
-            MANIFEST_FILE="k8s/argocd/apps/${ENV}/${service}.yaml"
+            # develop 환경은 dev 폴더 사용
+            if [ "${ENV}" = "develop" ]; then
+              MANIFEST_DIR="dev"
+            else
+              MANIFEST_DIR="${ENV}"
+            fi
+            MANIFEST_FILE="k8s/argocd/apps/${MANIFEST_DIR}/${service}.yaml"
 
             if [ -f "$MANIFEST_FILE" ]; then
               echo "Updating ${MANIFEST_FILE}"

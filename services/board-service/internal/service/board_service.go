@@ -46,6 +46,7 @@ type boardServiceImpl struct {
 type FieldOptionConverter interface {
 	ConvertValuesToIDs(ctx context.Context, projectID uuid.UUID, customFields map[string]interface{}) (map[string]interface{}, error)
 	ConvertIDsToValues(ctx context.Context, customFields map[string]interface{}) (map[string]interface{}, error)
+	ConvertIDsToLabels(ctx context.Context, customFields map[string]interface{}) (map[string]interface{}, error)
 	ConvertIDsToValuesBatch(ctx context.Context, boards []*domain.Board) error
 }
 
@@ -225,9 +226,15 @@ func (s *boardServiceImpl) CreateBoard(ctx context.Context, req *dto.CreateBoard
 	// 생성된 Attachments를 Board 객체에 할당 (타입 변환 적용)
 	board.Attachments = toDomainAttachments(createdAttachments)
 
-	// Send notification if assignee is different from author
-	if board.AssigneeID != nil && *board.AssigneeID != authorID {
+	// Send notifications to assignee and participants
+	// Notify assignee (always, even if same as author - user wants to see notification)
+	if board.AssigneeID != nil {
 		s.sendAssigneeNotification(ctx, board, authorID)
+	}
+
+	// Notify participants when they are added to the board
+	if len(req.Participants) > 0 {
+		s.sendParticipantAddedNotifications(ctx, board, req.Participants, authorID)
 	}
 
 	// Convert to response DTO

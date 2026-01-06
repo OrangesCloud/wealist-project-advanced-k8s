@@ -16,6 +16,7 @@ import {
   getMyWorkspaces,
   uploadProfileImage,
   updateProfileImage,
+  deleteWorkspaceProfile,
 } from '../../../api/userService';
 import {
   UserProfileResponse,
@@ -52,13 +53,29 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 워크스페이스에서 기본 프로필 사용 여부 (워크스페이스별 프로필이 없으면 true)
+  const [useDefaultProfile, setUseDefaultProfile] = useState<boolean>(true);
+
   // ========================================
   // 프로필 데이터 계산 (useMemo)
   // ========================================
 
-  const defaultProfile = useMemo(
+  // 명시적 기본 프로필 (workspaceId가 00000000-0000-0000-0000-000000000000인 것)
+  const explicitDefaultProfile = useMemo(
     () => allProfiles.find((p) => p.workspaceId === DEFAULT_WORKSPACE_ID) || null,
     [allProfiles]
+  );
+
+  // 첫 번째 프로필을 fallback으로 사용 (기본 프로필이 없을 때)
+  const fallbackProfile = useMemo(
+    () => allProfiles[0] || null,
+    [allProfiles]
+  );
+
+  // 기본 프로필: 명시적 기본 프로필이 있으면 사용, 없으면 첫 번째 프로필 사용
+  const defaultProfile = useMemo(
+    () => explicitDefaultProfile || fallbackProfile,
+    [explicitDefaultProfile, fallbackProfile]
   );
 
   const workspaceProfile = useMemo(
@@ -87,17 +104,32 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
           getMyWorkspaces(),
         ]);
 
+        console.log('[UserProfileModal] Loaded profiles:', profiles);
+        console.log('[UserProfileModal] Loaded workspaces:', workspaceList);
+
         setAllProfiles(profiles);
         setWorkspaces(workspaceList);
 
         if (workspaceList.length > 0) {
-          setSelectedWorkspaceId(workspaceList[0].workspaceId);
+          const firstWorkspaceId = workspaceList[0].workspaceId;
+          setSelectedWorkspaceId(firstWorkspaceId);
+
+          // 첫 번째 워크스페이스의 별도 프로필 존재 여부 확인
+          // 기본 프로필(DEFAULT_WORKSPACE_ID)이 아닌, 해당 워크스페이스 전용 프로필이 있는지 확인
+          const hasWorkspaceSpecificProfile = profiles.some(
+            (p) => p.workspaceId === firstWorkspaceId && p.workspaceId !== DEFAULT_WORKSPACE_ID
+          );
+          setUseDefaultProfile(!hasWorkspaceSpecificProfile);
         }
 
-        // 기본 프로필 닉네임으로 초기화 (없으면 useAuth 닉네임 유지)
-        const defaultProf = profiles.find((p) => p.workspaceId === DEFAULT_WORKSPACE_ID);
+        // 기본 프로필 닉네임으로 초기화
+        // 명시적 기본 프로필이 없으면 첫 번째 프로필 사용
+        const defaultProf = profiles.find((p) => p.workspaceId === DEFAULT_WORKSPACE_ID) || profiles[0];
         if (defaultProf?.nickName) {
           setNickName(defaultProf.nickName);
+        }
+        if (defaultProf?.profileImageUrl) {
+          setAvatarPreviewUrl(defaultProf.profileImageUrl);
         }
       } catch (err) {
         console.error('[Initial Data Load Error]', err);
@@ -122,6 +154,14 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
     // 아바타 미리보기 동기화 (새 파일 선택 안 했을 때만)
     if (!selectedFile) {
       setAvatarPreviewUrl(currentProfile?.profileImageUrl || null);
+    }
+
+    // 워크스페이스 탭에서 체크박스 상태 설정
+    // 해당 워크스페이스 전용 프로필이 있으면 체크 해제, 없으면 체크 (기본 프로필 사용)
+    if (activeTab === 'workspace') {
+      // workspaceProfile이 selectedWorkspaceId와 정확히 일치하는 별도 프로필인지 확인
+      const hasWorkspaceSpecificProfile = workspaceProfile && workspaceProfile.workspaceId === selectedWorkspaceId;
+      setUseDefaultProfile(!hasWorkspaceSpecificProfile);
     }
   }, [activeTab, selectedWorkspaceId, workspaceProfile, defaultProfile, authNickName, currentProfile, selectedFile]);
 
@@ -154,9 +194,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
   const handleSave = async () => {
     const trimmedNickName = nickName.trim();
 
-    if (!trimmedNickName) {
-      setError('닉네임은 필수입니다.');
-      return;
+    // 기본 프로필 탭이거나 워크스페이스별 프로필을 사용하는 경우 닉네임 필수
+    if (!useDefaultProfile || activeTab === 'default') {
+      if (!trimmedNickName) {
+        setError('닉네임은 필수입니다.');
+        return;
+      }
     }
 
     if (!userId) {
@@ -171,6 +214,33 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
     let updatedProfile: UserProfileResponse | undefined;
 
     try {
+      // 워크스페이스 탭에서 "기본 프로필 사용" 체크 시 워크스페이스별 프로필 삭제
+      if (activeTab === 'workspace' && useDefaultProfile) {
+        // 기존 워크스페이스별 프로필이 있으면 삭제
+        if (workspaceProfile) {
+          await deleteWorkspaceProfile(selectedWorkspaceId);
+
+          // 로컬 상태에서 해당 프로필 제거
+          setAllProfiles((prev) => prev.filter((p) => p.workspaceId !== selectedWorkspaceId));
+        }
+
+        // 기본 프로필 데이터로 UI 업데이트
+        if (defaultProfile) {
+          setNickName(defaultProfile.nickName);
+          setAvatarPreviewUrl(defaultProfile.profileImageUrl || null);
+        }
+        setSelectedFile(null);
+
+        // MainLayout/WorkspacePage에 프로필 업데이트 알림
+        if (onProfileUpdated) {
+          await onProfileUpdated();
+        }
+
+        setLoading(false);
+        alert('이 워크스페이스에서 기본 프로필을 사용합니다.');
+        return;
+      }
+
       // 1. 이미지 업로드 (새 파일 선택 시)
       if (selectedFile) {
         const attachmentResponse: AttachmentResponse = await uploadProfileImage(
@@ -322,7 +392,13 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
                 </label>
                 <select
                   value={selectedWorkspaceId}
-                  onChange={(e) => setSelectedWorkspaceId(e.target.value)}
+                  onChange={(e) => {
+                    const newWorkspaceId = e.target.value;
+                    setSelectedWorkspaceId(newWorkspaceId);
+                    // 선택한 워크스페이스의 프로필 존재 여부에 따라 체크박스 즉시 업데이트
+                    const hasWorkspaceProfile = allProfiles.some((p) => p.workspaceId === newWorkspaceId);
+                    setUseDefaultProfile(!hasWorkspaceProfile);
+                  }}
                   className={`w-full px-3 py-2 ${theme.effects.cardBorderWidth} ${theme.colors.border} ${theme.colors.card} ${theme.font.size.xs} ${theme.effects.borderRadius} focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   disabled={workspaces.length === 0}
                 >
@@ -332,19 +408,40 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
                     </option>
                   ))}
                 </select>
+
+                {/* 기본 프로필 사용 체크박스 */}
+                <label className="flex items-center mt-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useDefaultProfile}
+                    onChange={(e) => {
+                      setUseDefaultProfile(e.target.checked);
+                      // 기본 프로필 사용으로 전환 시 기본 프로필 데이터로 UI 초기화
+                      if (e.target.checked && defaultProfile) {
+                        setNickName(defaultProfile.nickName);
+                        setAvatarPreviewUrl(defaultProfile.profileImageUrl || null);
+                        setSelectedFile(null);
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">기본 프로필 사용</span>
+                </label>
                 <p className="mt-1 text-xs text-gray-500">
-                  워크스페이스마다 다른 프로필을 설정할 수 있습니다
+                  {useDefaultProfile
+                    ? '이 워크스페이스에서는 기본 프로필이 사용됩니다'
+                    : '이 워크스페이스에 별도의 프로필을 설정합니다'}
                 </p>
               </div>
               {/* 기본 탭일 때 높이 유지를 위한 공간 */}
-              {activeTab === 'default' && <div style={{ height: '70px' }} className="w-full"></div>}
+              {activeTab === 'default' && <div style={{ height: '110px' }} className="w-full"></div>}
 
               {/* 프로필 이미지 */}
-              <div className="flex flex-col items-center mb-4">
+              <div className={`flex flex-col items-center mb-4 ${activeTab === 'workspace' && useDefaultProfile ? 'opacity-50' : ''}`}>
                 <div className="relative">
-                  {avatarPreviewUrl ? (
+                  {(avatarPreviewUrl || currentProfile?.profileImageUrl) ? (
                     <img
-                      src={selectedFile ? avatarPreviewUrl : currentProfile?.profileImageUrl || ''}
+                      src={avatarPreviewUrl || currentProfile?.profileImageUrl || ''}
                       alt="프로필 미리보기"
                       className="w-24 h-24 object-cover border-2 border-gray-300 rounded-full"
                     />
@@ -360,12 +457,18 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
                     onChange={handleFileChange}
                     accept="image/*"
                     className="hidden"
+                    disabled={activeTab === 'workspace' && useDefaultProfile}
                   />
 
                   <button
                     onClick={handleAvatarChangeClick}
-                    className="absolute bottom-0 right-0 p-2 bg-gray-700 hover:bg-gray-800 text-white rounded-full transition shadow-md"
-                    title="프로필 사진 변경"
+                    disabled={activeTab === 'workspace' && useDefaultProfile}
+                    className={`absolute bottom-0 right-0 p-2 bg-gray-700 text-white rounded-full transition shadow-md ${
+                      activeTab === 'workspace' && useDefaultProfile
+                        ? 'cursor-not-allowed'
+                        : 'hover:bg-gray-800'
+                    }`}
+                    title={activeTab === 'workspace' && useDefaultProfile ? '기본 프로필 사용 중' : '프로필 사진 변경'}
                   >
                     <Camera className="w-4 h-4" />
                   </button>
@@ -373,7 +476,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
               </div>
 
               {/* 닉네임 */}
-              <div>
+              <div className={activeTab === 'workspace' && useDefaultProfile ? 'opacity-50' : ''}>
                 <label className={`block ${theme.font.size.xs} mb-2 text-gray-500 font-medium`}>
                   닉네임:
                 </label>
@@ -381,7 +484,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
                   type="text"
                   value={nickName}
                   onChange={(e) => setNickName(e.target.value)}
-                  className={`w-full px-3 py-2 ${theme.effects.cardBorderWidth} ${theme.colors.border} ${theme.colors.card} ${theme.font.size.xs} ${theme.effects.borderRadius} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  disabled={activeTab === 'workspace' && useDefaultProfile}
+                  className={`w-full px-3 py-2 ${theme.effects.cardBorderWidth} ${theme.colors.border} ${theme.colors.card} ${theme.font.size.xs} ${theme.effects.borderRadius} focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    activeTab === 'workspace' && useDefaultProfile ? 'cursor-not-allowed bg-gray-100' : ''
+                  }`}
                   placeholder="닉네임을 입력하세요"
                 />
               </div>

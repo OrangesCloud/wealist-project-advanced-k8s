@@ -13,6 +13,7 @@ type ErrorDetail struct {
 	Message string `json:"message"`
 }
 
+// 주석 테스트
 // ErrorResponse represents an error response
 type ErrorResponse struct {
 	Error ErrorDetail `json:"error"`

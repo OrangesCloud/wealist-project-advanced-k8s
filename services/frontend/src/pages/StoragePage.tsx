@@ -13,13 +13,11 @@ import { DeleteConfirmModal } from '../components/storage/modals/DeleteConfirmMo
 import { FilePreviewModal } from '../components/storage/modals/FilePreviewModal';
 import { UploadProgressModal } from '../components/storage/modals/UploadProgressModal';
 import { ProjectListModal } from '../components/storage/modals/ProjectListModal';
-import { ProjectSettingsModal } from '../components/storage/modals/ProjectSettingsModal';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
 import {
   getRootContents,
   getFolderContents,
-  getSharedWithMe,
   getRecentFiles,
   getTrashFolders,
   getTrashFiles,
@@ -43,23 +41,22 @@ import {
 import type {
   StorageFolder,
   StorageFile,
-  StorageProject,
   ProjectPermission,
   ViewMode,
   SortBy,
   SortDirection,
   SelectedItem,
   BreadcrumbItem,
-  SharedItem,
   StorageUsage,
 } from '../types/storage';
+import type { ProjectResponse } from '../types/board';
 
 interface StoragePageProps {
   onLogout: () => void;
 }
 
-// 네비게이션 섹션 타입
-type NavigationSection = 'my-drive' | 'shared' | 'recent' | 'starred' | 'trash';
+// 네비게이션 섹션 타입 (사이드바에서는 recent, starred, trash만 표시, 내부적으로 my-drive 사용)
+type NavigationSection = 'my-drive' | 'recent' | 'starred' | 'trash';
 
 const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -90,7 +87,6 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
   // 데이터 상태
   const [folders, setFolders] = useState<StorageFolder[]>([]);
   const [files, setFiles] = useState<StorageFile[]>([]);
-  const [sharedItems, setSharedItems] = useState<SharedItem[]>([]);
   const [storageUsage, setStorageUsage] = useState<StorageUsage | null>(null);
 
   // 선택 상태
@@ -103,14 +99,12 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
-  const [showProjectSettingsModal, setShowProjectSettingsModal] = useState(false);
   const [renameTarget, setRenameTarget] = useState<SelectedItem | null>(null);
   const [shareTarget, setShareTarget] = useState<SelectedItem | null>(null);
   const [previewFile, setPreviewFile] = useState<StorageFile | null>(null);
-  const [settingsProject, setSettingsProject] = useState<StorageProject | null>(null);
 
-  // 프로젝트 상태
-  const [currentProject, setCurrentProject] = useState<StorageProject | null>(null);
+  // 프로젝트 상태 (보드 서비스의 프로젝트와 1:1 매핑)
+  const [currentProject, setCurrentProject] = useState<ProjectResponse | null>(null);
   const [currentProjectPermission, setCurrentProjectPermission] = useState<ProjectPermission | null>(null);
 
   // 업로드 상태
@@ -135,20 +129,13 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
         case 'my-drive':
           if (currentFolderId) {
             const folderContents = await getFolderContents(currentWorkspaceId, currentFolderId);
-            setFolders(folderContents.children || []);
-            setFiles(folderContents.files || []);
+            setFolders(folderContents?.children || []);
+            setFiles(folderContents?.files || []);
           } else {
             const rootContents = await getRootContents(currentWorkspaceId);
-            setFolders(rootContents.children || []);
-            setFiles(rootContents.files || []);
+            setFolders(rootContents?.children || []);
+            setFiles(rootContents?.files || []);
           }
-          break;
-
-        case 'shared':
-          const shared = await getSharedWithMe();
-          setSharedItems(shared);
-          setFolders([]);
-          setFiles([]);
           break;
 
         case 'recent':
@@ -196,7 +183,6 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
     // 브레드크럼 초기화
     const sectionNames: Record<NavigationSection, string> = {
       'my-drive': '내 드라이브',
-      shared: '공유 항목',
       recent: '최근 항목',
       starred: '중요 항목',
       trash: '휴지통',
@@ -245,9 +231,11 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
   const handleCreateFolder = useCallback(
     async (name: string, color?: string) => {
       try {
+        // 현재는 보드 프로젝트 ID를 스토리지 서비스에서 인식하지 못하므로
+        // projectId 없이 개인 드라이브에 폴더 생성
         await createFolder({
           workspaceId: currentWorkspaceId,
-          projectId: currentProject?.id,
+          // projectId: currentProject?.projectId, // 추후 스토리지-보드 프로젝트 연동 시 활성화
           parentId: currentFolderId || undefined,
           name,
           color,
@@ -258,31 +246,18 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
         setError('폴더 생성에 실패했습니다.');
       }
     },
-    [currentWorkspaceId, currentProject, currentFolderId, loadContents],
+    [currentWorkspaceId, currentFolderId, loadContents],
   );
 
-  // 프로젝트 선택
-  const handleSelectProject = useCallback((project: StorageProject | null, permission: ProjectPermission | null) => {
+  // 프로젝트 선택 (보드 서비스 프로젝트와 1:1 매핑)
+  const handleSelectProject = useCallback((project: ProjectResponse | null, permission: ProjectPermission | null) => {
     setCurrentProject(project);
     setCurrentProjectPermission(permission);
     setCurrentFolderId(null);
+    // 스토리지 선택 시 메인 드라이브 뷰로 이동
+    setActiveSection('my-drive');
     setBreadcrumbs([{ id: null, name: project ? project.name : '내 드라이브', path: '/' }]);
   }, []);
-
-  // 프로젝트 설정 열기
-  const handleOpenProjectSettings = useCallback((project: StorageProject) => {
-    setSettingsProject(project);
-    setShowProjectModal(false);
-    setShowProjectSettingsModal(true);
-  }, []);
-
-  // 프로젝트 정보 업데이트
-  const handleProjectUpdated = useCallback((updatedProject: StorageProject) => {
-    setSettingsProject(updatedProject);
-    if (currentProject?.id === updatedProject.id) {
-      setCurrentProject(updatedProject);
-    }
-  }, [currentProject]);
 
   // 이름 변경
   const handleRename = useCallback(
@@ -392,7 +367,7 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
     (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (activeSection !== 'trash' && activeSection !== 'shared') {
+      if (activeSection !== 'trash') {
         setIsDragging(true);
       }
     },
@@ -420,7 +395,7 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
       e.stopPropagation();
       setIsDragging(false);
 
-      if (activeSection === 'trash' || activeSection === 'shared') {
+      if (activeSection === 'trash') {
         return;
       }
 
@@ -559,8 +534,6 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
         <StorageSidebar
           activeSection={activeSection}
           onSectionChange={handleSectionChange}
-          onNewFolder={() => setShowNewFolderModal(true)}
-          onUpload={triggerFileUpload}
           storageUsage={storageUsage}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -614,7 +587,7 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
               viewMode={viewMode}
               folders={sortedFolders}
               files={sortedFiles}
-              sharedItems={activeSection === 'shared' ? sharedItems : undefined}
+              sharedItems={undefined}
               selectedItems={selectedItems}
               onSelectItem={setSelectedItems}
               onFolderOpen={handleFolderOpen}
@@ -624,8 +597,10 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
               onShare={openShareModal}
               onDelete={openDeleteModal}
               onRestore={activeSection === 'trash' ? handleRestore : undefined}
+              onNewFolder={() => setShowNewFolderModal(true)}
+              onUpload={triggerFileUpload}
               isTrash={activeSection === 'trash'}
-              isEmpty={folders.length === 0 && files.length === 0 && sharedItems.length === 0}
+              isEmpty={folders.length === 0 && files.length === 0}
               projectPermission={currentProjectPermission}
               activeSection={activeSection}
             />
@@ -705,22 +680,9 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
       {showProjectModal && (
         <ProjectListModal
           workspaceId={currentWorkspaceId}
-          currentProjectId={currentProject?.id || null}
+          currentProjectId={currentProject?.projectId || null}
           onClose={() => setShowProjectModal(false)}
           onSelectProject={handleSelectProject}
-          onOpenSettings={handleOpenProjectSettings}
-        />
-      )}
-
-      {showProjectSettingsModal && settingsProject && (
-        <ProjectSettingsModal
-          project={settingsProject}
-          workspaceId={currentWorkspaceId}
-          onClose={() => {
-            setShowProjectSettingsModal(false);
-            setSettingsProject(null);
-          }}
-          onProjectUpdated={handleProjectUpdated}
         />
       )}
     </MainLayout>
