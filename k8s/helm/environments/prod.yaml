@@ -519,7 +519,7 @@ grafana:
       autoLogin: false
       # JMESPath로 Admin 권한 부여 (이메일 목록)
       # 예: contains(['admin@gmail.com', 'dev@company.com'], email) && 'GrafanaAdmin' || 'Viewer'
-      roleAttributePath: "contains(['212clab@gmail.com'], email) && 'GrafanaAdmin' || 'Viewer'"
+      roleAttributePath: "contains(['chamchi0129@gmail.com','ressk4149@gmail.com','fbaudwo144@gmail.com','212clab@gmail.com'], email) && 'GrafanaAdmin' || 'Viewer'"
       # 수동 역할 할당 유지 (한번 설정하면 OAuth에서 덮어쓰지 않음)
       skipOrgRoleSync: false
   # Note: V4 role-based dashboards are now the default (V1/V2/V3 deprecated)
