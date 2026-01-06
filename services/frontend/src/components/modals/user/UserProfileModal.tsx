@@ -60,9 +60,22 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
   // 프로필 데이터 계산 (useMemo)
   // ========================================
 
-  const defaultProfile = useMemo(
+  // 명시적 기본 프로필 (workspaceId가 00000000-0000-0000-0000-000000000000인 것)
+  const explicitDefaultProfile = useMemo(
     () => allProfiles.find((p) => p.workspaceId === DEFAULT_WORKSPACE_ID) || null,
     [allProfiles]
+  );
+
+  // 첫 번째 프로필을 fallback으로 사용 (기본 프로필이 없을 때)
+  const fallbackProfile = useMemo(
+    () => allProfiles[0] || null,
+    [allProfiles]
+  );
+
+  // 기본 프로필: 명시적 기본 프로필이 있으면 사용, 없으면 첫 번째 프로필 사용
+  const defaultProfile = useMemo(
+    () => explicitDefaultProfile || fallbackProfile,
+    [explicitDefaultProfile, fallbackProfile]
   );
 
   const workspaceProfile = useMemo(
@@ -91,6 +104,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
           getMyWorkspaces(),
         ]);
 
+        console.log('[UserProfileModal] Loaded profiles:', profiles);
+        console.log('[UserProfileModal] Loaded workspaces:', workspaceList);
+
         setAllProfiles(profiles);
         setWorkspaces(workspaceList);
 
@@ -98,15 +114,22 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
           const firstWorkspaceId = workspaceList[0].workspaceId;
           setSelectedWorkspaceId(firstWorkspaceId);
 
-          // 첫 번째 워크스페이스의 프로필 존재 여부에 따라 체크박스 초기 상태 설정
-          const hasWorkspaceProfile = profiles.some((p) => p.workspaceId === firstWorkspaceId);
-          setUseDefaultProfile(!hasWorkspaceProfile);
+          // 첫 번째 워크스페이스의 별도 프로필 존재 여부 확인
+          // 기본 프로필(DEFAULT_WORKSPACE_ID)이 아닌, 해당 워크스페이스 전용 프로필이 있는지 확인
+          const hasWorkspaceSpecificProfile = profiles.some(
+            (p) => p.workspaceId === firstWorkspaceId && p.workspaceId !== DEFAULT_WORKSPACE_ID
+          );
+          setUseDefaultProfile(!hasWorkspaceSpecificProfile);
         }
 
-        // 기본 프로필 닉네임으로 초기화 (없으면 useAuth 닉네임 유지)
-        const defaultProf = profiles.find((p) => p.workspaceId === DEFAULT_WORKSPACE_ID);
+        // 기본 프로필 닉네임으로 초기화
+        // 명시적 기본 프로필이 없으면 첫 번째 프로필 사용
+        const defaultProf = profiles.find((p) => p.workspaceId === DEFAULT_WORKSPACE_ID) || profiles[0];
         if (defaultProf?.nickName) {
           setNickName(defaultProf.nickName);
+        }
+        if (defaultProf?.profileImageUrl) {
+          setAvatarPreviewUrl(defaultProf.profileImageUrl);
         }
       } catch (err) {
         console.error('[Initial Data Load Error]', err);
@@ -133,9 +156,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
       setAvatarPreviewUrl(currentProfile?.profileImageUrl || null);
     }
 
-    // 워크스페이스 탭에서 워크스페이스별 프로필 존재 여부에 따라 체크박스 상태 설정
+    // 워크스페이스 탭에서 체크박스 상태 설정
+    // 해당 워크스페이스 전용 프로필이 있으면 체크 해제, 없으면 체크 (기본 프로필 사용)
     if (activeTab === 'workspace') {
-      setUseDefaultProfile(!workspaceProfile);
+      // workspaceProfile이 selectedWorkspaceId와 정확히 일치하는 별도 프로필인지 확인
+      const hasWorkspaceSpecificProfile = workspaceProfile && workspaceProfile.workspaceId === selectedWorkspaceId;
+      setUseDefaultProfile(!hasWorkspaceSpecificProfile);
     }
   }, [activeTab, selectedWorkspaceId, workspaceProfile, defaultProfile, authNickName, currentProfile, selectedFile]);
 
