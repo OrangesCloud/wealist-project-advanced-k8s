@@ -164,11 +164,7 @@ variable "internal_api_key" {
 }
 
 # -----------------------------------------------------------------------------
-# Discord Webhook (ArgoCD Notifications)
+# NOTE: Discord Webhook, GitHub Token, ArgoCD Admin Emails 등
+# setup 스크립트용 시크릿은 AWS Secrets Manager에서 수동 관리
+# (secrets.tf 주석 참조)
 # -----------------------------------------------------------------------------
-variable "discord_webhook_url" {
-  description = "Discord webhook URL for ArgoCD deployment notifications (k8s-deploy-dev channel)"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
