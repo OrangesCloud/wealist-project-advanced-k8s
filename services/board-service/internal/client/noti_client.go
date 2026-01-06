@@ -79,7 +79,7 @@ func NewNotiClient(baseURL string, internalAPIKey string, timeout time.Duration,
 // failures don't affect the main business logic
 func (c *notiClient) SendNotification(ctx context.Context, event *NotificationEvent) error {
 	log := c.log(ctx)
-	url := c.BuildURL("/api/internal/notifications")
+	url := c.BuildURL("/internal/notifications")
 
 	log.Debug("Sending notification",
 		zap.String("peer.service", "noti-service"),
@@ -98,7 +98,7 @@ func (c *notiClient) SendBulkNotifications(ctx context.Context, events []*Notifi
 	}
 
 	log := c.log(ctx)
-	url := c.BuildURL("/api/internal/notifications/bulk")
+	url := c.BuildURL("/internal/notifications/bulk")
 
 	payload := map[string]interface{}{
 		"notifications": events,

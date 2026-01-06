@@ -95,7 +95,12 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
         setWorkspaces(workspaceList);
 
         if (workspaceList.length > 0) {
-          setSelectedWorkspaceId(workspaceList[0].workspaceId);
+          const firstWorkspaceId = workspaceList[0].workspaceId;
+          setSelectedWorkspaceId(firstWorkspaceId);
+
+          // 첫 번째 워크스페이스의 프로필 존재 여부에 따라 체크박스 초기 상태 설정
+          const hasWorkspaceProfile = profiles.some((p) => p.workspaceId === firstWorkspaceId);
+          setUseDefaultProfile(!hasWorkspaceProfile);
         }
 
         // 기본 프로필 닉네임으로 초기화 (없으면 useAuth 닉네임 유지)
@@ -353,7 +358,13 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
                 </label>
                 <select
                   value={selectedWorkspaceId}
-                  onChange={(e) => setSelectedWorkspaceId(e.target.value)}
+                  onChange={(e) => {
+                    const newWorkspaceId = e.target.value;
+                    setSelectedWorkspaceId(newWorkspaceId);
+                    // 선택한 워크스페이스의 프로필 존재 여부에 따라 체크박스 즉시 업데이트
+                    const hasWorkspaceProfile = allProfiles.some((p) => p.workspaceId === newWorkspaceId);
+                    setUseDefaultProfile(!hasWorkspaceProfile);
+                  }}
                   className={`w-full px-3 py-2 ${theme.effects.cardBorderWidth} ${theme.colors.border} ${theme.colors.card} ${theme.font.size.xs} ${theme.effects.borderRadius} focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   disabled={workspaces.length === 0}
                 >
