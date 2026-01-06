@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/ops-portal"
         - name: image.tag
-          value: "135-bd070f7"
+          value: "142-c15e626"
   destination:
     server: https://kubernetes.default.svc
     namespace: wealist-prod
