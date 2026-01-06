@@ -1,11 +1,7 @@
 // src/components/storage/StorageSidebar.tsx - Google Drive 스타일 사이드바 (접기 기능 추가)
 
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import {
-  Plus,
-  Upload,
-  FolderPlus,
-  FileUp,
   HardDrive,
   Clock,
   Star,
@@ -22,13 +18,14 @@ import {
   ProjectPermission,
 } from '../../types/storage';
 
-type NavigationSection = 'recent' | 'starred' | 'trash';
+// 사이드바에서 표시되는 섹션 타입
+type SidebarSection = 'recent' | 'starred' | 'trash';
+// StoragePage에서 사용하는 전체 섹션 타입 (my-drive 포함)
+type NavigationSection = 'my-drive' | 'recent' | 'starred' | 'trash';
 
 interface StorageSidebarProps {
   activeSection: NavigationSection;
-  onSectionChange: (section: NavigationSection) => void;
-  onNewFolder: () => void;
-  onUpload: () => void;
+  onSectionChange: (section: SidebarSection) => void;
   storageUsage: StorageUsage | null;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
@@ -39,7 +36,7 @@ interface StorageSidebarProps {
 }
 
 interface NavItem {
-  id: NavigationSection;
+  id: SidebarSection;
   label: string;
   icon: React.ReactNode;
 }
@@ -47,8 +44,6 @@ interface NavItem {
 export const StorageSidebar: React.FC<StorageSidebarProps> = ({
   activeSection,
   onSectionChange,
-  onNewFolder,
-  onUpload,
   storageUsage,
   isCollapsed,
   onToggleCollapse,
@@ -56,20 +51,6 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
   currentProjectPermission,
   onOpenProjectModal,
 }) => {
-  const [showNewMenu, setShowNewMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // 외부 클릭 시 메뉴 닫기
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowNewMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const navItems: NavItem[] = [
     { id: 'recent', label: '최근 문서함', icon: <Clock className="w-5 h-5" /> },
     { id: 'starred', label: '중요 문서함', icon: <Star className="w-5 h-5" /> },
@@ -101,74 +82,7 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
         )}
       </button>
 
-      {/* 새로 만들기 버튼 */}
-      <div className="p-4 pt-5" ref={menuRef}>
-        <button
-          onClick={() => setShowNewMenu(!showNewMenu)}
-          className={`inline-flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 ${
-            isCollapsed ? 'p-3 justify-center' : 'px-4 py-3'
-          }`}
-          title="새로 만들기"
-        >
-          <Plus className="w-5 h-5" />
-          {!isCollapsed && <span className="text-sm font-medium">새로 만들기</span>}
-        </button>
-
-        {/* 드롭다운 메뉴 */}
-        {showNewMenu && (
-          <div
-            className={`absolute ${
-              isCollapsed ? 'left-[72px]' : 'left-4'
-            } top-[76px] w-[280px] bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-30`}
-          >
-            {/* 새 폴더 */}
-            <button
-              onClick={() => {
-                onNewFolder();
-                setShowNewMenu(false);
-              }}
-              className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-100 transition-colors"
-            >
-              <div className="w-9 h-9 flex items-center justify-center">
-                <FolderPlus className="w-6 h-6 text-gray-600" />
-              </div>
-              <span className="text-sm text-gray-800">새 폴더</span>
-            </button>
-
-            <div className="h-px bg-gray-200 my-1 mx-4" />
-
-            {/* 파일 업로드 */}
-            <button
-              onClick={() => {
-                onUpload();
-                setShowNewMenu(false);
-              }}
-              className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-100 transition-colors"
-            >
-              <div className="w-9 h-9 flex items-center justify-center">
-                <FileUp className="w-6 h-6 text-gray-600" />
-              </div>
-              <span className="text-sm text-gray-800">파일 업로드</span>
-            </button>
-
-            {/* 폴더 업로드 */}
-            <button
-              onClick={() => {
-                onUpload();
-                setShowNewMenu(false);
-              }}
-              className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-100 transition-colors"
-            >
-              <div className="w-9 h-9 flex items-center justify-center">
-                <Upload className="w-6 h-6 text-gray-600" />
-              </div>
-              <span className="text-sm text-gray-800">폴더 업로드</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* 프로젝트 선택 - 새로 추가 */}
+      {/* 프로젝트/스토리지 선택 */}
       <div className={`px-3 py-2 ${isCollapsed ? 'hidden' : ''}`}>
         <button
           onClick={onOpenProjectModal}

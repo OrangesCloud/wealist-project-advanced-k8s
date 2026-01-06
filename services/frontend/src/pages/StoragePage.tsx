@@ -381,7 +381,7 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
     (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (activeSection !== 'trash' && activeSection !== 'shared') {
+      if (activeSection !== 'trash') {
         setIsDragging(true);
       }
     },
@@ -409,7 +409,7 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
       e.stopPropagation();
       setIsDragging(false);
 
-      if (activeSection === 'trash' || activeSection === 'shared') {
+      if (activeSection === 'trash') {
         return;
       }
 
@@ -548,8 +548,6 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
         <StorageSidebar
           activeSection={activeSection}
           onSectionChange={handleSectionChange}
-          onNewFolder={() => setShowNewFolderModal(true)}
-          onUpload={triggerFileUpload}
           storageUsage={storageUsage}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

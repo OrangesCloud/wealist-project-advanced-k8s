@@ -126,6 +126,21 @@ const formatRelativeTime = (dateString: string): string => {
   });
 };
 
+// 전체 날짜 포맷 (YYYY.MM.DD HH:mm)
+const formatFullDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).replace(/\. /g, '.').replace(/\.$/, '') + ' ' +
+  date.toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+};
+
 export const StorageView: React.FC<StorageViewProps> = ({
   viewMode,
   folders,
@@ -222,7 +237,7 @@ export const StorageView: React.FC<StorageViewProps> = ({
       { title: string; description: string; icon: React.ReactNode }
     > = {
       'my-drive': {
-        title: '드라이브로 파일을 드래그하거나 "새로 만들기" 버튼을 사용하세요',
+        title: '드라이브로 파일을 드래그하거나 마우스 오른쪽 클릭으로 파일을 추가하세요',
         description: '',
         icon: (
           <div className="w-40 h-40 mb-6">
@@ -278,12 +293,13 @@ export const StorageView: React.FC<StorageViewProps> = ({
     return (
       <div className="flex-1 overflow-auto bg-white">
         {/* 테이블 헤더 */}
-        <div className="sticky top-0 bg-white border-b border-[#e0e0e0] px-6">
+        <div className="sticky top-0 bg-white border-b border-[#e0e0e0] px-6 z-10">
           <div className="flex items-center py-2 text-xs font-medium text-[#5f6368]">
             <div className="flex-1 min-w-0">이름</div>
-            <div className="w-32 text-right">소유자</div>
-            <div className="w-40 text-right">마지막 수정</div>
-            <div className="w-24 text-right">파일 크기</div>
+            <div className="w-28 text-center">올린사람</div>
+            <div className="w-36 text-center">올린날짜</div>
+            <div className="w-36 text-center">수정일</div>
+            <div className="w-24 text-right">파일크기</div>
             <div className="w-10"></div>
           </div>
         </div>
@@ -304,7 +320,7 @@ export const StorageView: React.FC<StorageViewProps> = ({
               onClick={(e) => handleItemSelect(selectedItem, e.ctrlKey || e.metaKey)}
               onDoubleClick={() => handleDoubleClick(selectedItem)}
               onContextMenu={(e) => handleContextMenu(e, selectedItem)}
-              className={`flex items-center px-6 py-2 cursor-pointer border-b border-[#f1f3f4] transition-colors ${
+              className={`group flex items-center px-6 py-2.5 cursor-pointer border-b border-[#f1f3f4] transition-colors ${
                 selected ? 'bg-[#e8f0fe]' : 'hover:bg-[#f1f3f4]'
               }`}
             >
@@ -314,11 +330,14 @@ export const StorageView: React.FC<StorageViewProps> = ({
                   style={{ color: folder.color || '#5f6368' }}
                   fill={folder.color || '#5f6368'}
                 />
-                <span className="text-sm text-[#3c4043] truncate">{folder.name}</span>
+                <span className="text-sm text-[#3c4043] truncate font-medium">{folder.name}</span>
               </div>
-              <div className="w-32 text-sm text-[#5f6368] text-right">나</div>
-              <div className="w-40 text-sm text-[#5f6368] text-right">
-                {formatRelativeTime(folder.updatedAt)}
+              <div className="w-28 text-sm text-[#5f6368] text-center">—</div>
+              <div className="w-36 text-sm text-[#5f6368] text-center">
+                {formatFullDate(folder.createdAt)}
+              </div>
+              <div className="w-36 text-sm text-[#5f6368] text-center">
+                {formatFullDate(folder.updatedAt)}
               </div>
               <div className="w-24 text-sm text-[#5f6368] text-right">—</div>
               <div className="w-10 flex justify-end">
@@ -352,7 +371,7 @@ export const StorageView: React.FC<StorageViewProps> = ({
               onClick={(e) => handleItemSelect(selectedItem, e.ctrlKey || e.metaKey)}
               onDoubleClick={() => handleDoubleClick(selectedItem)}
               onContextMenu={(e) => handleContextMenu(e, selectedItem)}
-              className={`group flex items-center px-6 py-2 cursor-pointer border-b border-[#f1f3f4] transition-colors ${
+              className={`group flex items-center px-6 py-2.5 cursor-pointer border-b border-[#f1f3f4] transition-colors ${
                 selected ? 'bg-[#e8f0fe]' : 'hover:bg-[#f1f3f4]'
               }`}
             >
@@ -360,9 +379,14 @@ export const StorageView: React.FC<StorageViewProps> = ({
                 {getFileIcon(file, 'sm')}
                 <span className="text-sm text-[#3c4043] truncate">{file.name}</span>
               </div>
-              <div className="w-32 text-sm text-[#5f6368] text-right">나</div>
-              <div className="w-40 text-sm text-[#5f6368] text-right">
-                {formatRelativeTime(file.updatedAt)}
+              <div className="w-28 text-sm text-[#5f6368] text-center truncate" title={file.uploadedBy}>
+                나
+              </div>
+              <div className="w-36 text-sm text-[#5f6368] text-center">
+                {formatFullDate(file.createdAt)}
+              </div>
+              <div className="w-36 text-sm text-[#5f6368] text-center">
+                {formatFullDate(file.updatedAt)}
               </div>
               <div className="w-24 text-sm text-[#5f6368] text-right">
                 {formatFileSize(file.fileSize)}
