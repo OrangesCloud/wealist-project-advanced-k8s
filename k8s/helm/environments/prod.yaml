@@ -184,10 +184,11 @@ shared:
     # Redis (hosts from ExternalSecret)
     REDIS_PORT: "6379"
     CORS_ORIGINS: "https://wealist.co.kr,https://api.wealist.co.kr"
-    # Rate Limiting (Application Level - Redis 기반)
-    RATE_LIMIT_ENABLED: "true"
-    RATE_LIMIT_PER_MINUTE: "60"
-    RATE_LIMIT_BURST: "10"
+    # Rate Limiting (Application Level - 비활성화, Istio에서 관리 예정)
+    # k6 스트레스 테스트 및 Istio 전환을 위해 비활성화
+    RATE_LIMIT_ENABLED: "false"
+    RATE_LIMIT_PER_MINUTE: "1000"
+    RATE_LIMIT_BURST: "100"
     # Istio JWT Mode (Istio가 JWT 검증, Go 서비스는 파싱만)
     ISTIO_JWT_MODE: "true"
     # S3 Configuration (AWS S3 - Terraform: wealist-prod-storage)
@@ -438,14 +439,14 @@ prometheus:
     enabled: true
     alertmanager:
       enabled: false  # Alertmanager 별도 구축 시 true로 변경
-  # 프로덕션 리소스 (WAL replay 메모리 필요)
+  # 프로덕션 리소스 (WAL replay + span metrics + remote write 고려)
   resources:
     requests:
-      memory: "512Mi"
-      cpu: "100m"
+      memory: "1Gi"
+      cpu: "200m"
     limits:
-      memory: "1Gi"  # 기본 512Mi → 1Gi (WAL replay OOMKilled 방지)
-      cpu: "500m"
+      memory: "2Gi"  # 1Gi → 2Gi (OOMKilled 방지)
+      cpu: "1000m"
   # V3: Tempo Metrics Generator → Prometheus 연동
   remoteWriteReceiver:
     enabled: true  # --web.enable-remote-write-receiver
@@ -538,10 +539,33 @@ argocd:
 
 # k6 부하테스트 (테스트 시에만 수동 활성화)
 k6:
-  enabled: false  # 수동으로 테스트할 때만 true로 변경
+  enabled: true  # CronJob 생성 (suspend: true라 자동 실행 안 됨)
   prometheus:
     # routePrefix 포함 필수 (/api/monitoring/prometheus)
     remoteWriteUrl: "http://prometheus:9090/api/monitoring/prometheus/api/v1/write"
+  # Production 환경 라우트: /api/svc/{service} (Kind는 /svc/{service})
+  endpoints:
+    baseUrl: "http://istio-ingressgateway.istio-system.svc.cluster.local"
+    svcPrefix: "/api/svc"
+    services:
+      - name: board
+        path: /api/svc/board
+        healthPath: /health/live
+      - name: user
+        path: /api/svc/user
+        healthPath: /health/live
+      - name: chat
+        path: /api/svc/chat
+        healthPath: /health/live
+      - name: noti
+        path: /api/svc/noti
+        healthPath: /health/live
+      - name: storage
+        path: /api/svc/storage
+        healthPath: /health/live
+      - name: auth
+        path: /api/svc/auth
+        healthPath: /actuator/health
 
 # Pushgateway (GitHub Actions CI/CD 메트릭 수집용)
 pushgateway:

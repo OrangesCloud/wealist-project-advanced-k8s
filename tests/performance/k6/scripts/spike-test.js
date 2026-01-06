@@ -68,6 +68,8 @@ export const options = {
 // Environment Configuration
 // =============================================================================
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
+// Service path prefix: /svc (Kind) or /api/svc (EKS prod)
+const SVC_PREFIX = __ENV.SVC_PREFIX || '/svc';
 
 // =============================================================================
 // Spike Detection Helper
@@ -86,7 +88,7 @@ export default function () {
   spikePhase.add(inSpike ? 1 : 0);
 
   // Primary endpoint - health check (lightest load)
-  const healthRes = http.get(`${BASE_URL}/svc/board/health/live`, {
+  const healthRes = http.get(`${BASE_URL}${SVC_PREFIX}/board/health/live`, {
     tags: {
       name: 'health-spike',
       phase: inSpike ? 'spike' : 'normal',
@@ -110,7 +112,7 @@ export default function () {
   });
 
   // API endpoints during spike
-  const apiRes = http.get(`${BASE_URL}/svc/board/api/boards`, {
+  const apiRes = http.get(`${BASE_URL}${SVC_PREFIX}/board/api/boards`, {
     tags: {
       name: 'boards-spike',
       phase: inSpike ? 'spike' : 'normal',
@@ -143,12 +145,13 @@ export function setup() {
   console.log('='.repeat(60));
   console.log('SPIKE TEST STARTING');
   console.log(`Target: ${BASE_URL}`);
+  console.log(`Service prefix: ${SVC_PREFIX}`);
   console.log('Pattern: 20 VUs → 500 VUs (spike) → 20 VUs (recover)');
   console.log('Testing system resilience to sudden traffic bursts');
   console.log('='.repeat(60));
 
   // Baseline measurement
-  const baseline = http.get(`${BASE_URL}/svc/board/health/live`);
+  const baseline = http.get(`${BASE_URL}${SVC_PREFIX}/board/health/live`);
 
   return {
     startTime: new Date().toISOString(),
@@ -159,7 +162,7 @@ export function setup() {
 
 export function teardown(data) {
   // Post-spike health check
-  const recovery = http.get(`${BASE_URL}/svc/board/health/live`);
+  const recovery = http.get(`${BASE_URL}${SVC_PREFIX}/board/health/live`);
 
   console.log('='.repeat(60));
   console.log('SPIKE TEST COMPLETED');

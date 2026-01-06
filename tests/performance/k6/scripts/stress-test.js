@@ -64,6 +64,8 @@ export const options = {
 // =============================================================================
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const TEST_TOKEN = __ENV.TEST_TOKEN || '';
+// Service path prefix: /svc (Kind) or /api/svc (EKS prod)
+const SVC_PREFIX = __ENV.SVC_PREFIX || '/svc';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -81,10 +83,10 @@ export default function () {
 
   // Batch requests to multiple services
   const responses = http.batch([
-    ['GET', `${BASE_URL}/svc/board/health/live`, null, { tags: { name: 'board-health' } }],
-    ['GET', `${BASE_URL}/svc/user/health/live`, null, { tags: { name: 'user-health' } }],
-    ['GET', `${BASE_URL}/svc/chat/health/live`, null, { tags: { name: 'chat-health' } }],
-    ['GET', `${BASE_URL}/svc/noti/health/live`, null, { tags: { name: 'noti-health' } }],
+    ['GET', `${BASE_URL}${SVC_PREFIX}/board/health/live`, null, { tags: { name: 'board-health' } }],
+    ['GET', `${BASE_URL}${SVC_PREFIX}/user/health/live`, null, { tags: { name: 'user-health' } }],
+    ['GET', `${BASE_URL}${SVC_PREFIX}/chat/health/live`, null, { tags: { name: 'chat-health' } }],
+    ['GET', `${BASE_URL}${SVC_PREFIX}/noti/health/live`, null, { tags: { name: 'noti-health' } }],
   ]);
 
   let hasError = false;
@@ -109,7 +111,7 @@ export default function () {
 
   // Board API under stress
   group('Board API Stress', function () {
-    const boardRes = http.get(`${BASE_URL}/svc/board/api/boards`, {
+    const boardRes = http.get(`${BASE_URL}${SVC_PREFIX}/board/api/boards`, {
       headers: headers,
       tags: { name: 'board-list-stress' },
     });
@@ -138,11 +140,12 @@ export function setup() {
   console.log('='.repeat(60));
   console.log('STRESS TEST STARTING');
   console.log(`Target: ${BASE_URL}`);
+  console.log(`Service prefix: ${SVC_PREFIX}`);
   console.log('Stages: 50 → 100 → 200 → 300 VUs');
   console.log('='.repeat(60));
 
   // Pre-flight check
-  const res = http.get(`${BASE_URL}/svc/board/health/live`);
+  const res = http.get(`${BASE_URL}${SVC_PREFIX}/board/health/live`);
   if (res.status !== 200) {
     console.warn('WARNING: Services may not be fully healthy');
   }

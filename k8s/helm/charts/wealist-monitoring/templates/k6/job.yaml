@@ -1,10 +1,11 @@
 {{- if .Values.k6.enabled }}
 ---
 # =============================================================================
-# k6 Load Test Job
+# k6 Load Test CronJob (Suspended - Manual Trigger Only)
+# Usage: kubectl create job k6-load-$(date +%s) --from=cronjob/k6-load-test -n {{ .Values.global.namespace }}
 # =============================================================================
 apiVersion: batch/v1
-kind: Job
+kind: CronJob
 metadata:
   name: k6-load-test
   namespace: {{ .Values.global.namespace }}
@@ -12,52 +13,58 @@ metadata:
     app: k6
     app.kubernetes.io/name: k6
     app.kubernetes.io/component: load-test
-  annotations:
-    # Job은 수동으로 생성됨. CronJob에서 schedule 필요 시 별도 생성
-    "helm.sh/hook": ""
 spec:
-  # 1번만 실행, 실패 시 재시도 안함
-  backoffLimit: 0
-  # 완료 후 1시간 뒤 자동 삭제
-  ttlSecondsAfterFinished: 3600
-  template:
-    metadata:
-      labels:
-        app: k6
-        test-type: load
+  # 임의의 스케줄 (실제로 실행되지 않음 - suspend: true)
+  schedule: "0 0 31 2 *"
+  # 자동 실행 방지 - 수동 트리거만 가능
+  suspend: true
+  jobTemplate:
     spec:
-      restartPolicy: Never
-      containers:
-        - name: k6
-          image: {{ .Values.k6.image.repository }}:{{ .Values.k6.image.tag }}
-          imagePullPolicy: {{ .Values.k6.image.pullPolicy }}
-          command:
-            - k6
-            - run
-            - --out
-            - experimental-prometheus-rw
-            - /scripts/load-test.js
-          env:
-            - name: K6_PROMETHEUS_RW_SERVER_URL
-              value: {{ .Values.k6.prometheus.remoteWriteUrl }}
-            - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
-              value: "true"
-          resources:
-            {{- toYaml .Values.k6.resources | nindent 12 }}
-          volumeMounts:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app: k6
+            test-type: load
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: k6
+              image: {{ .Values.k6.image.repository }}:{{ .Values.k6.image.tag }}
+              imagePullPolicy: {{ .Values.k6.image.pullPolicy }}
+              command:
+                - k6
+                - run
+                - --out
+                - experimental-prometheus-rw
+                - /scripts/load-test.js
+              env:
+                - name: K6_PROMETHEUS_RW_SERVER_URL
+                  value: {{ .Values.k6.prometheus.remoteWriteUrl }}
+                - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+                  value: "false"
+                - name: BASE_URL
+                  value: {{ .Values.k6.endpoints.baseUrl | default "http://istio-ingressgateway.istio-system.svc.cluster.local" }}
+                - name: SVC_PREFIX
+                  value: {{ .Values.k6.endpoints.svcPrefix | default "/api/svc" }}
+              resources:
+                {{- toYaml .Values.k6.resources | nindent 16 }}
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
             - name: scripts
-              mountPath: /scripts
-              readOnly: true
-      volumes:
-        - name: scripts
-          configMap:
-            name: k6-scripts
+              configMap:
+                name: k6-scripts
 ---
 # =============================================================================
-# k6 Stress Test Job
+# k6 Stress Test CronJob (Suspended - Manual Trigger Only)
+# Usage: kubectl create job k6-stress-$(date +%s) --from=cronjob/k6-stress-test -n {{ .Values.global.namespace }}
 # =============================================================================
 apiVersion: batch/v1
-kind: Job
+kind: CronJob
 metadata:
   name: k6-stress-test
   namespace: {{ .Values.global.namespace }}
@@ -66,51 +73,60 @@ metadata:
     app.kubernetes.io/name: k6
     app.kubernetes.io/component: stress-test
 spec:
-  backoffLimit: 0
-  ttlSecondsAfterFinished: 3600
-  template:
-    metadata:
-      labels:
-        app: k6
-        test-type: stress
+  schedule: "0 0 31 2 *"
+  suspend: true
+  jobTemplate:
     spec:
-      restartPolicy: Never
-      containers:
-        - name: k6
-          image: {{ .Values.k6.image.repository }}:{{ .Values.k6.image.tag }}
-          imagePullPolicy: {{ .Values.k6.image.pullPolicy }}
-          command:
-            - k6
-            - run
-            - --out
-            - experimental-prometheus-rw
-            - /scripts/stress-test.js
-          env:
-            - name: K6_PROMETHEUS_RW_SERVER_URL
-              value: {{ .Values.k6.prometheus.remoteWriteUrl }}
-            - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
-              value: "true"
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "200m"
-            limits:
-              memory: "1Gi"
-              cpu: "1000m"
-          volumeMounts:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app: k6
+            test-type: stress
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: k6
+              image: {{ .Values.k6.image.repository }}:{{ .Values.k6.image.tag }}
+              imagePullPolicy: {{ .Values.k6.image.pullPolicy }}
+              command:
+                - k6
+                - run
+                - --out
+                - experimental-prometheus-rw
+                - /scripts/stress-test.js
+              env:
+                - name: K6_PROMETHEUS_RW_SERVER_URL
+                  value: {{ .Values.k6.prometheus.remoteWriteUrl }}
+                - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+                  value: "false"
+                - name: BASE_URL
+                  value: {{ .Values.k6.endpoints.baseUrl | default "http://istio-ingressgateway.istio-system.svc.cluster.local" }}
+                - name: SVC_PREFIX
+                  value: {{ .Values.k6.endpoints.svcPrefix | default "/api/svc" }}
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "200m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "1000m"
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
             - name: scripts
-              mountPath: /scripts
-              readOnly: true
-      volumes:
-        - name: scripts
-          configMap:
-            name: k6-scripts
+              configMap:
+                name: k6-scripts
 ---
 # =============================================================================
-# k6 Spike Test Job
+# k6 Spike Test CronJob (Suspended - Manual Trigger Only)
+# Usage: kubectl create job k6-spike-$(date +%s) --from=cronjob/k6-spike-test -n {{ .Values.global.namespace }}
 # =============================================================================
 apiVersion: batch/v1
-kind: Job
+kind: CronJob
 metadata:
   name: k6-spike-test
   namespace: {{ .Values.global.namespace }}
@@ -119,43 +135,51 @@ metadata:
     app.kubernetes.io/name: k6
     app.kubernetes.io/component: spike-test
 spec:
-  backoffLimit: 0
-  ttlSecondsAfterFinished: 3600
-  template:
-    metadata:
-      labels:
-        app: k6
-        test-type: spike
+  schedule: "0 0 31 2 *"
+  suspend: true
+  jobTemplate:
     spec:
-      restartPolicy: Never
-      containers:
-        - name: k6
-          image: {{ .Values.k6.image.repository }}:{{ .Values.k6.image.tag }}
-          imagePullPolicy: {{ .Values.k6.image.pullPolicy }}
-          command:
-            - k6
-            - run
-            - --out
-            - experimental-prometheus-rw
-            - /scripts/spike-test.js
-          env:
-            - name: K6_PROMETHEUS_RW_SERVER_URL
-              value: {{ .Values.k6.prometheus.remoteWriteUrl }}
-            - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
-              value: "true"
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "200m"
-            limits:
-              memory: "1Gi"
-              cpu: "1000m"
-          volumeMounts:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app: k6
+            test-type: spike
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: k6
+              image: {{ .Values.k6.image.repository }}:{{ .Values.k6.image.tag }}
+              imagePullPolicy: {{ .Values.k6.image.pullPolicy }}
+              command:
+                - k6
+                - run
+                - --out
+                - experimental-prometheus-rw
+                - /scripts/spike-test.js
+              env:
+                - name: K6_PROMETHEUS_RW_SERVER_URL
+                  value: {{ .Values.k6.prometheus.remoteWriteUrl }}
+                - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+                  value: "false"
+                - name: BASE_URL
+                  value: {{ .Values.k6.endpoints.baseUrl | default "http://istio-ingressgateway.istio-system.svc.cluster.local" }}
+                - name: SVC_PREFIX
+                  value: {{ .Values.k6.endpoints.svcPrefix | default "/api/svc" }}
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "200m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "1000m"
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
             - name: scripts
-              mountPath: /scripts
-              readOnly: true
-      volumes:
-        - name: scripts
-          configMap:
-            name: k6-scripts
+              configMap:
+                name: k6-scripts
 {{- end }}
