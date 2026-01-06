@@ -439,14 +439,14 @@ prometheus:
     enabled: true
     alertmanager:
       enabled: false  # Alertmanager 별도 구축 시 true로 변경
-  # 프로덕션 리소스 (WAL replay 메모리 필요)
+  # 프로덕션 리소스 (WAL replay + span metrics + remote write 고려)
   resources:
     requests:
-      memory: "512Mi"
-      cpu: "100m"
+      memory: "1Gi"
+      cpu: "200m"
     limits:
-      memory: "1Gi"  # 기본 512Mi → 1Gi (WAL replay OOMKilled 방지)
-      cpu: "500m"
+      memory: "2Gi"  # 1Gi → 2Gi (OOMKilled 방지)
+      cpu: "1000m"
   # V3: Tempo Metrics Generator → Prometheus 연동
   remoteWriteReceiver:
     enabled: true  # --web.enable-remote-write-receiver
