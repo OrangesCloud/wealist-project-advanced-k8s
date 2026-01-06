@@ -135,12 +135,12 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
         case 'my-drive':
           if (currentFolderId) {
             const folderContents = await getFolderContents(currentWorkspaceId, currentFolderId);
-            setFolders(folderContents.children || []);
-            setFiles(folderContents.files || []);
+            setFolders(folderContents?.children || []);
+            setFiles(folderContents?.files || []);
           } else {
             const rootContents = await getRootContents(currentWorkspaceId);
-            setFolders(rootContents.children || []);
-            setFiles(rootContents.files || []);
+            setFolders(rootContents?.children || []);
+            setFiles(rootContents?.files || []);
           }
           break;
 
