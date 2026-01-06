@@ -1,7 +1,7 @@
 // src/components/storage/modals/ProjectListModal.tsx
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, FolderKanban, Settings, Trash2, MoreVertical } from 'lucide-react';
+import { X, Plus, FolderKanban, Settings, Trash2, MoreVertical, HardDrive } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import type { StorageProject, ProjectPermission } from '../../../types/storage';
 import {
@@ -140,7 +140,7 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
       <div className={`w-full max-w-lg ${theme.colors.card} rounded-xl shadow-2xl max-h-[80vh] flex flex-col`}>
         {/* 헤더 */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">프로젝트 선택</h2>
+          <h2 className="text-lg font-semibold text-gray-900">스토리지 선택</h2>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 transition">
             <X className="w-5 h-5 text-gray-500" />
           </button>
@@ -154,7 +154,7 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
             </div>
           ) : (
             <>
-              {/* 전체 스토리지 옵션 */}
+              {/* 내 드라이브 옵션 (개인 스토리지) */}
               <button
                 onClick={handleSelectAll}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg mb-2 transition ${
@@ -163,15 +163,20 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
                     : 'hover:bg-gray-50 border-2 border-transparent'
                 }`}
               >
-                <FolderKanban className="w-6 h-6 text-gray-500" />
+                <HardDrive className="w-6 h-6 text-blue-500" />
                 <div className="flex-1 text-left">
-                  <p className="font-medium text-gray-900">전체 스토리지</p>
-                  <p className="text-sm text-gray-500">프로젝트 제한 없이 모든 파일 보기</p>
+                  <p className="font-medium text-gray-900">내 드라이브</p>
+                  <p className="text-sm text-gray-500">개인 스토리지 (조직/프로젝트와 무관)</p>
                 </div>
               </button>
 
               {/* 구분선 */}
               <div className="my-4 border-t border-gray-200" />
+
+              {/* 프로젝트 섹션 */}
+              <div className="mb-2">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">프로젝트 스토리지</p>
+              </div>
 
               {/* 프로젝트 목록 */}
               <div className="space-y-2">
@@ -254,9 +259,14 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
                 ))}
 
                 {projects.length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    아직 프로젝트가 없습니다.
-                  </p>
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500">
+                      프로젝트가 없습니다.
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      프로젝트를 생성하여 파일을 분류할 수 있습니다.
+                    </p>
+                  </div>
                 )}
               </div>
 
