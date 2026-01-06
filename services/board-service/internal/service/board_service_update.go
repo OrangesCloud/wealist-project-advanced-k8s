@@ -27,12 +27,28 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 		return nil, response.NewAppError(response.ErrCodeInternal, "Failed to fetch board", err.Error())
 	}
 
-	// Store original assignee for change detection
+	// Store original values for change detection
 	var originalAssigneeID *uuid.UUID
 	if board.AssigneeID != nil {
 		id := *board.AssigneeID
 		originalAssigneeID = &id
 	}
+
+	// Store original participant IDs for change detection
+	originalParticipantIDs := make(map[uuid.UUID]bool)
+	for _, p := range board.Participants {
+		originalParticipantIDs[p.UserID] = true
+	}
+
+	// 🔔 Store original values for change tracking
+	originalTitle := board.Title
+	originalContent := board.Content
+	var originalCustomFields map[string]interface{}
+	if len(board.CustomFields) > 0 {
+		_ = json.Unmarshal(board.CustomFields, &originalCustomFields)
+	}
+	originalStartDate := board.StartDate
+	originalDueDate := board.DueDate
 
 	// Determine the effective start and due dates for validation
 	effectiveStartDate := board.StartDate
@@ -186,10 +202,74 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 		board.Attachments = toDomainAttachments(allAttachments)
 	}
 
-	// Send notification if assignee changed to a different user (not actor)
-	if s.isAssigneeChanged(originalAssigneeID, board.AssigneeID) &&
-		board.AssigneeID != nil && *board.AssigneeID != actorID {
+	// 🔔 Build list of changes for notification
+	changes := make([]BoardChange, 0)
+
+	if req.Title != nil && originalTitle != board.Title {
+		changes = append(changes, BoardChange{Field: "title", OldValue: originalTitle, NewValue: board.Title})
+	}
+	if req.Content != nil && originalContent != board.Content {
+		changes = append(changes, BoardChange{Field: "content", OldValue: "(내용 변경)", NewValue: "(내용 변경)"})
+	}
+	if req.StartDate != nil && !datesEqual(originalStartDate, board.StartDate) {
+		changes = append(changes, BoardChange{Field: "startDate", OldValue: formatDatePtr(originalStartDate), NewValue: formatDatePtr(board.StartDate)})
+	}
+	if req.DueDate != nil && !datesEqual(originalDueDate, board.DueDate) {
+		changes = append(changes, BoardChange{Field: "dueDate", OldValue: formatDatePtr(originalDueDate), NewValue: formatDatePtr(board.DueDate)})
+	}
+	if s.isAssigneeChanged(originalAssigneeID, board.AssigneeID) {
+		changes = append(changes, BoardChange{Field: "assignee", OldValue: formatUUIDPtr(originalAssigneeID), NewValue: formatUUIDPtr(board.AssigneeID)})
+	}
+
+	// Check customFields changes (stage, role, importance, etc.)
+	if req.CustomFields != nil {
+		var newCustomFields map[string]interface{}
+		if len(board.CustomFields) > 0 {
+			_ = json.Unmarshal(board.CustomFields, &newCustomFields)
+		}
+
+		// Convert UUIDs to human-readable values for notification display
+		originalReadable, _ := s.fieldOptionConverter.ConvertIDsToValues(ctx, originalCustomFields)
+		newReadable, _ := s.fieldOptionConverter.ConvertIDsToValues(ctx, newCustomFields)
+
+		for key, newVal := range newCustomFields {
+			oldVal, existed := originalCustomFields[key]
+			if !existed || oldVal != newVal {
+				// Use readable values for display
+				oldReadableVal := formatInterface(originalReadable[key])
+				newReadableVal := formatInterface(newReadable[key])
+				changes = append(changes, BoardChange{
+					Field:    key,
+					OldValue: oldReadableVal,
+					NewValue: newReadableVal,
+				})
+			}
+		}
+	}
+
+	// Send notifications for board update
+
+	// 1. Notify new assignee if assignee changed
+	if s.isAssigneeChanged(originalAssigneeID, board.AssigneeID) && board.AssigneeID != nil {
 		s.sendAssigneeNotification(ctx, board, actorID)
+	}
+
+	// 2. Notify new participants (those who weren't participants before)
+	if req.Participants != nil && len(req.Participants) > 0 {
+		var newParticipantIDs []uuid.UUID
+		for _, pid := range req.Participants {
+			if !originalParticipantIDs[pid] {
+				newParticipantIDs = append(newParticipantIDs, pid)
+			}
+		}
+		if len(newParticipantIDs) > 0 {
+			s.sendParticipantAddedNotifications(ctx, board, newParticipantIDs, actorID)
+		}
+	}
+
+	// 3. Notify all assignee + participants about the update (excluding actor) with changes
+	if len(changes) > 0 {
+		s.sendBoardUpdateNotifications(ctx, board, actorID, changes)
 	}
 
 	// Convert to response DTO

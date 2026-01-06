@@ -446,7 +446,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         className="fixed bottom-2 right-3 text-xs text-gray-400 z-10 select-none"
         title={`Build: ${__BUILD_NUMBER__}-${__BUILD_SHA__}\nTime: ${__BUILD_TIME__}`}
       >
-        © Oranges • v{__BUILD_NUMBER__}-{__BUILD_SHA__.slice(0, 7)}
+        All rights reserved Oranges 2025-2026 • v{__BUILD_NUMBER__}-{__BUILD_SHA__.slice(0, 7)}
       </div>
     </div>
   );
