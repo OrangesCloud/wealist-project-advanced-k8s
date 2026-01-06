@@ -27,7 +27,7 @@ spec:
         - name: image.repository
           value: "prod/board-service"
         - name: image.tag
-          value: "129-cbccbd1"
+          value: "133-5d70676"
         - name: externalSecrets.enabled
           value: "true"
         # Service-specific config (managed here, not in prod.yaml)
