@@ -179,9 +179,19 @@ func Setup(routerCfg RouterConfig) *gin.Engine {
 			authenticated.GET("/presence/online", presenceHandler.GetOnlineUsers)
 			authenticated.GET("/presence/status/:userId", presenceHandler.GetUserStatus)
 
-			// File upload routes (only if S3 is configured)
+			// File upload routes - always register to provide proper error responses
 			if fileHandler != nil {
 				authenticated.POST("/files/presigned-url", fileHandler.GeneratePresignedURL)
+			} else {
+				// Return 503 Service Unavailable when S3 is not configured
+				// This prevents CloudFront from returning index.html for 404
+				authenticated.POST("/files/presigned-url", func(c *gin.Context) {
+					logger.Warn("File upload attempted but S3 is not configured")
+					c.JSON(503, gin.H{
+						"error":   "SERVICE_UNAVAILABLE",
+						"message": "File upload service is not available. S3 is not configured.",
+					})
+				})
 			}
 		}
 	}

@@ -21,8 +21,10 @@ interface FilterBarProps {
   currentView: TView;
   onLayoutChange?: (layout: TLayout) => void;
   onShowCompletedChange?: (show: boolean) => void;
+  onShowDeletedChange?: (show: boolean) => void;
   currentLayout?: TLayout;
   showCompleted?: boolean;
+  showDeleted?: boolean;
 
   // 💡 [수정] FieldOption 타입 사용
   stageOptions: FieldOption[];
@@ -43,9 +45,11 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   onFilterChange, // 💡 사용
   onLayoutChange,
   onShowCompletedChange,
+  onShowDeletedChange,
   currentView,
   currentLayout = 'board',
   showCompleted = false,
+  showDeleted = true, // 기본값 true
   currentFilter, // 💡 추가
   // stageOptions,
   // roleOptions,
@@ -240,6 +244,25 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                     showCompleted ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Show Deleted Toggle */}
+            <div className="flex items-center justify-between mt-3">
+              <span className="text-sm font-medium text-gray-700">삭제된 항목 보기</span>
+              <button
+                onClick={() => {
+                  onShowDeletedChange?.(!showDeleted);
+                }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  showDeleted ? 'bg-blue-500' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    showDeleted ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
               </button>
