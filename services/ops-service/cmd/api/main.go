@@ -173,6 +173,21 @@ func main() {
 		)
 	}
 
+	// Initialize Prometheus client
+	var prometheusClient *client.PrometheusClient
+	if cfg.Prometheus.BaseURL != "" {
+		prometheusClient = client.NewPrometheusClient(client.PrometheusConfig{
+			BaseURL: cfg.Prometheus.BaseURL,
+			Timeout: cfg.Prometheus.Timeout,
+		}, logger)
+		logger.Info("Prometheus client initialized",
+			zap.String("baseURL", cfg.Prometheus.BaseURL),
+			zap.String("namespace", cfg.Prometheus.Namespace),
+		)
+	} else {
+		logger.Warn("Prometheus URL not configured, metrics endpoints will be disabled")
+	}
+
 	// Initialize Auth validator (SmartValidator for RS256 JWKS support)
 	var tokenValidator middleware.TokenValidator
 	if cfg.AuthAPI.BaseURL != "" {
@@ -188,17 +203,19 @@ func main() {
 
 	// Setup router
 	r := router.Setup(router.Config{
-		DB:              db,
-		Logger:          logger,
-		JWTSecret:       cfg.JWT.Secret,
-		BasePath:        cfg.Server.BasePath,
-		ArgoCDClient:    argoCDClient,
-		K8sClient:       k8sClient,
-		ArgoCDNamespace: cfg.ArgoCD.Namespace,
-		RedisClient:     database.GetRedis(),
-		RateLimitConfig: cfg.RateLimit,
-		ServiceName:     "ops-service",
-		TokenValidator:  tokenValidator,
+		DB:               db,
+		Logger:           logger,
+		JWTSecret:        cfg.JWT.Secret,
+		BasePath:         cfg.Server.BasePath,
+		ArgoCDClient:     argoCDClient,
+		K8sClient:        k8sClient,
+		ArgoCDNamespace:  cfg.ArgoCD.Namespace,
+		RedisClient:      database.GetRedis(),
+		RateLimitConfig:  cfg.RateLimit,
+		ServiceName:      "ops-service",
+		TokenValidator:   tokenValidator,
+		PrometheusClient: prometheusClient,
+		PrometheusNS:     cfg.Prometheus.Namespace,
 	})
 
 	// Create HTTP server
