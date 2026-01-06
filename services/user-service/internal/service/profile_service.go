@@ -176,31 +176,11 @@ func (s *ProfileService) UpdateProfileImage(userID, workspaceID uuid.UUID, image
 }
 
 // GetOrCreateProfile gets or creates a user profile for a workspace
+// Note: workspaceID = 00000000-0000-0000-0000-000000000000 is a valid ID for the "default profile"
+// which is used as a fallback for all workspaces that don't have a specific profile
 func (s *ProfileService) GetOrCreateProfile(userID, workspaceID uuid.UUID, defaultNickName string) (*domain.UserProfile, error) {
-	// Handle default/nil workspace ID - find user's actual workspace
-	nilUUID := uuid.UUID{}
-	if workspaceID == nilUUID {
-		s.logger.Info("Default workspace ID detected, finding user's actual workspace",
-			zap.String("userId", userID.String()))
-
-		// Try to find user's default workspace first
-		defaultMember, err := s.memberRepo.FindDefaultWorkspace(userID)
-		if err == nil && defaultMember != nil {
-			workspaceID = defaultMember.WorkspaceID
-			s.logger.Info("Using user's default workspace",
-				zap.String("workspaceId", workspaceID.String()))
-		} else {
-			// Fallback: get any workspace the user belongs to
-			members, err := s.memberRepo.FindByUser(userID)
-			if err != nil || len(members) == 0 {
-				s.logger.Error("User has no workspaces", zap.String("userId", userID.String()))
-				return nil, response.NewNotFoundError("User has no workspaces", userID.String())
-			}
-			workspaceID = members[0].WorkspaceID
-			s.logger.Info("Using first available workspace",
-				zap.String("workspaceId", workspaceID.String()))
-		}
-	}
+	// The default workspace ID (00000000-0000-0000-0000-000000000000) is valid for storing
+	// the user's default profile, so we don't redirect it to an actual workspace
 
 	// Try to find existing profile
 	profile, err := s.profileRepo.FindByUserAndWorkspace(userID, workspaceID)

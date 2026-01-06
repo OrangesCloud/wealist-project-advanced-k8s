@@ -52,6 +52,8 @@ export const options = {
 // =============================================================================
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const TEST_TOKEN = __ENV.TEST_TOKEN || '';
+// Service path prefix: /svc (Kind) or /api/svc (EKS prod)
+const SVC_PREFIX = __ENV.SVC_PREFIX || '/svc';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -87,10 +89,10 @@ function handleResponse(res, metricTrend, name) {
 export default function () {
   // Health Check (가장 가벼운 요청)
   group('Health Checks', function () {
-    const services = ['board', 'user', 'chat', 'noti', 'storage', 'video'];
+    const services = ['board', 'user', 'chat', 'noti', 'storage'];
 
     for (const svc of services) {
-      const res = http.get(`${BASE_URL}/svc/${svc}/health/live`, {
+      const res = http.get(`${BASE_URL}${SVC_PREFIX}/${svc}/health/live`, {
         tags: { name: `${svc}-health` },
       });
       handleResponse(res, healthLatency, `${svc} health`);
@@ -102,7 +104,7 @@ export default function () {
   // Board Service API
   group('Board Service', function () {
     // List boards
-    const listRes = http.get(`${BASE_URL}/svc/board/api/boards`, {
+    const listRes = http.get(`${BASE_URL}${SVC_PREFIX}/board/api/boards`, {
       headers: headers,
       tags: { name: 'board-list' },
     });
@@ -114,7 +116,7 @@ export default function () {
   // User Service API
   group('User Service', function () {
     // Get user profile (requires auth)
-    const profileRes = http.get(`${BASE_URL}/svc/user/api/users/me`, {
+    const profileRes = http.get(`${BASE_URL}${SVC_PREFIX}/user/api/users/me`, {
       headers: headers,
       tags: { name: 'user-profile' },
     });
@@ -132,10 +134,11 @@ export default function () {
 // =============================================================================
 export function setup() {
   console.log(`Starting Load Test against ${BASE_URL}`);
+  console.log(`Service prefix: ${SVC_PREFIX}`);
   console.log(`Test Token: ${TEST_TOKEN ? 'Provided' : 'Not provided'}`);
 
   // Verify services are up
-  const healthRes = http.get(`${BASE_URL}/svc/board/health/live`);
+  const healthRes = http.get(`${BASE_URL}${SVC_PREFIX}/board/health/live`);
   if (healthRes.status !== 200) {
     console.error('Board service is not healthy!');
   }

@@ -541,6 +541,8 @@ k6:
   # 테스트 대상 서비스 엔드포인트
   endpoints:
     baseUrl: "http://istio-ingressgateway.istio-system.svc.cluster.local"
+    # Service path prefix: /svc (Kind) or /api/svc (EKS prod)
+    svcPrefix: "/svc"
     services:
       - name: board
         path: /svc/board
