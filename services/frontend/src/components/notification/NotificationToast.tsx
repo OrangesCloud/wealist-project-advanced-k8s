@@ -81,7 +81,7 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({
                 }}
                 className={`
                   flex-shrink-0 p-1 rounded-full
-                  ${theme.colors.muted}
+                  ${theme.colors.subText}
                   hover:bg-gray-200 dark:hover:bg-gray-600
                   transition-colors
                 `}
