@@ -162,6 +162,7 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = ({
           <AvatarStack
             members={workspaceMembers}
             onChatClick={onStartChat} // 🔥 채팅 콜백 연결
+            projectId={selectedProject.projectId} // 🔥 온라인 사용자 조회용
           />
         </div>
       )}

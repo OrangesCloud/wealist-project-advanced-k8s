@@ -26,7 +26,6 @@ weAlist의 전체 시스템 아키텍처입니다.
 | **chat-service** | Go + Gin | 8001 | 실시간 메시징 (WebSocket) |
 | **noti-service** | Go + Gin | 8002 | 푸시 알림 (SSE) |
 | **storage-service** | Go + Gin | 8003 | 파일 스토리지 (S3/MinIO) |
-| **video-service** | Go + Gin | 8004 | 영상통화 (LiveKit) |
 | **frontend** | React + Vite | 3000 | Web UI |
 
 ---
@@ -43,7 +42,7 @@ weAlist의 전체 시스템 아키텍처입니다.
 
 | Component | Technology | Description |
 |-----------|------------|-------------|
-| **Database** | PostgreSQL 17 | 7개 DB (서비스별 분리) |
+| **Database** | PostgreSQL 17 | 6개 DB (서비스별 분리) |
 | **Cache** | Redis 7.2 | 캐시, 토큰 저장소 |
 | **Object Storage** | MinIO | S3 호환 스토리지 |
 | **Video** | LiveKit + Coturn | WebRTC SFU, TURN/STUN |
@@ -71,7 +70,6 @@ weAlist의 전체 시스템 아키텍처입니다.
        ├── /api/chats    → chat-service:8001
        ├── /api/notifications → noti-service:8002
        ├── /api/storage  → storage-service:8003
-       ├── /api/video    → video-service:8004
        └── /ws/*         → WebSocket proxy
 ```
 

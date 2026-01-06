@@ -213,7 +213,6 @@ BACKEND_SERVICES=(
     "chat-service"
     "noti-service"
     "storage-service"
-    "video-service"
 )
 
 for service in "${BACKEND_SERVICES[@]}"; do

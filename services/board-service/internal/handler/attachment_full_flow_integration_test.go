@@ -158,7 +158,7 @@ func setupFullFlowRouter(
 
 	// Initialize handlers
 	attachmentHandler := NewAttachmentHandler(s3Client, attachmentRepo)
-	boardHandler := NewBoardHandler(boardService)
+	boardHandler := NewBoardHandler(boardService, nil)
 
 	// Setup routes
 	api := router.Group("/api")

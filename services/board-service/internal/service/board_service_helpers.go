@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	"project-board-api/internal/client"
 	"project-board-api/internal/domain"
 	"project-board-api/internal/dto"
 	"project-board-api/internal/response"
@@ -41,6 +42,11 @@ func (s *boardServiceImpl) convertBoardCustomFieldsToValues(ctx context.Context,
 
 // toBoardResponse converts domain.Board to dto.BoardResponse
 func (s *boardServiceImpl) toBoardResponse(board *domain.Board) *dto.BoardResponse {
+	return s.toBoardResponseWithWorkspace(context.Background(), board)
+}
+
+// toBoardResponseWithWorkspace converts domain.Board to dto.BoardResponse with context for workspace lookup
+func (s *boardServiceImpl) toBoardResponseWithWorkspace(ctx context.Context, board *domain.Board) *dto.BoardResponse {
 	// Convert datatypes.JSON to map[string]interface{}
 	var customFields map[string]interface{}
 	if len(board.CustomFields) > 0 {
@@ -70,9 +76,23 @@ func (s *boardServiceImpl) toBoardResponse(board *domain.Board) *dto.BoardRespon
 		})
 	}
 
+	// Get WorkspaceID from project
+	var workspaceID uuid.UUID
+	if board.Project.ID != uuid.Nil {
+		// Project was preloaded
+		workspaceID = board.Project.WorkspaceID
+	} else {
+		// Fetch project to get WorkspaceID
+		project, err := s.projectRepo.FindByID(ctx, board.ProjectID)
+		if err == nil && project != nil {
+			workspaceID = project.WorkspaceID
+		}
+	}
+
 	return &dto.BoardResponse{
 		ID:             board.ID,
 		ProjectID:      board.ProjectID,
+		WorkspaceID:    workspaceID,
 		AuthorID:       board.AuthorID,
 		AssigneeID:     board.AssigneeID,
 		Title:          board.Title,
@@ -88,7 +108,7 @@ func (s *boardServiceImpl) toBoardResponse(board *domain.Board) *dto.BoardRespon
 }
 
 // toBoardDetailResponse converts domain.Board to dto.BoardDetailResponse
-func (s *boardServiceImpl) toBoardDetailResponse(board *domain.Board) *dto.BoardDetailResponse {
+func (s *boardServiceImpl) toBoardDetailResponse(ctx context.Context, board *domain.Board) *dto.BoardDetailResponse {
 	// Convert participants
 	participants := make([]dto.ParticipantResponse, len(board.Participants))
 	for i, p := range board.Participants {
@@ -114,7 +134,7 @@ func (s *boardServiceImpl) toBoardDetailResponse(board *domain.Board) *dto.Board
 	}
 
 	return &dto.BoardDetailResponse{
-		BoardResponse: *s.toBoardResponse(board),
+		BoardResponse: *s.toBoardResponseWithWorkspace(ctx, board),
 		Participants:  participants,
 		Comments:      comments,
 	}
@@ -251,4 +271,60 @@ func (s *boardServiceImpl) deleteAttachmentsWithS3(ctx context.Context, attachme
 				zap.Error(err))
 		}
 	}
+}
+
+// isAssigneeChanged checks if the assignee was changed
+func (s *boardServiceImpl) isAssigneeChanged(original, current *uuid.UUID) bool {
+	// Both nil - no change
+	if original == nil && current == nil {
+		return false
+	}
+	// One nil, one not - changed
+	if original == nil || current == nil {
+		return true
+	}
+	// Both non-nil - compare values
+	return *original != *current
+}
+
+// sendAssigneeNotification sends a TASK_ASSIGNED notification to the assignee
+// This is called asynchronously (in a goroutine) so notification failures don't affect the main business logic
+func (s *boardServiceImpl) sendAssigneeNotification(ctx context.Context, board *domain.Board, actorID uuid.UUID) {
+	if s.notiClient == nil || board.AssigneeID == nil {
+		return
+	}
+
+	// Get project info for workspace ID
+	project, err := s.projectRepo.FindByID(ctx, board.ProjectID)
+	if err != nil {
+		s.logger.Warn("Failed to get project for notification",
+			zap.String("board.id", board.ID.String()),
+			zap.Error(err))
+		return
+	}
+
+	event := &client.NotificationEvent{
+		Type:         client.NotificationTypeTaskAssigned,
+		ActorID:      actorID,
+		TargetUserID: *board.AssigneeID,
+		WorkspaceID:  project.WorkspaceID,
+		ResourceType: client.ResourceTypeBoard,
+		ResourceID:   board.ID,
+		ResourceName: &board.Title,
+		Metadata: map[string]interface{}{
+			"projectId":   board.ProjectID.String(),
+			"projectName": project.Name,
+		},
+	}
+
+	// Send notification asynchronously
+	go func() {
+		// Use background context to avoid cancellation when request completes
+		if err := s.notiClient.SendNotification(context.Background(), event); err != nil {
+			s.logger.Warn("Failed to send task assigned notification",
+				zap.String("board.id", board.ID.String()),
+				zap.String("assignee.id", board.AssigneeID.String()),
+				zap.Error(err))
+		}
+	}()
 }

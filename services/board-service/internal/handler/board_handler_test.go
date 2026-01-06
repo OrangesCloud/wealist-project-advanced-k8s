@@ -143,7 +143,7 @@ func TestBoardHandler_CreateBoard(t *testing.T) {
 			// Given
 			mockService := &MockBoardService{}
 			tt.mockService(mockService)
-			handler := NewBoardHandler(mockService)
+			handler := NewBoardHandler(mockService, nil)
 
 			router := setupTestRouter()
 			router.POST("/api/boards", handler.CreateBoard)
@@ -217,7 +217,7 @@ func TestBoardHandler_GetBoard(t *testing.T) {
 			// Given
 			mockService := &MockBoardService{}
 			tt.mockService(mockService)
-			handler := NewBoardHandler(mockService)
+			handler := NewBoardHandler(mockService, nil)
 
 			router := setupTestRouter()
 			router.GET("/api/boards/:boardId", handler.GetBoard)
@@ -287,7 +287,7 @@ func TestBoardHandler_DeleteBoard(t *testing.T) {
 			// Given
 			mockService := &MockBoardService{}
 			tt.mockService(mockService)
-			handler := NewBoardHandler(mockService)
+			handler := NewBoardHandler(mockService, nil)
 
 			router := setupTestRouter()
 			router.DELETE("/api/boards/:boardId", handler.DeleteBoard)

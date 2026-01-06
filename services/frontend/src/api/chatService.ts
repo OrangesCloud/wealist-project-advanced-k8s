@@ -217,6 +217,54 @@ export const updateLastRead = async (chatId: string): Promise<void> => {
 };
 
 // ============================================================================
+// 🔥 File Upload API (채팅 이미지 업로드)
+// ============================================================================
+
+/**
+ * Presigned URL 요청 타입
+ */
+interface ChatPresignedURLRequest {
+  workspaceId: string;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+}
+
+/**
+ * Presigned URL 응답 타입
+ */
+interface ChatPresignedURLResponse {
+  uploadUrl: string;
+  downloadUrl: string; // 업로드 후 파일 접근 URL
+  fileKey: string;
+  expiresIn: number;
+}
+
+/**
+ * 채팅 파일 업로드용 Presigned URL 생성
+ * [API] POST /api/chats/files/presigned-url
+ */
+export const generateChatPresignedURL = async (
+  data: ChatPresignedURLRequest,
+): Promise<ChatPresignedURLResponse> => {
+  const response = await chatServiceClient.post('/files/presigned-url', data);
+  return extractData<ChatPresignedURLResponse>(response);
+};
+
+/**
+ * S3에 직접 파일 업로드 (presigned URL 사용)
+ */
+export const uploadChatFileToS3 = async (uploadUrl: string, file: File): Promise<void> => {
+  await fetch(uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': file.type,
+    },
+  });
+};
+
+// ============================================================================
 // 🔥 Presence API (온라인 상태)
 // ============================================================================
 

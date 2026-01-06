@@ -44,11 +44,10 @@ spec:
 - **board-service** (Go, port 8000)
 - **chat-service** (Go, port 8001)
 - **noti-service** (Go, port 8002)
-- **storage-service** (Go, port 8003) - **NEW**
-- **video-service** (Go, port 8004) - **NEW**
+- **storage-service** (Go, port 8003)
 - **frontend** (React + Vite + NGINX, port 3000)
 
-### Total: 9 Helm-based Applications
+### Total: 8 Helm-based Applications
 
 ---
 
@@ -109,7 +108,7 @@ kubectl apply -f k8s/argocd/apps/project.yaml
 kubectl apply -f k8s/argocd/apps/root-app.yaml
 ```
 
-This will automatically deploy all 9 Applications:
+This will automatically deploy all 8 Applications:
 - wealist-infrastructure
 - auth-service
 - user-service
@@ -117,7 +116,6 @@ This will automatically deploy all 9 Applications:
 - chat-service
 - noti-service
 - storage-service
-- video-service
 - frontend
 
 ### Step 3: Monitor Deployment

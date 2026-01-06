@@ -28,7 +28,6 @@
 | chat-service | **8001** | Go | WebSocket 채팅 |
 | noti-service | **8002** | Go | SSE 알림 |
 | storage-service | **8003** | Go | 파일 저장 (S3/MinIO) |
-| video-service | **8004** | Go | 화상회의 (LiveKit) |
 | frontend | **3000** | React + Vite | 개발: 5173 (내부) |
 
 ### 인프라 서비스
@@ -72,7 +71,6 @@
 | chat | wealist_chat_db | chat_db | chat_service | chat_service_password |
 | noti | wealist_noti_db | noti_db | noti_service | noti_service_password |
 | storage | wealist_storage_db | storage_db | storage_service | storage_service_password |
-| video | wealist_video_db | video_db | video_service | video_service_password |
 | auth | *(DB 미사용)* | auth_db (미사용) | - | - |
 
 > **Note**: auth-service는 DB를 사용하지 않음 (Redis만 사용)
@@ -89,7 +87,6 @@ BOARD_SERVICE_URL=http://board-service:8000
 CHAT_SERVICE_URL=http://chat-service:8001
 NOTI_SERVICE_URL=http://noti-service:8002
 STORAGE_SERVICE_URL=http://storage-service:8003
-VIDEO_SERVICE_URL=http://video-service:8004
 ```
 
 ### K8s 환경 (ClusterIP)
@@ -100,7 +97,6 @@ BOARD_SERVICE_URL=http://board-service:8000
 CHAT_SERVICE_URL=http://chat-service:8001
 NOTI_SERVICE_URL=http://noti-service:8002
 STORAGE_SERVICE_URL=http://storage-service:8003
-VIDEO_SERVICE_URL=http://video-service:8004
 ```
 
 ### 로컬 개발 환경 (localhost)
@@ -111,7 +107,6 @@ BOARD_SERVICE_URL=http://localhost:8000
 CHAT_SERVICE_URL=http://localhost:8001
 NOTI_SERVICE_URL=http://localhost:8002
 STORAGE_SERVICE_URL=http://localhost:8003
-VIDEO_SERVICE_URL=http://localhost:8004
 ```
 
 ---

@@ -24,7 +24,6 @@
 | `chat-service` | 채팅 서비스 (Go) |
 | `noti-service` | 알림 서비스 (Go) |
 | `storage-service` | 스토리지 서비스 (Go) |
-| `video-service` | 비디오 서비스 (Go) |
 | `frontend` | 프론트엔드 (React) |
 
 ## 사용법

@@ -235,6 +235,24 @@ func main() {
 		zap.String("endpoint", cfg.S3.Endpoint),
 	)
 
+	// Initialize Noti API client (optional - for sending notifications)
+	var notiClient client.NotiClient
+	if cfg.NotiAPI.BaseURL != "" {
+		notiClient = client.NewNotiClient(
+			cfg.NotiAPI.BaseURL,
+			cfg.NotiAPI.InternalAPIKey,
+			cfg.NotiAPI.Timeout,
+			log.Logger,
+			m,
+		)
+		log.Info("Noti API client initialized successfully",
+			zap.String("base_url", cfg.NotiAPI.BaseURL),
+			zap.Duration("timeout", cfg.NotiAPI.Timeout),
+		)
+	} else {
+		log.Warn("Noti API client not initialized - NOTI_SERVICE_URL not configured")
+	}
+
 	// Initialize attachment repository for cleanup job
 	attachmentRepo := repository.NewAttachmentRepository(db)
 
@@ -273,6 +291,7 @@ func main() {
 		AuthServiceURL:  cfg.AuthAPI.BaseURL,
 		JWTIssuer:       cfg.AuthAPI.JWTIssuer,
 		UserClient:      userClient,
+		NotiClient:      notiClient,
 		BasePath:        cfg.Server.BasePath,
 		Metrics:         m,
 		S3Client:        s3Client,

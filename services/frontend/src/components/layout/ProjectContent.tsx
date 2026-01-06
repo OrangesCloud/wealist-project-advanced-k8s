@@ -63,7 +63,7 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
     searchQuery: '',
     filterOption: 'all',
     currentLayout: 'board',
-    showCompleted: false,
+    showCompleted: true, // 🔥 기본값 true로 변경
     sortColumn: null,
     sortDirection: 'asc',
   });
@@ -215,35 +215,6 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
     setDragOverBoardId(null);
     setDragOverColumn(null);
   };
-
-  const handleColumnDragStart = (column: Column): void => {
-    setDraggedColumn(column);
-  };
-
-  const handleColumnDrop = useCallback(
-    async (targetColumn: Column): Promise<void> => {
-      if (!draggedColumn || draggedColumn.stageId === targetColumn.stageId) {
-        setDraggedColumn(null);
-        return;
-      }
-
-      const draggedIndex = columns.findIndex((col) => col.stageId === draggedColumn.stageId);
-      const targetIndex = columns.findIndex((col) => col.stageId === targetColumn.stageId);
-
-      if (draggedIndex !== -1 && targetIndex !== -1) {
-        const newColumns = [...columns];
-        const [removed] = newColumns.splice(draggedIndex, 1);
-        newColumns.splice(targetIndex, 0, removed);
-
-        setColumns(newColumns);
-      }
-
-      handleDragEnd();
-
-      console.log(`[API CALL] updateFieldOrder 호출: Stage 순서 변경`);
-    },
-    [draggedColumn, columns],
-  );
 
   const handleSort = (column: 'title' | 'stage' | 'role' | 'importance') => {
     if (viewState.sortColumn === column) {
@@ -717,9 +688,6 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
             return (
               <div
                 key={column?.stageId}
-                draggable
-                onDragStart={() => handleColumnDragStart(column)}
-                onDragEnd={handleDragEnd}
                 onDragOver={(e) => {
                   handleDragOver(e);
                   if (draggedBoard && !draggedColumn) {
@@ -732,16 +700,11 @@ export const ProjectContent: React.FC<ProjectContentProps> = ({
                   }
                 }}
                 onDrop={() => {
-                  console.log('🔍 [DROP] draggedColumn:', draggedColumn);
                   console.log('🔍 [DROP] draggedBoard:', draggedBoard);
                   console.log('🔍 [DROP] column.stageId:', column.stageId);
-                  draggedColumn ? handleColumnDrop(column) : handleDrop(column.stageId);
+                  if (draggedBoard) handleDrop(column.stageId);
                 }}
-                className={`w-full lg:w-80 lg:flex-shrink-0 relative transition-all cursor-move ${
-                  draggedColumn?.stageId === column.stageId
-                    ? 'opacity-50 scale-95 shadow-2xl rotate-2'
-                    : 'opacity-100'
-                }`}
+                className="w-full lg:w-80 lg:flex-shrink-0 relative transition-all"
               >
                 <div
                   className={`relative ${theme.effects.cardBorderWidth} ${

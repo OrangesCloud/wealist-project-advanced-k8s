@@ -45,7 +45,6 @@ weAlist의 네트워크 및 보안 아키텍처입니다.
 | chat-service | 8001 | Real-time messaging |
 | noti-service | 8002 | Push notifications |
 | storage-service | 8003 | File storage |
-| video-service | 8004 | Video calls |
 | frontend | 3000 | Web UI |
 
 ---

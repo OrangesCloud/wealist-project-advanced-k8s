@@ -21,6 +21,7 @@ type Config struct {
 	JWT       JWTConfig       `yaml:"jwt"`
 	AuthAPI   AuthAPIConfig   `yaml:"auth_api"` // ← Auth API 추가 (토큰 검증용)
 	UserAPI   UserAPIConfig   `yaml:"user_api"`
+	NotiAPI   NotiAPIConfig   `yaml:"noti_api"` // ← Noti API 추가 (알림 전송용)
 	CORS      CORSConfig      `yaml:"cors"`
 	Redis     RedisConfig     `mapstructure:"redis" yaml:"redis"` // ← Redis 추가
 	S3        S3Config        `yaml:"s3"`                         // ← S3 추가
@@ -74,6 +75,13 @@ type AuthAPIConfig struct {
 type UserAPIConfig struct {
 	BaseURL string        `yaml:"base_url"`
 	Timeout time.Duration `yaml:"timeout"`
+}
+
+// NotiAPIConfig holds Notification API configuration
+type NotiAPIConfig struct {
+	BaseURL        string        `yaml:"base_url"`
+	Timeout        time.Duration `yaml:"timeout"`
+	InternalAPIKey string        `yaml:"internal_api_key"`
 }
 
 // CORSConfig holds CORS configuration
@@ -170,6 +178,10 @@ func getDefaultConfig() Config {
 		},
 		UserAPI: UserAPIConfig{
 			BaseURL: "http://localhost:8081",
+			Timeout: 5 * time.Second,
+		},
+		NotiAPI: NotiAPIConfig{
+			BaseURL: "", // Not required - notifications disabled if empty
 			Timeout: 5 * time.Second,
 		},
 		CORS: CORSConfig{
@@ -301,6 +313,23 @@ func (c *Config) overrideFromEnv() {
 		if d, err := time.ParseDuration(timeout); err == nil {
 			c.UserAPI.Timeout = d
 		}
+	}
+
+	// Noti API - NOTI_SERVICE_URL (알림 전송용)
+	if baseURL := os.Getenv("NOTI_SERVICE_URL"); baseURL != "" {
+		c.NotiAPI.BaseURL = baseURL
+	}
+	if timeout := os.Getenv("NOTI_API_TIMEOUT"); timeout != "" {
+		if d, err := time.ParseDuration(timeout); err == nil {
+			c.NotiAPI.Timeout = d
+		}
+	}
+	if c.NotiAPI.Timeout == 0 {
+		c.NotiAPI.Timeout = 5 * time.Second
+	}
+	// Internal API Key for service-to-service authentication
+	if apiKey := os.Getenv("INTERNAL_API_KEY"); apiKey != "" {
+		c.NotiAPI.InternalAPIKey = apiKey
 	}
 
 	// CORS - CORS_ORIGINS alias (original format takes precedence)

@@ -50,6 +50,59 @@ permissions:
 
 jobs:
   # ===========================================================================
+  # Job 0: Discord Notification - CI Started
+  # ===========================================================================
+  notify-start:
+    name: Notify CI Started
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord notification - CI Started
+        env:
+          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1457744189000257671/5k1vpbTuJY9fOVYiRCiZ7E3hzAiD_VK-o8aXcurar2shAJsqmryfXSgTn4A61wY0k72v"
+        run: |
+          if [ -n "$DISCORD_WEBHOOK" ]; then
+            SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+            COMMIT_MSG=$(echo '${{ github.event.head_commit.message }}' | head -n 1 | sed 's/"/\\"/g')
+
+            curl -H "Content-Type: application/json" \
+                 -X POST \
+                 -d '{
+                   "embeds": [{
+                     "title": "🚀 Frontend CI Started",
+                     "description": "빌드 및 배포가 시작되었습니다",
+                     "color": 3447003,
+                     "fields": [
+                       {
+                         "name": "🌍 Environment",
+                         "value": "Development",
+                         "inline": true
+                       },
+                       {
+                         "name": "🔗 Commit",
+                         "value": "[`'"${SHORT_SHA}"'`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
+                         "inline": true
+                       },
+                       {
+                         "name": "👤 Triggered by",
+                         "value": "${{ github.actor }}",
+                         "inline": true
+                       },
+                       {
+                         "name": "💬 Commit Message",
+                         "value": "'"${COMMIT_MSG}"'",
+                         "inline": false
+                       }
+                     ],
+                     "footer": {
+                       "text": "GitHub Actions • Run #${{ github.run_number }}"
+                     },
+                     "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
+                   }]
+                 }' \
+                 "$DISCORD_WEBHOOK"
+          fi
+
+  # ===========================================================================
   # Job 1: Semantic Release (자동 버전업)
   # ===========================================================================
   semantic-release:
@@ -417,3 +470,106 @@ jobs:
           echo "- CHANGELOG.md generated" >> $GITHUB_STEP_SUMMARY
           echo "- Git tag created: \`frontend-v${{ needs.semantic-release.outputs.new_version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- GitHub Release created" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Job 6: Discord Notification - Deployment Complete
+  # ===========================================================================
+  notify-complete:
+    name: Notify Deployment Complete
+    runs-on: ubuntu-latest
+    needs: [semantic-release, build-and-test, docker-build-push, deploy-s3-dev]
+    if: always() # 🔥 항상 실행 (실패 알림을 위해)
+    steps:
+      - name: Send Discord notification - Success
+        if: needs.deploy-s3-dev.result == 'success'
+        env:
+          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1457744189000257671/5k1vpbTuJY9fOVYiRCiZ7E3hzAiD_VK-o8aXcurar2shAJsqmryfXSgTn4A61wY0k72v"
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          VERSION="v${{ needs.build-and-test.outputs.version }}"
+
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d '{
+                 "embeds": [{
+                   "title": "✅ Frontend 배포 완료",
+                   "description": "S3-CDN 배포가 성공적으로 완료되었습니다",
+                   "color": 3066993,
+                   "fields": [
+                     {
+                       "name": "🌍 Environment",
+                       "value": "Development",
+                       "inline": true
+                     },
+                     {
+                       "name": "📦 Version",
+                       "value": "`'"${VERSION}"'`",
+                       "inline": true
+                     },
+                     {
+                       "name": "🔗 Commit",
+                       "value": "[`'"${SHORT_SHA}"'`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
+                       "inline": true
+                     },
+                     {
+                       "name": "🌐 URL",
+                       "value": "[dev.wealist.co.kr](https://dev.wealist.co.kr)",
+                       "inline": true
+                     },
+                     {
+                       "name": "👤 Triggered by",
+                       "value": "${{ github.actor }}",
+                       "inline": true
+                     }
+                   ],
+                   "footer": {
+                     "text": "GitHub Actions • Run #${{ github.run_number }}"
+                   },
+                   "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
+                 }]
+               }' \
+               "$DISCORD_WEBHOOK"
+
+      - name: Send Discord notification - Failure
+        if: needs.deploy-s3-dev.result == 'failure' || needs.build-and-test.result == 'failure' || needs.docker-build-push.result == 'failure'
+        env:
+          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1457744189000257671/5k1vpbTuJY9fOVYiRCiZ7E3hzAiD_VK-o8aXcurar2shAJsqmryfXSgTn4A61wY0k72v"
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d '{
+                 "embeds": [{
+                   "title": "❌ Frontend 배포 실패",
+                   "description": "CI/CD 파이프라인에서 오류가 발생했습니다",
+                   "color": 15158332,
+                   "fields": [
+                     {
+                       "name": "🌍 Environment",
+                       "value": "Development",
+                       "inline": true
+                     },
+                     {
+                       "name": "🔗 Commit",
+                       "value": "[`'"${SHORT_SHA}"'`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
+                       "inline": true
+                     },
+                     {
+                       "name": "👤 Triggered by",
+                       "value": "${{ github.actor }}",
+                       "inline": true
+                     },
+                     {
+                       "name": "🔍 Details",
+                       "value": "[View Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+                       "inline": false
+                     }
+                   ],
+                   "footer": {
+                     "text": "GitHub Actions • Run #${{ github.run_number }}"
+                   },
+                   "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
+                 }]
+               }' \
+               "$DISCORD_WEBHOOK"
