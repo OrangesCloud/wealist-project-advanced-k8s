@@ -15,7 +15,16 @@ export type NotificationType =
   | 'PROJECT_INVITED'
   | 'PROJECT_ROLE_CHANGED'
   | 'PROJECT_REMOVED'
-  | 'PARTICIPANT_ADDED';
+  | 'PARTICIPANT_ADDED'
+  // Board (Kanban) notification types
+  | 'BOARD_ASSIGNED'
+  | 'BOARD_UNASSIGNED'
+  | 'BOARD_PARTICIPANT_ADDED'
+  | 'BOARD_UPDATED'
+  | 'BOARD_STATUS_CHANGED'
+  | 'BOARD_COMMENT_ADDED'
+  | 'BOARD_DUE_SOON'
+  | 'BOARD_OVERDUE';
 
 export type ResourceType = 'task' | 'comment' | 'workspace' | 'project' | 'board';
 

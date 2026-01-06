@@ -405,7 +405,7 @@ func (s *commentServiceImpl) sendCommentNotification(ctx context.Context, board 
 	}
 
 	event := &client.NotificationEvent{
-		Type:         client.NotificationTypeCommentAdded,
+		Type:         client.NotificationTypeBoardCommentAdded,
 		ActorID:      actorID,
 		TargetUserID: *board.AssigneeID,
 		WorkspaceID:  project.WorkspaceID,
