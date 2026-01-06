@@ -444,9 +444,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       {/* 빌드 버전 정보 (우측 하단) */}
       <div
         className="fixed bottom-2 right-3 text-xs text-gray-400 z-10 select-none"
-        title={`Build: ${__BUILD_NUMBER__}-${__BUILD_SHA__}\nTime: ${__BUILD_TIME__}`}
+        title={`Build: ${window.__ENV__?.VERSION || __BUILD_NUMBER__}-${window.__ENV__?.BUILD_SHA || __BUILD_SHA__}\nTime: ${window.__ENV__?.BUILD_TIME || __BUILD_TIME__}`}
       >
-        All rights reserved Oranges 2025-2026 • v{__BUILD_NUMBER__}-{__BUILD_SHA__.slice(0, 7)}
+        All rights reserved Oranges 2025-2026 • {window.__ENV__?.VERSION || `v${__BUILD_NUMBER__}`}-{(window.__ENV__?.BUILD_SHA || __BUILD_SHA__).slice(0, 7)}
       </div>
     </div>
   );
