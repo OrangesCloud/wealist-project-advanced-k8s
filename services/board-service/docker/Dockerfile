@@ -21,20 +21,29 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 # 2. Runtime Stage
 FROM debian:buster-slim
 
-# [수정됨] 여기가 핵심입니다. 데비안이니까 apt-get을 씁니다.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates tzdata wget && \
+# [수정됨] EOL된 Debian 10을 위해 저장소 주소를 아카이브로 변경하고 설치
+RUN echo "deb http://archive.debian.org/debian buster main" > /etc/apt/sources.list && \
+    echo "deb http://archive.debian.org/debian-security buster/updates main" >> /etc/apt/sources.list && \
+    apt-get -o Acquire::Check-Valid-Until=false update && \
+    apt-get -o Acquire::Check-Valid-Until=false install -y --no-install-recommends ca-certificates tzdata wget && \
     rm -rf /var/lib/apt/lists/*
 
-# 사용자 생성 (데비안 문법)
+# 사용자 생성
 RUN groupadd -g 1000 appuser && \
     useradd -u 1000 -g appuser -m -s /bin/bash appuser
 
 WORKDIR /home/appuser
+
+# 빌드 결과물 복사
 COPY --from=builder --chown=appuser:appuser /workspace/services/board-service/board-api .
 COPY --from=builder --chown=appuser:appuser /workspace/services/board-service/configs ./configs
 
 USER appuser
+
 EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:8000/health/live || exit 1
+
+# 헬스 체크
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8000/health/live || exit 1
+
 CMD ["./board-api"]
