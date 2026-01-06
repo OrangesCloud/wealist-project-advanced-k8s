@@ -280,7 +280,52 @@ spec:
     # WebRTC: disable timeout (Istio 1.28+ requires omitting timeout field)
 
   # ==========================================================================
-  # Ops Service (if enabled)
+  # Ops Portal (if enabled) - Admin Dashboard Frontend
+  # NOTE: 순서 중요 - /api/ops-portal이 /api/ops보다 먼저 매칭되어야 함
+  # NOTE: 두 개의 route 필요:
+  #   1. exact match /api/ops-portal → / (빈 경로 문제 방지)
+  #   2. prefix match /api/ops-portal/ → regex rewrite
+  # ==========================================================================
+  {{- if and $vs.opsPortal $vs.opsPortal.enabled }}
+  # Exact match for /api/ops-portal (without trailing slash)
+  - match:
+    - uri:
+        exact: /api/ops-portal
+    rewrite:
+      uri: /
+    route:
+    - destination:
+        host: ops-portal
+        port:
+          number: 80
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: "5xx,reset,connect-failure"
+  # Prefix match for /api/ops-portal/ (with trailing slash or path)
+  - match:
+    - uri:
+        prefix: /api/ops-portal/
+    rewrite:
+      uriRegexRewrite:
+        match: "^/api/ops-portal(.*)$"
+        rewrite: '\1'
+    route:
+    - destination:
+        host: ops-portal
+        port:
+          number: 80
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: "5xx,reset,connect-failure"
+  {{- end }}
+
+  # ==========================================================================
+  # Ops Service (if enabled) - Backend API for Ops Portal
+  # NOTE: /api/ops-portal 보다 뒤에 위치해야 함 (prefix 충돌 방지)
   # ==========================================================================
   {{- if and $vs.opsPortal $vs.opsPortal.enabled }}
   - match:
@@ -295,29 +340,6 @@ spec:
         host: ops-service
         port:
           number: 8005
-    timeout: 30s
-    retries:
-      attempts: 3
-      perTryTimeout: 10s
-      retryOn: "5xx,reset,connect-failure"
-  {{- end }}
-
-  # ==========================================================================
-  # Ops Portal (if enabled) - Admin Dashboard Frontend
-  # ==========================================================================
-  {{- if and $vs.opsPortal $vs.opsPortal.enabled }}
-  - match:
-    - uri:
-        prefix: /api/ops-portal
-    rewrite:
-      uriRegexRewrite:
-        match: "^/api/ops-portal(.*)$"
-        rewrite: '\1'
-    route:
-    - destination:
-        host: ops-portal
-        port:
-          number: 80
     timeout: 30s
     retries:
       attempts: 3

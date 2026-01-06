@@ -13,14 +13,15 @@ type fieldOptionTemplate struct {
 
 // getDefaultFieldOptions returns hardcoded default field options
 // These options are created for every new project
-// Returns 12 options total: 4 stage, 4 importance, 4 role
+// Returns 13 options total: 5 stage, 4 importance, 4 role
 func getDefaultFieldOptions() []fieldOptionTemplate {
 	return []fieldOptionTemplate{
-		// Stage options (4개)
+		// Stage options (5개)
 		{FieldType: domain.FieldTypeStage, Value: "pending", Label: "대기", Color: "#F59E0B", DisplayOrder: 1},
 		{FieldType: domain.FieldTypeStage, Value: "in_progress", Label: "진행중", Color: "#3B82F6", DisplayOrder: 2},
 		{FieldType: domain.FieldTypeStage, Value: "review", Label: "검토", Color: "#8B5CF6", DisplayOrder: 3},
 		{FieldType: domain.FieldTypeStage, Value: "approved", Label: "완료", Color: "#10B981", DisplayOrder: 4},
+		{FieldType: domain.FieldTypeStage, Value: "deleted", Label: "삭제", Color: "#EF4444", DisplayOrder: 5},
 
 		// Importance options (4개)
 		{FieldType: domain.FieldTypeImportance, Value: "urgent", Label: "긴급", Color: "#EF4444", DisplayOrder: 1},
