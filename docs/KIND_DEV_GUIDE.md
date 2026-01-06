@@ -165,7 +165,6 @@ make redeploy-all
 - `chat-service` - 실시간 채팅
 - `noti-service` - 알림
 - `storage-service` - 파일 저장
-- `video-service` - 영상통화
 - `frontend` - React 웹 UI
 
 ---

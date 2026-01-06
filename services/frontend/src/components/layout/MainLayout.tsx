@@ -9,9 +9,13 @@ import { Sidebar } from './Sidebar';
 import { ChatListPanel } from '../chat/ChatListPanel';
 import { ChatPanel } from '../chat/ChatPanel';
 import { NotificationPanel } from '../notification/NotificationPanel';
+import { NotificationToast } from '../notification/NotificationToast';
 import { LogOut, UserIcon, GripVertical } from 'lucide-react';
 import { usePresence } from '../../hooks/usePresence';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useBrowserNotification } from '../../hooks/useBrowserNotification';
+import { useToast } from '../../hooks/useToast';
+import { getNotificationMessage } from '../../api/notificationService';
 import type { Notification } from '../../types/notification';
 
 // 🔥 Render prop 타입: handleStartChat, refreshProfile을 children에 전달
@@ -37,6 +41,39 @@ const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const { theme } = useTheme();
 
+  // Browser notification hook
+  const { permission, isSupported, requestPermission, showNotification } = useBrowserNotification();
+
+  // Toast hook
+  const { toasts, addToast, removeToast } = useToast();
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if (isSupported && permission === 'default') {
+      // Delay permission request to avoid blocking page load
+      const timer = setTimeout(() => {
+        requestPermission();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSupported, permission, requestPermission]);
+
+  // Handle new notification - show browser notification and toast
+  const handleNewNotification = useCallback(
+    (notification: Notification) => {
+      // Add toast notification
+      addToast(notification);
+
+      // Show browser notification
+      const message = getNotificationMessage(notification);
+      showNotification(notification.resourceName || 'New Notification', {
+        body: message,
+        tag: notification.id,
+      });
+    },
+    [addToast, showNotification],
+  );
+
   // States
   const [userProfile, setUserProfile] = useState<UserProfileResponse | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -58,7 +95,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     markNotificationAsRead,
     markAllNotificationsAsRead,
     removeNotification,
-  } = useNotifications({ workspaceId, enabled: true });
+  } = useNotifications({
+    workspaceId,
+    enabled: true,
+    onNewNotification: handleNewNotification,
+  });
 
   // Ref
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -421,6 +462,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           </div>
         </div>
       )}
+
+      {/* 🔔 알림 토스트 */}
+      <NotificationToast
+        toasts={toasts}
+        onClose={removeToast}
+        onClick={onNotificationClick}
+      />
     </div>
   );
 };
