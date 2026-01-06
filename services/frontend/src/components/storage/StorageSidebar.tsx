@@ -7,7 +7,6 @@ import {
   FolderPlus,
   FileUp,
   HardDrive,
-  Users,
   Clock,
   Star,
   Trash2,
@@ -23,7 +22,7 @@ import {
   ProjectPermission,
 } from '../../types/storage';
 
-type NavigationSection = 'my-drive' | 'shared' | 'recent' | 'starred' | 'trash';
+type NavigationSection = 'recent' | 'starred' | 'trash';
 
 interface StorageSidebarProps {
   activeSection: NavigationSection;
@@ -72,8 +71,6 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
   }, []);
 
   const navItems: NavItem[] = [
-    { id: 'my-drive', label: '내 드라이브', icon: <HardDrive className="w-5 h-5" /> },
-    { id: 'shared', label: '공유 문서함', icon: <Users className="w-5 h-5" /> },
     { id: 'recent', label: '최근 문서함', icon: <Clock className="w-5 h-5" /> },
     { id: 'starred', label: '중요 문서함', icon: <Star className="w-5 h-5" /> },
     { id: 'trash', label: '휴지통', icon: <Trash2 className="w-5 h-5" /> },

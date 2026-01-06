@@ -4,7 +4,6 @@ import React, { useCallback, useState, useRef, useEffect } from 'react';
 import {
   Folder,
   FileText,
-  // FileImage,
   FileVideo,
   FileAudio,
   FileArchive,
@@ -18,6 +17,8 @@ import {
   Star,
   Eye,
   FolderOpen,
+  FolderPlus,
+  ImagePlus,
   Users,
   FileSpreadsheet,
   Presentation,
@@ -48,6 +49,8 @@ interface StorageViewProps {
   onShare: (item: SelectedItem) => void;
   onDelete: () => void;
   onRestore?: () => void;
+  onNewFolder: () => void;
+  onUpload: () => void;
   isTrash: boolean;
   isEmpty: boolean;
   activeSection: string;
@@ -137,6 +140,8 @@ export const StorageView: React.FC<StorageViewProps> = ({
   onShare,
   onDelete,
   onRestore,
+  onNewFolder,
+  onUpload,
   isTrash,
   isEmpty,
   activeSection,
@@ -541,6 +546,32 @@ export const StorageView: React.FC<StorageViewProps> = ({
               >
                 <FolderOpen className="w-5 h-5 text-[#5f6368]" />
                 열기
+              </button>
+              <div className="h-px bg-[#e0e0e0] my-1" />
+            </>
+          )}
+
+          {!isTrash && canEdit && (
+            <>
+              <button
+                onClick={() => {
+                  onNewFolder();
+                  setContextMenu(null);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
+              >
+                <FolderPlus className="w-5 h-5 text-[#5f6368]" />
+                새 폴더
+              </button>
+              <button
+                onClick={() => {
+                  onUpload();
+                  setContextMenu(null);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
+              >
+                <ImagePlus className="w-5 h-5 text-[#5f6368]" />
+                파일 추가
               </button>
               <div className="h-px bg-[#e0e0e0] my-1" />
             </>

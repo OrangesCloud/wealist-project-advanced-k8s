@@ -19,7 +19,6 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import {
   getRootContents,
   getFolderContents,
-  getSharedWithMe,
   getRecentFiles,
   getTrashFolders,
   getTrashFiles,
@@ -50,7 +49,6 @@ import type {
   SortDirection,
   SelectedItem,
   BreadcrumbItem,
-  SharedItem,
   StorageUsage,
 } from '../types/storage';
 
@@ -58,8 +56,8 @@ interface StoragePageProps {
   onLogout: () => void;
 }
 
-// 네비게이션 섹션 타입
-type NavigationSection = 'my-drive' | 'shared' | 'recent' | 'starred' | 'trash';
+// 네비게이션 섹션 타입 (사이드바에서는 recent, starred, trash만 표시, 내부적으로 my-drive 사용)
+type NavigationSection = 'my-drive' | 'recent' | 'starred' | 'trash';
 
 const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -90,7 +88,6 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
   // 데이터 상태
   const [folders, setFolders] = useState<StorageFolder[]>([]);
   const [files, setFiles] = useState<StorageFile[]>([]);
-  const [sharedItems, setSharedItems] = useState<SharedItem[]>([]);
   const [storageUsage, setStorageUsage] = useState<StorageUsage | null>(null);
 
   // 선택 상태
@@ -144,13 +141,6 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
           }
           break;
 
-        case 'shared':
-          const shared = await getSharedWithMe();
-          setSharedItems(shared);
-          setFolders([]);
-          setFiles([]);
-          break;
-
         case 'recent':
           const recentFiles = await getRecentFiles(currentWorkspaceId, 50);
           setFolders([]);
@@ -196,7 +186,6 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
     // 브레드크럼 초기화
     const sectionNames: Record<NavigationSection, string> = {
       'my-drive': '내 드라이브',
-      shared: '공유 항목',
       recent: '최근 항목',
       starred: '중요 항목',
       trash: '휴지통',
@@ -614,7 +603,7 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
               viewMode={viewMode}
               folders={sortedFolders}
               files={sortedFiles}
-              sharedItems={activeSection === 'shared' ? sharedItems : undefined}
+              sharedItems={undefined}
               selectedItems={selectedItems}
               onSelectItem={setSelectedItems}
               onFolderOpen={handleFolderOpen}
@@ -624,8 +613,10 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
               onShare={openShareModal}
               onDelete={openDeleteModal}
               onRestore={activeSection === 'trash' ? handleRestore : undefined}
+              onNewFolder={() => setShowNewFolderModal(true)}
+              onUpload={triggerFileUpload}
               isTrash={activeSection === 'trash'}
-              isEmpty={folders.length === 0 && files.length === 0 && sharedItems.length === 0}
+              isEmpty={folders.length === 0 && files.length === 0}
               projectPermission={currentProjectPermission}
               activeSection={activeSection}
             />
