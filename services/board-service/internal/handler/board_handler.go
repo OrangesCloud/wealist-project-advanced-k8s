@@ -95,6 +95,9 @@ func (h *BoardHandler) CreateBoard(c *gin.Context) {
 		Payload: board,
 	}
 	BroadcastEvent(req.ProjectID.String(), event)
+
+	// 🔥 알림 전송: 보드 생성 시 담당자가 지정된 경우
+	go h.sendBoardNotifications(ctx, log, nil, board, nil, board.AssigneeID)
 }
 
 // GetBoard godoc
