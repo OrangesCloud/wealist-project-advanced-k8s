@@ -14,10 +14,14 @@ import {
   Cloud,
   ChevronLeft,
   ChevronRight,
-  FolderKanban,
   ChevronDown,
 } from 'lucide-react';
-import { StorageUsage, formatFileSize, StorageProject, ProjectPermission } from '../../types/storage';
+import {
+  StorageUsage,
+  formatFileSize,
+  StorageProject,
+  ProjectPermission,
+} from '../../types/storage';
 
 type NavigationSection = 'my-drive' | 'shared' | 'recent' | 'starred' | 'trash';
 
@@ -244,11 +248,7 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
           <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
             <div
               className={`h-full rounded-full transition-all ${
-                usedPercent > 90
-                  ? 'bg-red-500'
-                  : usedPercent > 70
-                  ? 'bg-yellow-500'
-                  : 'bg-blue-600'
+                usedPercent > 90 ? 'bg-red-500' : usedPercent > 70 ? 'bg-yellow-500' : 'bg-blue-600'
               }`}
               style={{ width: `${Math.max(usedPercent, 1)}%` }}
             />
@@ -262,7 +262,10 @@ export const StorageSidebar: React.FC<StorageSidebarProps> = ({
       {/* 접힌 상태에서 스토리지 아이콘만 표시 */}
       {isCollapsed && (
         <div className="p-4 border-t border-gray-200 flex justify-center">
-          <div className="relative" title={`15GB 중 ${storageUsage ? formatFileSize(storageUsage.totalSize) : '0 B'} 사용`}>
+          <div
+            className="relative"
+            title={`15GB 중 ${storageUsage ? formatFileSize(storageUsage.totalSize) : '0 B'} 사용`}
+          >
             <Cloud className="w-5 h-5 text-gray-500" />
             {usedPercent > 70 && (
               <div

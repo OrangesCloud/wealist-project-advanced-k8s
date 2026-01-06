@@ -99,10 +99,18 @@ func (h *WorkspaceHandler) GetAllWorkspaces(c *gin.Context) {
 		return
 	}
 
+	h.logger.Info("GetAllWorkspaces - 사용자 워크스페이스 조회",
+		zap.String("user_id", userID.String()),
+		zap.Int("member_count", len(members)))
+
 	// Convert to UserWorkspaceResponse with workspace details
 	responses := make([]domain.UserWorkspaceResponse, 0, len(members))
 	for _, m := range members {
 		if m.Workspace == nil {
+			h.logger.Warn("GetAllWorkspaces - Workspace가 nil (preload 실패)",
+				zap.String("user_id", userID.String()),
+				zap.String("workspace_id", m.WorkspaceID.String()),
+				zap.String("role", string(m.RoleName)))
 			continue // Skip if workspace not loaded
 		}
 		description := ""
