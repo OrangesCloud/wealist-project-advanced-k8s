@@ -285,11 +285,6 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver: docker
-
       - name: Set ECR repository name
         id: ecr-repo
         run: |
@@ -358,13 +353,21 @@ jobs:
           echo "all_tags=${TAGS}" >> $GITHUB_OUTPUT
 
       - name: Build and push ${{ matrix.service }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ steps.build-config.outputs.context }}
-          file: ${{ steps.build-config.outputs.dockerfile }}
-          push: true
-          tags: ${{ steps.tags.outputs.all_tags }}
-          provenance: false
+        run: |
+          # Build image
+          docker build \
+            -f ${{ steps.build-config.outputs.dockerfile }} \
+            -t ${{ steps.tags.outputs.image_uri }}:${{ steps.tags.outputs.tag }} \
+            ${{ steps.build-config.outputs.context }}
+
+          # Tag and push
+          docker push ${{ steps.tags.outputs.image_uri }}:${{ steps.tags.outputs.tag }}
+
+          # Push latest tag for non-prod
+          if [ "${{ needs.detect-changes.outputs.environment }}" != "prod" ]; then
+            docker tag ${{ steps.tags.outputs.image_uri }}:${{ steps.tags.outputs.tag }} ${{ steps.tags.outputs.image_uri }}:latest
+            docker push ${{ steps.tags.outputs.image_uri }}:latest
+          fi
 
       - name: Output image info
         run: |
