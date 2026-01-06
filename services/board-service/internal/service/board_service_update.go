@@ -34,6 +34,12 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 		originalAssigneeID = &id
 	}
 
+	// Store original participant IDs for change detection
+	originalParticipantIDs := make(map[uuid.UUID]bool)
+	for _, p := range board.Participants {
+		originalParticipantIDs[p.UserID] = true
+	}
+
 	// Determine the effective start and due dates for validation
 	effectiveStartDate := board.StartDate
 	effectiveDueDate := board.DueDate
@@ -186,11 +192,28 @@ func (s *boardServiceImpl) UpdateBoard(ctx context.Context, boardID uuid.UUID, r
 		board.Attachments = toDomainAttachments(allAttachments)
 	}
 
-	// Send notification if assignee changed to a different user (not actor)
-	if s.isAssigneeChanged(originalAssigneeID, board.AssigneeID) &&
-		board.AssigneeID != nil && *board.AssigneeID != actorID {
+	// Send notifications for board update
+
+	// 1. Notify new assignee if assignee changed
+	if s.isAssigneeChanged(originalAssigneeID, board.AssigneeID) && board.AssigneeID != nil {
 		s.sendAssigneeNotification(ctx, board, actorID)
 	}
+
+	// 2. Notify new participants (those who weren't participants before)
+	if req.Participants != nil && len(req.Participants) > 0 {
+		var newParticipantIDs []uuid.UUID
+		for _, pid := range req.Participants {
+			if !originalParticipantIDs[pid] {
+				newParticipantIDs = append(newParticipantIDs, pid)
+			}
+		}
+		if len(newParticipantIDs) > 0 {
+			s.sendParticipantAddedNotifications(ctx, board, newParticipantIDs, actorID)
+		}
+	}
+
+	// 3. Notify all assignee + participants about the update (excluding actor)
+	s.sendBoardUpdateNotifications(ctx, board, actorID)
 
 	// Convert to response DTO
 	return s.toBoardResponseWithWorkspace(ctx, board), nil
