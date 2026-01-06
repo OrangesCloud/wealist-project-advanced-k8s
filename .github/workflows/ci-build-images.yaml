@@ -22,6 +22,11 @@ on:
           - develop
           - prod
         default: develop
+      skip_gitops:
+        description: "Skip GitOps update trigger"
+        required: false
+        type: boolean
+        default: false
 
 env:
   AWS_REGION: ap-northeast-2
@@ -42,14 +47,46 @@ jobs:
             echo "should_run=false" >> $GITHUB_OUTPUT
           fi
 
-  detect-changes:
+  # -------------------------------------------------------------------------
+  # 빌드 시작 Discord 알림 (원래 로직 유지)
+  # -------------------------------------------------------------------------
+  notify-start:
     needs: validate-branch
+    if: needs.validate-branch.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord notification - Build Started
+        env:
+          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1455461844826325207/OdeRKNLVYzAMGoxH8mLggCc-BZ7ky5t8ScGE2gD388-bCkcTsnffNlhYG2gGmFpsfEY7"
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          COMMIT_MSG=$(echo '${{ github.event.head_commit.message }}' | head -n 1 | sed 's/"/\\"/g')
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          [[ "${BRANCH}" == "service-deploy-prod" ]] && ENV="prod" || ENV="develop"
+
+          curl -H "Content-Type: application/json" -X POST -d '{
+            "embeds": [{
+              "title": "🚀 Service Build Started",
+              "description": "Docker 이미지 빌드가 시작되었습니다",
+              "color": 3447003,
+              "fields": [
+                {"name": "🌍 Environment", "value": "'"${ENV}"'", "inline": true},
+                {"name": "🔗 Commit", "value": "[`'"${SHORT_SHA}"'`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})", "inline": true},
+                {"name": "👤 Triggered by", "value": "${{ github.actor }}", "inline": true},
+                {"name": "💬 Commit Message", "value": "'"${COMMIT_MSG}"'", "inline": false}
+              ],
+              "footer": {"text": "GitHub Actions • Build #${{ github.run_number }}"},
+              "timestamp": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
+            }]
+          }' "$DISCORD_WEBHOOK"
+
+  detect-changes:
+    needs: [validate-branch, notify-start]
     if: needs.validate-branch.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     outputs:
       services: ${{ steps.set-services.outputs.services }}
       environment: ${{ steps.env-config.outputs.environment }}
-      ecr_registry: ${{ steps.env-config.outputs.ecr_registry }}
       k8s_branch: ${{ steps.env-config.outputs.k8s_branch }}
       namespace: ${{ steps.env-config.outputs.namespace }}
     steps:
@@ -63,7 +100,6 @@ jobs:
             [[ "${GITHUB_REF#refs/heads/}" == "service-deploy-prod" ]] && ENV="prod" || ENV="develop"
           fi
           echo "environment=${ENV}" >> $GITHUB_OUTPUT
-          echo "ecr_registry=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com" >> $GITHUB_OUTPUT
           [ "${ENV}" = "prod" ] && echo "k8s_branch=k8s-deploy-prod" >> $GITHUB_OUTPUT || echo "k8s_branch=k8s-deploy-dev" >> $GITHUB_OUTPUT
           [ "${ENV}" = "prod" ] && echo "namespace=wealist-prod" >> $GITHUB_OUTPUT || echo "namespace=wealist-dev" >> $GITHUB_OUTPUT
 
@@ -97,7 +133,6 @@ jobs:
     needs: [validate-branch, detect-changes]
     if: needs.detect-changes.outputs.services != '[]'
     runs-on: ubuntu-latest
-    # environment를 명시하여 해당 환경의 secrets를 우선 참조하게 함
     environment: ${{ needs.detect-changes.outputs.environment }}
     strategy:
       matrix:
@@ -112,8 +147,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # Repository Secrets로 옮긴 ARN 사용
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN_BACKEND }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_BACKEND }} # Repository Secret 사용
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -126,14 +160,6 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ${{ matrix.service == 'auth-service' && format('services/{0}', matrix.service) || (matrix.service == 'ops-portal' && format('services/{0}', matrix.service) || '.') }}
+          context: ${{ (matrix.service == 'auth-service' || matrix.service == 'ops-portal') && format('services/{0}', matrix.service) || '.' }}
           file: ${{ matrix.service == 'auth-service' && format('services/{0}/Dockerfile', matrix.service) || format('services/{0}/docker/Dockerfile', matrix.service) }}
           push: true
-          # matrix 기반 태그 생성
-          tags: |
-            ${{ steps.login-ecr.outputs.registry }}/${{ needs.detect-changes.outputs.environment == 'prod' && 'prod/' || '' }}${{ matrix.service }}:${{ github.run_number }}-${{ github.sha }}
-            ${{ needs.detect-changes.outputs.environment != 'prod' && format('{0}/{1}:latest', steps.login-ecr.outputs.registry, matrix.service) || '' }}
-          platforms: linux/amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: false
