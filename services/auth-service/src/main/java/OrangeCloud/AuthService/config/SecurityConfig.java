@@ -46,6 +46,7 @@ public class SecurityConfig {
                         // 공개 엔드포인트
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/api/test/**",     // 부하 테스트용 (ENABLE_TEST_AUTH=true 시만 활성화)
                                 "/oauth2/**",
                                 "/login/oauth2/**",
                                 "/actuator/**",
