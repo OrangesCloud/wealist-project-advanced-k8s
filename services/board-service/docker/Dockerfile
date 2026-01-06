@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 # 1. Builder Stage
-FROM golang:1.23-bookwarm AS builder
+FROM golang:1.23-bookworm AS builder
 
 ARG TARGETARCH
 
