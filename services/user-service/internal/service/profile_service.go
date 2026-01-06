@@ -122,11 +122,51 @@ func (s *ProfileService) GetUserProfile(viewerID, targetUserID, workspaceID uuid
 	return s.profileRepo.FindByUserAndWorkspace(targetUserID, workspaceID)
 }
 
-// UpdateProfile updates a user profile
+// UpdateProfile updates a user profile (creates if not exists)
 func (s *ProfileService) UpdateProfile(userID, workspaceID uuid.UUID, req domain.UpdateProfileRequest) (*domain.UserProfile, error) {
 	profile, err := s.profileRepo.FindByUserAndWorkspace(userID, workspaceID)
 	if err != nil {
-		return nil, err
+		// 프로필이 없으면 새로 생성
+		s.logger.Info("Profile not found, creating new one for update",
+			zap.String("userId", userID.String()),
+			zap.String("workspaceId", workspaceID.String()))
+
+		// Get user's email from user table
+		user, userErr := s.userRepo.FindByID(userID)
+		if userErr != nil {
+			s.logger.Error("Failed to find user", zap.Error(userErr))
+			return nil, userErr
+		}
+
+		// 닉네임 설정 (요청에 있으면 사용, 없으면 기존 프로필에서 가져오거나 기본값)
+		nickName := user.Name
+		if req.NickName != nil {
+			nickName = *req.NickName
+		}
+
+		profile = &domain.UserProfile{
+			ID:              uuid.New(),
+			UserID:          userID,
+			WorkspaceID:     workspaceID,
+			NickName:        nickName,
+			Email:           user.Email,
+			ProfileImageURL: req.ProfileImageURL,
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		}
+
+		if createErr := s.profileRepo.Create(profile); createErr != nil {
+			s.logger.Error("Failed to create profile", zap.Error(createErr))
+			return nil, createErr
+		}
+
+		// 메트릭 기록: 프로필 생성 성공
+		if s.metrics != nil {
+			s.metrics.RecordProfileCreated()
+		}
+
+		s.logger.Info("Profile created during update", zap.String("profileId", profile.ID.String()))
+		return profile, nil
 	}
 
 	if req.NickName != nil {
