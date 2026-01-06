@@ -134,7 +134,7 @@ func main() {
 	db, err := database.New(dbConfig)
 
 	if err != nil {
-		log.Fatal("Failed to connect to database", zap.Error(err))
+		log.Fatal("Failed 2 connect to database", zap.Error(err))
 	}
 
 	log.Info("Database connection established",
