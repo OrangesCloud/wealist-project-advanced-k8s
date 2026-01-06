@@ -167,7 +167,7 @@ export const StorageView: React.FC<StorageViewProps> = ({
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    item: SelectedItem;
+    item: SelectedItem | null; // null이면 빈 영역에서 열린 컨텍스트 메뉴
   } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
@@ -200,13 +200,25 @@ export const StorageView: React.FC<StorageViewProps> = ({
     [selectedItems, onSelectItem],
   );
 
-  // 컨텍스트 메뉴 열기
+  // 컨텍스트 메뉴 열기 (아이템 클릭)
   const handleContextMenu = useCallback((e: React.MouseEvent, item: SelectedItem) => {
     e.preventDefault();
+    e.stopPropagation();
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
       item,
+    });
+  }, []);
+
+  // 빈 영역 컨텍스트 메뉴 열기
+  const handleBackgroundContextMenu = useCallback((e: React.MouseEvent) => {
+    // 아이템에서 발생한 이벤트가 아닌 경우만 처리
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      item: null,
     });
   }, []);
 
@@ -291,7 +303,7 @@ export const StorageView: React.FC<StorageViewProps> = ({
   // 리스트 뷰 - Google Drive 스타일 테이블
   if (viewMode === 'list') {
     return (
-      <div className="flex-1 overflow-auto bg-white">
+      <div className="flex-1 overflow-auto bg-white" onContextMenu={handleBackgroundContextMenu}>
         {/* 테이블 헤더 */}
         <div className="sticky top-0 bg-white border-b border-[#e0e0e0] px-6 z-10">
           <div className="flex items-center py-2 text-xs font-medium text-[#5f6368]">
@@ -411,7 +423,7 @@ export const StorageView: React.FC<StorageViewProps> = ({
 
   // 그리드 뷰 - Google Drive 스타일 카드
   return (
-    <div className="flex-1 overflow-auto p-4 bg-white">
+    <div className="flex-1 overflow-auto p-4 bg-white" onContextMenu={handleBackgroundContextMenu}>
       {/* 폴더 섹션 */}
       {folders.length > 0 && (
         <div className="mb-6">
@@ -533,11 +545,38 @@ export const StorageView: React.FC<StorageViewProps> = ({
           className="fixed bg-white rounded-lg shadow-2xl border border-[#dadce0] py-2 z-50 min-w-[200px]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
-          {contextMenu.item.type === 'file' && (
+          {/* 빈 영역 클릭 시 (item이 null) */}
+          {!contextMenu.item && !isTrash && canEdit && (
             <>
               <button
                 onClick={() => {
-                  onFilePreview(contextMenu.item.data as StorageFile);
+                  onNewFolder();
+                  setContextMenu(null);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
+              >
+                <FolderPlus className="w-5 h-5 text-[#5f6368]" />
+                새 폴더
+              </button>
+              <button
+                onClick={() => {
+                  onUpload();
+                  setContextMenu(null);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
+              >
+                <ImagePlus className="w-5 h-5 text-[#5f6368]" />
+                파일 추가
+              </button>
+            </>
+          )}
+
+          {/* 아이템 클릭 시 */}
+          {contextMenu.item && contextMenu.item.type === 'file' && (
+            <>
+              <button
+                onClick={() => {
+                  onFilePreview(contextMenu.item!.data as StorageFile);
                   setContextMenu(null);
                 }}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
@@ -547,7 +586,7 @@ export const StorageView: React.FC<StorageViewProps> = ({
               </button>
               <button
                 onClick={() => {
-                  onFileDownload(contextMenu.item.data as StorageFile);
+                  onFileDownload(contextMenu.item!.data as StorageFile);
                   setContextMenu(null);
                 }}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
@@ -559,11 +598,11 @@ export const StorageView: React.FC<StorageViewProps> = ({
             </>
           )}
 
-          {contextMenu.item.type === 'folder' && !isTrash && (
+          {contextMenu.item && contextMenu.item.type === 'folder' && !isTrash && (
             <>
               <button
                 onClick={() => {
-                  onFolderOpen(contextMenu.item.data as StorageFolder);
+                  onFolderOpen(contextMenu.item!.data as StorageFolder);
                   setContextMenu(null);
                 }}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
@@ -575,7 +614,7 @@ export const StorageView: React.FC<StorageViewProps> = ({
             </>
           )}
 
-          {!isTrash && canEdit && (
+          {contextMenu.item && !isTrash && canEdit && (
             <>
               <button
                 onClick={() => {
@@ -601,11 +640,11 @@ export const StorageView: React.FC<StorageViewProps> = ({
             </>
           )}
 
-          {!isTrash && (
+          {contextMenu.item && !isTrash && (
             <>
               <button
                 onClick={() => {
-                  onShare(contextMenu.item);
+                  onShare(contextMenu.item!);
                   setContextMenu(null);
                 }}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
@@ -618,7 +657,7 @@ export const StorageView: React.FC<StorageViewProps> = ({
                   <div className="h-px bg-[#e0e0e0] my-1" />
                   <button
                     onClick={() => {
-                      onRename(contextMenu.item);
+                      onRename(contextMenu.item!);
                       setContextMenu(null);
                     }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3c4043] hover:bg-[#f1f3f4]"
@@ -631,10 +670,10 @@ export const StorageView: React.FC<StorageViewProps> = ({
             </>
           )}
 
-          {isTrash && onRestore && (
+          {contextMenu.item && isTrash && onRestore && (
             <button
               onClick={() => {
-                onSelectItem([contextMenu.item]);
+                onSelectItem([contextMenu.item!]);
                 onRestore();
                 setContextMenu(null);
               }}
@@ -645,12 +684,12 @@ export const StorageView: React.FC<StorageViewProps> = ({
             </button>
           )}
 
-          {canEdit && (
+          {contextMenu.item && canEdit && (
             <>
               <div className="h-px bg-[#e0e0e0] my-1" />
               <button
                 onClick={() => {
-                  onSelectItem([contextMenu.item]);
+                  onSelectItem([contextMenu.item!]);
                   onDelete();
                   setContextMenu(null);
                 }}

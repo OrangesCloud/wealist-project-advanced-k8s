@@ -14,9 +14,9 @@ import {
 import {
   StorageUsage,
   formatFileSize,
-  StorageProject,
   ProjectPermission,
 } from '../../types/storage';
+import type { ProjectResponse } from '../../types/board';
 
 // 사이드바에서 표시되는 섹션 타입
 type SidebarSection = 'recent' | 'starred' | 'trash';
@@ -29,8 +29,8 @@ interface StorageSidebarProps {
   storageUsage: StorageUsage | null;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
-  // 프로젝트 관련 props
-  currentProject: StorageProject | null;
+  // 프로젝트 관련 props (보드 서비스 프로젝트와 1:1 매핑)
+  currentProject: ProjectResponse | null;
   currentProjectPermission: ProjectPermission | null;
   onOpenProjectModal: () => void;
 }

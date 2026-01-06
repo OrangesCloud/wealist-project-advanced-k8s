@@ -13,7 +13,6 @@ import { DeleteConfirmModal } from '../components/storage/modals/DeleteConfirmMo
 import { FilePreviewModal } from '../components/storage/modals/FilePreviewModal';
 import { UploadProgressModal } from '../components/storage/modals/UploadProgressModal';
 import { ProjectListModal } from '../components/storage/modals/ProjectListModal';
-import { ProjectSettingsModal } from '../components/storage/modals/ProjectSettingsModal';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
 import {
@@ -42,7 +41,6 @@ import {
 import type {
   StorageFolder,
   StorageFile,
-  StorageProject,
   ProjectPermission,
   ViewMode,
   SortBy,
@@ -51,6 +49,7 @@ import type {
   BreadcrumbItem,
   StorageUsage,
 } from '../types/storage';
+import type { ProjectResponse } from '../types/board';
 
 interface StoragePageProps {
   onLogout: () => void;
@@ -100,14 +99,12 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
-  const [showProjectSettingsModal, setShowProjectSettingsModal] = useState(false);
   const [renameTarget, setRenameTarget] = useState<SelectedItem | null>(null);
   const [shareTarget, setShareTarget] = useState<SelectedItem | null>(null);
   const [previewFile, setPreviewFile] = useState<StorageFile | null>(null);
-  const [settingsProject, setSettingsProject] = useState<StorageProject | null>(null);
 
-  // 프로젝트 상태
-  const [currentProject, setCurrentProject] = useState<StorageProject | null>(null);
+  // 프로젝트 상태 (보드 서비스의 프로젝트와 1:1 매핑)
+  const [currentProject, setCurrentProject] = useState<ProjectResponse | null>(null);
   const [currentProjectPermission, setCurrentProjectPermission] = useState<ProjectPermission | null>(null);
 
   // 업로드 상태
@@ -236,7 +233,7 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
       try {
         await createFolder({
           workspaceId: currentWorkspaceId,
-          projectId: currentProject?.id,
+          projectId: currentProject?.projectId,
           parentId: currentFolderId || undefined,
           name,
           color,
@@ -250,28 +247,13 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
     [currentWorkspaceId, currentProject, currentFolderId, loadContents],
   );
 
-  // 프로젝트 선택
-  const handleSelectProject = useCallback((project: StorageProject | null, permission: ProjectPermission | null) => {
+  // 프로젝트 선택 (보드 서비스 프로젝트와 1:1 매핑)
+  const handleSelectProject = useCallback((project: ProjectResponse | null, permission: ProjectPermission | null) => {
     setCurrentProject(project);
     setCurrentProjectPermission(permission);
     setCurrentFolderId(null);
     setBreadcrumbs([{ id: null, name: project ? project.name : '내 드라이브', path: '/' }]);
   }, []);
-
-  // 프로젝트 설정 열기
-  const handleOpenProjectSettings = useCallback((project: StorageProject) => {
-    setSettingsProject(project);
-    setShowProjectModal(false);
-    setShowProjectSettingsModal(true);
-  }, []);
-
-  // 프로젝트 정보 업데이트
-  const handleProjectUpdated = useCallback((updatedProject: StorageProject) => {
-    setSettingsProject(updatedProject);
-    if (currentProject?.id === updatedProject.id) {
-      setCurrentProject(updatedProject);
-    }
-  }, [currentProject]);
 
   // 이름 변경
   const handleRename = useCallback(
@@ -694,22 +676,9 @@ const StoragePage: React.FC<StoragePageProps> = ({ onLogout }) => {
       {showProjectModal && (
         <ProjectListModal
           workspaceId={currentWorkspaceId}
-          currentProjectId={currentProject?.id || null}
+          currentProjectId={currentProject?.projectId || null}
           onClose={() => setShowProjectModal(false)}
           onSelectProject={handleSelectProject}
-          onOpenSettings={handleOpenProjectSettings}
-        />
-      )}
-
-      {showProjectSettingsModal && settingsProject && (
-        <ProjectSettingsModal
-          project={settingsProject}
-          workspaceId={currentWorkspaceId}
-          onClose={() => {
-            setShowProjectSettingsModal(false);
-            setSettingsProject(null);
-          }}
-          onProjectUpdated={handleProjectUpdated}
         />
       )}
     </MainLayout>

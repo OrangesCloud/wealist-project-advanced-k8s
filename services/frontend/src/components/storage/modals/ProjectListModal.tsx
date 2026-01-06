@@ -1,24 +1,20 @@
 // src/components/storage/modals/ProjectListModal.tsx
 
 import React, { useState, useEffect } from 'react';
-import { X, FolderKanban, Settings, Trash2, MoreVertical, HardDrive } from 'lucide-react';
+import { X, FolderKanban, HardDrive } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
-import type { StorageProject, ProjectPermission } from '../../../types/storage';
-import {
-  getWorkspaceProjects,
-  deleteProject,
-  getMyProjectPermission,
-} from '../../../api/storageService';
+import { getProjects, getProjectMembers } from '../../../api/boardService';
+import type { ProjectResponse } from '../../../types/board';
+import type { ProjectPermission } from '../../../types/storage';
 
 interface ProjectListModalProps {
   workspaceId: string;
   currentProjectId: string | null;
   onClose: () => void;
-  onSelectProject: (project: StorageProject | null, permission: ProjectPermission | null) => void;
-  onOpenSettings: (project: StorageProject) => void;
+  onSelectProject: (project: ProjectResponse | null, permission: ProjectPermission | null) => void;
 }
 
-interface ProjectWithPermission extends StorageProject {
+interface ProjectWithPermission extends ProjectResponse {
   myPermission?: ProjectPermission | null;
 }
 
@@ -27,25 +23,46 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
   currentProjectId,
   onClose,
   onSelectProject,
-  onOpenSettings,
 }) => {
   const { theme } = useTheme();
   const [projects, setProjects] = useState<ProjectWithPermission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  // 프로젝트 목록 로드
+  // 프로젝트 목록 로드 (보드 서비스의 프로젝트 사용)
   useEffect(() => {
     const loadProjects = async () => {
       setIsLoading(true);
       try {
-        const projectsData = await getWorkspaceProjects(workspaceId);
+        // 보드 서비스에서 워크스페이스의 프로젝트 목록 가져오기
+        const projectsData = await getProjects(workspaceId);
 
-        // 각 프로젝트의 권한 정보 로드
+        // 각 프로젝트의 멤버 정보에서 현재 사용자 권한 확인
         const projectsWithPermission = await Promise.all(
           projectsData.map(async (project) => {
-            const permission = await getMyProjectPermission(project.id);
-            return { ...project, myPermission: permission };
+            try {
+              const members = await getProjectMembers(project.projectId);
+              // 현재 사용자의 권한 찾기 (localStorage에서 userId 가져오기)
+              const currentUserId = localStorage.getItem('userId');
+              const myMembership = members.find(m => m.userId === currentUserId);
+
+              let permission: ProjectPermission | null = null;
+              if (myMembership) {
+                // 보드 서비스의 roleName을 스토리지 권한으로 매핑
+                const role = myMembership.roleName?.toUpperCase() || '';
+                if (role === 'OWNER' || role === 'ADMIN') {
+                  permission = 'OWNER';
+                } else if (role === 'MEMBER' || role === 'EDITOR') {
+                  permission = 'EDITOR';
+                } else {
+                  permission = 'VIEWER';
+                }
+              }
+
+              return { ...project, myPermission: permission };
+            } catch {
+              // 멤버 조회 실패 시 기본 VIEWER 권한
+              return { ...project, myPermission: 'VIEWER' as ProjectPermission };
+            }
           })
         );
 
@@ -60,33 +77,14 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
     loadProjects();
   }, [workspaceId]);
 
-  // 프로젝트 삭제
-  const handleDeleteProject = async (projectId: string) => {
-    if (!confirm('정말 이 프로젝트를 삭제하시겠습니까? 프로젝트 내 모든 파일이 삭제됩니다.')) {
-      return;
-    }
-
-    try {
-      await deleteProject(projectId);
-      setProjects(projects.filter((p) => p.id !== projectId));
-
-      if (currentProjectId === projectId) {
-        onSelectProject(null, null);
-      }
-    } catch (err) {
-      console.error('Failed to delete project:', err);
-    }
-    setActiveMenuId(null);
-  };
-
   // 프로젝트 선택
   const handleSelectProject = (project: ProjectWithPermission) => {
     onSelectProject(project, project.myPermission || null);
     onClose();
   };
 
-  // 전체 스토리지 선택 (프로젝트 없음)
-  const handleSelectAll = () => {
+  // 내 드라이브 선택 (프로젝트 없음)
+  const handleSelectMyDrive = () => {
     onSelectProject(null, null);
     onClose();
   };
@@ -124,7 +122,7 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
             <>
               {/* 내 드라이브 옵션 (개인 스토리지) */}
               <button
-                onClick={handleSelectAll}
+                onClick={handleSelectMyDrive}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg mb-2 transition ${
                   currentProjectId === null
                     ? 'bg-blue-50 border-2 border-blue-500'
@@ -134,7 +132,7 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
                 <HardDrive className="w-6 h-6 text-blue-500" />
                 <div className="flex-1 text-left">
                   <p className="font-medium text-gray-900">내 드라이브</p>
-                  <p className="text-sm text-gray-500">개인 스토리지 (조직/프로젝트와 무관)</p>
+                  <p className="text-sm text-gray-500">개인 스토리지 (프로젝트와 무관)</p>
                 </div>
               </button>
 
@@ -149,81 +147,30 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
               {/* 프로젝트 목록 */}
               <div className="space-y-2">
                 {projects.map((project) => (
-                  <div
-                    key={project.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg transition ${
-                      currentProjectId === project.id
+                  <button
+                    key={project.projectId}
+                    onClick={() => handleSelectProject(project)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition ${
+                      currentProjectId === project.projectId
                         ? 'bg-blue-50 border-2 border-blue-500'
                         : 'hover:bg-gray-50 border-2 border-transparent'
                     }`}
                   >
-                    <button
-                      onClick={() => handleSelectProject(project)}
-                      className="flex-1 flex items-center gap-3 text-left"
-                    >
-                      <FolderKanban className="w-6 h-6 text-blue-500" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-gray-900 truncate">{project.name}</p>
-                          {project.myPermission && (
-                            <span className={`px-2 py-0.5 text-xs rounded-full ${permissionColors[project.myPermission]}`}>
-                              {permissionLabels[project.myPermission]}
-                            </span>
-                          )}
-                        </div>
-                        {project.description && (
-                          <p className="text-sm text-gray-500 truncate">{project.description}</p>
+                    <FolderKanban className="w-6 h-6 text-blue-500" />
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-900 truncate">{project.name}</p>
+                        {project.myPermission && (
+                          <span className={`px-2 py-0.5 text-xs rounded-full flex-shrink-0 ${permissionColors[project.myPermission]}`}>
+                            {permissionLabels[project.myPermission]}
+                          </span>
                         )}
                       </div>
-                    </button>
-
-                    {/* 메뉴 버튼 (OWNER만) */}
-                    {project.myPermission === 'OWNER' && (
-                      <div className="relative">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveMenuId(activeMenuId === project.id ? null : project.id);
-                          }}
-                          className="p-1.5 rounded hover:bg-gray-200 transition"
-                        >
-                          <MoreVertical className="w-4 h-4 text-gray-500" />
-                        </button>
-
-                        {activeMenuId === project.id && (
-                          <>
-                            <div
-                              className="fixed inset-0"
-                              onClick={() => setActiveMenuId(null)}
-                            />
-                            <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[120px]">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuId(null);
-                                  onOpenSettings(project);
-                                }}
-                                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-                              >
-                                <Settings className="w-4 h-4" />
-                                설정
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteProject(project.id);
-                                }}
-                                className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                                삭제
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                      {project.description && (
+                        <p className="text-sm text-gray-500 truncate">{project.description}</p>
+                      )}
+                    </div>
+                  </button>
                 ))}
 
                 {projects.length === 0 && (
@@ -232,7 +179,7 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
                       접근 가능한 프로젝트가 없습니다.
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      프로젝트에 초대받으면 여기에 표시됩니다.
+                      워크스페이스에서 프로젝트를 생성하면 자동으로 스토리지가 연결됩니다.
                     </p>
                   </div>
                 )}
