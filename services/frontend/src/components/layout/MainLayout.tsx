@@ -440,6 +440,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           hideToast(`toast-${notification.id}`);
         }}
       />
+
+      {/* 빌드 버전 정보 (우측 하단) */}
+      <div
+        className="fixed bottom-2 right-3 text-xs text-gray-400 z-10 select-none"
+        title={`Build: ${__BUILD_NUMBER__}-${__BUILD_SHA__}\nTime: ${__BUILD_TIME__}`}
+      >
+        © Oranges • v{__BUILD_NUMBER__}-{__BUILD_SHA__.slice(0, 7)}
+      </div>
     </div>
   );
 };
