@@ -198,11 +198,19 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
           setAllProfiles((prev) => prev.filter((p) => p.workspaceId !== selectedWorkspaceId));
         }
 
+        // 기본 프로필 데이터로 UI 업데이트
+        if (defaultProfile) {
+          setNickName(defaultProfile.nickName);
+          setAvatarPreviewUrl(defaultProfile.profileImageUrl || null);
+        }
+        setSelectedFile(null);
+
         // MainLayout/WorkspacePage에 프로필 업데이트 알림
         if (onProfileUpdated) {
           await onProfileUpdated();
         }
 
+        setLoading(false);
         alert('이 워크스페이스에서 기본 프로필을 사용합니다.');
         return;
       }
