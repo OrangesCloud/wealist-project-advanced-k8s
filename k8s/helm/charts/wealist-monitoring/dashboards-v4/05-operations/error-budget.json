@@ -452,19 +452,11 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "clamp_min(100 * (1 - (sum(rate(video_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[30d]) or vector(0)) / sum(rate(video_service_http_requests_total{namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "video-service",
-          "refId": "F"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "expr": "clamp_min(100 * (1 - (sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", status=~\"5..\"}[30d]) or vector(0)) / sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\"}[30d]))) / (1 - 0.999)), 0)",
           "format": "table",
           "instant": true,
           "legendFormat": "auth-service",
-          "refId": "G"
+          "refId": "F"
         }
       ],
       "title": "Error Budget by Service",
@@ -481,8 +473,7 @@
               "Value #C": "chat-service",
               "Value #D": "noti-service",
               "Value #E": "storage-service",
-              "Value #F": "video-service",
-              "Value #G": "auth-service"
+              "Value #F": "auth-service"
             }
           }
         },
