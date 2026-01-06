@@ -539,7 +539,7 @@ argocd:
 
 # k6 부하테스트 (테스트 시에만 수동 활성화)
 k6:
-  enabled: false  # 수동으로 테스트할 때만 true로 변경
+  enabled: true  # CronJob 생성 (suspend: true라 자동 실행 안 됨)
   prometheus:
     # routePrefix 포함 필수 (/api/monitoring/prometheus)
     remoteWriteUrl: "http://prometheus:9090/api/monitoring/prometheus/api/v1/write"
