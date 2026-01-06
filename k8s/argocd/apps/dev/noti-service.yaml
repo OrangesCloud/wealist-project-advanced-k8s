@@ -21,11 +21,11 @@ spec:
         - ../../environments/dev.yaml
       parameters:
         - name: global.imageRegistry
-          value: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
+          value: "AKIAUHBOU4ZZ62UGBPOF.dkr.ecr.ap-northeast-2.amazonaws.com"
         - name: image.repository
           value: "noti-service"
         - name: image.tag
-          value: "latest"
+          value: "157-b3ce51b"
         - name: imagePullSecrets[0].name
           value: "ecr-secret"
         - name: shared.config.DB_HOST
