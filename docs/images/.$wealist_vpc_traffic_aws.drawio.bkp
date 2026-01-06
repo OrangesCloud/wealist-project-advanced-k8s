@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.2.9 Chrome/140.0.7339.249 Electron/38.7.2 Safari/537.36" version="29.2.9">
   <diagram name="Traffic Flow" id="traffic-flow">
-    <mxGraphModel dx="1066" dy="1052" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+    <mxGraphModel dx="1022" dy="1008" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -55,8 +55,11 @@
         <mxCell id="rds-sg" parent="1" style="shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_security_group;strokeColor=#DD3522;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontStyle=1;fontColor=#DD3522;dashed=1;" value="RDS-SG" vertex="1">
           <mxGeometry height="150" width="160" x="920" y="180" as="geometry" />
         </mxCell>
-        <mxCell id="rds" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds;html=1;fillColor=#8C4FFF;strokeColor=#FFFFFF;fontColor=#FFFFFF;" value="" vertex="1">
+        <mxCell id="rds" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds;html=1;fillColor=#3B48CC;strokeColor=#FFFFFF;fontColor=#FFFFFF;" value="" vertex="1">
           <mxGeometry height="60" width="60" x="970" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="Yr7_CYnvqWk4lwZAftKx-2" edge="1" parent="1" source="rds-label" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="rds" value="">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="rds-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=10;fontColor=#666666;" value="PostgreSQL" vertex="1">
           <mxGeometry height="18" width="80" x="960" y="285" as="geometry" />
@@ -64,7 +67,7 @@
         <mxCell id="redis-sg" parent="1" style="shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_security_group;strokeColor=#DD3522;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontStyle=1;fontColor=#DD3522;dashed=1;" value="Redis-SG" vertex="1">
           <mxGeometry height="150" width="160" x="920" y="380" as="geometry" />
         </mxCell>
-        <mxCell id="redis" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.elasticache;html=1;fillColor=#8C4FFF;strokeColor=#FFFFFF;fontColor=#FFFFFF;" value="" vertex="1">
+        <mxCell id="redis" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.elasticache;html=1;fillColor=#3B48CC;strokeColor=#FFFFFF;fontColor=#FFFFFF;" value="" vertex="1">
           <mxGeometry height="60" width="60" x="970" y="420" as="geometry" />
         </mxCell>
         <mxCell id="redis-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=10;fontColor=#666666;" value="ElastiCache" vertex="1">
@@ -95,10 +98,10 @@
           <mxGeometry height="24" width="80" x="760" y="355" as="geometry" />
         </mxCell>
         <mxCell id="port-5432" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#DD3522;" value="5432" vertex="1">
-          <mxGeometry height="24" width="50" x="850" y="210" as="geometry" />
+          <mxGeometry height="24" width="50" x="860" y="200" as="geometry" />
         </mxCell>
         <mxCell id="port-6379" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#DD3522;" value="6379" vertex="1">
-          <mxGeometry height="24" width="50" x="850" y="412" as="geometry" />
+          <mxGeometry height="24" width="50" x="860" y="400" as="geometry" />
         </mxCell>
         <mxCell id="edge1" edge="1" parent="1" source="internet" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#232F3D;endArrow=classic;endSize=6;" target="cloudfront">
           <mxGeometry relative="1" as="geometry" />
@@ -109,7 +112,7 @@
         <mxCell id="edge3" edge="1" parent="1" source="alb-sg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#8C4FFF;endArrow=classic;endSize=6;" target="eks-sg">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge4" edge="1" parent="1" source="eks-sg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#8C4FFF;endArrow=classic;endSize=6;" target="rds-sg">
+        <mxCell id="edge4" edge="1" parent="1" source="eks-sg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#C925D1;endArrow=classic;endSize=6;" target="rds-sg">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="850" y="380" />
@@ -117,7 +120,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="edge5" edge="1" parent="1" source="eks-sg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#8C4FFF;endArrow=classic;endSize=6;" target="redis-sg">
+        <mxCell id="edge5" edge="1" parent="1" source="eks-sg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#C925D1;endArrow=classic;endSize=6;" target="redis-sg">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="850" y="380" />

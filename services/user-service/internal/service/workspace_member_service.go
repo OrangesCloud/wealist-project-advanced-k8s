@@ -239,10 +239,7 @@ func (s *WorkspaceService) UpdateMemberRole(workspaceID, memberID, updaterID uui
 		return nil, response.NewForbiddenError("Cannot assign owner role", "")
 	}
 
-	// ADMIN이 다른 ADMIN의 역할을 변경하려 하면 거부
-	if updaterRole == domain.RoleAdmin && member.RoleName == domain.RoleAdmin {
-		return nil, response.NewForbiddenError("Admins cannot change other admins' roles", "")
-	}
+	// ADMIN도 OWNER와 동일한 권한으로 다른 ADMIN의 역할 변경 가능
 
 	// 역할 업데이트
 	member.RoleName = req.RoleName
@@ -290,10 +287,7 @@ func (s *WorkspaceService) RemoveMember(workspaceID, memberID, removerID uuid.UU
 		if removerRole == domain.RoleMember {
 			return response.NewForbiddenError("Members cannot remove others", "")
 		}
-		// ADMIN이 다른 ADMIN 제거 시도 시 거부
-		if removerRole == domain.RoleAdmin && member.RoleName == domain.RoleAdmin {
-			return response.NewForbiddenError("Admins cannot remove other admins", "")
-		}
+		// ADMIN도 OWNER와 동일한 권한으로 다른 ADMIN 제거 가능
 	}
 
 	// 소유자는 제거 불가
