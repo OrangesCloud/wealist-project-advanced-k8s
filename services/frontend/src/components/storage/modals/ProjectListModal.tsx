@@ -1,12 +1,11 @@
 // src/components/storage/modals/ProjectListModal.tsx
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, FolderKanban, Settings, Trash2, MoreVertical, HardDrive } from 'lucide-react';
+import { X, FolderKanban, Settings, Trash2, MoreVertical, HardDrive } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import type { StorageProject, ProjectPermission } from '../../../types/storage';
 import {
   getWorkspaceProjects,
-  createProject,
   deleteProject,
   getMyProjectPermission,
 } from '../../../api/storageService';
@@ -33,10 +32,6 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
   const { theme } = useTheme();
   const [projects, setProjects] = useState<ProjectWithPermission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectDescription, setNewProjectDescription] = useState('');
-  const [error, setError] = useState('');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // 프로젝트 목록 로드
@@ -64,33 +59,6 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
 
     loadProjects();
   }, [workspaceId]);
-
-  // 프로젝트 생성
-  const handleCreateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!newProjectName.trim()) {
-      setError('프로젝트 이름을 입력해주세요.');
-      return;
-    }
-
-    try {
-      const newProject = await createProject({
-        workspaceId,
-        name: newProjectName.trim(),
-        description: newProjectDescription.trim() || undefined,
-      });
-
-      setProjects([...projects, { ...newProject, myPermission: 'OWNER' }]);
-      setNewProjectName('');
-      setNewProjectDescription('');
-      setShowCreateForm(false);
-      setError('');
-    } catch (err) {
-      console.error('Failed to create project:', err);
-      setError('프로젝트 생성에 실패했습니다.');
-    }
-  };
 
   // 프로젝트 삭제
   const handleDeleteProject = async (projectId: string) => {
@@ -261,71 +229,14 @@ export const ProjectListModal: React.FC<ProjectListModalProps> = ({
                 {projects.length === 0 && (
                   <div className="text-center py-4">
                     <p className="text-sm text-gray-500">
-                      프로젝트가 없습니다.
+                      접근 가능한 프로젝트가 없습니다.
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      프로젝트를 생성하여 파일을 분류할 수 있습니다.
+                      프로젝트에 초대받으면 여기에 표시됩니다.
                     </p>
                   </div>
                 )}
               </div>
-
-              {/* 프로젝트 생성 폼 */}
-              {showCreateForm ? (
-                <form onSubmit={handleCreateProject} className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="mb-3">
-                    <input
-                      type="text"
-                      value={newProjectName}
-                      onChange={(e) => {
-                        setNewProjectName(e.target.value);
-                        setError('');
-                      }}
-                      placeholder="프로젝트 이름"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      autoFocus
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <input
-                      type="text"
-                      value={newProjectDescription}
-                      onChange={(e) => setNewProjectDescription(e.target.value)}
-                      placeholder="설명 (선택사항)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  {error && <p className="mb-3 text-sm text-red-500">{error}</p>}
-                  <div className="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCreateForm(false);
-                        setNewProjectName('');
-                        setNewProjectDescription('');
-                        setError('');
-                      }}
-                      className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition"
-                    >
-                      취소
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                    >
-                      생성
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <button
-                  onClick={() => setShowCreateForm(true)}
-                  className="mt-4 w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500 transition"
-                >
-                  <Plus className="w-5 h-5" />
-                  새 프로젝트
-                </button>
-              )}
             </>
           )}
         </div>
