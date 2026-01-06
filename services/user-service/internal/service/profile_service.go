@@ -84,8 +84,23 @@ func (s *ProfileService) CreateProfile(userID uuid.UUID, req domain.CreateProfil
 }
 
 // GetMyProfile gets user's profile for a workspace
+// If no profile exists for the specific workspace, falls back to the default workspace profile
 func (s *ProfileService) GetMyProfile(userID, workspaceID uuid.UUID) (*domain.UserProfile, error) {
-	return s.profileRepo.FindByUserAndWorkspace(userID, workspaceID)
+	profile, err := s.profileRepo.FindByUserAndWorkspace(userID, workspaceID)
+	if err == nil {
+		return profile, nil
+	}
+
+	// Fallback to default workspace profile if not found
+	defaultWorkspaceID := uuid.MustParse("00000000-0000-0000-0000-000000000000")
+	if workspaceID != defaultWorkspaceID {
+		s.logger.Debug("Workspace profile not found, falling back to default profile",
+			zap.String("user_id", userID.String()),
+			zap.String("workspace_id", workspaceID.String()))
+		return s.profileRepo.FindByUserAndWorkspace(userID, defaultWorkspaceID)
+	}
+
+	return nil, err
 }
 
 // GetAllMyProfiles gets all profiles for a user
