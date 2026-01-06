@@ -557,11 +557,15 @@ export const StorageView: React.FC<StorageViewProps> = ({
                 >
                   {/* 썸네일 영역 */}
                   <div className="aspect-[4/3] bg-[#f8f9fa] flex items-center justify-center relative">
-                    {file.isImage && file.fileUrl ? (
+                    {(file.isImage || getFileCategory(file.extension) === 'image') && file.fileUrl ? (
                       <img
                         src={file.fileUrl}
                         alt={file.name}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // 이미지 로드 실패 시 숨기고 아이콘 표시
+                          e.currentTarget.style.display = 'none';
+                        }}
                       />
                     ) : (
                       <div className="flex items-center justify-center">
