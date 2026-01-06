@@ -22,7 +22,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({
 
   return (
     <div
-      className={`fixed bottom-4 left-16 w-64 ${theme.colors.card} ${theme.effects.cardBorderWidth} ${theme.colors.border} z-50 ${theme.effects.borderRadius} shadow-2xl`}
+      className={`fixed bottom-16 left-16 w-64 ${theme.colors.card} ${theme.effects.cardBorderWidth} ${theme.colors.border} z-[9999] ${theme.effects.borderRadius} shadow-2xl`}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="p-3 pb-3 mb-2 border-b border-gray-200">
