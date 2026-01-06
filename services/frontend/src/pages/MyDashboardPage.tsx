@@ -498,7 +498,7 @@ const MyDashboardPage: React.FC = () => {
                               </p>
                             </div>
                             <div className="flex items-center gap-1">
-                              {workspace.owner && (
+                              {(workspace.owner || workspace.role === 'ADMIN') && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
