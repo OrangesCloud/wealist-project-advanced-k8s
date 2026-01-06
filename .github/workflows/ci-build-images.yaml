@@ -350,7 +350,7 @@ jobs:
           if [ "${ENV}" = "prod" ]; then
             TAGS="${ECR_REGISTRY}/${REPO_NAME}:${TAG}"
           else
-            TAGS="${ECR_REGISTRY}/${REPO_NAME}:${TAG},${ECR_REGISTRY}/${REPO_NAME}:latest"
+            TAGS="${ECR_REGISTRY}/${REPO_NAME}:${TAG},${ECR_REGISTRY}/${REPO_NAME}:dev-latest"
           fi
           echo "all_tags=${TAGS}" >> $GITHUB_OUTPUT
 

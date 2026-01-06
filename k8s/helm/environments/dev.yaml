@@ -296,7 +296,6 @@ istio:
     - name: chat-service
     - name: noti-service
     - name: storage-service
-    - name: video-service
 
   destinationRules:
     enabled: true

@@ -10,6 +10,10 @@ import {
   LogOut,
   Shield,
   ShieldCheck,
+  AlertTriangle,
+  Target,
+  GitBranch,
+  Terminal,
 } from 'lucide-react'
 
 interface NavItem {
@@ -25,6 +29,10 @@ const navItems: NavItem[] = [
   { label: 'Audit Logs', path: '/audit', icon: <FileText size={20} />, roles: ['admin'] },
   { label: 'ArgoCD RBAC', path: '/argocd-rbac', icon: <ShieldCheck size={20} />, roles: ['admin'] },
   { label: 'Monitoring', path: '/monitoring', icon: <Activity size={20} /> },
+  { label: 'SLO Dashboard', path: '/slo', icon: <Target size={20} /> },
+  { label: 'Error Tracker', path: '/errors', icon: <AlertTriangle size={20} /> },
+  { label: 'Deployments', path: '/deployments', icon: <GitBranch size={20} /> },
+  { label: 'Logs', path: '/logs', icon: <Terminal size={20} /> },
   { label: 'App Config', path: '/config', icon: <Settings size={20} />, roles: ['admin', 'pm'] },
 ]
 

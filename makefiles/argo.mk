@@ -542,16 +542,30 @@ argo-reset-apps: ## [Reset] ArgoCD 앱만 리셋 (클러스터 유지)
 	$(MAKE) argo-deploy-dev
 	@echo -e "$(GREEN)✅ ArgoCD 앱 리셋 완료$(NC)"
 
-# GitHub 토큰: 환경변수 또는 CLI 입력
-argo-add-repo-auto: ## Git 레포 자동 등록 (CLI 입력 또는 환경변수 GITHUB_TOKEN)
+# GitHub 토큰: 환경변수 또는 AWS Secrets Manager
+argo-add-repo-auto: ## Git 레포 자동 등록 (환경변수 GITHUB_TOKEN 또는 AWS Secrets Manager)
 	@GITHUB_USER=$${GITHUB_USER:-212clab}; \
 	REPO_URL="https://github.com/212clab/wealist-project-advanced-k8s-forked.git"; \
 	if [ -z "$$GITHUB_TOKEN" ]; then \
+		echo "환경변수 GITHUB_TOKEN이 없습니다. AWS Secrets Manager에서 가져옵니다..."; \
+		GITHUB_SECRET=$$(aws secretsmanager get-secret-value \
+			--secret-id "wealist/dev/github/token" \
+			--query SecretString --output text 2>/dev/null || echo ""); \
+		if [ -n "$$GITHUB_SECRET" ]; then \
+			GITHUB_TOKEN=$$(echo "$$GITHUB_SECRET" | jq -r '.token // empty' 2>/dev/null); \
+			if [ -n "$$GITHUB_TOKEN" ]; then \
+				echo "✅ AWS Secrets Manager에서 GitHub Token 로드 완료"; \
+			fi; \
+		fi; \
+	fi; \
+	if [ -z "$$GITHUB_TOKEN" ]; then \
 		echo ""; \
-		echo "GitHub Personal Access Token이 필요합니다."; \
-		echo "Token 생성: https://github.com/settings/tokens (repo 권한)"; \
+		echo "⚠️  GitHub Token을 찾을 수 없습니다."; \
+		echo "   환경변수(GITHUB_TOKEN) 또는"; \
+		echo "   AWS Secrets Manager(wealist/dev/github/token)에 설정하세요."; \
 		echo ""; \
-		read -p "GitHub Token: " GITHUB_TOKEN; \
+		echo "   Token 생성: https://github.com/settings/tokens (repo 권한)"; \
+		exit 1; \
 	fi; \
 	echo "Git 레포 등록: $$REPO_URL (User: $$GITHUB_USER)"; \
 	kubectl -n argocd create secret generic repo-creds \
