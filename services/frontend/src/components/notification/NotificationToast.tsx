@@ -15,6 +15,7 @@ interface NotificationToastProps {
 
 const getNotificationIcon = (type: Notification['type']) => {
   if (type === 'PARTICIPANT_ADDED') return Users;
+  if (type.startsWith('BOARD_')) return FolderKanban;
   if (type.startsWith('TASK_')) return ClipboardList;
   if (type.startsWith('COMMENT_')) return MessageCircle;
   if (type.startsWith('WORKSPACE_')) return Users;
@@ -23,6 +24,13 @@ const getNotificationIcon = (type: Notification['type']) => {
 };
 
 const getNotificationColor = (type: Notification['type']): string => {
+  // Board notifications
+  if (type === 'BOARD_ASSIGNED' || type === 'BOARD_PARTICIPANT_ADDED') return 'bg-blue-500';
+  if (type === 'BOARD_COMMENT_ADDED') return 'bg-green-500';
+  if (type === 'BOARD_DUE_SOON' || type === 'BOARD_OVERDUE') return 'bg-orange-500';
+  if (type === 'BOARD_UPDATED' || type === 'BOARD_STATUS_CHANGED') return 'bg-indigo-500';
+  if (type === 'BOARD_UNASSIGNED') return 'bg-gray-500';
+  // Task notifications (legacy)
   if (type === 'TASK_ASSIGNED' || type === 'PARTICIPANT_ADDED') return 'bg-blue-500';
   if (type.startsWith('COMMENT_')) return 'bg-green-500';
   if (type.startsWith('TASK_DUE') || type.startsWith('TASK_OVERDUE')) return 'bg-orange-500';

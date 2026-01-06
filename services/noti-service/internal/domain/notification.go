@@ -31,6 +31,16 @@ const (
 	NotificationTypeProjectInvited     NotificationType = "PROJECT_INVITED"
 	NotificationTypeProjectRoleChanged NotificationType = "PROJECT_ROLE_CHANGED"
 	NotificationTypeProjectRemoved     NotificationType = "PROJECT_REMOVED"
+
+	// Board (Kanban) events
+	NotificationTypeBoardAssigned        NotificationType = "BOARD_ASSIGNED"
+	NotificationTypeBoardUnassigned      NotificationType = "BOARD_UNASSIGNED"
+	NotificationTypeBoardParticipantAdded NotificationType = "BOARD_PARTICIPANT_ADDED"
+	NotificationTypeBoardUpdated         NotificationType = "BOARD_UPDATED"
+	NotificationTypeBoardStatusChanged   NotificationType = "BOARD_STATUS_CHANGED"
+	NotificationTypeBoardCommentAdded    NotificationType = "BOARD_COMMENT_ADDED"
+	NotificationTypeBoardDueSoon         NotificationType = "BOARD_DUE_SOON"
+	NotificationTypeBoardOverdue         NotificationType = "BOARD_OVERDUE"
 )
 
 // ResourceType defines the type of resource

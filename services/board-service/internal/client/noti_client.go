@@ -21,9 +21,15 @@ import (
 type NotificationType string
 
 const (
-	NotificationTypeTaskAssigned    NotificationType = "TASK_ASSIGNED"
-	NotificationTypeTaskUpdated     NotificationType = "TASK_STATUS_CHANGED"
-	NotificationTypeCommentAdded    NotificationType = "COMMENT_ADDED"
+	// Board (Kanban) notification types
+	NotificationTypeBoardAssigned        NotificationType = "BOARD_ASSIGNED"
+	NotificationTypeBoardUnassigned      NotificationType = "BOARD_UNASSIGNED"
+	NotificationTypeBoardParticipantAdded NotificationType = "BOARD_PARTICIPANT_ADDED"
+	NotificationTypeBoardUpdated         NotificationType = "BOARD_UPDATED"
+	NotificationTypeBoardStatusChanged   NotificationType = "BOARD_STATUS_CHANGED"
+	NotificationTypeBoardCommentAdded    NotificationType = "BOARD_COMMENT_ADDED"
+	NotificationTypeBoardDueSoon         NotificationType = "BOARD_DUE_SOON"
+	NotificationTypeBoardOverdue         NotificationType = "BOARD_OVERDUE"
 )
 
 // ResourceType defines resource types matching noti-service
@@ -176,15 +182,15 @@ func (c *notiClient) doRequest(ctx context.Context, url string, payload interfac
 	return nil
 }
 
-// Helper function to create a task assignment notification
-func NewTaskAssignedNotification(actorID, targetUserID, workspaceID, boardID uuid.UUID, boardTitle string) *NotificationEvent {
+// NewBoardAssignedNotification creates a notification for board assignment
+func NewBoardAssignedNotification(actorID, targetUserID, workspaceID, boardID uuid.UUID, boardTitle string) *NotificationEvent {
 	title := boardTitle
 	return &NotificationEvent{
-		Type:         NotificationTypeTaskAssigned,
+		Type:         NotificationTypeBoardAssigned,
 		ActorID:      actorID,
 		TargetUserID: targetUserID,
 		WorkspaceID:  workspaceID,
-		ResourceType: ResourceTypeTask,
+		ResourceType: ResourceTypeBoard,
 		ResourceID:   boardID,
 		ResourceName: &title,
 		Metadata: map[string]interface{}{
@@ -193,20 +199,125 @@ func NewTaskAssignedNotification(actorID, targetUserID, workspaceID, boardID uui
 	}
 }
 
-// Helper function to create a task update notification
-func NewTaskUpdatedNotification(actorID, targetUserID, workspaceID, boardID uuid.UUID, boardTitle string, changeType string) *NotificationEvent {
+// NewBoardUnassignedNotification creates a notification for board unassignment
+func NewBoardUnassignedNotification(actorID, targetUserID, workspaceID, boardID uuid.UUID, boardTitle string) *NotificationEvent {
 	title := boardTitle
 	return &NotificationEvent{
-		Type:         NotificationTypeTaskUpdated,
+		Type:         NotificationTypeBoardUnassigned,
 		ActorID:      actorID,
 		TargetUserID: targetUserID,
 		WorkspaceID:  workspaceID,
-		ResourceType: ResourceTypeTask,
+		ResourceType: ResourceTypeBoard,
 		ResourceID:   boardID,
 		ResourceName: &title,
 		Metadata: map[string]interface{}{
 			"boardTitle": boardTitle,
-			"changeType": changeType,
+		},
+	}
+}
+
+// NewBoardParticipantAddedNotification creates a notification when a participant is added
+func NewBoardParticipantAddedNotification(actorID, targetUserID, workspaceID, boardID uuid.UUID, boardTitle string) *NotificationEvent {
+	title := boardTitle
+	return &NotificationEvent{
+		Type:         NotificationTypeBoardParticipantAdded,
+		ActorID:      actorID,
+		TargetUserID: targetUserID,
+		WorkspaceID:  workspaceID,
+		ResourceType: ResourceTypeBoard,
+		ResourceID:   boardID,
+		ResourceName: &title,
+		Metadata: map[string]interface{}{
+			"boardTitle": boardTitle,
+		},
+	}
+}
+
+// NewBoardUpdatedNotification creates a notification for board updates
+func NewBoardUpdatedNotification(actorID, targetUserID, workspaceID, boardID uuid.UUID, boardTitle string) *NotificationEvent {
+	title := boardTitle
+	return &NotificationEvent{
+		Type:         NotificationTypeBoardUpdated,
+		ActorID:      actorID,
+		TargetUserID: targetUserID,
+		WorkspaceID:  workspaceID,
+		ResourceType: ResourceTypeBoard,
+		ResourceID:   boardID,
+		ResourceName: &title,
+		Metadata: map[string]interface{}{
+			"boardTitle": boardTitle,
+		},
+	}
+}
+
+// NewBoardStatusChangedNotification creates a notification for board status changes
+func NewBoardStatusChangedNotification(actorID, targetUserID, workspaceID, boardID uuid.UUID, boardTitle string, oldStatus, newStatus string) *NotificationEvent {
+	title := boardTitle
+	return &NotificationEvent{
+		Type:         NotificationTypeBoardStatusChanged,
+		ActorID:      actorID,
+		TargetUserID: targetUserID,
+		WorkspaceID:  workspaceID,
+		ResourceType: ResourceTypeBoard,
+		ResourceID:   boardID,
+		ResourceName: &title,
+		Metadata: map[string]interface{}{
+			"boardTitle": boardTitle,
+			"oldStatus":  oldStatus,
+			"newStatus":  newStatus,
+		},
+	}
+}
+
+// NewBoardCommentAddedNotification creates a notification for new comments on a board
+func NewBoardCommentAddedNotification(actorID, targetUserID, workspaceID, boardID uuid.UUID, boardTitle string) *NotificationEvent {
+	title := boardTitle
+	return &NotificationEvent{
+		Type:         NotificationTypeBoardCommentAdded,
+		ActorID:      actorID,
+		TargetUserID: targetUserID,
+		WorkspaceID:  workspaceID,
+		ResourceType: ResourceTypeBoard,
+		ResourceID:   boardID,
+		ResourceName: &title,
+		Metadata: map[string]interface{}{
+			"boardTitle": boardTitle,
+		},
+	}
+}
+
+// NewBoardDueSoonNotification creates a notification when board due date is approaching
+func NewBoardDueSoonNotification(actorID, targetUserID, workspaceID, boardID uuid.UUID, boardTitle string, dueDate string) *NotificationEvent {
+	title := boardTitle
+	return &NotificationEvent{
+		Type:         NotificationTypeBoardDueSoon,
+		ActorID:      actorID,
+		TargetUserID: targetUserID,
+		WorkspaceID:  workspaceID,
+		ResourceType: ResourceTypeBoard,
+		ResourceID:   boardID,
+		ResourceName: &title,
+		Metadata: map[string]interface{}{
+			"boardTitle": boardTitle,
+			"dueDate":    dueDate,
+		},
+	}
+}
+
+// NewBoardOverdueNotification creates a notification when board is overdue
+func NewBoardOverdueNotification(actorID, targetUserID, workspaceID, boardID uuid.UUID, boardTitle string, dueDate string) *NotificationEvent {
+	title := boardTitle
+	return &NotificationEvent{
+		Type:         NotificationTypeBoardOverdue,
+		ActorID:      actorID,
+		TargetUserID: targetUserID,
+		WorkspaceID:  workspaceID,
+		ResourceType: ResourceTypeBoard,
+		ResourceID:   boardID,
+		ResourceName: &title,
+		Metadata: map[string]interface{}{
+			"boardTitle": boardTitle,
+			"dueDate":    dueDate,
 		},
 	}
 }
