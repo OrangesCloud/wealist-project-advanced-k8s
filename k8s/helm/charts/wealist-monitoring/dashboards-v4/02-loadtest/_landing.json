@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "[Main] Load Test Dashboard - k6 results + system impact analysis",
+  "description": "[메인] 부하 테스트 대시보드 - k6 결과 + 시스템 영향 분석",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -25,8 +25,8 @@
       "keepTime": true,
       "tags": [],
       "targetBlank": true,
-      "title": "k6 Details",
-      "tooltip": "Detailed k6 metrics",
+      "title": "k6 상세",
+      "tooltip": "k6 상세 메트릭",
       "type": "link",
       "url": "/d/k6-performance-dashboard/k6-performance-dashboard"
     }
@@ -38,7 +38,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 1,
       "panels": [],
-      "title": "Test Overview",
+      "title": "테스트 개요",
       "type": "row"
     },
     {
@@ -74,7 +74,7 @@
           "refId": "A"
         }
       ],
-      "title": "Peak VUs",
+      "title": "최대 VU 수",
       "type": "stat"
     },
     {
@@ -110,7 +110,7 @@
           "refId": "A"
         }
       ],
-      "title": "Total Requests",
+      "title": "전체 요청 수",
       "type": "stat"
     },
     {
@@ -146,7 +146,7 @@
           "refId": "A"
         }
       ],
-      "title": "Peak RPS",
+      "title": "최대 RPS",
       "type": "stat"
     },
     {
@@ -186,7 +186,7 @@
           "refId": "A"
         }
       ],
-      "title": "Error Rate",
+      "title": "에러율",
       "type": "stat"
     },
     {
@@ -226,7 +226,7 @@
           "refId": "A"
         }
       ],
-      "title": "P95 Latency",
+      "title": "응답시간 p95",
       "type": "stat"
     },
     {
@@ -266,7 +266,7 @@
           "refId": "A"
         }
       ],
-      "title": "P99 Latency",
+      "title": "응답시간 p99",
       "type": "stat"
     },
     {
@@ -274,7 +274,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
       "id": 10,
       "panels": [],
-      "title": "Load Profile & Response Times",
+      "title": "부하 프로필 & 응답 시간",
       "type": "row"
     },
     {
@@ -330,7 +330,7 @@
           "refId": "B"
         }
       ],
-      "title": "Virtual Users & Request Rate",
+      "title": "가상 사용자 & 요청률",
       "type": "timeseries"
     },
     {
@@ -399,7 +399,7 @@
           "refId": "C"
         }
       ],
-      "title": "Response Time Percentiles",
+      "title": "응답 시간 백분위",
       "type": "timeseries"
     },
     {
@@ -407,7 +407,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
       "id": 20,
       "panels": [],
-      "title": "System Impact During Test",
+      "title": "테스트 중 시스템 영향",
       "type": "row"
     },
     {
@@ -457,7 +457,7 @@
           "refId": "A"
         }
       ],
-      "title": "Service CPU Usage",
+      "title": "서비스 CPU 사용량",
       "type": "timeseries"
     },
     {
@@ -507,7 +507,7 @@
           "refId": "A"
         }
       ],
-      "title": "Service Memory Usage",
+      "title": "서비스 메모리 사용량",
       "type": "timeseries"
     },
     {
@@ -515,7 +515,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
       "id": 30,
       "panels": [],
-      "title": "SLA Compliance",
+      "title": "SLA 준수",
       "type": "row"
     },
     {
@@ -555,7 +555,7 @@
           "refId": "A"
         }
       ],
-      "title": "Availability (2xx)",
+      "title": "가용성 (2xx)",
       "type": "stat"
     },
     {
@@ -595,7 +595,7 @@
           "refId": "A"
         }
       ],
-      "title": "Latency SLA (< 500ms)",
+      "title": "응답 SLA (< 500ms)",
       "type": "stat"
     },
     {
@@ -635,7 +635,7 @@
           "refId": "A"
         }
       ],
-      "title": "Latency SLA (< 1s)",
+      "title": "응답 SLA (< 1s)",
       "type": "stat"
     }
   ],
@@ -663,7 +663,7 @@
   "time": { "from": "now-30m", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "[Main] Load Test Dashboard",
+  "title": "[메인] 부하 테스트 대시보드",
   "uid": "loadtest-landing",
   "version": 1,
   "weekStart": ""
