@@ -22,8 +22,9 @@ spec:
         app: prometheus
         app.kubernetes.io/name: prometheus
       annotations:
-        # Sidecar 활성화 - mTLS 서비스 스크레이핑을 위해 필요
-        sidecar.istio.io/inject: "true"
+        # Sidecar 비활성화 - Envoy 메트릭 스크래핑 시 sidecar 간섭 방지
+        # reporter="destination" 메트릭 수집을 위해 필요
+        sidecar.istio.io/inject: "false"
         # ConfigMap 변경 시 자동 Pod 재시작을 위한 checksum
         checksum/config: {{ include (print $.Template.BasePath "/prometheus/configmap.yaml") . | sha256sum }}
         {{- if .Values.prometheus.alerting.enabled }}
