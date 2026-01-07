@@ -68,11 +68,10 @@ func SeedDefaultData(db *gorm.DB) error {
 	result := db.Where("id = ?", SystemUserID).First(&systemUser)
 	if result.Error == gorm.ErrRecordNotFound {
 		systemUser = domain.User{
-			ID:           SystemUserID,
-			Email:        "system@wealist.internal",
-			PasswordHash: "", // No password for system user
-			IsActive:     true,
-			CreatedAt:    time.Now(),
+			ID:        SystemUserID,
+			Email:     "system@wealist.internal",
+			IsActive:  true,
+			CreatedAt: time.Now(),
 		}
 		if err := db.Create(&systemUser).Error; err != nil {
 			return fmt.Errorf("failed to create system user: %w", err)
