@@ -56,7 +56,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 * (\n  sum(rate(board_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(user_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(chat_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(noti_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(storage_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(video_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n) / (\n  sum(rate(board_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(user_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(chat_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(noti_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(storage_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(video_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n)",
+          "expr": "100 * (\n  sum(rate(board_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(user_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(chat_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(noti_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n  + sum(rate(storage_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0))\n) / (\n  sum(rate(board_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(user_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(chat_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(noti_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n  + sum(rate(storage_service_http_requests_total{namespace=~\"$namespace\"}[5m]) or vector(0))\n)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -248,15 +248,9 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 * sum(rate(video_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0)) / sum(rate(video_service_http_requests_total{namespace=~\"$namespace\"}[5m]))",
-          "legendFormat": "video-service",
-          "refId": "F"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "expr": "100 * sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", status=~\"5..\"}[5m]) or vector(0)) / sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\"}[5m]))",
           "legendFormat": "auth-service",
-          "refId": "G"
+          "refId": "F"
         }
       ],
       "title": "Service Error Rate",
@@ -592,15 +586,9 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 * sum(rate(video_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[1m]) or vector(0)) / sum(rate(video_service_http_requests_total{namespace=~\"$namespace\"}[1m]))",
-          "legendFormat": "video-service",
-          "refId": "F"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "expr": "100 * sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", status=~\"5..\"}[1m]) or vector(0)) / sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\"}[1m]))",
           "legendFormat": "auth-service",
-          "refId": "G"
+          "refId": "F"
         }
       ],
       "title": "Error Rate (1m rolling)",
@@ -685,15 +673,9 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate(video_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[1m])) by (le)) * 1000",
-          "legendFormat": "video-service",
-          "refId": "F"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\"}[1m])) by (le)) * 1000",
           "legendFormat": "auth-service",
-          "refId": "G"
+          "refId": "F"
         }
       ],
       "title": "p95 Latency (1m rolling)",
