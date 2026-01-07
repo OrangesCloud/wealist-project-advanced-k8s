@@ -161,7 +161,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                userProfile?.nickName[0]?.toUpperCase() || '나'
+                userProfile?.nickName?.[0]?.toUpperCase() || '나'
               )}
             </div>
             {/* 💡 온라인 상태 인디케이터 */}

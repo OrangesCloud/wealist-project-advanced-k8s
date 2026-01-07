@@ -245,4 +245,92 @@ data:
       check(res, { 'status is 200': (r) => r.status === 200 });
       sleep(0.1);
     }
+
+  user-service-test.js: |
+    /**
+     * k6 User Service Test - weAlist
+     * user-service 전용 트래픽 생성 (카나리 배포 관측용)
+     */
+    import http from 'k6/http';
+    import { check, sleep, group } from 'k6';
+    import { Rate, Trend, Counter } from 'k6/metrics';
+
+    const errorRate = new Rate('errors');
+    const userLatency = new Trend('user_latency', true);
+    const healthLatency = new Trend('health_latency', true);
+    const requestCount = new Counter('request_count');
+
+    export const options = {
+      scenarios: {
+        user_service_test: {
+          executor: 'ramping-vus',
+          startVUs: 0,
+          stages: [
+            { duration: '30s', target: 10 },
+            { duration: '2m', target: 10 },
+            { duration: '30s', target: 0 },
+          ],
+          gracefulRampDown: '10s',
+        },
+      },
+      thresholds: {
+        http_req_duration: ['p(95)<500', 'p(99)<1000'],
+        http_req_failed: ['rate<0.05'],
+        errors: ['rate<0.05'],
+        user_latency: ['p(95)<400'],
+      },
+    };
+
+    const BASE_URL = '{{ .Values.k6.endpoints.baseUrl }}';
+    const HOST_HEADER = '{{ .Values.k6.endpoints.hostHeader | default "api.wealist.co.kr" }}';
+    const params = { headers: { 'Host': HOST_HEADER, 'Content-Type': 'application/json' } };
+
+    function handleResponse(res, metricTrend, name) {
+      const success = res.status >= 200 && res.status < 400;
+      errorRate.add(!success);
+      requestCount.add(1);
+      if (metricTrend) metricTrend.add(res.timings.duration);
+      check(res, {
+        [`${name} status ok`]: (r) => r.status >= 200 && r.status < 400,
+        [`${name} < 500ms`]: (r) => r.timings.duration < 500,
+      });
+      return success;
+    }
+
+    export default function () {
+      group('User Service Health', function () {
+        const liveRes = http.get(`${BASE_URL}/api/svc/user/health/live`, params);
+        handleResponse(liveRes, healthLatency, 'user health live');
+        const readyRes = http.get(`${BASE_URL}/api/svc/user/health/ready`, params);
+        handleResponse(readyRes, healthLatency, 'user health ready');
+      });
+      sleep(0.3);
+
+      group('User Profile', function () {
+        const profileRes = http.get(`${BASE_URL}/api/svc/user/api/users/me`, params);
+        const success = profileRes.status === 200 || profileRes.status === 401;
+        errorRate.add(!success);
+        userLatency.add(profileRes.timings.duration);
+      });
+      sleep(0.3);
+
+      group('User Workspaces', function () {
+        const workspacesRes = http.get(`${BASE_URL}/api/svc/user/api/workspaces`, params);
+        const success = workspacesRes.status === 200 || workspacesRes.status === 401;
+        errorRate.add(!success);
+        userLatency.add(workspacesRes.timings.duration);
+      });
+      sleep(0.5);
+    }
+
+    export function setup() {
+      console.log(`Starting User Service Test against ${BASE_URL}`);
+      const healthRes = http.get(`${BASE_URL}/api/svc/user/health/live`, params);
+      if (healthRes.status !== 200) console.error('User service is not healthy!');
+      return { startTime: new Date().toISOString() };
+    }
+
+    export function teardown(data) {
+      console.log(`User Service Test completed. Started at: ${data.startTime}`);
+    }
 {{- end }}

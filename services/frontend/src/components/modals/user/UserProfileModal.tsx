@@ -447,7 +447,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ onClose, onProfileU
                     />
                   ) : (
                     <div className="w-24 h-24 bg-blue-500 border-2 border-gray-300 flex items-center justify-center text-white text-3xl font-bold rounded-full">
-                      {nickName[0] || 'U'}
+                      {nickName?.[0] || 'U'}
                     </div>
                   )}
 

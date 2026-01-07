@@ -129,6 +129,13 @@ func main() {
 		logger.Info("Database auto-migration disabled (DB_AUTO_MIGRATE=false)")
 	}
 
+	// Seed default data (system user, default workspace) - always run
+	if err := database.SeedDefaultData(db); err != nil {
+		logger.Warn("Failed to seed default data", zap.Error(err))
+	} else {
+		logger.Info("Default data seeded successfully")
+	}
+
 	// Initialize S3 client
 	var s3Client *client.S3Client
 	if cfg.S3.Bucket != "" && cfg.S3.Region != "" {
