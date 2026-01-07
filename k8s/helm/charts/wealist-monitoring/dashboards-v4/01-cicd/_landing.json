@@ -2,7 +2,7 @@
   "annotations": {
     "list": []
   },
-  "description": "[Main] CI/CD Dashboard - ArgoCD + GitHub Actions unified view",
+  "description": "[메인] CI/CD 대시보드 - ArgoCD + GitHub Actions 통합 뷰",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -15,8 +15,8 @@
       "keepTime": true,
       "tags": [],
       "targetBlank": true,
-      "title": "ArgoCD Dashboard",
-      "tooltip": "ArgoCD detailed metrics",
+      "title": "ArgoCD 대시보드",
+      "tooltip": "ArgoCD 상세 메트릭",
       "type": "link",
       "url": "/d/argocd-overview/argocd-overview"
     },
@@ -28,7 +28,7 @@
       "tags": [],
       "targetBlank": true,
       "title": "GitHub Actions",
-      "tooltip": "GitHub Actions CI metrics",
+      "tooltip": "GitHub Actions CI 메트릭",
       "type": "link",
       "url": "/d/github-actions/github-actions"
     }
@@ -40,7 +40,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 1,
       "panels": [],
-      "title": "CI/CD Overview",
+      "title": "CI/CD 현황",
       "type": "row"
     },
     {
@@ -78,7 +78,7 @@
           "refId": "A"
         }
       ],
-      "title": "Total ArgoCD Apps",
+      "title": "전체 ArgoCD 앱 수",
       "type": "stat"
     },
     {
@@ -116,7 +116,7 @@
           "refId": "A"
         }
       ],
-      "title": "Apps Synced",
+      "title": "Synced 앱",
       "type": "stat"
     },
     {
@@ -155,7 +155,7 @@
           "refId": "A"
         }
       ],
-      "title": "Apps OutOfSync",
+      "title": "OutOfSync 앱",
       "type": "stat"
     },
     {
@@ -193,7 +193,7 @@
           "refId": "A"
         }
       ],
-      "title": "Apps Healthy",
+      "title": "Healthy 앱",
       "type": "stat"
     },
     {
@@ -232,7 +232,7 @@
           "refId": "A"
         }
       ],
-      "title": "Apps Degraded",
+      "title": "Degraded 앱",
       "type": "stat"
     },
     {
@@ -270,7 +270,7 @@
           "refId": "A"
         }
       ],
-      "title": "Clusters",
+      "title": "클러스터",
       "type": "stat"
     },
     {
@@ -316,7 +316,7 @@
           "refId": "A"
         }
       ],
-      "title": "Total Builds (24h)",
+      "title": "전체 빌드 수 (24h)",
       "type": "stat"
     },
     {
@@ -356,7 +356,7 @@
           "refId": "A"
         }
       ],
-      "title": "Build Success Rate",
+      "title": "빌드 성공률",
       "type": "stat"
     },
     {
@@ -396,7 +396,7 @@
           "refId": "A"
         }
       ],
-      "title": "Avg Build Duration",
+      "title": "평균 빌드 시간",
       "type": "stat"
     },
     {
@@ -435,7 +435,7 @@
           "refId": "A"
         }
       ],
-      "title": "Failed Builds (24h)",
+      "title": "실패한 빌드 (24h)",
       "type": "stat"
     },
     {
@@ -443,7 +443,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 10 },
       "id": 20,
       "panels": [],
-      "title": "ArgoCD Sync Operations",
+      "title": "ArgoCD 동기화 작업",
       "type": "row"
     },
     {
@@ -493,7 +493,7 @@
           "refId": "A"
         }
       ],
-      "title": "Sync Operations Rate",
+      "title": "동기화 작업률",
       "type": "timeseries"
     },
     {
@@ -549,7 +549,7 @@
           "refId": "B"
         }
       ],
-      "title": "Reconciliation Duration",
+      "title": "Reconcile 소요 시간",
       "type": "timeseries"
     },
     {
@@ -557,7 +557,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 19 },
       "id": 30,
       "panels": [],
-      "title": "Application Status",
+      "title": "애플리케이션 상태",
       "type": "row"
     },
     {
@@ -591,7 +591,7 @@
           "refId": "A"
         }
       ],
-      "title": "Sync Status Distribution",
+      "title": "Sync 상태 분포",
       "type": "piechart"
     },
     {
@@ -627,7 +627,7 @@
           "refId": "A"
         }
       ],
-      "title": "Health Status Distribution",
+      "title": "Health 상태 분포",
       "type": "piechart"
     },
     {
@@ -688,7 +688,7 @@
           "refId": "A"
         }
       ],
-      "title": "All Applications",
+      "title": "전체 애플리케이션",
       "transformations": [
         { "id": "filterFieldsByName", "options": { "include": { "names": ["name", "sync_status", "health_status", "project"] } } }
       ],
@@ -702,7 +702,7 @@
   "time": { "from": "now-6h", "to": "now" },
   "timepicker": {},
   "timezone": "",
-  "title": "[Main] CI/CD Dashboard",
+  "title": "[메인] CI/CD 대시보드",
   "uid": "cicd-landing",
   "version": 1,
   "weekStart": ""

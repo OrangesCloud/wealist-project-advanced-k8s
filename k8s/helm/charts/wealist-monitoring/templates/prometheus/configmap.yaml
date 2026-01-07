@@ -237,10 +237,14 @@ data:
             target_label: pod
 
       # ==========================================================================
-      # Istio Sidecar 메트릭
+      # Istio Sidecar 메트릭 (Native Sidecar 호환)
       # ==========================================================================
+      # Istio 공식 권장 설정: 포트 이름 기반 매칭
+      # - Native Sidecar (K8s 1.28+): istio-proxy가 initContainers에 있음
+      # - Legacy Sidecar: istio-proxy가 containers에 있음
+      # 포트 이름 '*-envoy-prom'으로 매칭하면 두 방식 모두 지원
+      # Ref: https://istio.io/latest/docs/ops/integrations/prometheus/
 
-      # Envoy Sidecar 메트릭 (istio-proxy 컨테이너)
       - job_name: 'envoy-stats'
         metrics_path: /stats/prometheus
         kubernetes_sd_configs:
@@ -248,17 +252,13 @@ data:
             namespaces:
               names:
                 - {{ .Values.global.namespace }}
+                - istio-system
         relabel_configs:
-          # istio-proxy 컨테이너가 있는 Pod만 스크래핑
-          - source_labels: [__meta_kubernetes_pod_container_name]
+          # Istio 공식 권장: 포트 이름이 *-envoy-prom인 컨테이너만 스크래핑
+          # Native Sidecar와 Legacy Sidecar 모두 호환
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
             action: keep
-            regex: istio-proxy
-          # Envoy 메트릭 포트 (15090)로 변경
-          - source_labels: [__address__]
-            action: replace
-            regex: ([^:]+)(?::\d+)?
-            replacement: $1:15090
-            target_label: __address__
+            regex: '.*-envoy-prom'
           # Pod 메타데이터 라벨 추가
           - action: labelmap
             regex: __meta_kubernetes_pod_label_(.+)

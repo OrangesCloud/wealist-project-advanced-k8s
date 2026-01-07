@@ -182,4 +182,61 @@ spec:
             - name: scripts
               configMap:
                 name: k6-scripts
+---
+# =============================================================================
+# k6 User Service Test CronJob (Suspended - Manual Trigger Only)
+# Usage: kubectl create job k6-user-$(date +%s) --from=cronjob/k6-user-service-test -n {{ .Values.global.namespace }}
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: k6-user-service-test
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: k6
+    app.kubernetes.io/name: k6
+    app.kubernetes.io/component: user-service-test
+spec:
+  schedule: "0 0 31 2 *"
+  suspend: true
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app: k6
+            test-type: user-service
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: k6
+              image: {{ .Values.k6.image.repository }}:{{ .Values.k6.image.tag }}
+              imagePullPolicy: {{ .Values.k6.image.pullPolicy }}
+              command:
+                - k6
+                - run
+                - --out
+                - experimental-prometheus-rw
+                - /scripts/user-service-test.js
+              env:
+                - name: K6_PROMETHEUS_RW_SERVER_URL
+                  value: {{ .Values.k6.prometheus.remoteWriteUrl }}
+                - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+                  value: "false"
+                - name: BASE_URL
+                  value: {{ .Values.k6.endpoints.baseUrl | default "http://istio-ingressgateway.istio-system.svc.cluster.local" }}
+                - name: SVC_PREFIX
+                  value: {{ .Values.k6.endpoints.svcPrefix | default "/api/svc" }}
+              resources:
+                {{- toYaml .Values.k6.resources | nindent 16 }}
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
+            - name: scripts
+              configMap:
+                name: k6-scripts
 {{- end }}

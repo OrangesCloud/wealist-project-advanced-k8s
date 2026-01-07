@@ -921,7 +921,7 @@
   "time": { "from": "now-15m", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Incident Dashboard (v2)",
+  "title": "장애 분석 대시보드",
   "uid": "incident-dashboard-v2",
   "version": 1,
   "weekStart": ""

@@ -784,7 +784,7 @@
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Kubernetes Cluster (v2)",
+  "title": "쿠버네티스 클러스터",
   "uid": "kubernetes-cluster-v2",
   "version": 1,
   "weekStart": ""

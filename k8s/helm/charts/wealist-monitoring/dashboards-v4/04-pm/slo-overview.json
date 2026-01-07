@@ -24,7 +24,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 100,
       "panels": [],
-      "title": "SLO Targets",
+      "title": "📊 SLO 목표",
       "type": "row"
     },
     {
@@ -192,7 +192,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
       "id": 101,
       "panels": [],
-      "title": "Availability by Service",
+      "title": "🟢 서비스별 가용성",
       "type": "row"
     },
     {
@@ -293,22 +293,14 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 * (1 - sum(rate(video_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[${window}]) or vector(0)) / sum(rate(video_service_http_requests_total{namespace=~\"$namespace\"}[${window}])))",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "video-service",
-          "refId": "F"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "expr": "100 * (1 - sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", status=~\"5..\"}[${window}]) or vector(0)) / sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\"}[${window}])))",
           "format": "table",
           "instant": true,
           "legendFormat": "auth-service",
-          "refId": "G"
+          "refId": "F"
         }
       ],
-      "title": "Availability by Service (Target: 99.9%)",
+      "title": "서비스별 가용성 (목표: 99.9%)",
       "transformations": [
         {
           "id": "merge",
@@ -319,7 +311,7 @@
           "options": {
             "excludeByName": { "Time": true },
             "indexByName": {},
-            "renameByName": { "Value #A": "board-service", "Value #B": "user-service", "Value #C": "chat-service", "Value #D": "noti-service", "Value #E": "storage-service", "Value #F": "video-service", "Value #G": "auth-service" }
+            "renameByName": { "Value #A": "board-service", "Value #B": "user-service", "Value #C": "chat-service", "Value #D": "noti-service", "Value #E": "storage-service", "Value #F": "auth-service" }
           }
         },
         {
@@ -346,7 +338,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
       "id": 102,
       "panels": [],
-      "title": "Latency by Service",
+      "title": "⏱️ 서비스별 응답시간",
       "type": "row"
     },
     {
@@ -447,22 +439,14 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate(video_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[${window}])) by (le)) * 1000",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "video-service",
-          "refId": "F"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\"}[${window}])) by (le)) * 1000",
           "format": "table",
           "instant": true,
           "legendFormat": "auth-service",
-          "refId": "G"
+          "refId": "F"
         }
       ],
-      "title": "Latency by Service p95 (Target: <500ms)",
+      "title": "서비스별 응답시간 p95 (목표: <500ms)",
       "transformations": [
         {
           "id": "merge",
@@ -473,7 +457,7 @@
           "options": {
             "excludeByName": { "Time": true },
             "indexByName": {},
-            "renameByName": { "Value #A": "board-service", "Value #B": "user-service", "Value #C": "chat-service", "Value #D": "noti-service", "Value #E": "storage-service", "Value #F": "video-service", "Value #G": "auth-service" }
+            "renameByName": { "Value #A": "board-service", "Value #B": "user-service", "Value #C": "chat-service", "Value #D": "noti-service", "Value #E": "storage-service", "Value #F": "auth-service" }
           }
         },
         {
@@ -500,7 +484,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
       "id": 103,
       "panels": [],
-      "title": "SLI Trends",
+      "title": "📈 SLI 추이",
       "type": "row"
     },
     {
@@ -585,18 +569,12 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "100 * (1 - sum(rate(video_service_http_requests_total{namespace=~\"$namespace\", status=\"5xx\"}[5m]) or vector(0)) / sum(rate(video_service_http_requests_total{namespace=~\"$namespace\"}[5m])))",
-          "legendFormat": "video-service",
-          "refId": "F"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "expr": "100 * (1 - sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\", status=~\"5..\"}[5m]) or vector(0)) / sum(rate(http_server_requests_seconds_count{namespace=~\"$namespace\"}[5m])))",
           "legendFormat": "auth-service",
-          "refId": "G"
+          "refId": "F"
         }
       ],
-      "title": "Availability Trend",
+      "title": "가용성 추이",
       "type": "timeseries"
     },
     {
@@ -678,18 +656,12 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "histogram_quantile(0.95, sum(rate(video_service_http_request_duration_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
-          "legendFormat": "video-service",
-          "refId": "F"
-        },
-        {
-          "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\"}[5m])) by (le)) * 1000",
           "legendFormat": "auth-service",
-          "refId": "G"
+          "refId": "F"
         }
       ],
-      "title": "Latency p95 Trend",
+      "title": "응답시간 p95 추이",
       "type": "timeseries"
     },
     {
@@ -697,7 +669,7 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
       "id": 104,
       "panels": [],
-      "title": "SLO Compliance Summary",
+      "title": "✅ SLO 준수 현황",
       "type": "row"
     },
     {
@@ -865,7 +837,7 @@
   "time": { "from": "now-7d", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "SLO Overview (v2)",
+  "title": "SLO 현황 - 서비스 품질 모니터링",
   "uid": "slo-overview-v2",
   "version": 1,
   "weekStart": ""
