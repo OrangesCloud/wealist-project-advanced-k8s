@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "비즈니스 관점의 사용량 통계 및 트렌드 분석",
+  "description": "PM/기획자를 위한 비즈니스 관점의 사용량 통계 및 트렌드 분석 대시보드",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -1535,7 +1535,7 @@
     "time_options": ["1d", "7d", "14d", "30d", "90d"]
   },
   "timezone": "Asia/Seoul",
-  "title": "Business Metrics - Usage Analytics",
+  "title": "비즈니스 메트릭 - 사용량 분석",
   "uid": "business-metrics",
   "version": 1,
   "weekStart": "monday"

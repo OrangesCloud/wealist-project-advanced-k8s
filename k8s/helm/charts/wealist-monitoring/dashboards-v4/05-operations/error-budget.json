@@ -652,7 +652,7 @@
   "time": { "from": "now-30d", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Error Budget (v2)",
+  "title": "에러 버짓 현황",
   "uid": "error-budget-v2",
   "version": 1,
   "weekStart": ""

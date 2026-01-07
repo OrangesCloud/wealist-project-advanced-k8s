@@ -4,12 +4,19 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
 	"user-service/internal/domain"
 )
+
+// DefaultWorkspaceID is the UUID used for default profiles (not tied to a specific workspace)
+var DefaultWorkspaceID = uuid.MustParse("00000000-0000-0000-0000-000000000000")
+
+// SystemUserID is the UUID used for system-owned entities
+var SystemUserID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 // Config holds database configuration
 type Config struct {
@@ -51,6 +58,51 @@ func AutoMigrate(db *gorm.DB) error {
 		&domain.WorkspaceJoinRequest{},
 		&domain.Attachment{},
 	)
+}
+
+// SeedDefaultData creates required default data (system user, default workspace)
+// This should be called after AutoMigrate
+func SeedDefaultData(db *gorm.DB) error {
+	// 1. Create system user if not exists
+	var systemUser domain.User
+	result := db.Where("id = ?", SystemUserID).First(&systemUser)
+	if result.Error == gorm.ErrRecordNotFound {
+		systemUser = domain.User{
+			ID:           SystemUserID,
+			Email:        "system@wealist.internal",
+			PasswordHash: "", // No password for system user
+			IsActive:     true,
+			CreatedAt:    time.Now(),
+		}
+		if err := db.Create(&systemUser).Error; err != nil {
+			return fmt.Errorf("failed to create system user: %w", err)
+		}
+		fmt.Println("Created system user")
+	}
+
+	// 2. Create default workspace if not exists
+	var defaultWorkspace domain.Workspace
+	result = db.Where("id = ?", DefaultWorkspaceID).First(&defaultWorkspace)
+	if result.Error == gorm.ErrRecordNotFound {
+		description := "Default workspace for user profiles without a specific workspace"
+		defaultWorkspace = domain.Workspace{
+			ID:                   DefaultWorkspaceID,
+			OwnerID:              SystemUserID,
+			WorkspaceName:        "_default",
+			WorkspaceDescription: &description,
+			IsPublic:             false,
+			NeedApproved:         false,
+			OnlyOwnerCanInvite:   true,
+			IsActive:             false, // Hidden from normal queries
+			CreatedAt:            time.Now(),
+		}
+		if err := db.Create(&defaultWorkspace).Error; err != nil {
+			return fmt.Errorf("failed to create default workspace: %w", err)
+		}
+		fmt.Println("Created default workspace")
+	}
+
+	return nil
 }
 
 // NewWithRetry creates a database connection with retries (blocking)

@@ -16,7 +16,7 @@ COPY packages/wealist-advanced-go-pkg/ ./packages/wealist-advanced-go-pkg/
 
 # Copy service files
 WORKDIR /workspace/services/user-service
-
+   
 # OPTIMIZATION: Copy only go.mod/go.sum first for dependency caching
 COPY services/user-service/go.mod services/user-service/go.sum ./
 
