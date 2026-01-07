@@ -19,7 +19,8 @@
   "id": null,
   "links": [
     { "asDropdown": false, "icon": "dashboard", "includeVars": true, "keepTime": true, "tags": [], "targetBlank": false, "title": "API 성능", "type": "link", "url": "/d/api-performance-v2" },
-    { "asDropdown": false, "icon": "dashboard", "includeVars": true, "keepTime": true, "tags": [], "targetBlank": false, "title": "응답시간 분석", "type": "link", "url": "/d/latency-analysis-v2" }
+    { "asDropdown": false, "icon": "dashboard", "includeVars": true, "keepTime": true, "tags": [], "targetBlank": false, "title": "응답시간 분석", "type": "link", "url": "/d/latency-analysis-v2" },
+    { "asDropdown": false, "icon": "dashboard", "includeVars": true, "keepTime": true, "tags": [], "targetBlank": false, "title": "로그 탐색", "type": "link", "url": "/d/logs-explorer-v2" }
   ],
   "panels": [
     {

@@ -1,0 +1,74 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.2.9 Chrome/140.0.7339.249 Electron/38.7.2 Safari/537.36" version="29.2.9">
+  <diagram name="Service Dependencies" id="service-dependencies">
+    <mxGraphModel dx="817" dy="807" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="svc-auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E4D8C;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;fontSize=14;fontStyle=1;" value="auth-service&#xa;:8080" vertex="1">
+          <mxGeometry height="50" width="140" x="100" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-user" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;fontSize=14;fontStyle=1;" value="user-service&#xa;:8081" vertex="1">
+          <mxGeometry height="50" width="140" x="320" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-noti" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;fontSize=14;fontStyle=1;" value="noti-service&#xa;:8002" vertex="1">
+          <mxGeometry height="50" width="140" x="100" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-board" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;fontSize=14;fontStyle=1;" value="board-service&#xa;:8000" vertex="1">
+          <mxGeometry height="50" width="140" x="100" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-chat" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;fontSize=14;fontStyle=1;" value="chat-service&#xa;:8001" vertex="1">
+          <mxGeometry height="50" width="140" x="320" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-storage" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;fontSize=14;fontStyle=1;" value="storage-service&#xa;:8003" vertex="1">
+          <mxGeometry height="50" width="140" x="530" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="svc-ops" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#666666;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;fontSize=14;fontStyle=1;" value="ops-service&#xa;Admin" vertex="1">
+          <mxGeometry height="50" width="140" x="530" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="conn-user-auth" edge="1" parent="1" source="svc-user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF6B6B;strokeWidth=2;endArrow=classic;endFill=1;" target="svc-auth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="conn-board-auth" edge="1" parent="1" source="svc-board" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF6B6B;strokeWidth=2;endArrow=classic;endFill=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" target="svc-auth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="conn-board-user" edge="1" parent="1" source="svc-board" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF6B6B;strokeWidth=2;endArrow=classic;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=1;exitDx=0;exitDy=0;" target="svc-user">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="320" y="425" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="conn-board-noti" edge="1" parent="1" source="svc-board" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF6B6B;strokeWidth=2;endArrow=classic;endFill=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;exitDx=0;exitDy=0;entryDx=0;entryDy=0;" target="svc-noti">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="170" y="520" />
+              <mxPoint x="170" y="520" />
+            </Array>
+            <mxPoint x="260" y="512.5" as="sourcePoint" />
+            <mxPoint x="120" y="660" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="conn-chat-user" edge="1" parent="1" source="svc-chat" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF6B6B;strokeWidth=2;endArrow=classic;endFill=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" target="svc-user">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="conn-chat-noti" edge="1" parent="1" source="svc-chat" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF6B6B;strokeWidth=2;endArrow=classic;endFill=1;exitX=-0.009;exitY=0.384;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1.005;entryY=0.394;entryDx=0;entryDy=0;entryPerimeter=0;" target="svc-noti">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="260" y="539" />
+            </Array>
+            <mxPoint x="300" y="570" as="sourcePoint" />
+            <mxPoint x="260" y="560" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="conn-storage-user" edge="1" parent="1" source="svc-storage" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF6B6B;strokeWidth=2;endArrow=classic;endFill=1;entryX=1;entryY=0.391;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0.002;exitY=0.387;exitDx=0;exitDy=0;exitPerimeter=0;" target="svc-user">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="520" y="299" />
+            </Array>
+            <mxPoint x="520" y="290" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
