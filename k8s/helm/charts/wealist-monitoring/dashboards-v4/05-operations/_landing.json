@@ -1491,7 +1491,7 @@
     "time_options": ["5m", "15m", "1h", "3h", "6h", "12h", "24h"]
   },
   "timezone": "Asia/Seoul",
-  "title": "Operations Landing - On-Call Dashboard",
+  "title": "운영팀 메인 대시보드",
   "uid": "ops-landing",
   "version": 1,
   "weekStart": "monday"

@@ -384,7 +384,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  userProfile?.nickName[0]?.toUpperCase() || 'U'
+                  userProfile?.nickName?.[0]?.toUpperCase() || 'U'
                 )}
               </div>
               <div>

@@ -503,7 +503,7 @@
   "time": { "from": "now-30m", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Canary Deployment Overview",
+  "title": "카나리 배포 현황",
   "uid": "canary-overview",
   "version": 1,
   "weekStart": ""
