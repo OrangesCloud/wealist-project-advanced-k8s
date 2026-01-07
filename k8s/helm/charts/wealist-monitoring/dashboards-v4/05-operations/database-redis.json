@@ -879,7 +879,7 @@
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Database & Redis (v2)",
+  "title": "데이터베이스 & 레디스",
   "uid": "database-redis-v2",
   "version": 1,
   "weekStart": ""

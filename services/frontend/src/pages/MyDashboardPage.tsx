@@ -47,7 +47,7 @@ interface GroupedTasks {
 const MyDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const { logout, nickName } = useAuth();
+  const { logout, nickName, userId } = useAuth();
 
   // All workspaces (including pending)
   const [allWorkspaces, setAllWorkspaces] = useState<UserWorkspaceResponse[]>([]);
@@ -112,7 +112,13 @@ const MyDashboardPage: React.FC = () => {
             projects.map(async (project) => {
               try {
                 const boards = await getBoards(project.projectId);
-                return { project, tasks: boards };
+                // Filter to only show boards where current user is assignee or participant
+                const myBoards = boards.filter(
+                  (board) =>
+                    board.assigneeId === userId ||
+                    board.participantIds?.includes(userId as string)
+                );
+                return { project, tasks: myBoards };
               } catch {
                 return { project, tasks: [] };
               }
@@ -139,7 +145,7 @@ const MyDashboardPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     fetchDashboardData();

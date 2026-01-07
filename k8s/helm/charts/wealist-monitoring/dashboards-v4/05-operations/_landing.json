@@ -148,7 +148,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service|video-service\"} == 1)",
+          "expr": "count(up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service\"} == 1)",
           "legendFormat": "UP",
           "refId": "A"
         }
@@ -219,7 +219,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service|video-service\"} == 0) or vector(0)",
+          "expr": "count(up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service\"} == 0) or vector(0)",
           "legendFormat": "DOWN",
           "refId": "A"
         }
@@ -232,7 +232,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "지난 5분간 5xx 에러율\n\n- 🟢 0.1% 미만: 정상\n- 🟡 0.1-1%: 주의\n- 🔴 1% 초과: 긴급",
+      "description": "지난 5분간 5xx 에러율\n\n- 🟢 0.1% 미만: OK\n- 🟡 0.1-1%: WARNING\n- 🔴 1% 초과: CRITICAL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -511,7 +511,7 @@
       },
       "id": 101,
       "panels": [],
-      "title": "💰 Error Budget & Burn Rate",
+      "title": "💰 오류 예산 & 소진률",
       "type": "row"
     },
     {
@@ -766,7 +766,7 @@
       },
       "id": 102,
       "panels": [],
-      "title": "💻 Resource Saturation",
+      "title": "💻 리소스 포화도",
       "type": "row"
     },
     {
@@ -1063,7 +1063,7 @@
       },
       "id": 103,
       "panels": [],
-      "title": "🔍 Service-Level Status",
+      "title": "🔍 서비스별 상태",
       "type": "row"
     },
     {
@@ -1246,7 +1246,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service|video-service\"}",
+          "expr": "up{job=~\"auth-service|user-service|board-service|chat-service|noti-service|storage-service\"}",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1330,7 +1330,7 @@
       },
       "id": 104,
       "panels": [],
-      "title": "📜 Recent Error Logs",
+      "title": "📜 최근 에러 로그",
       "type": "row"
     },
     {
@@ -1382,7 +1382,7 @@
       },
       "id": 105,
       "panels": [],
-      "title": "🔗 Quick Actions",
+      "title": "🔗 빠른 액션",
       "type": "row"
     },
     {
@@ -1491,7 +1491,7 @@
     "time_options": ["5m", "15m", "1h", "3h", "6h", "12h", "24h"]
   },
   "timezone": "Asia/Seoul",
-  "title": "Operations Landing - On-Call Dashboard",
+  "title": "운영팀 메인 대시보드",
   "uid": "ops-landing",
   "version": 1,
   "weekStart": "monday"

@@ -83,6 +83,30 @@ resource "helm_release" "istiod" {
   # Sidecar 모드: default profile 사용 (profile 설정 불필요)
   # Sidecar injection은 네임스페이스 라벨(istio-injection=enabled)로 제어
 
+  # -----------------------------------------------------------------------------
+  # Resource 최적화 (비용 절감, 2026-01-07)
+  # 기본값: 500m/2Gi → 최적화: 250m/512Mi (소규모 트래픽에 충분)
+  # -----------------------------------------------------------------------------
+  set {
+    name  = "pilot.resources.requests.cpu"
+    value = "250m"
+  }
+
+  set {
+    name  = "pilot.resources.requests.memory"
+    value = "512Mi"
+  }
+
+  set {
+    name  = "pilot.resources.limits.cpu"
+    value = "500m"
+  }
+
+  set {
+    name  = "pilot.resources.limits.memory"
+    value = "1Gi"
+  }
+
   depends_on = [helm_release.istio_base]
 }
 

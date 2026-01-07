@@ -27,8 +27,8 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
 }) => {
   const category = getFileCategory(file.extension);
 
-  // 미리보기 가능한 파일 유형인지 확인
-  // const isPreviewable = file.isImage || category === 'video' || category === 'audio' || file.extension === '.pdf';
+  // isImage가 false여도 카테고리로 이미지 여부 확인
+  const isImageFile = file.isImage || category === 'image';
 
   // 파일 아이콘 가져오기
   const getFileIcon = () => {
@@ -49,14 +49,24 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
 
   // 미리보기 렌더링
   const renderPreview = () => {
-    if (file.isImage) {
+    // 이미지 파일 미리보기 (isImage 또는 확장자 기반)
+    if (isImageFile && file.fileUrl) {
       return (
         <div className="flex-1 flex items-center justify-center bg-gray-900 p-4">
           <img
             src={file.fileUrl}
             alt={file.name}
             className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
+            onError={(e) => {
+              // 이미지 로드 실패 시 아이콘으로 대체
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
+            }}
           />
+          <div className="fallback-icon hidden flex-col items-center">
+            <FileImage className="w-24 h-24 text-green-500" />
+            <p className="mt-4 text-white">이미지를 불러올 수 없습니다</p>
+          </div>
         </div>
       );
     }

@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" version="29.2.7">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" version="29.2.10">
   <diagram name="K8s Workloads v6" id="k8s-workloads-v6">
-    <mxGraphModel dx="1127" dy="1187" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800" background="#FFFFFF" math="0" shadow="0">
+    <mxGraphModel dx="1469" dy="1644" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800" background="#FFFFFF" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -18,12 +18,6 @@
         </mxCell>
         <mxCell id="cp-items" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#326CE5;" value="etcd | api-server | scheduler" vertex="1">
           <mxGeometry height="25" width="180" x="110" y="160" as="geometry" />
-        </mxCell>
-        <mxCell id="alb" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.application_load_balancer;html=1;fillColor=#8C4FFF;strokeColor=#FFFFFF;" value="" vertex="1">
-          <mxGeometry height="50" width="50" x="575" y="95" as="geometry" />
-        </mxCell>
-        <mxCell id="alb-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=12;fontColor=#8C4FFF;fontStyle=1;" value="ALB" vertex="1">
-          <mxGeometry height="20" width="50" x="575" y="147" as="geometry" />
         </mxCell>
         <mxCell id="observability" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=1.5;verticalAlign=top;align=center;fontSize=13;fontStyle=1;fontColor=#232F3E;spacingTop=5;" value="Observability" vertex="1">
           <mxGeometry height="100" width="200" x="900" y="122" as="geometry" />
@@ -88,14 +82,16 @@
         <mxCell id="svc-storage-icon" parent="1" style="shape=mxgraph.kubernetes.svc;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;" value="" vertex="1">
           <mxGeometry height="20" width="20" x="505" y="515" as="geometry" />
         </mxCell>
-        <mxCell id="svc-video" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;spacingLeft=20;" value="&lt;b style=&quot;font-size:16px&quot;&gt;video-service :8004&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;Go+LiveKit · 2-5&lt;/span&gt;" vertex="1">
+        <mxCell id="svc-video" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=none;verticalAlign=middle;align=center;fontColor=#FFFFFF;spacingLeft=20;" value="&lt;b style=&quot;font-size:16px&quot;&gt;ops-service :8004&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size:14px&quot;&gt;Go+Gin · 2-5&lt;/span&gt;" vertex="1">
           <mxGeometry height="80" width="200" x="745" y="510" as="geometry" />
         </mxCell>
         <mxCell id="svc-video-icon" parent="1" style="shape=mxgraph.kubernetes.svc;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;" value="" vertex="1">
           <mxGeometry height="20" width="20" x="750" y="515" as="geometry" />
         </mxCell>
-        <mxCell id="conn-alb-istio" edge="1" parent="1" source="alb" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#8C4FFF;strokeWidth=2;endArrow=classic;endFill=1;" target="istio-box" value="">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="conn-alb-istio" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#8C4FFF;strokeWidth=2;endArrow=classic;endFill=1;" target="istio-box" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="600" y="145" as="sourcePoint" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="conn-istio-ns" edge="1" parent="1" source="istio-box" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#466BB0;strokeWidth=2;endArrow=classic;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="wealist-ns" value="">
           <mxGeometry relative="1" as="geometry" />
@@ -106,6 +102,9 @@
               <mxPoint x="1060" y="280" />
             </Array>
           </mxGeometry>
+        </mxCell>
+        <mxCell id="1xl3ELMKsAvz6PyIVkGk-1" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.network_load_balancer;" value="&lt;b&gt;&lt;font style=&quot;color: rgb(153, 51, 255); background-color: light-dark(#ffffff, var(--ge-dark-color, #121212));&quot;&gt;NLB&lt;/font&gt;&lt;/b&gt;" vertex="1">
+          <mxGeometry height="50" width="50" x="575" y="97" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

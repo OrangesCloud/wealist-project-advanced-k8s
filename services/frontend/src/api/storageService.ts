@@ -371,19 +371,45 @@ export const uploadFile = async (
   folderId?: string,
   onProgress?: (progress: number) => void,
 ): Promise<StorageFile> => {
+  // contentType이 비어있으면 확장자 기반으로 추론
+  let contentType = file.type;
+  if (!contentType) {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'heic': 'image/heic',
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'ppt': 'application/vnd.ms-powerpoint',
+      'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'txt': 'text/plain',
+      'zip': 'application/zip',
+      'mp4': 'video/mp4',
+      'mp3': 'audio/mpeg',
+    };
+    contentType = (ext && mimeTypes[ext]) || 'application/octet-stream';
+  }
+
   // 1. Upload URL 생성
   const uploadUrlResponse = await generateUploadURL({
     workspaceId,
     folderId,
     fileName: file.name,
-    contentType: file.type,
+    contentType,
     fileSize: file.size,
   });
 
   // 2. S3에 직접 업로드
   await axios.put(uploadUrlResponse.uploadUrl, file, {
     headers: {
-      'Content-Type': file.type,
+      'Content-Type': contentType,
     },
     onUploadProgress: (progressEvent) => {
       if (onProgress && progressEvent.total) {
@@ -689,10 +715,17 @@ export const getRecentFiles = async (
   workspaceId: string,
   limit: number = 20,
 ): Promise<StorageFile[]> => {
-  const response: AxiosResponse<SuccessResponse<StorageFile[]>> = await storageServiceClient.get(
+  const response: AxiosResponse<SuccessResponse<StorageFile[] | { files?: StorageFile[] }>> = await storageServiceClient.get(
     `/storage/workspaces/${workspaceId}/files`,
   );
-  const files = response.data.data || [];
+  // 응답 형식에 따라 파일 배열 추출
+  let files: StorageFile[] = [];
+  const data = response.data.data;
+  if (Array.isArray(data)) {
+    files = data;
+  } else if (data && Array.isArray(data.files)) {
+    files = data.files;
+  }
   // 최근 수정된 순으로 정렬 후 limit만큼 반환
   return files
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())

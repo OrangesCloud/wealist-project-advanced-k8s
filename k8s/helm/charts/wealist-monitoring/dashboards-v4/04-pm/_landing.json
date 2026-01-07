@@ -78,7 +78,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "현재 서비스 가용 상태\n🟢 정상: 서비스 운영 중\n🔴 장애: 서비스 응답 없음",
+      "description": "현재 서비스 가용 상태\n🟢 UP: 서비스 운영 중\n🔴 DOWN: 서비스 응답 없음",
       "fieldConfig": {
         "defaults": {
           "mappings": [
@@ -87,12 +87,12 @@
                 "0": {
                   "color": "red",
                   "index": 1,
-                  "text": "🔴 장애"
+                  "text": "DOWN"
                 },
                 "1": {
                   "color": "green",
                   "index": 0,
-                  "text": "🟢 정상"
+                  "text": "UP"
                 }
               },
               "type": "value"
@@ -162,12 +162,12 @@
                 "0": {
                   "color": "red",
                   "index": 1,
-                  "text": "🔴 장애"
+                  "text": "DOWN"
                 },
                 "1": {
                   "color": "green",
                   "index": 0,
-                  "text": "🟢 정상"
+                  "text": "UP"
                 }
               },
               "type": "value"
@@ -237,12 +237,12 @@
                 "0": {
                   "color": "red",
                   "index": 1,
-                  "text": "🔴 장애"
+                  "text": "DOWN"
                 },
                 "1": {
                   "color": "green",
                   "index": 0,
-                  "text": "🟢 정상"
+                  "text": "UP"
                 }
               },
               "type": "value"
@@ -312,12 +312,12 @@
                 "0": {
                   "color": "red",
                   "index": 1,
-                  "text": "🔴 장애"
+                  "text": "DOWN"
                 },
                 "1": {
                   "color": "green",
                   "index": 0,
-                  "text": "🟢 정상"
+                  "text": "UP"
                 }
               },
               "type": "value"
@@ -387,12 +387,12 @@
                 "0": {
                   "color": "red",
                   "index": 1,
-                  "text": "🔴 장애"
+                  "text": "DOWN"
                 },
                 "1": {
                   "color": "green",
                   "index": 0,
-                  "text": "🟢 정상"
+                  "text": "UP"
                 }
               },
               "type": "value"
@@ -462,12 +462,12 @@
                 "0": {
                   "color": "red",
                   "index": 1,
-                  "text": "🔴 장애"
+                  "text": "DOWN"
                 },
                 "1": {
                   "color": "green",
                   "index": 0,
-                  "text": "🟢 정상"
+                  "text": "UP"
                 }
               },
               "type": "value"
@@ -537,12 +537,12 @@
                 "0": {
                   "color": "red",
                   "index": 1,
-                  "text": "🔴 장애"
+                  "text": "DOWN"
                 },
                 "1": {
                   "color": "green",
                   "index": 0,
-                  "text": "🟢 정상"
+                  "text": "UP"
                 }
               },
               "type": "value"

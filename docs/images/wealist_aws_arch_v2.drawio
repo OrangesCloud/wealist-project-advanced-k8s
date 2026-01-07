@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" version="29.2.7">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" version="29.2.10">
   <diagram name="AWS Architecture" id="aws-arch-v2">
-    <mxGraphModel dx="767" dy="774" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" background="#FFFFFF" math="0" shadow="0">
+    <mxGraphModel dx="808" dy="904" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" background="#FFFFFF" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -28,9 +28,6 @@
         <mxCell id="cloudfront" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudfront;html=1;fillColor=#8C4FFF;strokeColor=#FFFFFF;labelPosition=center;verticalLabelPosition=top;align=center;verticalAlign=bottom;" value="" vertex="1">
           <mxGeometry height="55" width="55" x="772" y="185" as="geometry" />
         </mxCell>
-        <mxCell id="cloudfront-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=11;fontColor=#232F3E;" value="CloudFront" vertex="1">
-          <mxGeometry height="18" width="80" x="770" y="240" as="geometry" />
-        </mxCell>
         <mxCell id="vpc" parent="1" style="shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_vpc;strokeColor=#248814;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontStyle=1;fontColor=#248814;dashed=0;" value="VPC (10.0.0.0/16)" vertex="1">
           <mxGeometry height="680" width="840" x="100" y="280" as="geometry" />
         </mxCell>
@@ -43,11 +40,8 @@
         <mxCell id="igw-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=10;fontColor=#232F3E;" value="Internet GW" vertex="1">
           <mxGeometry height="16" width="70" x="170" y="402" as="geometry" />
         </mxCell>
-        <mxCell id="alb-sg" parent="1" style="shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_security_group;strokeColor=#DD3522;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontStyle=1;fontColor=#DD3522;dashed=1;" value="ALB-SG" vertex="1">
+        <mxCell id="alb-sg" parent="1" style="shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_security_group;strokeColor=#DD3522;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontStyle=1;fontColor=#DD3522;dashed=1;" value="NLB-SG" vertex="1">
           <mxGeometry height="95" width="130" x="450" y="330" as="geometry" />
-        </mxCell>
-        <mxCell id="alb" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.application_load_balancer;html=1;fillColor=#8C4FFF;strokeColor=#FFFFFF;" value="" vertex="1">
-          <mxGeometry height="50" width="50" x="490" y="355" as="geometry" />
         </mxCell>
         <mxCell id="nat-a" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.nat_gateway;html=1;fillColor=#8C4FFF;strokeColor=#FFFFFF;" value="" vertex="1">
           <mxGeometry height="50" width="50" x="740" y="350" as="geometry" />
@@ -91,7 +85,7 @@
         <mxCell id="storage-svc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;strokeWidth=2;fontSize=13;fontColor=#232F3E;fontStyle=1;" value="storage-service&#xa;:8003" vertex="1">
           <mxGeometry height="65" width="140" x="580" y="600" as="geometry" />
         </mxCell>
-        <mxCell id="video-svc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;strokeWidth=2;fontSize=13;fontColor=#232F3E;fontStyle=1;" value="video-service&#xa;:8004" vertex="1">
+        <mxCell id="video-svc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;strokeWidth=2;fontSize=13;fontColor=#232F3E;fontStyle=1;" value="ops-service&lt;br&gt;:8004" vertex="1">
           <mxGeometry height="65" width="140" x="740" y="600" as="geometry" />
         </mxCell>
         <mxCell id="svc-legend" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#ED7100;strokeWidth=1;fontSize=10;fontColor=#232F3E;dashed=1;" value="7 Backend Services&#xa;(Go + Spring Boot)" vertex="1">
@@ -239,7 +233,7 @@
         <mxCell id="flow-4" edge="1" parent="1" source="cloudfront" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2.5;strokeColor=#8C4FFF;endArrow=classic;endSize=8;" target="alb-sg">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="780" y="300" />
+              <mxPoint x="800" y="300" />
               <mxPoint x="515" y="300" />
             </Array>
           </mxGeometry>
@@ -281,6 +275,12 @@
         </mxCell>
         <mxCell id="cicd-flow-4" edge="1" parent="1" source="argocd" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#666666;endArrow=classic;endSize=6;" target="eks-cicd">
           <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="-nQV4jm0zH5NmjT8Jtu0-1" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.network_load_balancer;" value="" vertex="1">
+          <mxGeometry height="55" width="55" x="487.5" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="cloudfront-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=11;fontColor=#232F3E;" value="&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212));&quot;&gt;CloudFront&lt;/span&gt;" vertex="1">
+          <mxGeometry height="18" width="80" x="759.5" y="240" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
