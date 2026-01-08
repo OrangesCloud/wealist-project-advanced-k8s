@@ -1,0 +1,125 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.2.9 Chrome/140.0.7339.249 Electron/38.7.2 Safari/537.36" version="29.2.9">
+  <diagram name="ESO-ArgoCD Solution (After)" id="eso-argocd-solution">
+    <mxGraphModel dx="1226" dy="1210" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="terraform-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8EAF6;strokeColor=#5C6BC0;strokeWidth=2;verticalAlign=top;align=left;spacingTop=10;spacingLeft=10;fontSize=14;fontStyle=1;fontColor=#5C6BC0;" value="Terraform (순서 보장)" vertex="1">
+          <mxGeometry height="500" width="280" x="80" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="step1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5C6BC0;strokeColor=none;fontColor=#FFFFFF;fontSize=12;fontStyle=1;" value="1. EKS Cluster" vertex="1">
+          <mxGeometry height="40" width="200" x="120" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="step2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5C6BC0;strokeColor=none;fontColor=#FFFFFF;fontSize=12;fontStyle=1;" value="2. Gateway API CRDs" vertex="1">
+          <mxGeometry height="40" width="200" x="120" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="step3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5C6BC0;strokeColor=none;fontColor=#FFFFFF;fontSize=12;fontStyle=1;" value="3. Istio (Base + Istiod)" vertex="1">
+          <mxGeometry height="40" width="200" x="120" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="step4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9800;strokeColor=#E65100;strokeWidth=2;fontColor=#FFFFFF;fontSize=12;fontStyle=1;" value="4. External Secrets Operator" vertex="1">
+          <mxGeometry height="40" width="200" x="120" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="step5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9C27B0;strokeColor=#6A1B9A;strokeWidth=2;fontColor=#FFFFFF;fontSize=12;fontStyle=1;" value="5. ClusterSecretStore" vertex="1">
+          <mxGeometry height="40" width="200" x="120" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="step6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E4D8C;strokeColor=#0D47A1;strokeWidth=2;fontColor=#FFFFFF;fontSize=12;fontStyle=1;" value="6. ArgoCD" vertex="1">
+          <mxGeometry height="40" width="200" x="120" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow1-2" edge="1" parent="1" source="step1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#5C6BC0;strokeWidth=2;endArrow=classic;endFill=1;" target="step2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow2-3" edge="1" parent="1" source="step2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#5C6BC0;strokeWidth=2;endArrow=classic;endFill=1;" target="step3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow3-4" edge="1" parent="1" source="step3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#5C6BC0;strokeWidth=2;endArrow=classic;endFill=1;" target="step4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow4-5" edge="1" parent="1" source="step4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#5C6BC0;strokeWidth=2;endArrow=classic;endFill=1;" target="step5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow5-6" edge="1" parent="1" source="step5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#5C6BC0;strokeWidth=2;endArrow=classic;endFill=1;" target="step6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-cluster" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#326CE5;strokeWidth=2;dashed=1;verticalAlign=top;align=left;spacingTop=10;spacingLeft=10;fontSize=14;fontStyle=1;fontColor=#326CE5;" value="Kubernetes Cluster (EKS)" vertex="1">
+          <mxGeometry height="500" width="550" x="420" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="argocd-ns" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F4FC;strokeColor=#1E4D8C;strokeWidth=2;dashed=1;verticalAlign=top;align=left;spacingTop=10;spacingLeft=10;fontSize=12;fontStyle=1;fontColor=#1E4D8C;" value="namespace: argocd" vertex="1">
+          <mxGeometry height="170" width="300" x="450" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="argocd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E4D8C;strokeColor=none;fontColor=#FFFFFF;fontSize=14;fontStyle=1;" value="ArgoCD Server&#xa;(Running)" vertex="1">
+          <mxGeometry height="50" width="120" x="470" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="argocd-secret" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4CAF50;strokeColor=none;fontColor=#FFFFFF;fontSize=12;fontStyle=1;" value="argocd-secret&#xa;(EXISTS)" vertex="1">
+          <mxGeometry height="50" width="120" x="610" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-argocd-secret" edge="1" parent="1" source="argocd" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4CAF50;strokeWidth=3;endArrow=classic;endFill=1;" target="argocd-secret">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label-uses" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontColor=#4CAF50;fontStyle=1;" value="uses" vertex="1">
+          <mxGeometry height="20" width="40" x="592" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="eso-ns" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#FF9800;strokeWidth=2;dashed=1;verticalAlign=top;align=left;spacingTop=10;spacingLeft=10;fontSize=12;fontStyle=1;fontColor=#FF9800;" value="namespace: external-secrets" vertex="1">
+          <mxGeometry height="130" width="300" x="450" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="eso" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9800;strokeColor=none;fontColor=#FFFFFF;fontSize=12;fontStyle=1;" value="ESO&#xa;(Terraform)" vertex="1">
+          <mxGeometry height="50" width="120" x="470" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="external-secret" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFB74D;strokeColor=none;fontColor=#FFFFFF;fontSize=11;fontStyle=1;" value="ExternalSecret&#xa;(ArgoCD 관리)" vertex="1">
+          <mxGeometry height="50" width="110" x="610" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-eso-es" edge="1" parent="1" source="eso" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF9800;strokeWidth=2;endArrow=classic;endFill=1;" target="external-secret">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-es-secret" edge="1" parent="1" source="external-secret" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4CAF50;strokeWidth=2;endArrow=classic;endFill=1;" target="argocd-secret">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label-creates" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontColor=#4CAF50;fontStyle=1;" value="creates" vertex="1">
+          <mxGeometry height="20" width="50" x="690" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="cluster-secret-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9C27B0;strokeColor=none;fontColor=#FFFFFF;fontSize=11;fontStyle=1;" value="ClusterSecretStore&#xa;(Terraform)" vertex="1">
+          <mxGeometry height="50" width="130" x="800" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-es-css" edge="1" parent="1" source="external-secret" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9C27B0;strokeWidth=2;endArrow=classic;endFill=1;" target="cluster-secret-store">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="760" y="455" />
+              <mxPoint x="760" y="405" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="aws-cloud" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;strokeWidth=2;fillOpacity=10;verticalAlign=top;align=left;spacingTop=10;spacingLeft=10;fontSize=12;fontStyle=1;fontColor=#FF9900;" value="AWS Cloud" vertex="1">
+          <mxGeometry height="100" width="150" x="780" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="secrets-manager" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=none;fontColor=#FFFFFF;fontSize=11;fontStyle=1;" value="Secrets Manager" vertex="1">
+          <mxGeometry height="40" width="120" x="795" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-css-aws" edge="1" parent="1" source="cluster-secret-store" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#FF9900;strokeWidth=2;endArrow=classic;endFill=1;" target="secrets-manager">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-argocd-es" edge="1" parent="1" source="argocd" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#326CE5;strokeWidth=2;endArrow=classic;endFill=1;dashed=1;" target="external-secret">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="530" y="370" />
+              <mxPoint x="665" y="370" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-manages" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontColor=#326CE5;fontStyle=1;" value="manages&#xa;(GitOps)" vertex="1">
+          <mxGeometry height="30" width="60" x="560" y="355" as="geometry" />
+        </mxCell>
+        <mxCell id="tf-to-k8s" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#5C6BC0;strokeWidth=3;endArrow=classic;endFill=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="360" y="400" as="sourcePoint" />
+            <mxPoint x="420" y="400" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-installs" parent="1" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#5C6BC0;fontStyle=1;" value="installs" vertex="1">
+          <mxGeometry height="20" width="50" x="365" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="success-badge" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4CAF50;strokeColor=none;fontColor=#FFFFFF;fontSize=14;fontStyle=1;" value="순환 의존성 해결!" vertex="1">
+          <mxGeometry height="30" width="160" x="550" y="560" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
