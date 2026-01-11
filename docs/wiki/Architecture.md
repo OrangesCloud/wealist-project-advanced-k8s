@@ -45,7 +45,7 @@ weAlist의 전체 시스템 아키텍처입니다.
 | **Database** | PostgreSQL 17 | 6개 DB (서비스별 분리) |
 | **Cache** | Redis 7.2 | 캐시, 토큰 저장소 |
 | **Object Storage** | S3 / MinIO | 파일 스토리지 |
-| **API Gateway** | Istio Gateway API | HTTPRoute 기반 라우팅 |
+| **API Gateway** | Istio Ingress Gateway | VirtualService 기반 라우팅 |
 | **Service Mesh** | Istio 1.24.0 | mTLS, AuthorizationPolicy |
 | **Monitoring** | Prometheus + Grafana + Loki + OTEL + Tempo | 메트릭/로그/트레이싱 |
 
