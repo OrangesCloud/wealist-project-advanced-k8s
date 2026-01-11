@@ -1,0 +1,248 @@
+<mxfile host="Electron" agent="Mozilla/5.0" version="29.3.0">
+  <diagram name="Backend CI/CD Pipeline" id="backend-cicd">
+    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="750" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Background -->
+        <mxCell id="bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=none;" value="" vertex="1">
+          <mxGeometry x="20" y="10" width="1360" height="730" as="geometry" />
+        </mxCell>
+
+        <!-- Title -->
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=22;fontStyle=1;fontColor=#232F3E;" value="weAlist - Backend CI/CD Pipeline (GitOps)" vertex="1">
+          <mxGeometry x="400" y="15" width="600" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Developer -->
+        <mxCell id="developer" parent="1" style="shape=mxgraph.aws4.users;html=1;verticalLabelPosition=bottom;verticalAlign=top;strokeColor=none;fillColor=#232F3D;" value="Developer" vertex="1">
+          <mxGeometry x="650" y="70" width="70" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- GitHub Branch -->
+        <mxCell id="github-branch" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#24292F;strokeColor=#24292F;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="GitHub Push&#xa;service-deploy-{env}" vertex="1">
+          <mxGeometry x="600" y="150" width="170" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Developer to GitHub -->
+        <mxCell id="edge-dev-github" edge="1" parent="1" source="developer" target="github-branch" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#24292F;endArrow=classic;endSize=8;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- GitHub Actions -->
+        <mxCell id="github-actions" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#24292F;strokeColor=#24292F;strokeWidth=2;fontSize=13;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="GitHub Actions&#xa;ci-build-images.yaml" vertex="1">
+          <mxGeometry x="570" y="230" width="230" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- GitHub Branch to Actions -->
+        <mxCell id="edge-branch-actions" edge="1" parent="1" source="github-branch" target="github-actions" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#24292F;endArrow=classic;endSize=8;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Dev Pipeline Box -->
+        <mxCell id="dev-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#2196F3;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=8;fontSize=14;fontStyle=1;fontColor=#2196F3;" value="Development Environment" vertex="1">
+          <mxGeometry x="60" y="320" width="580" height="390" as="geometry" />
+        </mxCell>
+
+        <!-- Prod Pipeline Box -->
+        <mxCell id="prod-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#4CAF50;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=8;fontSize=14;fontStyle=1;fontColor=#4CAF50;" value="Production Environment" vertex="1">
+          <mxGeometry x="730" y="320" width="600" height="390" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== DEV PIPELINE ==================== -->
+
+        <!-- Dev: Change Detection -->
+        <mxCell id="dev-detect" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2196F3;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Change Detection&#xa;(dorny/paths-filter)" vertex="1">
+          <mxGeometry x="100" y="365" width="150" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: Docker Build -->
+        <mxCell id="dev-build" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2196F3;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Docker Build&#xa;(Matrix: 8 services)" vertex="1">
+          <mxGeometry x="280" y="365" width="150" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: ECR Push -->
+        <mxCell id="dev-ecr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="ECR Push&#xa;{svc}:latest + {num}-{sha}" vertex="1">
+          <mxGeometry x="460" y="365" width="160" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: GitOps Update -->
+        <mxCell id="dev-gitops" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#24292F;strokeColor=#24292F;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="Update k8s-deploy-dev&#xa;(ArgoCD App YAML)" vertex="1">
+          <mxGeometry x="100" y="440" width="180" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: ArgoCD -->
+        <mxCell id="dev-argocd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EF7B4D;strokeColor=#EF7B4D;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="ArgoCD Auto Sync&#xa;wealist-dev project" vertex="1">
+          <mxGeometry x="310" y="440" width="160" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: K8s -->
+        <mxCell id="dev-k8s" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#326CE5;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="EKS Dev Cluster&#xa;wealist-dev namespace" vertex="1">
+          <mxGeometry x="500" y="440" width="120" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: Discord -->
+        <mxCell id="dev-discord" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5865F2;strokeColor=#5865F2;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="Discord&#xa;Notification" vertex="1">
+          <mxGeometry x="520" y="510" width="100" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Dev Edges -->
+        <mxCell id="dev-edge1" edge="1" parent="1" source="dev-detect" target="dev-build" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#2196F3;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dev-edge2" edge="1" parent="1" source="dev-build" target="dev-ecr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#2196F3;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dev-edge3" edge="1" parent="1" source="dev-ecr" target="dev-gitops" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#2196F3;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="540" y="425" />
+              <mxPoint x="190" y="425" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dev-edge4" edge="1" parent="1" source="dev-gitops" target="dev-argocd" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#2196F3;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dev-edge5" edge="1" parent="1" source="dev-argocd" target="dev-k8s" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#2196F3;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dev-edge6" edge="1" parent="1" source="dev-k8s" target="dev-discord" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#5865F2;endArrow=classic;endSize=6;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Dev Details -->
+        <mxCell id="dev-detail1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" value="• ECR: {AWS_ACCOUNT}.dkr.ecr.ap-northeast-2.amazonaws.com&#xa;• Tags: latest + {BUILD_NUM}-{SHA}&#xa;• Secrets: Helm values (local)" vertex="1">
+          <mxGeometry x="80" y="570" width="300" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dev-detail2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" value="• DB/Redis: Helm-deployed&#xa;• mTLS: PERMISSIVE&#xa;• Sampling: 100%" vertex="1">
+          <mxGeometry x="80" y="620" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== PROD PIPELINE ==================== -->
+
+        <!-- Prod: Change Detection -->
+        <mxCell id="prod-detect" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4CAF50;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Change Detection&#xa;(dorny/paths-filter)" vertex="1">
+          <mxGeometry x="770" y="365" width="150" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: Docker Build -->
+        <mxCell id="prod-build" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4CAF50;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Docker Build&#xa;(Matrix: 8 services)" vertex="1">
+          <mxGeometry x="950" y="365" width="150" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: ECR Push -->
+        <mxCell id="prod-ecr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="ECR Push (IMMUTABLE)&#xa;prod/{svc}:{num}-{sha}" vertex="1">
+          <mxGeometry x="1130" y="365" width="180" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: GitOps Update -->
+        <mxCell id="prod-gitops" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#24292F;strokeColor=#24292F;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="Update k8s-deploy-prod&#xa;(ArgoCD App YAML)" vertex="1">
+          <mxGeometry x="770" y="440" width="180" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: ArgoCD -->
+        <mxCell id="prod-argocd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EF7B4D;strokeColor=#EF7B4D;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="ArgoCD Auto Sync&#xa;wealist-prod project" vertex="1">
+          <mxGeometry x="980" y="440" width="160" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: K8s -->
+        <mxCell id="prod-k8s" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#326CE5;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="EKS Prod Cluster&#xa;wealist-prod namespace" vertex="1">
+          <mxGeometry x="1170" y="440" width="140" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: Discord -->
+        <mxCell id="prod-discord" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5865F2;strokeColor=#5865F2;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="Discord&#xa;Notification" vertex="1">
+          <mxGeometry x="1190" y="510" width="100" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Prod Edges -->
+        <mxCell id="prod-edge1" edge="1" parent="1" source="prod-detect" target="prod-build" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-edge2" edge="1" parent="1" source="prod-build" target="prod-ecr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-edge3" edge="1" parent="1" source="prod-ecr" target="prod-gitops" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1220" y="425" />
+              <mxPoint x="860" y="425" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="prod-edge4" edge="1" parent="1" source="prod-gitops" target="prod-argocd" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-edge5" edge="1" parent="1" source="prod-argocd" target="prod-k8s" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-edge6" edge="1" parent="1" source="prod-k8s" target="prod-discord" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#5865F2;endArrow=classic;endSize=6;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Prod Details -->
+        <mxCell id="prod-detail1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" value="• ECR: prod/{service} (IMMUTABLE repo)&#xa;• Tags: {BUILD_NUM}-{SHA} only (no latest)&#xa;• Secrets: AWS Secrets Manager (ESO)" vertex="1">
+          <mxGeometry x="750" y="570" width="280" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="prod-detail2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" value="• DB/Redis: AWS RDS/ElastiCache&#xa;• mTLS: STRICT&#xa;• Sampling: 10%" vertex="1">
+          <mxGeometry x="750" y="620" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- GitHub Actions to Dev -->
+        <mxCell id="edge-actions-dev" edge="1" parent="1" source="github-actions" target="dev-detect" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#2196F3;endArrow=classic;endSize=8;exitX=0;exitY=1;exitDx=0;exitDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="175" y="310" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-dev" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#2196F3;fontStyle=1;" value="service-deploy-dev" vertex="1">
+          <mxGeometry x="280" y="290" width="130" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- GitHub Actions to Prod -->
+        <mxCell id="edge-actions-prod" edge="1" parent="1" source="github-actions" target="prod-detect" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#4CAF50;endArrow=classic;endSize=8;exitX=1;exitY=1;exitDx=0;exitDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="845" y="310" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-prod" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#4CAF50;fontStyle=1;" value="service-deploy-prod" vertex="1">
+          <mxGeometry x="960" y="290" width="140" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#CCCCCC;strokeWidth=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=5;fontSize=12;fontStyle=1;fontColor=#666666;" value="Legend" vertex="1">
+          <mxGeometry x="60" y="60" width="260" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-gh" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#24292F;strokeColor=#24292F;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="GitHub" vertex="1">
+          <mxGeometry x="75" y="90" width="55" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-ecr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9900;strokeColor=#FF9900;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="ECR" vertex="1">
+          <mxGeometry x="140" y="90" width="55" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-argocd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EF7B4D;strokeColor=#EF7B4D;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="ArgoCD" vertex="1">
+          <mxGeometry x="205" y="90" width="55" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-k8s" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#326CE5;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="K8s" vertex="1">
+          <mxGeometry x="270" y="90" width="40" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-discord" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5865F2;strokeColor=#5865F2;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="Discord" vertex="1">
+          <mxGeometry x="75" y="120" width="55" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-dev" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#2196F3;strokeWidth=1;fontSize=9;fontColor=#2196F3;" value="Dev" vertex="1">
+          <mxGeometry x="140" y="120" width="55" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-prod" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#4CAF50;strokeWidth=1;fontSize=9;fontColor=#4CAF50;" value="Prod" vertex="1">
+          <mxGeometry x="205" y="120" width="55" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

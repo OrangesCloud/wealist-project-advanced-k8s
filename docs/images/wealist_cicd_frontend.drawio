@@ -1,0 +1,280 @@
+<mxfile host="Electron" agent="Mozilla/5.0" version="29.3.0">
+  <diagram name="Frontend CI/CD Pipeline" id="frontend-cicd">
+    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="700" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Background -->
+        <mxCell id="bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=none;" value="" vertex="1">
+          <mxGeometry x="20" y="10" width="1360" height="680" as="geometry" />
+        </mxCell>
+
+        <!-- Title -->
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=22;fontStyle=1;fontColor=#232F3E;" value="weAlist - Frontend CI/CD Pipeline (S3 + CloudFront)" vertex="1">
+          <mxGeometry x="400" y="15" width="600" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Developer -->
+        <mxCell id="developer" parent="1" style="shape=mxgraph.aws4.users;html=1;verticalLabelPosition=bottom;verticalAlign=top;strokeColor=none;fillColor=#232F3D;" value="Developer" vertex="1">
+          <mxGeometry x="650" y="70" width="70" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Dev Pipeline Box -->
+        <mxCell id="dev-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#2196F3;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=8;fontSize=14;fontStyle=1;fontColor=#2196F3;" value="Development (dev / dev-frontend branch)" vertex="1">
+          <mxGeometry x="60" y="160" width="590" height="480" as="geometry" />
+        </mxCell>
+
+        <!-- Prod Pipeline Box -->
+        <mxCell id="prod-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#4CAF50;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=8;fontSize=14;fontStyle=1;fontColor=#4CAF50;" value="Production (frontend-v* tag)" vertex="1">
+          <mxGeometry x="730" y="160" width="600" height="480" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== DEV PIPELINE ==================== -->
+
+        <!-- Dev: Git Push -->
+        <mxCell id="dev-push" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#24292F;strokeColor=#24292F;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="Push to&#xa;dev / dev-frontend" vertex="1">
+          <mxGeometry x="100" y="210" width="140" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: GitHub Actions -->
+        <mxCell id="dev-actions" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#24292F;strokeColor=#24292F;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="GitHub Actions&#xa;frontend-dev.yaml" vertex="1">
+          <mxGeometry x="280" y="210" width="150" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: Semantic Release -->
+        <mxCell id="dev-semantic" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7C3AED;strokeColor=#7C3AED;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="Semantic Release&#xa;(Auto Version Bump)" vertex="1">
+          <mxGeometry x="460" y="210" width="160" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: Build -->
+        <mxCell id="dev-build" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2196F3;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="pnpm build&#xa;+ TypeScript Check" vertex="1">
+          <mxGeometry x="100" y="290" width="140" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: GHCR Push -->
+        <mxCell id="dev-ghcr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#24292F;strokeColor=#24292F;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="Docker → GHCR&#xa;sha-{hash}, v{ver}, latest-dev" vertex="1">
+          <mxGeometry x="280" y="290" width="180" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: S3 Deploy -->
+        <mxCell id="dev-s3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#569A31;strokeColor=#569A31;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="S3 Deploy&#xa;Versioned + Root" vertex="1">
+          <mxGeometry x="100" y="370" width="140" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: CloudFront Invalidate -->
+        <mxCell id="dev-cf" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8C4FFF;strokeColor=#8C4FFF;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="CloudFront&#xa;Cache Invalidation" vertex="1">
+          <mxGeometry x="280" y="370" width="150" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: Discord -->
+        <mxCell id="dev-discord" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5865F2;strokeColor=#5865F2;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="Discord&#xa;Notification" vertex="1">
+          <mxGeometry x="460" y="370" width="120" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Dev: Website -->
+        <mxCell id="dev-site" parent="1" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#2196F3;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="dev.wealist.co.kr&#xa;(CloudFront → S3)" vertex="1">
+          <mxGeometry x="240" y="460" width="200" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Dev Edges -->
+        <mxCell id="dev-edge1" edge="1" parent="1" source="dev-push" target="dev-actions" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#2196F3;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dev-edge2" edge="1" parent="1" source="dev-actions" target="dev-semantic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#2196F3;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dev-edge3" edge="1" parent="1" source="dev-semantic" target="dev-build" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#2196F3;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="540" y="275" />
+              <mxPoint x="170" y="275" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dev-edge4" edge="1" parent="1" source="dev-build" target="dev-ghcr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#2196F3;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dev-edge5" edge="1" parent="1" source="dev-ghcr" target="dev-s3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#2196F3;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="370" y="355" />
+              <mxPoint x="170" y="355" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dev-edge6" edge="1" parent="1" source="dev-s3" target="dev-cf" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#2196F3;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dev-edge7" edge="1" parent="1" source="dev-cf" target="dev-discord" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#5865F2;endArrow=classic;endSize=6;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dev-edge8" edge="1" parent="1" source="dev-cf" target="dev-site" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#2196F3;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Dev Cache Strategy -->
+        <mxCell id="dev-cache" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" value="Cache Strategy:&#xa;• Assets: max-age=31536000, immutable&#xa;• index.html, config.js: no-cache" vertex="1">
+          <mxGeometry x="80" y="570" width="250" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== PROD PIPELINE ==================== -->
+
+        <!-- Prod: Git Tag -->
+        <mxCell id="prod-tag" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#24292F;strokeColor=#24292F;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="Tag Push&#xa;frontend-v1.0.0" vertex="1">
+          <mxGeometry x="770" y="210" width="140" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: GitHub Actions -->
+        <mxCell id="prod-actions" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#24292F;strokeColor=#24292F;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="GitHub Actions&#xa;frontend-prod.yaml" vertex="1">
+          <mxGeometry x="950" y="210" width="150" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: Version Extract -->
+        <mxCell id="prod-version" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4CAF50;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Extract Version&#xa;from Tag Name" vertex="1">
+          <mxGeometry x="1140" y="210" width="150" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: Build -->
+        <mxCell id="prod-build" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4CAF50;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="pnpm build&#xa;+ Runtime Config" vertex="1">
+          <mxGeometry x="770" y="290" width="140" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: S3 Versioned -->
+        <mxCell id="prod-s3-ver" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#569A31;strokeColor=#569A31;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="S3 Versioned Deploy&#xa;/v1.0.0/" vertex="1">
+          <mxGeometry x="950" y="290" width="160" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: S3 Root -->
+        <mxCell id="prod-s3-root" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#569A31;strokeColor=#569A31;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="S3 Root Deploy&#xa;(immutable assets)" vertex="1">
+          <mxGeometry x="1150" y="290" width="150" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: CloudFront -->
+        <mxCell id="prod-cf" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8C4FFF;strokeColor=#8C4FFF;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="CloudFront&#xa;Cache Invalidation" vertex="1">
+          <mxGeometry x="770" y="370" width="150" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: GitHub Release -->
+        <mxCell id="prod-release" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#24292F;strokeColor=#24292F;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="GitHub Release&#xa;+ CHANGELOG" vertex="1">
+          <mxGeometry x="960" y="370" width="140" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: Discord -->
+        <mxCell id="prod-discord" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5865F2;strokeColor=#5865F2;strokeWidth=2;fontSize=11;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="Discord&#xa;Notification" vertex="1">
+          <mxGeometry x="1140" y="370" width="120" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Prod: Website -->
+        <mxCell id="prod-site" parent="1" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#4CAF50;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="wealist.co.kr&#xa;(CloudFront → S3)" vertex="1">
+          <mxGeometry x="920" y="460" width="200" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Prod Edges -->
+        <mxCell id="prod-edge1" edge="1" parent="1" source="prod-tag" target="prod-actions" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-edge2" edge="1" parent="1" source="prod-actions" target="prod-version" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-edge3" edge="1" parent="1" source="prod-version" target="prod-build" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1215" y="275" />
+              <mxPoint x="840" y="275" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="prod-edge4" edge="1" parent="1" source="prod-build" target="prod-s3-ver" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-edge5" edge="1" parent="1" source="prod-s3-ver" target="prod-s3-root" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-edge6" edge="1" parent="1" source="prod-s3-root" target="prod-cf" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1225" y="355" />
+              <mxPoint x="845" y="355" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="prod-edge7" edge="1" parent="1" source="prod-cf" target="prod-release" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-edge8" edge="1" parent="1" source="prod-release" target="prod-discord" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#5865F2;endArrow=classic;endSize=6;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-edge9" edge="1" parent="1" source="prod-cf" target="prod-site" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#4CAF50;endArrow=classic;endSize=6;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Prod Rollback -->
+        <mxCell id="prod-rollback-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#FFC107;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=10;spacingTop=5;fontSize=11;fontStyle=1;fontColor=#F57C00;" value="Rollback Support" vertex="1">
+          <mxGeometry x="750" y="570" width="270" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="prod-rollback-text" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" value="• frontend-rollback.yaml&#xa;• Restore from versioned S3 folder (e.g., /v1.0.0/ → root)" vertex="1">
+          <mxGeometry x="760" y="590" width="250" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Developer to Dev -->
+        <mxCell id="edge-dev-push" edge="1" parent="1" source="developer" target="dev-push" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#2196F3;endArrow=classic;endSize=8;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="510" y="95" />
+              <mxPoint x="510" y="145" />
+              <mxPoint x="170" y="145" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-dev-push" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontColor=#2196F3;fontStyle=2;" value="code push" vertex="1">
+          <mxGeometry x="370" y="125" width="80" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Developer to Prod -->
+        <mxCell id="edge-prod-tag" edge="1" parent="1" source="developer" target="prod-tag" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#4CAF50;endArrow=classic;endSize=8;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="860" y="95" />
+              <mxPoint x="860" y="145" />
+              <mxPoint x="840" y="145" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-prod-tag" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontColor=#4CAF50;fontStyle=2;" value="tag push" vertex="1">
+          <mxGeometry x="900" y="125" width="80" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#CCCCCC;strokeWidth=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=5;fontSize=12;fontStyle=1;fontColor=#666666;" value="Legend" vertex="1">
+          <mxGeometry x="60" y="60" width="340" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-gh" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#24292F;strokeColor=#24292F;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="GitHub" vertex="1">
+          <mxGeometry x="75" y="88" width="55" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-semantic" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7C3AED;strokeColor=#7C3AED;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="Semantic" vertex="1">
+          <mxGeometry x="140" y="88" width="55" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-s3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#569A31;strokeColor=#569A31;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="S3" vertex="1">
+          <mxGeometry x="205" y="88" width="40" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-cf" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8C4FFF;strokeColor=#8C4FFF;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="CloudFront" vertex="1">
+          <mxGeometry x="255" y="88" width="65" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-discord" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5865F2;strokeColor=#5865F2;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="Discord" vertex="1">
+          <mxGeometry x="330" y="88" width="55" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-dev" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#2196F3;strokeWidth=1;fontSize=9;fontColor=#2196F3;" value="Dev" vertex="1">
+          <mxGeometry x="75" y="115" width="55" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-prod" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#4CAF50;strokeWidth=1;fontSize=9;fontColor=#4CAF50;" value="Prod" vertex="1">
+          <mxGeometry x="140" y="115" width="55" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-rollback" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#FFC107;strokeWidth=1;fontSize=9;fontColor=#F57C00;" value="Rollback" vertex="1">
+          <mxGeometry x="205" y="115" width="55" height="18" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
