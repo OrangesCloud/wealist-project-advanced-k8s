@@ -34,11 +34,11 @@ weAlist의 Kubernetes 플랫폼 아키텍처입니다.
 │  └──────────────┘  └──────────────┘  └──────────────┘  │
 │                                                         │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │    argocd    │  │  monitoring  │  │ ingress-nginx│  │
+│  │    argocd    │  │  monitoring  │  │ istio-system │  │
 │  │              │  │              │  │              │  │
-│  │ - Argo CD    │  │ - Prometheus │  │ - Ingress    │  │
-│  │ - App of Apps│  │ - Grafana    │  │ - Controller │  │
-│  │              │  │ - Loki       │  │              │  │
+│  │ - Argo CD    │  │ - Prometheus │  │ - Istiod     │  │
+│  │ - App of Apps│  │ - Grafana    │  │ - Gateway    │  │
+│  │              │  │ - Loki       │  │ - Kiali      │  │
 │  └──────────────┘  └──────────────┘  └──────────────┘  │
 └────────────────────────────────────────────────────────┘
 ```
@@ -51,7 +51,8 @@ weAlist의 Kubernetes 플랫폼 아키텍처입니다.
 | `wealist-prod`       | 운영               | Production |
 | `argocd`             | GitOps CD          | Shared     |
 | `monitoring`         | 모니터링 스택      | Shared     |
-| `ingress-nginx`      | Ingress Controller | Shared     |
+| `istio-system`       | Service Mesh (Istio Sidecar) | Shared     |
+| `external-secrets`   | ESO (AWS Secrets Manager) | Shared     |
 
 ---
 
@@ -105,6 +106,79 @@ chart/values.yaml (기본값)
 base.yaml (공통 설정 덮어씀)
     ↓
 {environment}.yaml (환경별 설정이 최종 우선)
+```
+
+---
+
+## Service Mesh (Istio Sidecar)
+
+Istio 1.24.0 Sidecar 모드를 사용하여 서비스 메시를 구성합니다.
+
+### 컴포넌트
+
+| Component | 역할 | 위치 |
+|-----------|------|------|
+| **Envoy Sidecar** | L4/L7 프록시, mTLS | 각 Pod 내부 |
+| **istiod** | Control Plane | istio-system |
+| **Ingress Gateway** | 외부 트래픽 진입점 | istio-system |
+| **Kiali** | 서비스 메시 시각화 | istio-system |
+
+### mTLS 설정
+
+```yaml
+# PeerAuthentication - 네임스페이스 레벨
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: wealist-prod
+spec:
+  mtls:
+    mode: STRICT  # Production
+    # mode: PERMISSIVE  # Development
+```
+
+### AuthorizationPolicy
+
+서비스 간 통신 제어:
+
+```yaml
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: board-service-policy
+spec:
+  selector:
+    matchLabels:
+      app: board-service
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals:
+        - cluster.local/ns/wealist-prod/sa/frontend
+        - cluster.local/ns/istio-system/sa/istio-ingressgateway
+```
+
+### Gateway API (HTTPRoute)
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: wealist-routes
+spec:
+  parentRefs:
+  - name: istio-ingressgateway
+    namespace: istio-system
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /svc/board
+    backendRefs:
+    - name: board-service
+      port: 8000
 ```
 
 ---
@@ -213,29 +287,32 @@ spec:
 | **Baseline**   | dev, staging | 기본 보안      |
 | **Restricted** | prod         | 최소 권한 원칙 |
 
-### Network Policies (Phase 2)
+### Network Policies (Istio AuthorizationPolicy)
+
+Istio AuthorizationPolicy를 통해 서비스 간 통신을 L7 레벨에서 제어합니다.
 
 ```yaml
-# 예시: board-service는 user-service만 호출 가능
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+# 예시: board-service는 frontend, auth, user, noti만 호출 허용
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
 metadata:
-  name: board-service-egress
+  name: board-service-policy
+  namespace: wealist-prod
 spec:
-  podSelector:
+  selector:
     matchLabels:
       app: board-service
-  policyTypes:
-    - Egress
-  egress:
-    - to:
-        - podSelector:
-            matchLabels:
-              app: user-service
-        - podSelector:
-            matchLabels:
-              app: postgres
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals:
+        - cluster.local/ns/wealist-prod/sa/frontend
+        - cluster.local/ns/wealist-prod/sa/auth-service
+        - cluster.local/ns/istio-system/sa/istio-ingressgateway
 ```
+
+> **Note**: Kubernetes NetworkPolicy 대신 Istio AuthorizationPolicy 사용으로 mTLS 기반 서비스 인증이 가능합니다.
 
 ---
 

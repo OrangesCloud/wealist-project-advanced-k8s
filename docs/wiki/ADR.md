@@ -35,7 +35,9 @@ weAlist 프로젝트의 주요 아키텍처 결정 기록입니다.
 
 ---
 
-## ADR-003: LiveKit 기반 영상통화
+## ADR-003: ~~LiveKit 기반 영상통화~~ (Deprecated)
+
+> **⚠️ Deprecated**: video-service는 2025-01 릴리스에서 제거되었습니다. 영상통화 기능은 향후 별도 프로젝트로 분리 예정.
 
 **상황**: 영상/음성 통화 기능을 어떻게 구현할 것인가?
 
@@ -50,6 +52,8 @@ weAlist 프로젝트의 주요 아키텍처 결정 기록입니다.
 **대안 검토**:
 - Jitsi: 무거움, 커스터마이징 어려움
 - Twilio: 비용 부담
+
+**결과**: 프로젝트 범위 조정으로 video-service 제거 (ADR-009 참조)
 
 ---
 
@@ -133,6 +137,48 @@ DB_PASSWORD, JWT_SECRET, GOOGLE_CLIENT_SECRET
 - GitOps에서 민감 정보 노출 방지
 - 환경별 secrets 파일 분리 (gitignored)
 - Sealed Secrets 도입 준비 (Phase 3)
+
+---
+
+## ADR-008: Istio Ambient → Sidecar 마이그레이션
+
+**상황**: Istio Ambient 모드에서 L7 기능 제한 및 안정성 이슈 발생
+
+**결정**: Istio 1.24.0 Sidecar 모드로 전환
+
+**이유**:
+- Ambient 모드의 waypoint proxy L7 처리 한계
+- Sidecar 모드의 검증된 안정성
+- mTLS, AuthorizationPolicy, RequestAuthentication 완벽 지원
+- 운영 경험 및 커뮤니티 지원 풍부
+
+**대안 검토**:
+- Ambient 유지: L7 기능 제한, waypoint 설정 복잡
+- Linkerd: 기능 제한, Istio 대비 생태계 부족
+
+**결과**:
+- 모든 Pod에 Envoy sidecar 주입
+- PeerAuthentication으로 mTLS STRICT 적용
+- AuthorizationPolicy로 서비스 간 통신 제어
+- Gateway API (HTTPRoute)로 Ingress 라우팅
+
+---
+
+## ADR-009: video-service 제거
+
+**상황**: 프로젝트 범위 조정 및 핵심 기능 집중 필요
+
+**결정**: video-service (LiveKit 기반 영상통화) 제거
+
+**이유**:
+- 핵심 협업 기능 (보드, 채팅, 알림)에 집중
+- LiveKit 인프라 복잡성 (SFU, TURN 서버)
+- 프로젝트 일정 내 MVP 완성 우선
+
+**결과**:
+- 7개 서비스 → 6개 서비스 + ops-portal
+- 서비스 구성: auth, user, board, chat, noti, storage, frontend
+- 영상통화는 향후 별도 프로젝트로 분리 가능
 
 ---
 

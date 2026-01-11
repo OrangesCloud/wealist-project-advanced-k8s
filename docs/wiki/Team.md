@@ -17,28 +17,33 @@ weAlist 프로젝트 팀 역할 및 진행 상황입니다.
 
 ## Project Roadmap
 
-### Phase 1: 로컬 기반 구축 (완료)
+### Phase 1: 로컬 기반 구축 ✅
 - [x] K8s manifest 정리
 - [x] Kind 로컬 배포 테스트
 - [x] 설계도 작성
 - [x] Helm 차트 전환
-- [ ] ArgoCD 로컬 설치 + GitOps 테스트
+- [x] ArgoCD 로컬 설치 + GitOps 테스트
 
-### Phase 2: 모니터링/로깅
-- [ ] Prometheus + Grafana 설치
-- [ ] Loki 로그 수집
-- [ ] Pod 리소스 limits 튜닝
+### Phase 2: 모니터링/로깅 ✅
+- [x] Prometheus + Grafana 설치
+- [x] Loki 로그 수집
+- [x] OpenTelemetry + Tempo 분산 추적
+- [x] Pod 리소스 limits 튜닝
 
-### Phase 3: 서비스 메시 + 고급 배포
-- [ ] Istio 설치 (또는 Linkerd)
-- [ ] mTLS 설정
-- [ ] Argo Rollouts 카나리 배포
+### Phase 3: 서비스 메시 + 고급 배포 ✅
+- [x] Istio 1.24.0 Sidecar 모드 설치
+- [x] mTLS STRICT 설정
+- [x] AuthorizationPolicy 적용
+- [x] Gateway API (HTTPRoute)
+- [x] Argo Rollouts 카나리 배포
 
-### Phase 4: AWS 인프라
-- [ ] Terraform으로 EKS 클러스터 생성
-- [ ] Cluster Autoscaler 설정
-- [ ] ALB Ingress Controller
-- [ ] 부하 테스트 (k6, locust)
+### Phase 4: AWS 인프라 ✅
+- [x] Terraform으로 EKS 클러스터 생성 (3-layer: foundation, compute, argocd-apps)
+- [x] Cluster Autoscaler 설정
+- [x] AWS ALB Controller
+- [x] External Secrets Operator (AWS Secrets Manager)
+- [x] CloudFront + S3 Frontend 배포
+- [x] k6 부하 테스트
 
 ---
 
@@ -50,14 +55,34 @@ weAlist 프로젝트 팀 역할 및 진행 상황입니다.
 - 156개 자동화 테스트 검증
 
 ### 서비스 표준화
-- 6개 Go 서비스 공통 health package 적용
+- 5개 Go 서비스 공통 패키지 적용 (health, errors, middleware, ratelimit)
 - Docker build 패턴 통일
-- 환경별 설정 체계화
+- 환경별 설정 체계화 (base.yaml → env.yaml 오버라이드)
+
+### Istio Service Mesh
+- Ambient → Sidecar 모드 마이그레이션
+- mTLS STRICT + AuthorizationPolicy
+- Gateway API (HTTPRoute) 라우팅
+- Argo Rollouts 카나리 배포
+
+### Observability Stack
+- Prometheus + Grafana 메트릭 시각화
+- Loki 로그 집계
+- OpenTelemetry + Tempo 분산 추적
+- Span Metrics + Service Graph
+
+### AWS Production 환경
+- Terraform 3-layer 아키텍처 (foundation, compute, argocd-apps)
+- EKS 1.34 + Managed Node Groups
+- External Secrets Operator (AWS Secrets Manager)
+- CloudFront + S3 정적 프론트엔드
+- RDS PostgreSQL + ElastiCache Redis
 
 ### 문서화
-- CLAUDE.md 개발자 가이드 (32KB)
-- ADR 7개 작성
-- Wiki 문서화
+- CLAUDE.md 개발자 가이드 (40KB+)
+- ADR 9개 작성
+- 트러블슈팅 가이드 12개
+- draw.io 아키텍처 다이어그램 11개
 
 ---
 

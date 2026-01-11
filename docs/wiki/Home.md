@@ -32,11 +32,11 @@
 
 | 항목 | 내용 |
 |------|------|
-| **서비스 수** | 8개 (6 Go + 1 Spring Boot + 1 React) |
-| **인프라** | Kubernetes + Helm + ArgoCD |
-| **모니터링** | Prometheus + Loki + Grafana |
+| **서비스 수** | 7개 (5 Go + 1 Spring Boot + 1 React) |
+| **인프라** | Kubernetes + Helm + ArgoCD + Istio (Sidecar) |
+| **모니터링** | Prometheus + Grafana + Loki + OTEL + Tempo |
 | **데이터베이스** | PostgreSQL 17, Redis 7.2 |
-| **영상통화** | LiveKit + Coturn |
+| **Service Mesh** | Istio 1.24.0 (mTLS, Gateway API) |
 
 ---
 

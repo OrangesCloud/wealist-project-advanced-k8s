@@ -93,7 +93,7 @@ RDS/ElastiCache (Private Subnet - DB)
 - Network ACLs
 
 ### Application Security
-- mTLS with Istio (Phase 3)
+- mTLS with Istio Sidecar (1.24.0) ✅
 - JWT token validation
 - RBAC in Kubernetes
 

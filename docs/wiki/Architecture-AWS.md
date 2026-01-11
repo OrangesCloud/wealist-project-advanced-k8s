@@ -6,7 +6,7 @@ weAlist의 AWS 인프라 아키텍처입니다.
 
 ## Architecture Diagram
 
-![AWS Architecture](../images/wealist_aws_arch.png)
+![AWS Architecture](../images/wealist_aws_arch_v2.png)
 
 ---
 
