@@ -51,35 +51,49 @@ weAlist의 AWS 인프라 아키텍처입니다.
 
 ## Terraform Infrastructure (IaC)
 
-3-layer 아키텍처로 인프라를 관리합니다.
+2-layer 아키텍처로 인프라를 관리합니다.
 
 ```
-terraform/prod/
-├── foundation/      # Layer 1: VPC, Subnets, Security Groups, IAM
-├── compute/         # Layer 2: EKS, Node Groups, ALB Controller, ESO
-└── argocd-apps/     # Layer 3: ArgoCD Applications (App of Apps)
+terraform/
+├── modules/                    # 재사용 가능한 Terraform 모듈
+│   ├── ecr/                    # ECR 저장소 모듈
+│   ├── github-oidc/            # GitHub Actions OIDC 인증 모듈
+│   ├── pod-identity/           # EKS Pod Identity 모듈
+│   └── ssm-parameter/          # SSM Parameter Store 모듈
+├── global/                     # 전역 리소스 (환경 간 공유)
+│   └── oidc-iam/               # GitHub Actions OIDC IAM 역할
+├── dev-environment/            # 개발 환경 (ECR, IAM User)
+├── web-infra/                  # CloudFront + S3 (Frontend)
+└── prod/                       # 프로덕션 환경
+    ├── foundation/             # Layer 1: VPC, RDS, Redis, ECR, S3, KMS
+    └── compute/                # Layer 2: EKS, Istio, ArgoCD, Pod Identity
 ```
 
-### Layer 1: Foundation
-- VPC (10.0.0.0/16)
-- Public/Private Subnets (Multi-AZ)
-- Security Groups
-- IAM Roles (IRSA)
-- KMS Keys
+### Layer 1: Foundation (`prod/foundation/`)
 
-### Layer 2: Compute
-- EKS 1.34 Cluster
-- Managed Node Groups (t3.medium)
-- AWS Load Balancer Controller
-- External Secrets Operator (ESO)
-- Cluster Autoscaler
+| 리소스 | 파일 | 설명 |
+|--------|------|------|
+| VPC | `main.tf` | 10.0.0.0/16, Public/Private Subnets, NAT Gateway |
+| RDS | `rds.tf` | PostgreSQL 17 (db.t4g.small, Single-AZ) |
+| ElastiCache | `elasticache.tf` | Redis 7.2 (cache.t4g.small) |
+| ECR | `ecr.tf` | 서비스별 컨테이너 레지스트리 |
+| S3 | `s3.tf` | 파일 스토리지 버킷 |
+| KMS | `kms.tf` | 암호화 키 |
+| Secrets Manager | `secrets.tf` | DB/Redis 비밀번호 자동 관리 |
 
-### Layer 3: ArgoCD Apps
-- ArgoCD Application 정의 (App of Apps 패턴)
-- 서비스별 Application CRD
-- 환경별 분리 (dev, prod)
+### Layer 2: Compute (`prod/compute/`)
 
-> **Note**: `terraform apply`는 layer 순서대로 실행: foundation → compute → argocd-apps
+| 리소스 | 파일 | 설명 |
+|--------|------|------|
+| EKS | `eks.tf` | Kubernetes 1.34, Managed Node Groups (Spot) |
+| Helm Releases | `helm-releases.tf` | Istio, AWS LB Controller, ESO, Cluster Autoscaler |
+| ArgoCD | `argocd-bootstrap.tf` | ArgoCD 설치 및 App of Apps 패턴 |
+| Pod Identity | `pod-identity.tf` | S3, Secrets Manager 접근 권한 |
+| IAM Access | `iam-eks-access.tf` | 팀원별 EKS 접근 권한 (admin/developer/readonly) |
+| Scheduled Scaling | `scheduled-scaling.tf` | 야간/주말 노드 스케일 다운 |
+| Namespaces | `namespaces.tf` | wealist-prod 네임스페이스 + Istio sidecar 주입 |
+
+> **Note**: `terraform apply`는 layer 순서대로 실행: `foundation` → `compute`
 
 ---
 
