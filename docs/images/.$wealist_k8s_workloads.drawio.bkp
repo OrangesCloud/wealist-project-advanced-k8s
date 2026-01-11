@@ -1,11 +1,11 @@
-<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.0 Chrome/140.0.7339.249 Electron/38.7.2 Safari/537.36" version="29.3.0">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" version="29.2.7">
   <diagram name="K8s Workloads" id="k8s-workloads">
-    <mxGraphModel dx="1291" dy="1274" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="850" background="#FFFFFF" math="0" shadow="0">
+    <mxGraphModel dx="1151" dy="890" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="850" background="#FFFFFF" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=none;" value="" vertex="1">
-          <mxGeometry height="700" width="1230" x="80" as="geometry" />
+          <mxGeometry height="730" width="1230" x="80" as="geometry" />
         </mxCell>
         <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=20;fontStyle=1;fontColor=#232F3E;" value="weAlist - Kubernetes Workloads Architecture" vertex="1">
           <mxGeometry height="35" width="500" x="450" y="15" as="geometry" />
@@ -29,12 +29,7 @@
           <mxGeometry height="48" width="300" x="550" y="163" as="geometry" />
         </mxCell>
         <mxCell id="ing-svc-arrow" edge="1" parent="1" source="ingress" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#8C4FFF;endArrow=classic;endSize=6;" target="svc-layer">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="700" y="240" />
-              <mxPoint x="700" y="240" />
-            </Array>
-          </mxGeometry>
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="svc-layer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#2E3B8C;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=5;fontSize=13;fontStyle=1;fontColor=#2E3B8C;" value="Service Layer (ClusterIP)" vertex="1">
           <mxGeometry height="85" width="1190" x="100" y="250" as="geometry" />
@@ -61,12 +56,7 @@
           <mxGeometry height="48" width="140" x="1132" y="278" as="geometry" />
         </mxCell>
         <mxCell id="svc-deploy-arrow" edge="1" parent="1" source="svc-layer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#666666;endArrow=classic;endSize=6;dashed=1;" target="deploy-layer">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="700" y="360" />
-              <mxPoint x="700" y="360" />
-            </Array>
-          </mxGeometry>
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="selector-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#666666;fontStyle=2;" value="selector: app=*" vertex="1">
           <mxGeometry height="18" width="100" x="720" y="340" as="geometry" />
@@ -138,12 +128,7 @@
           <mxGeometry height="40" width="55" x="1207" y="423" as="geometry" />
         </mxCell>
         <mxCell id="deploy-data-arrow" edge="1" parent="1" source="deploy-layer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#ED7100;endArrow=classic;endSize=6;" target="data-layer">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="700" y="520" />
-              <mxPoint x="700" y="520" />
-            </Array>
-          </mxGeometry>
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="data-layer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C925D1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=5;fontSize=13;fontStyle=1;fontColor=#C925D1;" value="Data Layer (StatefulSet / External)" vertex="1">
           <mxGeometry height="130" width="1200" x="100" y="525" as="geometry" />
@@ -152,7 +137,7 @@
           <mxGeometry height="75" width="280" x="320" y="565" as="geometry" />
         </mxCell>
         <mxCell id="postgres-icon" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds;html=1;fillColor=#C925D1;strokeColor=#FFFFFF;" value="" vertex="1">
-          <mxGeometry height="45" width="45" x="355" y="578" as="geometry" />
+          <mxGeometry height="45" width="45" x="355" y="588" as="geometry" />
         </mxCell>
         <mxCell id="postgres-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontColor=#232F3E;" value="PostgreSQL 17&#xa;ClusterIP :5432&#xa;7 Databases" vertex="1">
           <mxGeometry height="55" width="110" x="410" y="583" as="geometry" />
@@ -161,7 +146,7 @@
           <mxGeometry height="75" width="280" x="800" y="565" as="geometry" />
         </mxCell>
         <mxCell id="redis-icon" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.elasticache;html=1;fillColor=#C925D1;strokeColor=#FFFFFF;" value="" vertex="1">
-          <mxGeometry height="45" width="45" x="835" y="578" as="geometry" />
+          <mxGeometry height="45" width="45" x="835" y="588" as="geometry" />
         </mxCell>
         <mxCell id="redis-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontColor=#232F3E;" value="Redis 7.2&#xa;ClusterIP :6379&#xa;Cache + Sessions" vertex="1">
           <mxGeometry height="55" width="110" x="890" y="583" as="geometry" />

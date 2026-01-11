@@ -53,7 +53,7 @@ weAlist의 전체 시스템 아키텍처입니다.
 
 ## Service Communication
 
-![Service Communication](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_service_communication.drawio.svg)
+![Service Communication](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_service_communication.png)
 
 | Path | Service | Port |
 |------|---------|------|
