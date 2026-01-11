@@ -55,6 +55,8 @@ weAlist의 전체 시스템 아키텍처입니다.
 
 ![Service Communication](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_service_communication.png)
 
+### Istio Gateway 라우팅 (Backend API)
+
 | Path | Service | Port |
 |------|---------|------|
 | `/svc/auth/*` | auth-service | 8080 |
@@ -64,7 +66,12 @@ weAlist의 전체 시스템 아키텍처입니다.
 | `/svc/noti/*` | noti-service | 8002 |
 | `/svc/storage/*` | storage-service | 8003 |
 | `/svc/ops/*` | ops-service | 8004 |
-| `/*` | frontend (CloudFront) | - |
+
+### Frontend (Static)
+
+| Path | Service | Description |
+|------|---------|-------------|
+| `/*` | CloudFront + S3 | 정적 파일 (Istio 미경유) |
 
 ### Internal Communication
 
