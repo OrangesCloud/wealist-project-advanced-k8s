@@ -6,7 +6,7 @@ weAlist의 CI/CD 파이프라인 아키텍처입니다.
 
 ## Pipeline Diagram
 
-![CI/CD Pipeline](../images/wealist_cicd.png)
+![CI/CD Pipeline](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_cicd.png)
 
 ---
 
@@ -83,5 +83,5 @@ Kubernetes Cluster
 
 ## Related Pages
 
-- [Architecture Overview](Architecture.md)
-- [Getting Started](Getting-Started.md)
+- [Architecture Overview](Architecture)
+- [Getting Started](Getting-Started)

@@ -184,5 +184,5 @@ DB_PASSWORD, JWT_SECRET, GOOGLE_CLIENT_SECRET
 
 ## Related Pages
 
-- [Architecture Overview](Architecture.md)
-- [Requirements](Requirements.md)
+- [Architecture Overview](Architecture)
+- [Requirements](Requirements)

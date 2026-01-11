@@ -7,24 +7,24 @@
 ## Quick Links
 
 ### Architecture
-- [Architecture Overview](Architecture.md) - 전체 시스템 아키텍처
-- [AWS Architecture](Architecture-AWS.md) - AWS 인프라 구성
-- [CI/CD Pipeline](Architecture-CICD.md) - CI/CD 파이프라인
-- [Security (VPC)](Architecture-VPC.md) - 네트워크 및 보안
-- [Monitoring Stack](Architecture-Monitoring.md) - 모니터링 구성
-- [Business Flow](Business-Flow.md) - 비즈니스 플로우
+- [Architecture Overview](Architecture) - 전체 시스템 아키텍처
+- [AWS Architecture](Architecture-AWS) - AWS 인프라 구성
+- [CI/CD Pipeline](Architecture-CICD) - CI/CD 파이프라인
+- [Security (VPC)](Architecture-VPC) - 네트워크 및 보안
+- [Monitoring Stack](Architecture-Monitoring) - 모니터링 구성
+- [Business Flow](Business-Flow) - 비즈니스 플로우
 
 ### Documentation
-- [Requirements](Requirements.md) - 요구사항 정의서
-- [Cloud Proposal](Cloud-Proposal.md) - 클라우드 제안서
-- [ADR](ADR.md) - 아키텍처 결정 기록
+- [Requirements](Requirements) - 요구사항 정의서
+- [Cloud Proposal](Cloud-Proposal) - 클라우드 제안서
+- [ADR](ADR) - 아키텍처 결정 기록
 
 ### Guides
-- [Getting Started](Getting-Started.md) - 시작 가이드
-- [Development Guide](Development-Guide.md) - 개발 환경 설정
+- [Getting Started](Getting-Started) - 시작 가이드
+- [Development Guide](Development-Guide) - 개발 환경 설정
 
 ### Team
-- [Team & Contributions](Team.md) - 팀 역할 및 진행 상황
+- [Team & Contributions](Team) - 팀 역할 및 진행 상황
 
 ---
 

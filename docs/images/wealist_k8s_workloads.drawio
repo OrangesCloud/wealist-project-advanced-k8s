@@ -25,7 +25,7 @@
         <mxCell id="ingress-layer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#8C4FFF;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=5;fontSize=13;fontStyle=1;fontColor=#8C4FFF;" value="Ingress Layer" vertex="1">
           <mxGeometry height="75" width="1190" x="100" y="145" as="geometry" />
         </mxCell>
-        <mxCell id="ingress" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#8C4FFF;strokeWidth=2;fontSize=13;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="NGINX Ingress Controller&#xa;:80, :443" vertex="1">
+        <mxCell id="ingress" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#8C4FFF;strokeWidth=2;fontSize=13;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Istio Gateway&#xa;:80, :443" vertex="1">
           <mxGeometry height="48" width="300" x="550" y="163" as="geometry" />
         </mxCell>
         <mxCell id="ing-svc-arrow" edge="1" parent="1" source="ingress" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#8C4FFF;endArrow=classic;endSize=6;" target="svc-layer">
@@ -52,7 +52,7 @@
         <mxCell id="svc-storage" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E3B8C;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="storage-service&#xa;ClusterIP :8003" vertex="1">
           <mxGeometry height="48" width="140" x="965" y="278" as="geometry" />
         </mxCell>
-        <mxCell id="svc-video" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E3B8C;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="video-service&#xa;ClusterIP :8004" vertex="1">
+        <mxCell id="svc-video" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2E3B8C;strokeWidth=2;fontSize=12;fontStyle=1;fontColor=#232F3E;align=center;verticalAlign=middle;" value="ops-service&#xa;ClusterIP :8004" vertex="1">
           <mxGeometry height="48" width="140" x="1132" y="278" as="geometry" />
         </mxCell>
         <mxCell id="svc-deploy-arrow" edge="1" parent="1" source="svc-layer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#666666;endArrow=classic;endSize=6;dashed=1;" target="deploy-layer">
@@ -118,7 +118,7 @@
         <mxCell id="pod-storage-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#ED7100;strokeWidth=1;fontSize=11;fontColor=#232F3E;" value="Pod" vertex="1">
           <mxGeometry height="40" width="55" x="1040" y="423" as="geometry" />
         </mxCell>
-        <mxCell id="deploy-video" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;strokeWidth=2;verticalAlign=top;align=center;spacingTop=5;fontSize=12;fontStyle=1;fontColor=#232F3E;" value="video-service" vertex="1">
+        <mxCell id="deploy-video" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#ED7100;strokeWidth=2;verticalAlign=top;align=center;spacingTop=5;fontSize=12;fontStyle=1;fontColor=#232F3E;" value="ops-service" vertex="1">
           <mxGeometry height="75" width="140" x="1132" y="398" as="geometry" />
         </mxCell>
         <mxCell id="pod-video-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#ED7100;strokeWidth=1;fontSize=11;fontColor=#232F3E;" value="Pod" vertex="1">

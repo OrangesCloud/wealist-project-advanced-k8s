@@ -6,7 +6,7 @@ weAlist의 Kubernetes 플랫폼 아키텍처입니다.
 
 ## Cluster Overview
 
-![EKS Cluster Architecture](../images/wealist_k8s_cluster.png)
+![EKS Cluster Architecture](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_k8s_cluster.png)
 
 ### Node Configuration
 
@@ -58,7 +58,7 @@ weAlist의 Kubernetes 플랫폼 아키텍처입니다.
 
 ## Workload Architecture
 
-![Kubernetes Workloads](../images/wealist_k8s_workloads.png)
+![Kubernetes Workloads](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_k8s_workloads.png)
 
 ### Service Ports
 
@@ -374,8 +374,8 @@ readinessProbe:
 
 ## Related Pages
 
-- [Architecture Overview](Architecture.md)
-- [AWS Architecture](Architecture-AWS.md)
-- [Security (VPC)](Architecture-VPC.md)
-- [CI/CD Pipeline](Architecture-CICD.md)
-- [Monitoring Stack](Architecture-Monitoring.md)
+- [Architecture Overview](Architecture)
+- [AWS Architecture](Architecture-AWS)
+- [Security (VPC)](Architecture-VPC)
+- [CI/CD Pipeline](Architecture-CICD)
+- [Monitoring Stack](Architecture-Monitoring)

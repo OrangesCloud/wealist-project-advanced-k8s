@@ -6,7 +6,7 @@ weAlist의 비즈니스 플로우입니다.
 
 ## Business Flow Diagram
 
-![Business Flow](../images/wealist_business.png)
+![Business Flow](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_business.png)
 
 ---
 
@@ -86,5 +86,5 @@ weAlist의 비즈니스 플로우입니다.
 
 ## Related Pages
 
-- [Requirements](Requirements.md)
-- [Architecture Overview](Architecture.md)
+- [Requirements](Requirements)
+- [Architecture Overview](Architecture)

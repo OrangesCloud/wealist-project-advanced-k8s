@@ -6,15 +6,15 @@ weAlist의 전체 시스템 아키텍처입니다.
 
 ## AWS Architecture (대표)
 
-![AWS Architecture](../images/wealist_aws_arch_v2.png)
+![AWS Architecture](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_aws_arch_v2.png)
 
-> AWS 인프라 상세: [Architecture-AWS](Architecture-AWS.md)
+> AWS 인프라 상세: [Architecture-AWS](Architecture-AWS)
 
 ---
 
 ## Microservices Architecture
 
-![Microservices](../images/wealist_microservices.png)
+![Microservices](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_microservices.png)
 
 ### 서비스 구성
 
@@ -26,15 +26,15 @@ weAlist의 전체 시스템 아키텍처입니다.
 | **chat-service** | Go + Gin | 8001 | 실시간 메시징 (WebSocket) |
 | **noti-service** | Go + Gin | 8002 | 푸시 알림 (SSE) |
 | **storage-service** | Go + Gin | 8003 | 파일 스토리지 (S3/MinIO) |
-| **frontend** | React + Vite | 3000 | Web UI |
+| **ops-service** | Go + Gin | 8004 | 운영 대시보드 (메트릭, 로그 조회) |
 
 ---
 
 ## Kubernetes Workloads
 
-![K8s Workloads](../images/wealist_k8s_workloads.png)
+![K8s Workloads](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_k8s_workloads.png)
 
-> K8s 플랫폼 상세: [Architecture-K8s](Architecture-K8s.md)
+> K8s 플랫폼 상세: [Architecture-K8s](Architecture-K8s)
 
 ---
 
@@ -44,46 +44,40 @@ weAlist의 전체 시스템 아키텍처입니다.
 |-----------|------------|-------------|
 | **Database** | PostgreSQL 17 | 6개 DB (서비스별 분리) |
 | **Cache** | Redis 7.2 | 캐시, 토큰 저장소 |
-| **Object Storage** | MinIO | S3 호환 스토리지 |
-| **Video** | LiveKit + Coturn | WebRTC SFU, TURN/STUN |
-| **API Gateway** | NGINX Ingress | 라우팅, TLS 종료 |
-| **Monitoring** | Prometheus + Loki + Grafana | 메트릭/로그/대시보드 |
+| **Object Storage** | S3 / MinIO | 파일 스토리지 |
+| **API Gateway** | Istio Gateway API | HTTPRoute 기반 라우팅 |
+| **Service Mesh** | Istio 1.24.0 | mTLS, AuthorizationPolicy |
+| **Monitoring** | Prometheus + Grafana + Loki + OTEL + Tempo | 메트릭/로그/트레이싱 |
 
 ---
 
 ## Service Communication
 
-```
-┌─────────────┐
-│   Client    │
-└──────┬──────┘
-       │ HTTPS
-       ▼
-┌─────────────┐
-│   NGINX     │ ─── TLS Termination
-│   Ingress   │
-└──────┬──────┘
-       │
-       ├── /api/auth     → auth-service:8080
-       ├── /api/users    → user-service:8081
-       ├── /api/boards   → board-service:8000
-       ├── /api/chats    → chat-service:8001
-       ├── /api/notifications → noti-service:8002
-       ├── /api/storage  → storage-service:8003
-       └── /ws/*         → WebSocket proxy
-```
+![Service Communication](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_service_communication.drawio.svg)
+
+| Path | Service | Port |
+|------|---------|------|
+| `/svc/auth/*` | auth-service | 8080 |
+| `/svc/user/*` | user-service | 8081 |
+| `/svc/board/*` | board-service | 8000 |
+| `/svc/chat/*` | chat-service | 8001 |
+| `/svc/noti/*` | noti-service | 8002 |
+| `/svc/storage/*` | storage-service | 8003 |
+| `/svc/ops/*` | ops-service | 8004 |
+| `/*` | frontend (CloudFront) | - |
 
 ### Internal Communication
 
-- **External**: JWT Bearer token in `Authorization` header
-- **Internal**: Services call each other via `/internal/*` endpoints
+- **External**: JWT Bearer token in `Authorization` header (Istio RequestAuthentication 검증)
+- **Internal**: mTLS로 암호화, AuthorizationPolicy로 접근 제어
+- **Service Discovery**: Kubernetes DNS (`{service}.{namespace}.svc.cluster.local`)
 
 ---
 
 ## Related Pages
 
-- [AWS Architecture](Architecture-AWS.md)
-- [Kubernetes Architecture](Architecture-K8s.md)
-- [CI/CD Pipeline](Architecture-CICD.md)
-- [Security (VPC)](Architecture-VPC.md)
-- [Monitoring Stack](Architecture-Monitoring.md)
+- [AWS Architecture](Architecture-AWS)
+- [Kubernetes Architecture](Architecture-K8s)
+- [CI/CD Pipeline](Architecture-CICD)
+- [Security (VPC)](Architecture-VPC)
+- [Monitoring Stack](Architecture-Monitoring)

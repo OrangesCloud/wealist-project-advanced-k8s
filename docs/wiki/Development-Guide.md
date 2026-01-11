@@ -226,5 +226,5 @@ kubectl logs deploy/board-service -n wealist-kind-local --previous
 
 ## Related Pages
 
-- [Getting Started](Getting-Started.md)
-- [Architecture Overview](Architecture.md)
+- [Getting Started](Getting-Started)
+- [Architecture Overview](Architecture)

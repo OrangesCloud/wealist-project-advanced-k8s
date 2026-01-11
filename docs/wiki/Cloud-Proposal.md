@@ -23,9 +23,9 @@ weAlist는 AWS 기반 클라우드 네이티브 아키텍처를 채택하여 높
 ### Compute
 | Service | AWS Resource | Spec |
 |---------|--------------|------|
-| Kubernetes | EKS | 1.28+ |
-| Worker Nodes | EC2 (m5.large) | 3-6 nodes |
-| Auto Scaling | Cluster Autoscaler | Min 3, Max 10 |
+| Kubernetes | EKS | 1.34 |
+| Worker Nodes | EC2 (t3.medium) | Managed Node Groups |
+| Auto Scaling | Cluster Autoscaler + Karpenter | 자동 스케일링 |
 
 ### Database
 | Service | AWS Resource | Spec |
@@ -86,5 +86,5 @@ weAlist는 AWS 기반 클라우드 네이티브 아키텍처를 채택하여 높
 
 ## Related Pages
 
-- [Requirements](Requirements.md)
-- [AWS Architecture](Architecture-AWS.md)
+- [Requirements](Requirements)
+- [AWS Architecture](Architecture-AWS)

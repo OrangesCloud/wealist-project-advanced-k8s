@@ -102,5 +102,5 @@ weAlist 프로젝트 팀 역할 및 진행 상황입니다.
 
 ## Related Pages
 
-- [Getting Started](Getting-Started.md)
-- [ADR](ADR.md)
+- [Getting Started](Getting-Started)
+- [ADR](ADR)

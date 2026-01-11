@@ -125,6 +125,6 @@ kubectl exec -it deploy/board-service -n wealist-kind-local -- \
 
 ## Next Steps
 
-1. [Development Guide](Development-Guide.md) - 개발 환경 설정
-2. [Architecture Overview](Architecture.md) - 시스템 이해
-3. [ADR](ADR.md) - 아키텍처 결정 배경
+1. [Development Guide](Development-Guide) - 개발 환경 설정
+2. [Architecture Overview](Architecture) - 시스템 이해
+3. [ADR](ADR) - 아키텍처 결정 배경

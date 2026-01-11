@@ -6,7 +6,7 @@ weAlist의 모니터링 및 로깅 아키텍처입니다.
 
 ## Monitoring Architecture
 
-![Monitoring Stack](../images/wealist_monitoring.png)
+![Monitoring Stack](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_monitoring.png)
 
 ---
 
@@ -102,5 +102,5 @@ Grafana (Query)
 
 ## Related Pages
 
-- [Architecture Overview](Architecture.md)
+- [Architecture Overview](Architecture)
 - [ADR-005: Prometheus + Loki](ADR#adr-005-prometheus--loki-모니터링)

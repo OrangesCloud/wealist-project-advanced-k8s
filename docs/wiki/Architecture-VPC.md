@@ -6,7 +6,7 @@ weAlist의 네트워크 및 보안 아키텍처입니다.
 
 ## Traffic Flow
 
-![Traffic Flow](../images/wealist_vpc_security_aws-Traffic%20Flow.png)
+![Traffic Flow](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_vpc_security_aws-Traffic%20Flow.png)
 
 ### Traffic Flow Reference
 
@@ -24,7 +24,7 @@ weAlist의 네트워크 및 보안 아키텍처입니다.
 
 ## Security Groups
 
-![Security Groups](../images/wealist_vpc_security_aws-Security%20Groups.png)
+![Security Groups](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_vpc_security_aws-Security%20Groups.png)
 
 ### Security Group Rules
 
@@ -111,5 +111,5 @@ RDS/ElastiCache (Private Subnet - DB)
 
 ## Related Pages
 
-- [Architecture Overview](Architecture.md)
-- [AWS Architecture](Architecture-AWS.md)
+- [Architecture Overview](Architecture)
+- [AWS Architecture](Architecture-AWS)

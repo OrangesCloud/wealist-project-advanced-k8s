@@ -43,11 +43,6 @@ weAlist 요구사항 정의서입니다.
 - 폴더 관리
 - 공유 링크
 
-### FR-007: 영상통화
-- 1:1/그룹 통화
-- 화면 공유
-- 녹화
-
 ---
 
 ## Non-Functional Requirements
@@ -76,5 +71,5 @@ weAlist 요구사항 정의서입니다.
 
 ## Related Pages
 
-- [Cloud Proposal](Cloud-Proposal.md)
-- [Architecture Overview](Architecture.md)
+- [Cloud Proposal](Cloud-Proposal)
+- [Architecture Overview](Architecture)
