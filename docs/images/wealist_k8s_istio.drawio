@@ -1,0 +1,234 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.0 Chrome/140.0.7339.249 Electron/38.7.2 Safari/537.36" version="29.3.0">
+  <diagram name="Istio Service Mesh Architecture" id="istio-mesh">
+    <mxGraphModel dx="629" dy="621" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="900" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=none;" value="" vertex="1">
+          <mxGeometry height="790" width="1500" as="geometry" />
+        </mxCell>
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=22;fontStyle=1;fontColor=#232F3E;" value="weAlist - Istio Service Mesh (Sidecar Mode v1.28.2)" vertex="1">
+          <mxGeometry height="40" width="550" x="475" y="15" as="geometry" />
+        </mxCell>
+        <mxCell id="istio-system-ns" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F4FC;strokeColor=#466BB0;strokeWidth=2;dashed=1;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontSize=14;fontStyle=1;fontColor=#466BB0;" value="istio-system namespace" vertex="1">
+          <mxGeometry height="220" width="720" x="60" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="istiod" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#466BB0;strokeColor=#466BB0;strokeWidth=2;fontSize=14;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=top;spacingTop=10;" value="istiod (Control Plane)" vertex="1">
+          <mxGeometry height="150" width="280" x="90" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="istiod-pilot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#466BB0;strokeWidth=1;fontSize=11;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Pilot&#xa;(Service Discovery)" vertex="1">
+          <mxGeometry height="45" width="120" x="110" y="155" as="geometry" />
+        </mxCell>
+        <mxCell id="istiod-citadel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#466BB0;strokeWidth=1;fontSize=11;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Citadel&#xa;(Certificate Mgmt)" vertex="1">
+          <mxGeometry height="45" width="120" x="240" y="155" as="geometry" />
+        </mxCell>
+        <mxCell id="istiod-galley" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#466BB0;strokeWidth=1;fontSize=11;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Galley&#xa;(Config Validation)" vertex="1">
+          <mxGeometry height="45" width="120" x="110" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="istiod-webhook" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#466BB0;strokeWidth=1;fontSize=11;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Webhook&#xa;(Sidecar Injection)" vertex="1">
+          <mxGeometry height="45" width="120" x="240" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="gateway" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#466BB0;strokeColor=#466BB0;strokeWidth=2;fontSize=13;fontStyle=1;fontColor=#FFFFFF;align=center;verticalAlign=middle;" value="Istio Ingress Gateway&#xa;(Envoy Proxy)" vertex="1">
+          <mxGeometry height="80" width="200" x="430" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="kiali" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9C27B0;strokeColor=#9C27B0;strokeWidth=1;fontSize=11;fontColor=#FFFFFF;fontStyle=1;align=center;verticalAlign=middle;" value="Kiali&#xa;(Mesh Dashboard)" vertex="1">
+          <mxGeometry height="50" width="110" x="650" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="jaeger" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9C27B0;strokeColor=#9C27B0;strokeWidth=1;fontSize=11;fontColor=#FFFFFF;fontStyle=1;align=center;verticalAlign=middle;" value="Jaeger/Tempo&#xa;(Tracing)" vertex="1">
+          <mxGeometry height="50" width="110" x="650" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="wealist-ns" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#326CE5;strokeWidth=2;dashed=1;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontSize=14;fontStyle=1;fontColor=#326CE5;" value="wealist-prod namespace (istio-injection=enabled)" vertex="1">
+          <mxGeometry height="240" width="1380" x="60" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;strokeWidth=2;verticalAlign=top;align=center;spacingTop=8;fontSize=12;fontStyle=1;fontColor=#232F3E;" value="auth-service Pod" vertex="1">
+          <mxGeometry height="130" width="200" x="90" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-auth-app" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E4D8C;strokeColor=#1E4D8C;strokeWidth=1;fontSize=10;fontColor=#FFFFFF;fontStyle=1;align=center;verticalAlign=middle;" value="Spring Boot&#xa;:8080" vertex="1">
+          <mxGeometry height="50" width="80" x="105" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-auth-sidecar" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#466BB0;strokeColor=#466BB0;strokeWidth=1;fontSize=10;fontColor=#FFFFFF;fontStyle=1;align=center;verticalAlign=middle;" value="Envoy&#xa;Sidecar" vertex="1">
+          <mxGeometry height="50" width="80" x="195" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-auth-mtls" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=9;fontColor=#4CAF50;fontStyle=1;" value="🔒 mTLS" vertex="1">
+          <mxGeometry height="15" width="80" x="195" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-user" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;strokeWidth=2;verticalAlign=top;align=center;spacingTop=8;fontSize=12;fontStyle=1;fontColor=#232F3E;" value="user-service Pod" vertex="1">
+          <mxGeometry height="130" width="200" x="320" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-user-app" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00ADD8;strokeColor=#00ADD8;strokeWidth=1;fontSize=10;fontColor=#FFFFFF;fontStyle=1;align=center;verticalAlign=middle;" value="Go Service&#xa;:8081" vertex="1">
+          <mxGeometry height="50" width="80" x="335" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-user-sidecar" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#466BB0;strokeColor=#466BB0;strokeWidth=1;fontSize=10;fontColor=#FFFFFF;fontStyle=1;align=center;verticalAlign=middle;" value="Envoy&#xa;Sidecar" vertex="1">
+          <mxGeometry height="50" width="80" x="425" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-user-mtls" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=9;fontColor=#4CAF50;fontStyle=1;" value="🔒 mTLS" vertex="1">
+          <mxGeometry height="15" width="80" x="425" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-board" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;strokeWidth=2;verticalAlign=top;align=center;spacingTop=8;fontSize=12;fontStyle=1;fontColor=#232F3E;" value="board-service Pod" vertex="1">
+          <mxGeometry height="130" width="200" x="550" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-board-app" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00ADD8;strokeColor=#00ADD8;strokeWidth=1;fontSize=10;fontColor=#FFFFFF;fontStyle=1;align=center;verticalAlign=middle;" value="Go Service&#xa;:8000" vertex="1">
+          <mxGeometry height="50" width="80" x="565" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-board-sidecar" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#466BB0;strokeColor=#466BB0;strokeWidth=1;fontSize=10;fontColor=#FFFFFF;fontStyle=1;align=center;verticalAlign=middle;" value="Envoy&#xa;Sidecar" vertex="1">
+          <mxGeometry height="50" width="80" x="655" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-board-mtls" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=9;fontColor=#4CAF50;fontStyle=1;" value="🔒 mTLS" vertex="1">
+          <mxGeometry height="15" width="80" x="655" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-chat" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;strokeWidth=2;verticalAlign=top;align=center;spacingTop=8;fontSize=12;fontStyle=1;fontColor=#232F3E;" value="chat-service Pod" vertex="1">
+          <mxGeometry height="130" width="200" x="780" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-chat-app" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00ADD8;strokeColor=#00ADD8;strokeWidth=1;fontSize=10;fontColor=#FFFFFF;fontStyle=1;align=center;verticalAlign=middle;" value="Go Service&#xa;:8001 (WS)" vertex="1">
+          <mxGeometry height="50" width="80" x="795" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-chat-sidecar" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#466BB0;strokeColor=#466BB0;strokeWidth=1;fontSize=10;fontColor=#FFFFFF;fontStyle=1;align=center;verticalAlign=middle;" value="Envoy&#xa;Sidecar" vertex="1">
+          <mxGeometry height="50" width="80" x="885" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-chat-mtls" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=9;fontColor=#4CAF50;fontStyle=1;" value="🔒 mTLS" vertex="1">
+          <mxGeometry height="15" width="80" x="885" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="pod-other" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;strokeWidth=1.5;strokeDashPattern=3 3;verticalAlign=middle;align=center;fontSize=11;fontStyle=2;fontColor=#999999;" value="noti, storage,&#xa;ops-service,&#xa;ops-portal, livekit,&#xa;frontend..." vertex="1">
+          <mxGeometry height="130" width="150" x="1010" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="policy-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#FF9800;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=10;spacingTop=8;fontSize=13;fontStyle=1;fontColor=#FF9800;" value="Security Policies (Zero-Trust)" vertex="1">
+          <mxGeometry height="200" width="220" x="1200" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="policy-mtls" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FF9800;strokeWidth=1;fontSize=10;fontColor=#232F3E;align=center;verticalAlign=middle;" value="PeerAuthentication&#xa;mTLS: STRICT" vertex="1">
+          <mxGeometry height="40" width="180" x="1220" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="policy-authz" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FF9800;strokeWidth=1;fontSize=10;fontColor=#232F3E;align=center;verticalAlign=middle;" value="AuthorizationPolicy&#xa;denyAll + allowList" vertex="1">
+          <mxGeometry height="40" width="180" x="1220" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="policy-jwt" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FF9800;strokeWidth=1;fontSize=10;fontColor=#232F3E;align=center;verticalAlign=middle;" value="RequestAuthentication&#xa;JWT from auth-service" vertex="1">
+          <mxGeometry height="40" width="180" x="1220" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="traffic-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#4CAF50;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=10;spacingTop=8;fontSize=13;fontStyle=1;fontColor=#4CAF50;" value="Traffic Management" vertex="1">
+          <mxGeometry height="160" width="440" x="800" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="traffic-vs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4CAF50;strokeWidth=1;fontSize=10;fontColor=#232F3E;align=center;verticalAlign=middle;" value="VirtualService&#xa;/api/svc/* routing&#xa;uriRegexRewrite" vertex="1">
+          <mxGeometry height="55" width="130" x="820" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="traffic-dr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4CAF50;strokeWidth=1;fontSize=10;fontColor=#232F3E;align=center;verticalAlign=middle;" value="DestinationRule&#xa;Load Balancing&#xa;Connection Pool" vertex="1">
+          <mxGeometry height="55" width="130" x="960" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="traffic-gw" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4CAF50;strokeWidth=1;fontSize=10;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Gateway&#xa;HTTP/HTTPS&#xa;Host-based routing" vertex="1">
+          <mxGeometry height="55" width="130" x="1100" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="traffic-retry" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4CAF50;strokeWidth=1;fontSize=10;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Retry/Timeout&#xa;5xx, reset&#xa;perTryTimeout" vertex="1">
+          <mxGeometry height="55" width="130" x="820" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="traffic-canary" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4CAF50;strokeWidth=1;fontSize=10;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Canary (optional)&#xa;stable/canary subsets&#xa;weight-based" vertex="1">
+          <mxGeometry height="55" width="130" x="960" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="traffic-telemetry" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#4CAF50;strokeWidth=1;fontSize=10;fontColor=#232F3E;align=center;verticalAlign=middle;" value="Telemetry&#xa;10% sampling (prod)&#xa;OTEL integration" vertex="1">
+          <mxGeometry height="55" width="130" x="1100" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-istiod-gw" edge="1" parent="1" source="istiod" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#466BB0;endArrow=classic;endSize=8;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="gateway">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="label-xds" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=9;fontColor=#466BB0;fontStyle=1;" value="XDS Config" vertex="1">
+          <mxGeometry height="15" width="60" x="370" y="142.5" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-istiod-pods" edge="1" parent="1" source="istiod" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#466BB0;endArrow=classic;endSize=8;exitX=1.004;exitY=0.866;exitDx=0;exitDy=0;dashed=1;exitPerimeter=0;" target="wealist-ns">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="250" />
+            </Array>
+            <mxPoint x="230" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-inject" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=9;fontColor=#466BB0;fontStyle=1;" value="Sidecar Injection + Certs" vertex="1">
+          <mxGeometry height="15" width="130" x="795" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-gw-pods" edge="1" parent="1" source="gateway" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#4CAF50;endArrow=classic;endSize=8;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="wealist-ns">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="520" y="250" />
+              <mxPoint x="520" y="250" />
+            </Array>
+            <mxPoint x="520" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="label-traffic" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=9;fontColor=#4CAF50;fontStyle=1;" value="Inbound Traffic" vertex="1">
+          <mxGeometry height="15" width="80" x="520" y="255" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-sidecar" edge="1" parent="1" source="pod-auth-sidecar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#466BB0;endArrow=classic;startArrow=classic;endSize=6;startSize=6;" target="pod-user-sidecar">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="260" y="460" />
+              <mxPoint x="440" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-sidecar2" edge="1" parent="1" source="pod-user-sidecar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#466BB0;endArrow=classic;startArrow=classic;endSize=6;startSize=6;" target="pod-board-sidecar">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="490" y="460" />
+              <mxPoint x="670" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge-sidecar3" edge="1" parent="1" source="pod-board-sidecar" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;strokeColor=#466BB0;endArrow=classic;startArrow=classic;endSize=6;startSize=6;" target="pod-chat-sidecar">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="720" y="460" />
+              <mxPoint x="900" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sidecar-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontColor=#466BB0;fontStyle=2;" value="mTLS encrypted (STRICT mode)" vertex="1">
+          <mxGeometry height="15" width="150" x="505" y="462.5" as="geometry" />
+        </mxCell>
+        <mxCell id="env-compare" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#CCCCCC;strokeWidth=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=8;fontSize=12;fontStyle=1;fontColor=#666666;" value="Environment Comparison" vertex="1">
+          <mxGeometry height="180" width="700" x="290" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="env-header" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#232F3E;fontStyle=1;" value="Setting                        │ localhost/dev          │ prod" vertex="1">
+          <mxGeometry height="20" width="650" x="310" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="env-row1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" value="mTLS Mode                      │ PERMISSIVE             │ STRICT" vertex="1">
+          <mxGeometry height="20" width="650" x="310" y="625" as="geometry" />
+        </mxCell>
+        <mxCell id="env-row2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" value="AuthorizationPolicy            │ disabled               │ denyAll + allowList" vertex="1">
+          <mxGeometry height="20" width="650" x="310" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="env-row3" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" value="Telemetry Sampling             │ 100%                   │ 10%" vertex="1">
+          <mxGeometry height="20" width="650" x="310" y="675" as="geometry" />
+        </mxCell>
+        <mxCell id="env-row4" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" value="JWT Validation                 │ Istio + Go parsing     │ Istio + Go parsing" vertex="1">
+          <mxGeometry height="20" width="650" x="310" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="env-row5" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#666666;" value="Service Authorization          │ disabled               │ allowedCallers per service" vertex="1">
+          <mxGeometry height="20" width="650" x="310" y="725" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#CCCCCC;strokeWidth=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=5;fontSize=11;fontStyle=1;fontColor=#666666;" value="Legend" vertex="1">
+          <mxGeometry height="130" width="200" x="1240" y="615" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-istio" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#466BB0;strokeColor=#466BB0;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="Istio" vertex="1">
+          <mxGeometry height="20" width="50" x="1260" y="645" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-go" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00ADD8;strokeColor=#00ADD8;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="Go" vertex="1">
+          <mxGeometry height="20" width="40" x="1320" y="645" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-java" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1E4D8C;strokeColor=#1E4D8C;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="Java" vertex="1">
+          <mxGeometry height="20" width="45" x="1370" y="645" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-k8s" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#326CE5;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="K8s" vertex="1">
+          <mxGeometry height="20" width="40" x="1260" y="675" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-policy" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9800;strokeColor=#FF9800;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="Policy" vertex="1">
+          <mxGeometry height="20" width="50" x="1365" y="675" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-traffic2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4CAF50;strokeColor=#4CAF50;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="Traffic" vertex="1">
+          <mxGeometry height="20" width="50" x="1310" y="675" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-obs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9C27B0;strokeColor=#9C27B0;strokeWidth=1;fontSize=9;fontColor=#FFFFFF;" value="Observability" vertex="1">
+          <mxGeometry height="20" width="70" x="1260" y="705" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-mtls" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=9;fontColor=#4CAF50;fontStyle=1;" value="🔒 = mTLS enabled" vertex="1">
+          <mxGeometry height="20" width="100" x="1335" y="705" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
