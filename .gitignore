@@ -220,3 +220,6 @@ override.tf.json
 terraform/**/terraform.tfvars
 terraform/**/.terraform/**/node_modules/
 **/node_modules/
+
+# Draw.io backup files
+.*drawio.bkp
