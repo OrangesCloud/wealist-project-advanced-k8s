@@ -40,8 +40,6 @@ weAlist의 Kubernetes 플랫폼 아키텍처입니다.
 |------------|------|
 | 15001-15021 | Istio Envoy Proxy |
 | 53 (TCP/UDP) | CoreDNS |
-| 50000-60000 | LiveKit WebRTC |
-| 7881 | LiveKit HTTP |
 
 ---
 
@@ -86,7 +84,7 @@ resource "aws_autoscaling_schedule" "weekday_scale_down" {
 │  ┌──────────────────┐            ┌──────────────────┐        │
 │  │   wealist-dev    │            │   wealist-prod   │        │
 │  │                  │            │                  │        │
-│  │ - 10 Services    │            │ - 10 Services    │        │
+│  │ - 9 Services     │            │ - 9 Services     │        │
 │  │ - In-cluster DB  │            │ - AWS RDS/Redis  │        │
 │  │ - ConfigMaps     │            │ - ExternalSecret │        │
 │  │ - PERMISSIVE mTLS│            │ - STRICT mTLS    │        │
@@ -127,7 +125,7 @@ resource "aws_autoscaling_schedule" "weekday_scale_down" {
 
 ![Kubernetes Workloads](https://raw.githubusercontent.com/OrangesCloud/wealist-project-advanced-k8s/main/docs/images/wealist_k8s_workloads.png)
 
-### Service List (10 Services)
+### Service List (9 Services)
 
 | Service | Tech | Port | 용도 | 비고 |
 |---------|------|------|------|------|
@@ -170,8 +168,8 @@ istio:
         cpu: 100m
         memory: 128Mi
       limits:
-        cpu: 500m
-        memory: 256Mi
+        cpu: 1000m
+        memory: 512Mi
 ```
 
 ### Zero-Trust Security Model

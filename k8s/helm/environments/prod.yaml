@@ -199,8 +199,6 @@ shared:
     S3_PUBLIC_ENDPOINT: "https://cdn.wealist.co.kr"
     S3_BUCKET: "wealist-prod-files-290008131187"
     S3_REGION: "ap-northeast-2"
-    # LiveKit (Video Service)
-    LIVEKIT_WS_URL: "wss://wealist.co.kr/svc/livekit"
     # OAuth2 Redirect URLs
     OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/api/oauth2/callback/google"
     OAUTH2_REDIRECT_URL_ENV: "https://wealist.co.kr/oauth/callback"
@@ -263,7 +261,6 @@ istio:
     hosts:
       - "wealist.co.kr"
       - "api.wealist.co.kr"
-      - "livekit.wealist.co.kr"
       - "argocd.wealist.co.kr"
     tls:
       enabled: false  # NLB에서 TLS termination
@@ -285,7 +282,6 @@ istio:
     hosts:
       - "wealist.co.kr"
       - "api.wealist.co.kr"
-      - "livekit.wealist.co.kr"  # LiveKit WebRTC SFU Server
 
   # VirtualService 설정 (Sidecar mode에서 활성화)
   virtualService:
@@ -293,7 +289,6 @@ istio:
     hosts:
       - "wealist.co.kr"
       - "api.wealist.co.kr"
-      - "livekit.wealist.co.kr"
       - "argocd.wealist.co.kr"
     canary:
       enabled: true  # Enable for Argo Rollouts canary deployment
@@ -331,13 +326,6 @@ istio:
     argocd:
       enabled: true
       host: "argocd.wealist.co.kr"  # 별도 HTTPRoute에서 사용
-    # LiveKit WebRTC SFU Server
-    # - Frontend에서 wss://livekit.wealist.co.kr로 WebSocket 연결
-    livekit:
-      enabled: true
-      hostname: "livekit.wealist.co.kr"
-      serviceName: livekit-livekit-server  # LiveKit Helm 차트 기본 서비스명
-      port: 7880
     # Ops Portal (Admin Dashboard)
     opsPortal:
       enabled: true

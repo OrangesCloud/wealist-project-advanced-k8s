@@ -264,21 +264,6 @@ spec:
       perTryTimeout: 60s
       retryOn: "5xx,reset,connect-failure"
 
-  # LiveKit WebSocket (if available)
-  - match:
-    - uri:
-        prefix: /api/svc/livekit
-    rewrite:
-      uriRegexRewrite:
-        match: "^/api/svc/livekit(.*)$"
-        rewrite: '\1'
-    route:
-    - destination:
-        host: livekit
-        port:
-          number: 7880
-    # WebRTC: disable timeout (Istio 1.28+ requires omitting timeout field)
-
   # ==========================================================================
   # Ops Portal (if enabled) - Admin Dashboard Frontend
   # NOTE: 순서 중요 - /api/ops-portal이 /api/ops보다 먼저 매칭되어야 함
