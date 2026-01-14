@@ -14,7 +14,7 @@
 
 ## Demo
 
-[![Demo Video](https://img.youtube.com/vi/VIDEO_ID_HERE/maxresdefault.jpg)](https://youtu.be/VIDEO_ID_HERE)
+[![Demo Video](https://img.youtube.com/vi/VIDEO_ID_HERE/maxresdefault.jpg)]([https://youtu.be/VIDEO_ID_HERE](https://youtu.be/UTe8f_IYyWs))
 
 > 클릭하면 YouTube에서 시연 영상을 볼 수 있습니다.
 
