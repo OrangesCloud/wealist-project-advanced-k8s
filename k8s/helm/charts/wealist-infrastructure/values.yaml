@@ -181,5 +181,5 @@ ecrTokenRefresher:
   enabled: false  # Enable in dev.yaml
   awsSecretName: "aws-credentials"  # Secret containing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
   secretName: "ecr-secret"  # Name of docker-registry secret to create/update
-  ecrRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
+  ecrRegistry: "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com"
   awsRegion: "ap-northeast-2"

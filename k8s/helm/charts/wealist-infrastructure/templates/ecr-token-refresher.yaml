@@ -69,7 +69,7 @@ spec:
                 - name: AWS_REGION
                   value: {{ .Values.ecrTokenRefresher.awsRegion | default "ap-northeast-2" }}
                 - name: ECR_REGISTRY
-                  value: {{ .Values.ecrTokenRefresher.ecrRegistry | default "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com" }}
+                  value: {{ .Values.ecrTokenRefresher.ecrRegistry | default "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com" }}
                 - name: TARGET_NAMESPACE
                   value: {{ .Values.namespace | default "wealist-dev" }}
                 - name: SECRET_NAME

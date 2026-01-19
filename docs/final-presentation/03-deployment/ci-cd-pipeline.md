@@ -110,7 +110,7 @@ make redeploy-all         # 모든 서비스 재시작
 {repository}/{service}:{build-number}-{short-commit-hash}
 
 예시:
-290008131187.dkr.ecr.ap-northeast-2.amazonaws.com/prod/auth-service:96-a04f072
+123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/prod/auth-service:96-a04f072
 ```
 
 | 구성요소 | 설명 |

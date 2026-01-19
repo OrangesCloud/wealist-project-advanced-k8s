@@ -113,5 +113,5 @@ variable "enable_deletion_protection" {
 variable "cloudfront_distribution_id" {
   description = "CloudFront distribution ID for S3 CDN (cdn.wealist.co.kr)"
   type        = string
-  default     = "E11S2DJHTYZKER"
+  default     = "EXXXXXXXXXX"
 }

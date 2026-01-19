@@ -53,7 +53,7 @@ data:
     # 관리자 이메일 목록
     # ===========================================================================
     # 형식: g, email@example.com, role:admin
-    g, chamchi0129@gmail.com, role:admin
-    g, ressk4149@gmail.com, role:admin
-    g, fbaudwo144@gmail.com, role:admin
-    g, 212clab@gmail.com, role:admin
+    g, admin1@example.com, role:admin
+    g, admin2@example.com, role:admin
+    g, admin3@example.com, role:admin
+    g, admin4@example.com, role:admin

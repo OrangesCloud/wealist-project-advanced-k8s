@@ -243,7 +243,7 @@ jobs:
       - name: Send Discord notification - Success
         if: needs.deploy.result == 'success'
         env:
-          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1457744189000257671/5k1vpbTuJY9fOVYiRCiZ7E3hzAiD_VK-o8aXcurar2shAJsqmryfXSgTn4A61wY0k72v"
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_FRONTEND }}
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           VERSION="${{ steps.version.outputs.version }}"
@@ -293,7 +293,7 @@ jobs:
       - name: Send Discord notification - Failure
         if: needs.deploy.result == 'failure'
         env:
-          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1457744189000257671/5k1vpbTuJY9fOVYiRCiZ7E3hzAiD_VK-o8aXcurar2shAJsqmryfXSgTn4A61wY0k72v"
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_FRONTEND }}
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
 

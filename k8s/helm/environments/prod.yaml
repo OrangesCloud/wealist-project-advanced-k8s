@@ -18,7 +18,7 @@ global:
   environment: production
   domain: wealist.co.kr
   # ECR Registry URL
-  imageRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
+  imageRegistry: "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com"
   # EKS Pod Identity 사용 - imagePullSecrets 불필요
 imagePullSecrets: []
 podLabels:
@@ -197,7 +197,7 @@ shared:
     S3_ACCESS_KEY: ""  # 빈 값 = IAM Role 사용 (IRSA)
     S3_SECRET_KEY: ""  # 빈 값 = IAM Role 사용 (IRSA)
     S3_PUBLIC_ENDPOINT: "https://cdn.wealist.co.kr"
-    S3_BUCKET: "wealist-prod-files-290008131187"
+    S3_BUCKET: "your-bucket-name"
     S3_REGION: "ap-northeast-2"
     # OAuth2 Redirect URLs
     OAUTH2_CLIENT_REDIRECT_URI: "https://api.wealist.co.kr/api/oauth2/callback/google"
@@ -459,7 +459,7 @@ loki:
   config:
     s3:
       enabled: true
-      bucket: "wealist-prod-loki-logs-290008131187"
+      bucket: "your-loki-bucket"
       region: "ap-northeast-2"
 
 # Promtail - 로그 수집 에이전트 (Alloy로 대체)
@@ -506,7 +506,7 @@ grafana:
       autoLogin: false
       # JMESPath로 Admin 권한 부여 (이메일 목록)
       # 예: contains(['admin@gmail.com', 'dev@company.com'], email) && 'GrafanaAdmin' || 'Viewer'
-      roleAttributePath: "contains(['chamchi0129@gmail.com','ressk4149@gmail.com','fbaudwo144@gmail.com','212clab@gmail.com'], email) && 'GrafanaAdmin' || 'Viewer'"
+      roleAttributePath: "contains(['admin1@example.com','admin2@example.com','admin3@example.com','admin4@example.com'], email) && 'GrafanaAdmin' || 'Viewer'"
       # 수동 역할 할당 유지 (한번 설정하면 OAuth에서 덮어쓰지 않음)
       skipOrgRoleSync: false
   # Note: V4 role-based dashboards are now the default (V1/V2/V3 deprecated)
@@ -666,7 +666,7 @@ tempo:
     backend: s3
     s3:
       enabled: true
-      bucket: "wealist-prod-tempo-traces-290008131187"
+      bucket: "your-tempo-bucket"
       region: "ap-northeast-2"
   # V3: Tempo Metrics Generator (RED 메트릭 자동 생성)
   metricsGenerator:

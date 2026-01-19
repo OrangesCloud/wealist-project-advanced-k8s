@@ -84,7 +84,7 @@ jobs:
     steps:
       - name: Send Discord notification - Build Started
         env:
-          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1455461844826325207/OdeRKNLVYzAMGoxH8mLggCc-BZ7ky5t8ScGE2gD388-bCkcTsnffNlhYG2gGmFpsfEY7"
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_BUILD }}
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           COMMIT_MSG=$(echo '${{ github.event.head_commit.message }}' | head -n 1 | sed 's/"/\\"/g')
@@ -408,7 +408,7 @@ jobs:
       - name: Send Discord notification on success
         if: needs.build-and-push.result == 'success'
         env:
-          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1455461844826325207/OdeRKNLVYzAMGoxH8mLggCc-BZ7ky5t8ScGE2gD388-bCkcTsnffNlhYG2gGmFpsfEY7"
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_BUILD }}
         run: |
           if [ -n "$DISCORD_WEBHOOK" ]; then
             SERVICES='${{ needs.detect-changes.outputs.services }}'
@@ -465,7 +465,7 @@ jobs:
       - name: Send Discord notification on failure
         if: needs.build-and-push.result == 'failure'
         env:
-          DISCORD_WEBHOOK: "https://discord.com/api/webhooks/1455461844826325207/OdeRKNLVYzAMGoxH8mLggCc-BZ7ky5t8ScGE2gD388-bCkcTsnffNlhYG2gGmFpsfEY7"
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_BUILD }}
         run: |
           if [ -n "$DISCORD_WEBHOOK" ]; then
             SERVICES='${{ needs.detect-changes.outputs.services }}'

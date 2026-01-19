@@ -21,7 +21,7 @@ spec:
         - ../../environments/dev.yaml
       parameters:
         - name: global.imageRegistry
-          value: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
+          value: "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com"
         - name: image.repository
           value: "storage-service"
         - name: image.tag

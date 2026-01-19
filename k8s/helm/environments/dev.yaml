@@ -13,7 +13,7 @@ global:
   environment: dev
   domain: dev.wealist.co.kr
   # AWS ECR Registry
-  imageRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
+  imageRegistry: "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com"
 
 # imagePullSecrets (Kind + ECR)
 imagePullSecrets:
@@ -406,7 +406,7 @@ grafana:
       autoLogin: false  # 기본 로그인 폼도 표시 (admin 계정 접근용)
       # 관리자 이메일 → GrafanaAdmin 역할 자동 부여
       # JMESPath 표현식: 이메일이 목록에 있으면 GrafanaAdmin, 아니면 Viewer
-      roleAttributePath: "contains(['chamchi0129@gmail.com','ressk4149@gmail.com','fbaudwo144@gmail.com','212clab@gmail.com'], email) && 'GrafanaAdmin' || 'Viewer'"
+      roleAttributePath: "contains(['admin1@example.com','admin2@example.com','admin3@example.com','admin4@example.com'], email) && 'GrafanaAdmin' || 'Viewer'"
       skipOrgRoleSync: false
 
 monitoringIngress:
@@ -483,5 +483,5 @@ ecrTokenRefresher:
   enabled: true
   awsSecretName: "aws-credentials"
   secretName: "ecr-secret"
-  ecrRegistry: "290008131187.dkr.ecr.ap-northeast-2.amazonaws.com"
+  ecrRegistry: "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com"
   awsRegion: "ap-northeast-2"

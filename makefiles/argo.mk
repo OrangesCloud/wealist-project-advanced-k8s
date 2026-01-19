@@ -570,8 +570,8 @@ argo-reset-images: ## [Reset] k8s-deploy-dev 브랜치 이미지 태그를 lates
 
 # GitHub 토큰: 환경변수 또는 AWS Secrets Manager
 argo-add-repo-auto: ## Git 레포 자동 등록 (환경변수 GITHUB_TOKEN 또는 AWS Secrets Manager)
-	@GITHUB_USER=$${GITHUB_USER:-212clab}; \
-	REPO_URL="https://github.com/212clab/wealist-project-advanced-k8s-forked.git"; \
+	@GITHUB_USER=$${GITHUB_USER:-your-docker-id}; \
+	REPO_URL="https://github.com/your-docker-id/wealist-project-advanced-k8s-forked.git"; \
 	if [ -z "$$GITHUB_TOKEN" ]; then \
 		echo "환경변수 GITHUB_TOKEN이 없습니다. AWS Secrets Manager에서 가져옵니다..."; \
 		GITHUB_SECRET=$$(aws secretsmanager get-secret-value \

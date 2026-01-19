@@ -50,7 +50,7 @@ spec:
             service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/healthz/ready"
             service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: "HTTP"
             # TLS Termination at NLB
-            service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:ap-northeast-2:290008131187:certificate/4843a808-fd9a-478a-8419-3d3f06dfd761"
+            service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:ap-northeast-2:123456789012:certificate/your-certificate-id"
             service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
             service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
             # External DNS - Route53 자동 업데이트

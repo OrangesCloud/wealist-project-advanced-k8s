@@ -22,7 +22,7 @@ if [ -z "$DOCKER_HUB_ID" ]; then
     echo "  DOCKER_HUB_ID=your-docker-id ./docker/scripts/docker-hub/build-and-push.sh"
     echo ""
     echo "Example:"
-    echo "  DOCKER_HUB_ID=212clab ./docker/scripts/docker-hub/build-and-push.sh"
+    echo "  DOCKER_HUB_ID=your-docker-id ./docker/scripts/docker-hub/build-and-push.sh"
     exit 1
 fi
 
